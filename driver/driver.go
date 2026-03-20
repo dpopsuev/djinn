@@ -1,0 +1,27 @@
+package driver
+
+import "context"
+
+// SandboxHandle is a string identifier for a sandbox instance.
+type SandboxHandle = string
+
+// DriverConfig holds configuration for creating a driver.
+type DriverConfig struct {
+	Model       string
+	MaxTokens   int
+	Temperature float64
+}
+
+// Message represents a message exchanged between the runtime and an agent.
+type Message struct {
+	Role    string
+	Content string
+}
+
+// Driver is the interface for LLM agent communication.
+type Driver interface {
+	Start(ctx context.Context, sandbox SandboxHandle) error
+	Send(ctx context.Context, msg Message) error
+	Recv(ctx context.Context) <-chan Message
+	Stop(ctx context.Context) error
+}
