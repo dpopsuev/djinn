@@ -15,8 +15,10 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/orchestrator"
+	msbsandbox "github.com/dpopsuev/djinn/sandbox/misbah"
 	sigsvc "github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/testkit/stubs"
+	"github.com/dpopsuev/djinn/tier"
 )
 
 const (
@@ -28,20 +30,22 @@ const (
 func main() {
 	djinnfilePath := flag.String("f", defaultDjinnfile, "path to Djinnfile (JSON)")
 	intentStr := flag.String("intent", "", "intent action (e.g. 'fix:rate limiting bug')")
+	misbahSocket := flag.String("misbah-socket", "", "Misbah daemon socket path (empty = use stubs)")
+	workspace := flag.String("workspace", ".", "workspace root to mount in containers")
 	flag.Parse()
 
 	if *intentStr == "" {
-		fmt.Fprintf(os.Stderr, "usage: djinn -intent <action[:description]> [-f Djinnfile]\n")
+		fmt.Fprintf(os.Stderr, "usage: djinn -intent <action[:description]> [-f Djinnfile] [-misbah-socket path]\n")
 		os.Exit(exitCodeError)
 	}
 
-	if err := run(*djinnfilePath, *intentStr); err != nil {
+	if err := run(*djinnfilePath, *intentStr, *misbahSocket, *workspace); err != nil {
 		fmt.Fprintf(os.Stderr, "djinn: %v\n", err)
 		os.Exit(exitCodeError)
 	}
 }
 
-func run(djinnfilePath, intentStr string) error {
+func run(djinnfilePath, intentStr, misbahSocket, workspace string) error {
 	f, err := os.Open(djinnfilePath)
 	if err != nil {
 		return fmt.Errorf("open djinnfile: %w", err)
@@ -53,14 +57,31 @@ func run(djinnfilePath, intentStr string) error {
 		return err
 	}
 
-	// Wire hexagon with stubs (real Misbah/Claude deferred to TSK-7)
 	bus := sigsvc.NewSignalBus()
 	cordons := broker.NewCordonRegistry()
 	op := stubs.NewStubOperatorPort()
 
+	var createSandbox func(ctx context.Context, scope tier.Scope) (string, error)
+	var destroySandbox func(ctx context.Context, id string) error
+
+	if misbahSocket != "" {
+		// Real Misbah integration
+		sandbox := msbsandbox.New(misbahSocket, workspace)
+		defer sandbox.Close()
+		createSandbox = sandbox.Create
+		destroySandbox = sandbox.Destroy
+		fmt.Fprintf(os.Stderr, "djinn: using Misbah daemon at %s\n", misbahSocket)
+	} else {
+		// Stub mode
+		stubSandbox := stubs.NewStubSandbox()
+		createSandbox = stubSandbox.Create
+		destroySandbox = stubSandbox.Destroy
+		fmt.Fprintf(os.Stderr, "djinn: using stub sandbox (no Misbah daemon)\n")
+	}
+
 	orch := orchestrator.NewSimpleOrchestrator(
-		stubs.NewStubSandbox().Create,
-		stubs.NewStubSandbox().Destroy,
+		createSandbox,
+		destroySandbox,
 		func(cfg driver.DriverConfig) driver.Driver {
 			return stubs.NewStubDriver(driver.Message{
 				Role:    driver.RoleAssistant,
@@ -99,7 +120,6 @@ func run(djinnfilePath, intentStr string) error {
 		Payload: payload,
 	})
 
-	// Wait for result, printing progress
 	for {
 		select {
 		case <-ctx.Done():
