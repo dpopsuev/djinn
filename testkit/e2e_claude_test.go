@@ -48,8 +48,8 @@ func TestE2E_CrossEcosystem_ClaudeInMisbah(t *testing.T) {
 		t.Skipf("Claude Code CLI not on PATH: %v", err)
 	}
 
-	if os.Getenv("ANTHROPIC_API_KEY") == "" {
-		t.Skip("ANTHROPIC_API_KEY not set")
+	if os.Getenv("ANTHROPIC_API_KEY") == "" && os.Getenv("ANTHROPIC_VERTEX_PROJECT_ID") == "" {
+		t.Skip("no Claude auth: set ANTHROPIC_API_KEY or ANTHROPIC_VERTEX_PROJECT_ID")
 	}
 
 	// Create a workspace with a simple Go file to edit
