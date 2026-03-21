@@ -66,6 +66,44 @@ func (s *SandboxPort) Destroy(ctx context.Context, sandboxID string) error {
 	return s.client.ContainerDestroy(ctx, sandboxID)
 }
 
+// List returns all Djinn-managed containers.
+func (s *SandboxPort) List(ctx context.Context) ([]*model.ContainerInfo, error) {
+	resp, err := s.client.ContainerList(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("container list: %w", err)
+	}
+	return resp.Containers, nil
+}
+
+// Status returns the status of a single container.
+func (s *SandboxPort) Status(ctx context.Context, name string) (*model.ContainerInfo, error) {
+	info, err := s.client.ContainerStatus(ctx, name)
+	if err != nil {
+		return nil, fmt.Errorf("container status: %w", err)
+	}
+	return info, nil
+}
+
+// Exec runs a command inside a running container.
+func (s *SandboxPort) Exec(ctx context.Context, name string, cmd []string, timeout int64) (ExecResult, error) {
+	resp, err := s.client.ContainerExec(ctx, name, cmd, timeout)
+	if err != nil {
+		return ExecResult{}, fmt.Errorf("container exec: %w", err)
+	}
+	return ExecResult{
+		ExitCode: resp.ExitCode,
+		Stdout:   resp.Stdout,
+		Stderr:   resp.Stderr,
+	}, nil
+}
+
+// ExecResult holds the output of a command executed inside a container.
+type ExecResult struct {
+	ExitCode int32
+	Stdout   string
+	Stderr   string
+}
+
 // Close releases the underlying daemon client.
 func (s *SandboxPort) Close() {
 	s.client.Close()
