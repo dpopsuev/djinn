@@ -31,6 +31,10 @@ func (f FlagLevel) String() string {
 type Signal struct {
 	Workstream string
 	Level      FlagLevel
-	Message    string
+	Confidence float64   // 0.0-1.0, agent's self-assessed confidence
+	Source     string    // agent ID or watchdog ID
+	Scope      []string  // affected file/package paths
+	Category   string    // "test", "security", "performance", "drift", "budget"
+	Message    string    // human-readable evidence
 	Timestamp  time.Time
 }

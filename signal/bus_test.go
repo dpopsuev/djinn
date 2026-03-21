@@ -87,3 +87,36 @@ func TestSignalBus_ConcurrentSafety(t *testing.T) {
 		t.Fatalf("got %d signals, want 100", got)
 	}
 }
+
+func TestSignalBus_Health(t *testing.T) {
+	bus := NewSignalBus()
+	bus.Emit(Signal{Workstream: "w1", Level: Green, Source: "agent-1"})
+	bus.Emit(Signal{Workstream: "w1", Level: Yellow, Source: "agent-2"})
+	bus.Emit(Signal{Workstream: "w2", Level: Red, Source: "agent-3"})
+
+	health := bus.Health()
+	if len(health) != 2 {
+		t.Fatalf("Health() workstreams = %d, want 2", len(health))
+	}
+	if health["w1"].Level != Yellow {
+		t.Fatalf("w1 level = %v, want Yellow", health["w1"].Level)
+	}
+	if health["w2"].Level != Red {
+		t.Fatalf("w2 level = %v, want Red", health["w2"].Level)
+	}
+}
+
+func TestSignalBus_HealthPerAgent(t *testing.T) {
+	bus := NewSignalBus()
+	bus.Emit(Signal{Workstream: "w1", Level: Green, Source: "agent-1"})
+	bus.Emit(Signal{Workstream: "w1", Level: Red, Source: "agent-2"})
+
+	health := bus.Health()
+	agents := health["w1"].AgentHealth
+	if agents["agent-1"] != Green {
+		t.Fatalf("agent-1 = %v, want Green", agents["agent-1"])
+	}
+	if agents["agent-2"] != Red {
+		t.Fatalf("agent-2 = %v, want Red", agents["agent-2"])
+	}
+}

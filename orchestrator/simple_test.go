@@ -209,3 +209,132 @@ func TestSimpleOrchestrator_Cancel(t *testing.T) {
 		t.Fatal("expected failure event after cancel")
 	}
 }
+
+func TestSimpleOrchestrator_TimeBudget(t *testing.T) {
+	orch := NewSimpleOrchestrator(
+		func(ctx context.Context, scope tier.Scope) (string, error) { return "sb", nil },
+		func(ctx context.Context, id string) error { return nil },
+		func(cfg driver.DriverConfig) driver.Driver {
+			// Driver that blocks until context cancelled
+			ch := make(chan driver.Message)
+			return &stubDriver{recvCh: ch}
+		},
+		func(cfg gate.GateConfig) gate.Gate { return &stubGate{} },
+		func(s signal.Signal) {},
+	)
+
+	plan := WorkPlan{
+		ID: "budget-test",
+		Stages: []Stage{{
+			Name:       "slow",
+			Scope:      tier.Scope{Level: tier.Mod},
+			Prompt:     "work",
+			TimeBudget: 50 * time.Millisecond,
+		}},
+	}
+
+	ch, _ := orch.Execute(context.Background(), plan)
+	var events []Event
+	for e := range ch {
+		events = append(events, e)
+	}
+
+	hasStageFailed := false
+	for _, e := range events {
+		if e.Kind == StageFailed {
+			hasStageFailed = true
+		}
+	}
+	if !hasStageFailed {
+		t.Fatal("expected StageFailed from time budget")
+	}
+}
+
+func TestSimpleOrchestrator_TokenBudget(t *testing.T) {
+	var signals []signal.Signal
+
+	orch := NewSimpleOrchestrator(
+		func(ctx context.Context, scope tier.Scope) (string, error) { return "sb", nil },
+		func(ctx context.Context, id string) error { return nil },
+		func(cfg driver.DriverConfig) driver.Driver {
+			return newStubDriver(
+				driver.Message{Role: "assistant", Content: "msg1"},
+				driver.Message{Role: "assistant", Content: "msg2"},
+				driver.Message{Role: "assistant", Content: "msg3"},
+			)
+		},
+		func(cfg gate.GateConfig) gate.Gate { return &stubGate{} },
+		func(s signal.Signal) { signals = append(signals, s) },
+	)
+
+	plan := WorkPlan{
+		ID: "token-test",
+		Stages: []Stage{{
+			Name:        "chatty",
+			Scope:       tier.Scope{Level: tier.Mod},
+			Prompt:      "work",
+			TokenBudget: 2, // stop after 2 messages
+		}},
+	}
+
+	ch, _ := orch.Execute(context.Background(), plan)
+	var events []Event
+	for e := range ch {
+		events = append(events, e)
+	}
+
+	// Should complete (gate runs after token budget hit)
+	last := events[len(events)-1]
+	if last.Kind != ExecutionDone {
+		t.Fatalf("last event = %v, want ExecutionDone", last.Kind)
+	}
+
+	// Check budget signal was emitted
+	hasBudgetSignal := false
+	for _, s := range signals {
+		if s.Category == "budget" {
+			hasBudgetSignal = true
+		}
+	}
+	if !hasBudgetSignal {
+		t.Fatal("expected budget signal")
+	}
+}
+
+func TestSimpleOrchestrator_Submit(t *testing.T) {
+	orch := NewSimpleOrchestrator(
+		func(ctx context.Context, scope tier.Scope) (string, error) { return "sb", nil },
+		func(ctx context.Context, id string) error { return nil },
+		func(cfg driver.DriverConfig) driver.Driver {
+			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
+		},
+		func(cfg gate.GateConfig) gate.Gate { return &stubGate{} },
+		func(s signal.Signal) {},
+	)
+
+	plan := WorkPlan{
+		ID:     "submit-test",
+		Stages: []Stage{{Name: "code", Scope: tier.Scope{Level: tier.Mod}, Prompt: "code"}},
+	}
+
+	ch, _ := orch.Execute(context.Background(), plan)
+
+	// Submit while running
+	time.Sleep(5 * time.Millisecond)
+	err := orch.Submit(context.Background(), "submit-test", ExternalInput{
+		ExecID:  "submit-test",
+		Payload: map[string]string{"action": "approve"},
+	})
+	// May succeed or fail (execution might be done already)
+	_ = err
+
+	// Drain events
+	for range ch {
+	}
+
+	// Submit to non-existent execution
+	err = orch.Submit(context.Background(), "nonexistent", ExternalInput{})
+	if err == nil {
+		t.Fatal("Submit to non-existent should error")
+	}
+}

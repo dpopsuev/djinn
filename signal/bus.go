@@ -52,6 +52,11 @@ func (b *SignalBus) Signals() []Signal {
 	return out
 }
 
+// Health computes the current workstream health from all recorded signals.
+func (b *SignalBus) Health() map[string]WorkstreamHealth {
+	return ComputeHealth(b.Signals())
+}
+
 // Since returns all signals recorded after the given time.
 func (b *SignalBus) Since(t time.Time) []Signal {
 	b.mu.RLock()

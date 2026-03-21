@@ -8,7 +8,7 @@ import (
 
 func TestAssertCordoned(t *testing.T) {
 	reg := broker.NewCordonRegistry()
-	reg.Set("auth", "broken")
+	reg.Set([]string{"auth"}, "broken", "agent-1")
 	AssertCordoned(t, reg, "auth")
 }
 
@@ -21,10 +21,10 @@ func TestAssertCordonCount(t *testing.T) {
 	reg := broker.NewCordonRegistry()
 	AssertCordonCount(t, reg, 0)
 
-	reg.Set("auth", "r1")
-	reg.Set("payments", "r2")
+	reg.Set([]string{"auth"}, "r1", "agent-1")
+	reg.Set([]string{"payments"}, "r2", "agent-2")
 	AssertCordonCount(t, reg, 2)
 
-	reg.Clear("auth")
+	reg.Clear([]string{"auth"})
 	AssertCordonCount(t, reg, 1)
 }

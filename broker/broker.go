@@ -133,6 +133,8 @@ func (b *Broker) handleAlert(ctx context.Context, alert ari.Alert) {
 	b.bus.Emit(signal.Signal{
 		Workstream: "alert-" + alert.Metric,
 		Level:      signal.Red,
+		Source:     alert.Source,
+		Category:   "performance",
 		Message:    fmt.Sprintf("alert: %s = %.2f", alert.Metric, alert.Value),
 	})
 

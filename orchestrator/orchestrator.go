@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"time"
 
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/gate"
@@ -49,11 +50,13 @@ type Event struct {
 
 // Stage represents a single phase of a work plan.
 type Stage struct {
-	Name   string
-	Scope  tier.Scope
-	Driver driver.DriverConfig
-	Gate   gate.GateConfig
-	Prompt string
+	Name        string
+	Scope       tier.Scope
+	Driver      driver.DriverConfig
+	Gate        gate.GateConfig
+	Prompt      string
+	TimeBudget  time.Duration // 0 = unlimited
+	TokenBudget int           // 0 = unlimited
 }
 
 // WorkPlan describes the full execution plan for an intent.

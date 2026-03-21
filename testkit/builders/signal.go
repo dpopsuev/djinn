@@ -28,6 +28,30 @@ func (b *SignalBuilder) WithLevel(level signal.FlagLevel) *SignalBuilder {
 	return b
 }
 
+// WithConfidence sets the confidence score.
+func (b *SignalBuilder) WithConfidence(c float64) *SignalBuilder {
+	b.s.Confidence = c
+	return b
+}
+
+// WithSource sets the source agent/watchdog ID.
+func (b *SignalBuilder) WithSource(src string) *SignalBuilder {
+	b.s.Source = src
+	return b
+}
+
+// WithScope sets the affected paths.
+func (b *SignalBuilder) WithScope(paths ...string) *SignalBuilder {
+	b.s.Scope = paths
+	return b
+}
+
+// WithCategory sets the signal category.
+func (b *SignalBuilder) WithCategory(cat string) *SignalBuilder {
+	b.s.Category = cat
+	return b
+}
+
 // WithMessage sets the message.
 func (b *SignalBuilder) WithMessage(msg string) *SignalBuilder {
 	b.s.Message = msg

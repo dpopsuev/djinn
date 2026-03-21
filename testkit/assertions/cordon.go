@@ -6,19 +6,19 @@ import (
 	"github.com/dpopsuev/djinn/broker"
 )
 
-// AssertCordoned checks that the given scope is cordoned.
-func AssertCordoned(t *testing.T, reg *broker.CordonRegistry, scope string) {
+// AssertCordoned checks that the given paths overlap with an active cordon.
+func AssertCordoned(t *testing.T, reg *broker.CordonRegistry, paths ...string) {
 	t.Helper()
-	if !reg.Overlaps(scope) {
-		t.Fatalf("scope %q should be cordoned, but is not", scope)
+	if len(reg.Overlaps(paths)) == 0 {
+		t.Fatalf("paths %v should be cordoned, but are not", paths)
 	}
 }
 
-// AssertNotCordoned checks that the given scope is not cordoned.
-func AssertNotCordoned(t *testing.T, reg *broker.CordonRegistry, scope string) {
+// AssertNotCordoned checks that the given paths do not overlap with any active cordon.
+func AssertNotCordoned(t *testing.T, reg *broker.CordonRegistry, paths ...string) {
 	t.Helper()
-	if reg.Overlaps(scope) {
-		t.Fatalf("scope %q should not be cordoned, but is", scope)
+	if len(reg.Overlaps(paths)) > 0 {
+		t.Fatalf("paths %v should not be cordoned, but are", paths)
 	}
 }
 

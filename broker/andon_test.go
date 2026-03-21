@@ -34,7 +34,7 @@ func TestComputeAndon_CordonEscalates(t *testing.T) {
 	health := map[string]signal.WorkstreamHealth{
 		"w1": {Workstream: "w1", Level: signal.Green},
 	}
-	cordons := []Cordon{{Scope: "auth", Reason: "broken"}}
+	cordons := []Cordon{{Scope: []string{"auth"}, Reason: "broken"}}
 	board := ComputeAndon(health, cordons)
 	if board.Level != signal.Red {
 		t.Fatalf("Level = %v, want Red (cordon escalation)", board.Level)
@@ -45,7 +45,7 @@ func TestComputeAndon_CordonNoDowngrade(t *testing.T) {
 	health := map[string]signal.WorkstreamHealth{
 		"w1": {Workstream: "w1", Level: signal.Black},
 	}
-	cordons := []Cordon{{Scope: "auth", Reason: "broken"}}
+	cordons := []Cordon{{Scope: []string{"auth"}, Reason: "broken"}}
 	board := ComputeAndon(health, cordons)
 	if board.Level != signal.Black {
 		t.Fatalf("Level = %v, want Black (cordon should not downgrade)", board.Level)
