@@ -84,7 +84,7 @@ func contractHappyPath(t *testing.T, factory OrchestratorFactory) {
 	}
 
 	last := events[len(events)-1]
-	if last.Kind != ExecutionDone || last.Message != "success" {
+	if last.Kind != ExecutionDone || last.Message != ExecutionSuccess {
 		t.Fatalf("last event = %v/%q, want ExecutionDone/success", last.Kind, last.Message)
 	}
 }

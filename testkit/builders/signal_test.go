@@ -14,7 +14,7 @@ func TestSignalBuilder_Fluent(t *testing.T) {
 		WithConfidence(0.3).
 		WithSource("agent-1").
 		WithScope("auth/middleware.go", "auth/handler.go").
-		WithCategory("security").
+		WithCategory(signal.CategorySecurity).
 		WithMessage("tests failing").
 		WithTimestamp(now).
 		Build()
@@ -34,8 +34,8 @@ func TestSignalBuilder_Fluent(t *testing.T) {
 	if len(s.Scope) != 2 || s.Scope[0] != "auth/middleware.go" {
 		t.Fatalf("Scope = %v, want [auth/middleware.go auth/handler.go]", s.Scope)
 	}
-	if s.Category != "security" {
-		t.Fatalf("Category = %q, want %q", s.Category, "security")
+	if s.Category != signal.CategorySecurity {
+		t.Fatalf("Category = %q, want %q", s.Category, signal.CategorySecurity)
 	}
 	if s.Message != "tests failing" {
 		t.Fatalf("Message = %q, want %q", s.Message, "tests failing")

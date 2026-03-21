@@ -27,6 +27,16 @@ func (f FlagLevel) String() string {
 	}
 }
 
+// Signal categories.
+const (
+	CategoryTest        = "test"
+	CategorySecurity    = "security"
+	CategoryPerformance = "performance"
+	CategoryDrift       = "drift"
+	CategoryBudget      = "budget"
+	CategoryLifecycle   = "lifecycle"
+)
+
 // Signal represents a health or status event emitted by an agent workstream.
 type Signal struct {
 	Workstream string
@@ -34,7 +44,7 @@ type Signal struct {
 	Confidence float64   // 0.0-1.0, agent's self-assessed confidence
 	Source     string    // agent ID or watchdog ID
 	Scope      []string  // affected file/package paths
-	Category   string    // "test", "security", "performance", "drift", "budget"
+	Category   string    // one of Category* constants
 	Message    string    // human-readable evidence
 	Timestamp  time.Time
 }

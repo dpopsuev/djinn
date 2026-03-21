@@ -6,6 +6,11 @@ import (
 	"github.com/dpopsuev/djinn/ari"
 )
 
+const (
+	feedbackStubSource = "feedback-stub"
+	alertLevelCritical = "critical"
+)
+
 // FeedbackStub implements both MetricsPort (driven) and EventIngressPort (driving).
 // This proves the bidirectional MCP pattern: same backend serves both ports.
 type FeedbackStub struct {
@@ -54,10 +59,10 @@ func (f *FeedbackStub) SetMetric(metric string, value float64) {
 
 	if shouldFire {
 		f.alertCh <- ari.Alert{
-			Source: "feedback-stub",
+			Source: feedbackStubSource,
 			Metric: metric,
 			Value:  value,
-			Level:  "critical",
+			Level:  alertLevelCritical,
 		}
 	}
 }

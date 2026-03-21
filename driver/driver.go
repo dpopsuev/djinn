@@ -12,9 +12,15 @@ type DriverConfig struct {
 	Temperature float64
 }
 
+// Message roles.
+const (
+	RoleUser      = "user"
+	RoleAssistant = "assistant"
+)
+
 // Message represents a message exchanged between the runtime and an agent.
 type Message struct {
-	Role    string
+	Role    string // one of Role* constants
 	Content string
 }
 

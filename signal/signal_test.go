@@ -31,7 +31,7 @@ func TestSignal_Construction(t *testing.T) {
 		Confidence: 0.6,
 		Source:     "agent-1",
 		Scope:      []string{"auth/middleware.go"},
-		Category:   "security",
+		Category:   CategorySecurity,
 		Message:    "latency rising",
 		Timestamp:  now,
 	}
@@ -50,8 +50,8 @@ func TestSignal_Construction(t *testing.T) {
 	if len(s.Scope) != 1 || s.Scope[0] != "auth/middleware.go" {
 		t.Fatalf("Scope = %v, want [auth/middleware.go]", s.Scope)
 	}
-	if s.Category != "security" {
-		t.Fatalf("Category = %q, want %q", s.Category, "security")
+	if s.Category != CategorySecurity {
+		t.Fatalf("Category = %q, want %q", s.Category, CategorySecurity)
 	}
 	if s.Message != "latency rising" {
 		t.Fatalf("Message = %q, want %q", s.Message, "latency rising")

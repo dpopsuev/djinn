@@ -2,24 +2,36 @@ package broker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/tier"
 )
+
+const (
+	alertWorkstreamPrefix = "alert-"
+	autoFixIntentPrefix   = "auto-fix-"
+)
+
+// Sentinel errors for Broker operations.
+var ErrWorkstreamNotFound = errors.New("workstream not found or not running")
 
 // Broker is the central hub that composes the orchestrator, signal bus, cordons,
 // and ports. It receives intents, drives orchestration, and reports health.
 type Broker struct {
-	orch     orchestrator.Orchestrator
-	bus      *signal.SignalBus
-	cordons  *CordonRegistry
-	operator OperatorPort
-	alerts   EventIngressPort
-	sandbox  SandboxPort
-	metrics  MetricsPort
+	orch        orchestrator.Orchestrator
+	bus         *signal.SignalBus
+	cordons     *CordonRegistry
+	workstreams *WorkstreamRegistry
+	operator    OperatorPort
+	alerts      EventIngressPort
+	sandbox     SandboxPort
+	metrics     MetricsPort
 
 	planFactory func(ari.Intent) orchestrator.WorkPlan
 
@@ -45,6 +57,7 @@ func NewBroker(cfg BrokerConfig) *Broker {
 		orch:        cfg.Orchestrator,
 		bus:         cfg.Bus,
 		cordons:     cfg.Cordons,
+		workstreams: NewWorkstreamRegistry(),
 		operator:    cfg.Operator,
 		alerts:      cfg.Alerts,
 		sandbox:     cfg.Sandbox,
@@ -54,20 +67,46 @@ func NewBroker(cfg BrokerConfig) *Broker {
 	}
 }
 
-// Start wires up intent and alert listeners. Call in a goroutine.
+// Start wires up intent listeners, alert listeners, and the black-signal auto-cordon.
 func (b *Broker) Start(ctx context.Context) {
 	b.operator.OnIntent(func(intent ari.Intent) {
 		go b.HandleIntent(ctx, intent)
 	})
 
+	// Auto-cordon on Black signals
+	b.bus.OnSignal(func(s signal.Signal) {
+		if s.Level == signal.Black && len(s.Scope) > 0 {
+			b.cordons.Set(s.Scope, s.Message, s.Source)
+		}
+	})
+
 	if b.alerts != nil {
 		go b.listenAlerts(ctx)
 	}
+
+	go b.forwardPermissions(ctx)
 }
 
 // HandleIntent processes a single intent: build plan, execute, relay events.
 func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 	plan := b.planFactory(intent)
+
+	// Collect scopes from the plan
+	scopes := make([]tier.Scope, len(plan.Stages))
+	for i, s := range plan.Stages {
+		scopes[i] = s.Scope
+	}
+
+	// Register workstream
+	b.workstreams.Register(&WorkstreamInfo{
+		ID:        plan.ID,
+		IntentID:  intent.ID,
+		Action:    intent.Action,
+		Status:    WorkstreamRunning,
+		Scopes:    scopes,
+		Health:    signal.Green,
+		StartedAt: time.Now(),
+	})
 
 	execCtx, cancel := context.WithCancel(ctx)
 	b.mu.Lock()
@@ -82,6 +121,7 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 
 	ch, err := b.orch.Execute(execCtx, plan)
 	if err != nil {
+		b.workstreams.Complete(plan.ID, WorkstreamFailed)
 		b.operator.EmitResult(ari.Result{
 			IntentID: intent.ID,
 			Success:  false,
@@ -101,7 +141,13 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 	board := ComputeAndon(health, b.cordons.Active())
 	b.operator.EmitAndon(board)
 
-	success := lastEvent.Kind == orchestrator.ExecutionDone && lastEvent.Message == "success"
+	success := lastEvent.Kind == orchestrator.ExecutionDone && lastEvent.Message == orchestrator.ExecutionSuccess
+	if success {
+		b.workstreams.Complete(plan.ID, WorkstreamCompleted)
+	} else {
+		b.workstreams.Complete(plan.ID, WorkstreamFailed)
+	}
+
 	b.operator.EmitResult(ari.Result{
 		IntentID: intent.ID,
 		Success:  success,
@@ -109,10 +155,51 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 	})
 }
 
+// CancelWorkstream cancels a running workstream by its plan ID.
+func (b *Broker) CancelWorkstream(id string) error {
+	b.mu.Lock()
+	cancel, ok := b.running[id]
+	b.mu.Unlock()
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrWorkstreamNotFound, id)
+	}
+	cancel()
+	b.workstreams.Complete(id, WorkstreamCancelled)
+	return nil
+}
+
+// ClearCordon clears cordons overlapping the given paths.
+func (b *Broker) ClearCordon(paths []string) {
+	b.cordons.Clear(paths)
+}
+
 // Andon computes the current Andon board.
 func (b *Broker) Andon() AndonBoard {
 	health := signal.ComputeHealth(b.bus.Signals())
 	return ComputeAndon(health, b.cordons.Active())
+}
+
+// Workstreams returns the workstream registry.
+func (b *Broker) Workstreams() *WorkstreamRegistry {
+	return b.workstreams
+}
+
+func (b *Broker) forwardPermissions(ctx context.Context) {
+	ch := b.operator.PermissionResponses()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case resp, ok := <-ch:
+			if !ok {
+				return
+			}
+			_ = b.orch.Submit(ctx, resp.ExecID, orchestrator.ExternalInput{
+				ExecID:  resp.ExecID,
+				Payload: map[string]string{"approved": fmt.Sprintf("%t", resp.Approved)},
+			})
+		}
+	}
 }
 
 func (b *Broker) listenAlerts(ctx context.Context) {
@@ -131,16 +218,15 @@ func (b *Broker) listenAlerts(ctx context.Context) {
 
 func (b *Broker) handleAlert(ctx context.Context, alert ari.Alert) {
 	b.bus.Emit(signal.Signal{
-		Workstream: "alert-" + alert.Metric,
+		Workstream: alertWorkstreamPrefix + alert.Metric,
 		Level:      signal.Red,
 		Source:     alert.Source,
-		Category:   "performance",
+		Category:   signal.CategoryPerformance,
 		Message:    fmt.Sprintf("alert: %s = %.2f", alert.Metric, alert.Value),
 	})
 
-	// Create autonomous fix intent
 	intent := ari.Intent{
-		ID:     "auto-fix-" + alert.Metric,
+		ID:     autoFixIntentPrefix + alert.Metric,
 		Action: "fix",
 		Payload: map[string]string{
 			"metric": alert.Metric,

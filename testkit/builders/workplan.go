@@ -25,7 +25,7 @@ func (b *WorkPlanBuilder) AddStage(name string, scope tier.Scope, prompt string)
 		Name:   name,
 		Scope:  scope,
 		Driver: driver.DriverConfig{Model: "stub"},
-		Gate:   gate.GateConfig{Name: name + "-gate", Severity: "blocking"},
+		Gate:   gate.GateConfig{Name: name + "-gate", Severity: gate.SeverityBlocking},
 		Prompt: prompt,
 	})
 	return b

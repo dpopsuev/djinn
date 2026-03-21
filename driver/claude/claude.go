@@ -2,11 +2,27 @@ package claude
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/tier"
+)
+
+// Sentinel errors for ClaudeDriver.
+var (
+	ErrAlreadyStarted = errors.New("driver already started")
+	ErrNotRunning     = errors.New("driver not running")
+)
+
+// Environment variable keys set by ContainerEnv.
+const (
+	EnvDjinnTier      = "DJINN_TIER"
+	EnvDjinnScope     = "DJINN_SCOPE"
+	EnvDjinnSandbox   = "DJINN_SANDBOX"
+	EnvAnthropicModel = "ANTHROPIC_MODEL"
+	EnvClaudeMaxTokens = "CLAUDE_MAX_TOKENS"
 )
 
 // ContainerEnv describes the environment configuration for running Claude Code
@@ -65,7 +81,7 @@ func (d *ClaudeDriver) Start(ctx context.Context, sandbox driver.SandboxHandle) 
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.started {
-		return fmt.Errorf("driver already started")
+		return ErrAlreadyStarted
 	}
 	d.sandbox = sandbox
 	d.started = true
@@ -76,14 +92,14 @@ func (d *ClaudeDriver) Send(ctx context.Context, msg driver.Message) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if !d.started || d.stopped {
-		return fmt.Errorf("driver not running")
+		return ErrNotRunning
 	}
 	d.prompt = msg.Content
 
 	// MVP: emit a canned completion and close the channel.
 	// Real implementation would stream from Claude Code process.
 	d.recvCh <- driver.Message{
-		Role:    "assistant",
+		Role:    driver.RoleAssistant,
 		Content: fmt.Sprintf("completed: %s", msg.Content),
 	}
 	close(d.recvCh)
@@ -115,16 +131,15 @@ func (d *ClaudeDriver) ContainerEnv() ContainerEnv {
 		Scope:      d.scope,
 	}
 
-	// Set tier-specific environment
-	env.EnvVars["DJINN_TIER"] = d.scope.Level.String()
-	env.EnvVars["DJINN_SCOPE"] = d.scope.Name
-	env.EnvVars["DJINN_SANDBOX"] = d.sandbox
+	env.EnvVars[EnvDjinnTier] = d.scope.Level.String()
+	env.EnvVars[EnvDjinnScope] = d.scope.Name
+	env.EnvVars[EnvDjinnSandbox] = d.sandbox
 
 	if d.config.Model != "" {
-		env.EnvVars["ANTHROPIC_MODEL"] = d.config.Model
+		env.EnvVars[EnvAnthropicModel] = d.config.Model
 	}
 	if d.config.MaxTokens > 0 {
-		env.EnvVars["CLAUDE_MAX_TOKENS"] = fmt.Sprintf("%d", d.config.MaxTokens)
+		env.EnvVars[EnvClaudeMaxTokens] = fmt.Sprintf("%d", d.config.MaxTokens)
 	}
 
 	return env

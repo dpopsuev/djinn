@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -10,6 +11,17 @@ import (
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/tier"
 )
+
+const sourceOrchestrator = "orchestrator"
+
+// Sentinel errors for SimpleOrchestrator.
+var (
+	ErrExecutionNotFound = errors.New("execution not found")
+	ErrAlreadyStarted    = errors.New("driver already started")
+)
+
+// ExecutionSuccess is the message used for successful execution completion.
+const ExecutionSuccess = "success"
 
 // SimpleOrchestrator executes stages sequentially with factory functions.
 // It avoids importing broker by accepting creation functions directly.
@@ -71,14 +83,13 @@ func (o *SimpleOrchestrator) Execute(ctx context.Context, plan WorkPlan) (<-chan
 				return
 			}
 		}
-		ch <- Event{ExecID: plan.ID, Kind: ExecutionDone, Message: "success"}
+		ch <- Event{ExecID: plan.ID, Kind: ExecutionDone, Message: ExecutionSuccess}
 	}()
 
 	return ch, nil
 }
 
 func (o *SimpleOrchestrator) executeStage(ctx context.Context, execID string, stage Stage, ch chan<- Event) error {
-	// Apply time budget if set
 	stageCtx := ctx
 	if stage.TimeBudget > 0 {
 		var cancel context.CancelFunc
@@ -91,27 +102,24 @@ func (o *SimpleOrchestrator) executeStage(ctx context.Context, execID string, st
 	o.signalEmit(signal.Signal{
 		Workstream: execID,
 		Level:      signal.Green,
-		Source:     "orchestrator",
-		Category:   "lifecycle",
+		Source:     sourceOrchestrator,
+		Category:   signal.CategoryLifecycle,
 		Message:    "stage " + stage.Name + " started",
 	})
 
-	// Create sandbox
 	sandboxID, err := o.createSandbox(stageCtx, stage.Scope)
 	if err != nil {
 		return fmt.Errorf("create sandbox: %w", err)
 	}
-	defer o.destroySandbox(ctx, sandboxID) // use parent ctx for cleanup
+	defer o.destroySandbox(ctx, sandboxID)
 
-	// Start driver
 	d := o.driverFactory(stage.Driver)
 	if err := d.Start(stageCtx, sandboxID); err != nil {
 		return fmt.Errorf("start driver: %w", err)
 	}
-	defer d.Stop(ctx) // use parent ctx for cleanup
+	defer d.Stop(ctx)
 
-	// Send prompt and drain responses
-	if err := d.Send(stageCtx, driver.Message{Role: "user", Content: stage.Prompt}); err != nil {
+	if err := d.Send(stageCtx, driver.Message{Role: driver.RoleUser, Content: stage.Prompt}); err != nil {
 		return fmt.Errorf("send prompt: %w", err)
 	}
 
@@ -124,8 +132,8 @@ func (o *SimpleOrchestrator) executeStage(ctx context.Context, execID string, st
 				o.signalEmit(signal.Signal{
 					Workstream: execID,
 					Level:      signal.Yellow,
-					Source:     "orchestrator",
-					Category:   "budget",
+					Source:     sourceOrchestrator,
+					Category:   signal.CategoryBudget,
 					Message:    fmt.Sprintf("stage %s exceeded time budget %v", stage.Name, stage.TimeBudget),
 				})
 			}
@@ -139,8 +147,8 @@ func (o *SimpleOrchestrator) executeStage(ctx context.Context, execID string, st
 				o.signalEmit(signal.Signal{
 					Workstream: execID,
 					Level:      signal.Yellow,
-					Source:     "orchestrator",
-					Category:   "budget",
+					Source:     sourceOrchestrator,
+					Category:   signal.CategoryBudget,
 					Message:    fmt.Sprintf("stage %s exceeded token budget %d", stage.Name, stage.TokenBudget),
 				})
 				goto gateCheck
@@ -149,7 +157,6 @@ func (o *SimpleOrchestrator) executeStage(ctx context.Context, execID string, st
 	}
 
 gateCheck:
-	// Run gate
 	g := o.gateFactory(stage.Gate)
 	if err := g.Validate(stageCtx, sandboxID); err != nil {
 		ch <- Event{ExecID: execID, Kind: GateFailed, Stage: stage.Name, Message: err.Error()}
@@ -161,8 +168,8 @@ gateCheck:
 	o.signalEmit(signal.Signal{
 		Workstream: execID,
 		Level:      signal.Green,
-		Source:     "orchestrator",
-		Category:   "lifecycle",
+		Source:     sourceOrchestrator,
+		Category:   signal.CategoryLifecycle,
 		Message:    "stage " + stage.Name + " completed",
 	})
 
@@ -175,7 +182,7 @@ func (o *SimpleOrchestrator) Submit(ctx context.Context, execID string, input Ex
 	ch, ok := o.inputs[execID]
 	o.mu.Unlock()
 	if !ok {
-		return fmt.Errorf("execution %q not found", execID)
+		return fmt.Errorf("%w: %s", ErrExecutionNotFound, execID)
 	}
 	select {
 	case ch <- input:
@@ -191,7 +198,7 @@ func (o *SimpleOrchestrator) Cancel(ctx context.Context, execID string) error {
 	cancel, ok := o.execs[execID]
 	o.mu.Unlock()
 	if !ok {
-		return fmt.Errorf("execution %q not found", execID)
+		return fmt.Errorf("%w: %s", ErrExecutionNotFound, execID)
 	}
 	cancel()
 	return nil

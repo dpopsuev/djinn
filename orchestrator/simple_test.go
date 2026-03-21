@@ -106,8 +106,8 @@ func TestSimpleOrchestrator_FourStageHappyPath(t *testing.T) {
 	if last.Kind != ExecutionDone {
 		t.Fatalf("last event = %v, want ExecutionDone", last.Kind)
 	}
-	if last.Message != "success" {
-		t.Fatalf("last message = %q, want %q", last.Message, "success")
+	if last.Message != ExecutionSuccess {
+		t.Fatalf("last message = %q, want %q", last.Message, ExecutionSuccess)
 	}
 }
 
@@ -292,7 +292,7 @@ func TestSimpleOrchestrator_TokenBudget(t *testing.T) {
 	// Check budget signal was emitted
 	hasBudgetSignal := false
 	for _, s := range signals {
-		if s.Category == "budget" {
+		if s.Category == signal.CategoryBudget {
 			hasBudgetSignal = true
 		}
 	}
