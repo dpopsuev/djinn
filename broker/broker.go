@@ -41,14 +41,22 @@ type Broker struct {
 
 // BrokerConfig holds the dependencies for creating a Broker.
 type BrokerConfig struct {
-	Orchestrator orchestrator.Orchestrator
-	Bus          *signal.SignalBus
-	Cordons      *CordonRegistry
-	Operator     OperatorPort
-	Alerts       EventIngressPort
-	Sandbox      SandboxPort
-	Metrics      MetricsPort
-	PlanFactory  func(ari.Intent) orchestrator.WorkPlan
+	Orchestrator  orchestrator.Orchestrator
+	Bus           *signal.SignalBus
+	Cordons       *CordonRegistry
+	Operator      OperatorPort
+	Alerts        EventIngressPort
+	Sandbox       SandboxPort
+	Metrics       MetricsPort
+	PlanFactory   func(ari.Intent) orchestrator.WorkPlan
+	MaxConcurrent int // 0 = unlimited
+}
+
+func withMaxConcurrentFromConfig(n int) []RegistryOption {
+	if n > 0 {
+		return []RegistryOption{WithMaxConcurrent(n)}
+	}
+	return nil
 }
 
 // NewBroker creates a new broker from its dependencies.
@@ -57,7 +65,7 @@ func NewBroker(cfg BrokerConfig) *Broker {
 		orch:        cfg.Orchestrator,
 		bus:         cfg.Bus,
 		cordons:     cfg.Cordons,
-		workstreams: NewWorkstreamRegistry(),
+		workstreams: NewWorkstreamRegistry(withMaxConcurrentFromConfig(cfg.MaxConcurrent)...),
 		operator:    cfg.Operator,
 		alerts:      cfg.Alerts,
 		sandbox:     cfg.Sandbox,
@@ -91,22 +99,32 @@ func (b *Broker) Start(ctx context.Context) {
 func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 	plan := b.planFactory(intent)
 
-	// Collect scopes from the plan
 	scopes := make([]tier.Scope, len(plan.Stages))
 	for i, s := range plan.Stages {
 		scopes[i] = s.Scope
 	}
 
-	// Register workstream
-	b.workstreams.Register(&WorkstreamInfo{
+	wsBus := signal.NewSignalBus()
+	ws := &WorkstreamInfo{
 		ID:        plan.ID,
 		IntentID:  intent.ID,
 		Action:    intent.Action,
 		Status:    WorkstreamRunning,
 		Scopes:    scopes,
 		Health:    signal.Green,
+		Bus:       wsBus,
 		StartedAt: time.Now(),
-	})
+	}
+
+	registered, queuePos := b.workstreams.TryRegister(ws)
+	if !registered {
+		b.operator.EmitResult(ari.Result{
+			IntentID: intent.ID,
+			Success:  false,
+			Summary:  fmt.Sprintf("queued at position %d", queuePos),
+		})
+		return
+	}
 
 	execCtx, cancel := context.WithCancel(ctx)
 	b.mu.Lock()
@@ -153,6 +171,14 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 		Success:  success,
 		Summary:  lastEvent.Message,
 	})
+
+	// Dequeue next pending workstream if any
+	if next := b.workstreams.Dequeue(); next != nil {
+		go b.HandleIntent(ctx, ari.Intent{
+			ID:     next.IntentID,
+			Action: next.Action,
+		})
+	}
 }
 
 // CancelWorkstream cancels a running workstream by its plan ID.

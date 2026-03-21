@@ -57,6 +57,19 @@ func (b *SignalBus) Health() map[string]WorkstreamHealth {
 	return ComputeHealth(b.Signals())
 }
 
+// ForWorkstream returns all signals for a specific workstream.
+func (b *SignalBus) ForWorkstream(workstream string) []Signal {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	var out []Signal
+	for _, s := range b.signals {
+		if s.Workstream == workstream {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
 // Since returns all signals recorded after the given time.
 func (b *SignalBus) Since(t time.Time) []Signal {
 	b.mu.RLock()
