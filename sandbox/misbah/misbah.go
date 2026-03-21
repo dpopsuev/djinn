@@ -20,6 +20,8 @@ const (
 	defaultCommand    = "/bin/sh"
 	mountTypeBind     = "bind"
 	mountTypeTmpfs    = "tmpfs"
+	mountOptionRO     = "ro"
+	mountOptionRW     = "rw"
 )
 
 // SandboxPort implements broker.SandboxPort using a Misbah daemon client.
@@ -111,14 +113,14 @@ func (s *SandboxPort) buildSpec(name string, scope tier.Scope) *model.ContainerS
 func mountOptionsForTier(level tier.TierLevel) []string {
 	switch level {
 	case tier.Eco:
-		return []string{"bind", "ro"}
+		return []string{mountTypeBind, mountOptionRO}
 	case tier.Sys:
-		return []string{"bind", "ro"}
+		return []string{mountTypeBind, mountOptionRO}
 	case tier.Com:
-		return []string{"bind", "rw"}
+		return []string{mountTypeBind, mountOptionRW}
 	case tier.Mod:
-		return []string{"bind", "rw"}
+		return []string{mountTypeBind, mountOptionRW}
 	default:
-		return []string{"bind", "ro"}
+		return []string{mountTypeBind, mountOptionRO}
 	}
 }

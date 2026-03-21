@@ -3,7 +3,8 @@ package composition
 import "fmt"
 
 const (
-	templateScopeVar = "${task.scope}"
+	templateScopeVar     = "${task.scope}"
+	defaultWorkspacePath = "/workspace"
 )
 
 // Sentinel error for template lookup.
@@ -16,7 +17,7 @@ func TemplateSolo() Formation {
 		Units: []Unit{
 			{
 				Role:  RoleExecutor,
-				Scope: UnitScope{RO: []string{"/workspace"}, RW: []string{templateScopeVar}},
+				Scope: UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar}},
 				TerminatesWhen: Termination{Type: TermTestsPass, Target: templateScopeVar},
 			},
 		},
@@ -35,7 +36,7 @@ func TemplateDuo() Formation {
 			},
 			{
 				Role:  RoleExecutor,
-				Scope: UnitScope{RO: []string{"/workspace"}, RW: []string{templateScopeVar}},
+				Scope: UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar}},
 				TerminatesWhen: Termination{Type: TermTestsPass, Target: templateScopeVar},
 			},
 		},
@@ -57,17 +58,17 @@ func TemplateSquad() Formation {
 			},
 			{
 				Role:  RoleExecutor,
-				Scope: UnitScope{RO: []string{"/workspace"}, RW: []string{templateScopeVar + "/area-1"}},
+				Scope: UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar + "/area-1"}},
 				TerminatesWhen: Termination{Type: TermTestsPass},
 			},
 			{
 				Role:  RoleExecutor,
-				Scope: UnitScope{RO: []string{"/workspace"}, RW: []string{templateScopeVar + "/area-2"}},
+				Scope: UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar + "/area-2"}},
 				TerminatesWhen: Termination{Type: TermTestsPass},
 			},
 			{
 				Role:  RoleExecutor,
-				Scope: UnitScope{RO: []string{"/workspace"}, RW: []string{templateScopeVar + "/area-3"}},
+				Scope: UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar + "/area-3"}},
 				TerminatesWhen: Termination{Type: TermTestsPass},
 			},
 		},

@@ -11,7 +11,8 @@ import (
 
 // Sentinel errors for composition.
 var (
-	ErrNoScopes = errors.New("at least one scope is required")
+	ErrNoScopes          = errors.New("at least one scope is required")
+	ErrNoTemplateForBand = errors.New("no template for band")
 )
 
 // Default formation templates per complexity band.
@@ -76,7 +77,7 @@ func (c *Composer) templateForBand(band ComplexityBand) (composition.Formation, 
 	}
 	name, ok := defaultTemplates[band]
 	if !ok {
-		return composition.Formation{}, fmt.Errorf("no template for band %v", band)
+		return composition.Formation{}, fmt.Errorf("%w: %v", ErrNoTemplateForBand, band)
 	}
 	return composition.TemplateByName(name)
 }

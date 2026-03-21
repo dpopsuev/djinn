@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"time"
+
+	"github.com/dpopsuev/djinn/gate"
 )
 
 // Sentinel errors for Djinnfile parsing.
@@ -24,6 +26,10 @@ const (
 	DefaultTimeBudgetCom = 10 * time.Minute
 	DefaultTimeBudgetMod = 5 * time.Minute
 	DefaultModel         = "claude-sonnet-4-6"
+
+	defaultVersion = "1"
+	defaultTier    = "mod"
+	gateSuffix     = "-gate"
 )
 
 // Djinnfile represents the parsed configuration.
@@ -108,20 +114,20 @@ func (df *Djinnfile) validate() error {
 
 func (df *Djinnfile) applyDefaults() {
 	if df.Version == "" {
-		df.Version = "1"
+		df.Version = defaultVersion
 	}
 	if df.Driver.Model == "" {
 		df.Driver.Model = DefaultModel
 	}
 	for i := range df.Stages {
 		if df.Stages[i].Tier == "" {
-			df.Stages[i].Tier = "mod"
+			df.Stages[i].Tier = defaultTier
 		}
 		if df.Stages[i].Gate.Severity == "" {
-			df.Stages[i].Gate.Severity = "blocking"
+			df.Stages[i].Gate.Severity = gate.SeverityBlocking
 		}
 		if df.Stages[i].Gate.Name == "" {
-			df.Stages[i].Gate.Name = df.Stages[i].Name + "-gate"
+			df.Stages[i].Gate.Name = df.Stages[i].Name + gateSuffix
 		}
 		if df.Stages[i].parsedTimeBudget == 0 {
 			df.Stages[i].parsedTimeBudget = defaultTimeBudgetForTier(df.Stages[i].Tier)

@@ -18,6 +18,38 @@ const (
 	RouteEvents      = "/events"
 )
 
+// SSE event type names.
+const (
+	eventTypeProgress   = "progress"
+	eventTypePermission = "permission"
+	eventTypeAndon      = "andon"
+	eventTypeResult     = "result"
+)
+
+// HTTP response status values.
+const (
+	responseAccepted = "accepted"
+	responseCleared  = "cleared"
+)
+
+// HTTP error messages.
+const (
+	errMethodNotAllowed = "method not allowed"
+	errInvalidBody      = "invalid request body"
+	errStreamingUnsupported = "streaming not supported"
+)
+
+// HTTP headers.
+const (
+	headerContentType   = "Content-Type"
+	headerCacheControl  = "Cache-Control"
+	headerConnection    = "Connection"
+	contentTypeJSON     = "application/json"
+	contentTypeSSE      = "text/event-stream"
+	cacheControlNoCache = "no-cache"
+	connectionKeepAlive = "keep-alive"
+)
+
 // Server is an HTTP server that bridges an ARI Runtime to operators.
 // It implements OperatorPort: operators send intents and receive events
 // via HTTP + Server-Sent Events.
@@ -82,22 +114,22 @@ func (s *Server) OnIntent(handler func(Intent)) {
 
 // EmitProgress sends a progress event to connected SSE clients.
 func (s *Server) EmitProgress(event any) {
-	s.emit("progress", event)
+	s.emit(eventTypeProgress, event)
 }
 
 // EmitPermission sends a permission event to connected SSE clients.
 func (s *Server) EmitPermission(payload PermissionPayload) {
-	s.emit("permission", payload)
+	s.emit(eventTypePermission, payload)
 }
 
 // EmitAndon sends an andon event to connected SSE clients.
 func (s *Server) EmitAndon(board any) {
-	s.emit("andon", board)
+	s.emit(eventTypeAndon, board)
 }
 
 // EmitResult sends a result event to connected SSE clients.
 func (s *Server) EmitResult(result Result) {
-	s.emit("result", result)
+	s.emit(eventTypeResult, result)
 }
 
 // PermissionResponses returns the channel for permission responses from operators.
@@ -117,12 +149,12 @@ func (s *Server) emit(eventType string, data any) {
 
 func (s *Server) handleIntent(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, errMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 	var intent Intent
 	if err := json.NewDecoder(r.Body).Decode(&intent); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		http.Error(w, errInvalidBody, http.StatusBadRequest)
 		return
 	}
 
@@ -134,62 +166,62 @@ func (s *Server) handleIntent(w http.ResponseWriter, r *http.Request) {
 		h(intent)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
+	w.Header().Set(headerContentType, contentTypeJSON)
+	json.NewEncoder(w).Encode(map[string]string{"status": responseAccepted})
 }
 
 func (s *Server) handleAndon(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, errMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 	board := s.runtime.Andon()
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, contentTypeJSON)
 	json.NewEncoder(w).Encode(board)
 }
 
 func (s *Server) handleWorkstreams(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, errMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 	ws := s.runtime.ListWorkstreams()
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(headerContentType, contentTypeJSON)
 	json.NewEncoder(w).Encode(ws)
 }
 
 func (s *Server) handleCordonClear(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, errMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 	var req struct {
 		Paths []string `json:"paths"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		http.Error(w, errInvalidBody, http.StatusBadRequest)
 		return
 	}
 	s.runtime.ClearCordon(req.Paths)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "cleared"})
+	w.Header().Set(headerContentType, contentTypeJSON)
+	json.NewEncoder(w).Encode(map[string]string{"status": responseCleared})
 }
 
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, errMethodNotAllowed, http.StatusMethodNotAllowed)
 		return
 	}
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		http.Error(w, errStreamingUnsupported, http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set(headerContentType, contentTypeSSE)
+	w.Header().Set(headerCacheControl, cacheControlNoCache)
+	w.Header().Set(headerConnection, connectionKeepAlive)
 	flusher.Flush()
 
 	ctx := r.Context()
