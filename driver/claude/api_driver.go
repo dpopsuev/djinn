@@ -75,6 +75,11 @@ func WithTools(reg *builtin.Registry) APIDriverOption {
 	return func(d *APIDriver) { d.tools = reg }
 }
 
+// WithAPIURL overrides the API endpoint (for testing).
+func WithAPIURL(url string) APIDriverOption {
+	return func(d *APIDriver) { d.apiURL = url }
+}
+
 // NewAPIDriver creates a Claude Messages API driver.
 func NewAPIDriver(config driver.DriverConfig, opts ...APIDriverOption) (*APIDriver, error) {
 	d := &APIDriver{
@@ -84,10 +89,12 @@ func NewAPIDriver(config driver.DriverConfig, opts ...APIDriverOption) (*APIDriv
 		opt(d)
 	}
 
-	// Resolve API endpoint and key
+	// Resolve API endpoint and key (don't override if already set by option)
 	if key := os.Getenv(envAPIKey); key != "" {
 		d.apiKey = key
-		d.apiURL = defaultAPIURL
+		if d.apiURL == "" {
+			d.apiURL = defaultAPIURL
+		}
 	} else if project := os.Getenv(envVertexProject); project != "" {
 		region := os.Getenv(envVertexRegion)
 		if region == "" {

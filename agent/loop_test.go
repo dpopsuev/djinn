@@ -271,3 +271,124 @@ func (h *testHandler) OnToolResult(id, name, output string, _ bool) {
 }
 func (h *testHandler) OnDone(*driver.Usage) { h.doneReceived = true }
 func (h *testHandler) OnError(error)        {}
+
+// --- Full Run() cycle tests ---
+
+func newTestAPIDriver(t *testing.T, handler http.HandlerFunc) *claudedriver.APIDriver {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	os.Setenv("ANTHROPIC_API_KEY", "test-key")
+	t.Cleanup(func() { os.Unsetenv("ANTHROPIC_API_KEY") })
+
+	d, err := claudedriver.NewAPIDriver(
+		driver.DriverConfig{Model: "test-model", MaxTokens: 1024},
+		claudedriver.WithTools(builtin.NewRegistry()),
+		claudedriver.WithAPIURL(srv.URL),
+	)
+	if err != nil {
+		t.Fatalf("NewAPIDriver: %v", err)
+	}
+	if err := d.Start(context.Background(), ""); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	t.Cleanup(func() { d.Stop(context.Background()) })
+	return d
+}
+
+func TestRun_FullCycle_TextOnly(t *testing.T) {
+	d := newTestAPIDriver(t, sseTextResponse("Hello from the agent"))
+
+	sess := session.New("test-run", "test-model", t.TempDir())
+	var handler testHandler
+
+	result, err := Run(context.Background(), Config{
+		Driver:   d,
+		Tools:    builtin.NewRegistry(),
+		Session:  sess,
+		MaxTurns: 5,
+		Approve:  AutoApprove,
+		Handler:  &handler,
+	}, "say hello")
+
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if result != "Hello from the agent" {
+		t.Fatalf("result = %q, want %q", result, "Hello from the agent")
+	}
+	if !handler.doneReceived {
+		t.Fatal("handler should have received done")
+	}
+	if handler.textReceived != "Hello from the agent" {
+		t.Fatalf("handler text = %q", handler.textReceived)
+	}
+	// Session should have 2 entries (user + assistant)
+	if sess.History.Len() != 2 {
+		t.Fatalf("session history = %d, want 2", sess.History.Len())
+	}
+}
+
+func TestRun_ToolApprovalDenied(t *testing.T) {
+	// Mock that returns a tool call
+	toolSSE := fmt.Sprintf(`event: message_start
+data: {"type":"message_start","message":{"id":"msg-1","role":"assistant"}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"call-1","name":"Bash","input":{}}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":5}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+`)
+
+	callCount := 0
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.Header().Set("Content-Type", "text/event-stream")
+		if callCount == 1 {
+			// First call: return tool use
+			fmt.Fprint(w, toolSSE)
+		} else {
+			// Second call (after tool result): return text
+			fmt.Fprint(w, fmt.Sprintf(`event: message_start
+data: {"type":"message_start","message":{"id":"msg-2","role":"assistant"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"OK, tool was denied"}}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+`))
+		}
+	}
+
+	d := newTestAPIDriver(t, handler)
+	sess := session.New("test-denied", "test-model", t.TempDir())
+
+	result, err := Run(context.Background(), Config{
+		Driver:   d,
+		Tools:    builtin.NewRegistry(),
+		Session:  sess,
+		MaxTurns: 5,
+		Approve:  DenyAll, // deny everything
+		Handler:  NilHandler{},
+	}, "run a dangerous command")
+
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	_ = result
+	// Should have completed without crashing despite denied tool
+}
