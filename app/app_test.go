@@ -18,13 +18,35 @@ func TestSessionDir(t *testing.T) {
 	if !filepath.IsAbs(dir) {
 		t.Fatalf("SessionDir not absolute: %q", dir)
 	}
-	home, _ := os.UserHomeDir()
-	if home == "" {
-		t.Skip("no HOME set")
+	if !strings.HasSuffix(dir, "sessions") {
+		t.Fatalf("SessionDir should end with /sessions: %q", dir)
 	}
-	expected := filepath.Join(home, DefaultSessionDir)
-	if dir != expected {
-		t.Fatalf("SessionDir = %q, want %q", dir, expected)
+}
+
+func TestHomeDir_DualPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Neither exists → default to ~/.djinn
+	dir := HomeDir()
+	if !strings.HasSuffix(dir, ".djinn") {
+		t.Fatalf("default should be .djinn, got %q", dir)
+	}
+
+	// Create ~/.config/djinn → should find it
+	configDir := filepath.Join(home, ".config", "djinn")
+	os.MkdirAll(configDir, 0755)
+	dir = HomeDir()
+	if dir != configDir {
+		t.Fatalf("should find .config/djinn, got %q", dir)
+	}
+
+	// Create ~/.djinn → should prefer it
+	djinnDir := filepath.Join(home, ".djinn")
+	os.MkdirAll(djinnDir, 0755)
+	dir = HomeDir()
+	if dir != djinnDir {
+		t.Fatalf("should prefer .djinn over .config/djinn, got %q", dir)
 	}
 }
 

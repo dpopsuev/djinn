@@ -51,16 +51,24 @@ const (
 	DriverOllama = "ollama"
 )
 
-// HomeDir returns the Djinn home directory (~/.djinn).
+// HomeDir returns the Djinn home directory.
+// Checks ~/.djinn first, falls back to ~/.config/djinn, defaults to ~/.djinn for new installs.
 func HomeDir() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, DefaultHomeDir)
+	djinnDir := filepath.Join(home, ".djinn")
+	if _, err := os.Stat(djinnDir); err == nil {
+		return djinnDir
+	}
+	configDir := filepath.Join(home, ".config", "djinn")
+	if _, err := os.Stat(configDir); err == nil {
+		return configDir
+	}
+	return djinnDir // default for new installs
 }
 
 // SessionDir returns the default session directory.
 func SessionDir() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, DefaultSessionDir)
+	return filepath.Join(HomeDir(), "sessions")
 }
 
 // Run is the main entry point. Routes subcommands.

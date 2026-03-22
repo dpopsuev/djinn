@@ -476,6 +476,36 @@ func (m *Model) flushStreamBuffer() {
 	}
 }
 
+// Test accessors — exported for acceptance tests.
+
+// SetTextInput sets the text input value (for testing).
+func (m *Model) SetTextInput(v string) { m.textInput.SetValue(v) }
+
+// SetState sets the model state (for testing).
+func (m *Model) SetState(s State) { m.state = s }
+
+// AppendConversation adds a line to conversation (for testing).
+func (m *Model) AppendConversation(line string) { m.conversation = append(m.conversation, line) }
+
+// StreamBufString returns the stream buffer contents (for testing).
+func (m Model) StreamBufString() string { return m.streamBuf.String() }
+
+// CurrentState returns the current state (for testing).
+func (m Model) CurrentState() State { return m.state }
+
+// TextInputValue returns the text input value (for testing).
+func (m Model) TextInputValue() string { return m.textInput.Value() }
+
+// AddInputHistory adds an entry to input history (for testing).
+func (m *Model) AddInputHistory(s string) { m.inputHistory = append(m.inputHistory, s) }
+
+// Export state constants for acceptance tests.
+const (
+	StateInput        = stateInput
+	StateStreaming     = stateStreaming
+	StateToolApproval = stateToolApproval
+)
+
 func tickCmd() tea.Cmd {
 	return tea.Tick(tickInterval, func(t time.Time) tea.Msg {
 		return TickMsg(t)

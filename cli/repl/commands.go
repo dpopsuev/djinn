@@ -3,6 +3,7 @@ package repl
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -124,7 +125,7 @@ func ExecuteCommand(cmd Command, sess *session.Session) CommandResult {
 		return executeOutput(cmd)
 
 	case cmdConfig:
-		return executeConfig(sess)
+		return executeConfig(cmd, sess)
 
 	case cmdLog:
 		return executeLog(cmd)
@@ -353,11 +354,25 @@ func executeLog(cmd Command) CommandResult {
 	return CommandResult{Output: strings.TrimRight(sb.String(), "\n")}
 }
 
-func executeConfig(sess *session.Session) CommandResult {
+func executeConfig(cmd Command, sess *session.Session) CommandResult {
 	mode := sess.Mode
 	if mode == "" {
 		mode = defaultModeName
 	}
+
+	if len(cmd.Args) > 0 && cmd.Args[0] == "save" {
+		path := "djinn.yaml"
+		if len(cmd.Args) > 1 {
+			path = cmd.Args[1]
+		}
+		content := fmt.Sprintf("driver:\n  name: %s\n  model: %s\nmode: %s\nsession:\n  max_turns: 20\n",
+			sess.Driver, sess.Model, mode)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			return CommandResult{Output: fmt.Sprintf("error saving config: %v", err)}
+		}
+		return CommandResult{Output: fmt.Sprintf("config saved to %s", path)}
+	}
+
 	return CommandResult{
 		Output: fmt.Sprintf("driver: %s\nmodel: %s\nmode: %s\nturns: %d\nworkdir: %s",
 			sess.Driver, sess.Model, mode, sess.History.Len(), sess.WorkDir),
