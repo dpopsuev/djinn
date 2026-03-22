@@ -163,7 +163,9 @@ func RunREPL(args []string, stderr io.Writer) error {
 		ws, _ = djinnws.Load(sess.Workspace)
 	}
 	if ws == nil {
-		ws = djinnws.Ephemeral(Getwd())
+		// No workspace specified — empty workspace, no repos, no context.
+		// CWD is NOT a workspace. Repos come from the manifest.
+		ws = &djinnws.Workspace{}
 	}
 
 	// Workspace config overrides

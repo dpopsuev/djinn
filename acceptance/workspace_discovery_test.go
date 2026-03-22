@@ -82,6 +82,35 @@ func TestWorkspace_MemoryFromClaudePath(t *testing.T) {
 	}
 }
 
+func TestWorkspace_MultiMemory_AllReposLoaded(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Create two repos with their own Claude memory
+	djinnDir := filepath.Join(home, "Workspace", "djinn")
+	misbahDir := filepath.Join(home, "Workspace", "misbah")
+	os.MkdirAll(djinnDir, 0755)
+	os.MkdirAll(misbahDir, 0755)
+
+	// Create MEMORY.md for each
+	for _, dir := range []string{djinnDir, misbahDir} {
+		slug := strings.ReplaceAll(dir, "/", "-")
+		memDir := filepath.Join(home, ".claude", "projects", slug, "memory")
+		os.MkdirAll(memDir, 0755)
+		name := filepath.Base(dir)
+		os.WriteFile(filepath.Join(memDir, "MEMORY.md"), []byte("# "+name+" Memory\n"+name+" is important."), 0644)
+	}
+
+	ctx := djinnctx.LoadProjectContext(djinnDir, misbahDir)
+
+	if !strings.Contains(ctx.MemoryMD, "djinn Memory") {
+		t.Fatalf("missing djinn memory in: %q", ctx.MemoryMD)
+	}
+	if !strings.Contains(ctx.MemoryMD, "misbah Memory") {
+		t.Fatalf("missing misbah memory in: %q", ctx.MemoryMD)
+	}
+}
+
 func TestWorkspace_NoMemoryNoError(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	ctx := djinnctx.LoadProjectContext(t.TempDir())

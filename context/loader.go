@@ -143,25 +143,25 @@ func walkUp(dir string, fn func(string) bool) {
 	}
 }
 
-// discoverMemory finds MEMORY.md from Claude Code's project memory path.
+// discoverMemory loads MEMORY.md from ALL workspace repos' Claude project paths.
+// Workspace-scoped: only repos in the workspace manifest are loaded.
 // Claude Code stores memory at: ~/.claude/projects/<slug>/memory/MEMORY.md
-// where slug is the workspace path with slashes replaced by dashes.
 func discoverMemory(dirs []string) string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""
 	}
 
+	var memories []string
 	for _, dir := range dirs {
 		absDir, _ := filepath.Abs(dir)
-		// Claude Code slug: /home/user/Workspace/djinn → -home-user-Workspace-djinn
 		slug := strings.ReplaceAll(absDir, "/", "-")
 		memPath := filepath.Join(home, ".claude", "projects", slug, "memory", "MEMORY.md")
 		if content := readFileIfExists(memPath); content != "" {
-			return content
+			memories = append(memories, content)
 		}
 	}
-	return ""
+	return strings.Join(memories, "\n\n")
 }
 
 func readFileIfExists(path string) string {
