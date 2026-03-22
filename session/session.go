@@ -34,6 +34,7 @@ type Session struct {
 	Model     string    `json:"model"`
 	Mode      string    `json:"mode,omitempty"`
 	WorkDir   string    `json:"work_dir"`
+	WorkDirs  []string  `json:"work_dirs,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	History   *History  `json:"history"`
@@ -50,6 +51,17 @@ func New(id, model, workDir string) *Session {
 		UpdatedAt: now,
 		History:   NewHistory(0), // unlimited by default
 	}
+}
+
+// AllWorkDirs returns WorkDirs if set, otherwise [WorkDir].
+func (s *Session) AllWorkDirs() []string {
+	if len(s.WorkDirs) > 0 {
+		return s.WorkDirs
+	}
+	if s.WorkDir != "" {
+		return []string{s.WorkDir}
+	}
+	return nil
 }
 
 // Append adds a user or assistant entry to the session history.

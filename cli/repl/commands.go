@@ -47,6 +47,7 @@ const (
 	cmdOutput      = "/output"
 	cmdConfig      = "/config"
 	cmdLog         = "/log"
+	cmdWorkspace   = "/workspace"
 )
 
 // Default mode name.
@@ -127,6 +128,9 @@ func ExecuteCommand(cmd Command, sess *session.Session) CommandResult {
 
 	case cmdLog:
 		return executeLog(cmd)
+
+	case cmdWorkspace:
+		return executeWorkspace(cmd, sess)
 
 	case cmdHelp:
 		return CommandResult{Output: helpText()}
@@ -269,6 +273,29 @@ func executePermissions(sess *session.Session) CommandResult {
 	}
 }
 
+func executeWorkspace(cmd Command, sess *session.Session) CommandResult {
+	if len(cmd.Args) == 0 {
+		if len(sess.WorkDirs) == 0 {
+			return CommandResult{Output: fmt.Sprintf("workspace: %s", sess.WorkDir)}
+		}
+		var sb strings.Builder
+		for i, d := range sess.WorkDirs {
+			if i == 0 {
+				fmt.Fprintf(&sb, "  %s (primary)\n", d)
+			} else {
+				fmt.Fprintf(&sb, "  %s\n", d)
+			}
+		}
+		return CommandResult{Output: strings.TrimRight(sb.String(), "\n")}
+	}
+	if cmd.Args[0] == "add" && len(cmd.Args) > 1 {
+		dir := cmd.Args[1]
+		sess.WorkDirs = append(sess.WorkDirs, dir)
+		return CommandResult{Output: fmt.Sprintf("added workspace: %s (%d dirs total)", dir, len(sess.WorkDirs))}
+	}
+	return CommandResult{Output: "usage: /workspace [add <path>]"}
+}
+
 func executeLog(cmd Command) CommandResult {
 	if globalRing == nil {
 		return CommandResult{Output: "logging not initialized"}
@@ -354,6 +381,7 @@ func helpText() string {
   /review          request code review
   /config          show runtime config
   /log [n|level]   show recent log entries
+  /workspace [add] show or add workspace directories
   /clear           clear conversation history
   /help            show this help
   /exit            quit`

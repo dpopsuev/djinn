@@ -128,6 +128,7 @@ Flags (repl/run):
   --system-file <path>                load system prompt from file
   --mode <ask|plan|agent|auto>        agent mode (default: agent)
   --config <file>                     load config from YAML file
+  --add-dir <path>                    additional workspace directory
   --verbose                           show log output on terminal
   --no-persist                        don't save session to disk
 `)
@@ -151,6 +152,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	systemPrompt := fs.String("system", "", "system prompt")
 	systemFile := fs.String("system-file", "", "load system prompt from file")
 	verbose := fs.Bool("verbose", false, "show log output on terminal")
+	addDir := fs.String("add-dir", "", "additional workspace directory")
 	noPersist := fs.Bool("no-persist", false, "don't save session to disk")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -253,6 +255,14 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 	sess.Driver = *driverName
 
+	// Initialize workspace dirs
+	if len(sess.WorkDirs) == 0 {
+		sess.WorkDirs = []string{Getwd()}
+	}
+	if *addDir != "" {
+		sess.WorkDirs = append(sess.WorkDirs, *addDir)
+	}
+
 	// Setup logging
 	logResult := djinnlog.Setup(djinnlog.Options{
 		Verbose: *verbose,
@@ -261,8 +271,8 @@ func RunREPL(args []string, stderr io.Writer) error {
 	log := djinnlog.For(logResult.Logger, "app")
 	log.Info("session starting", "driver", *driverName, "model", *model, "mode", *mode)
 
-	// Auto-discover project context
-	projectCtx := djinnctx.LoadProjectContext(Getwd())
+	// Auto-discover project context from workspace dirs (upward walk + MEMORY.md)
+	projectCtx := djinnctx.LoadProjectContext(sess.WorkDirs...)
 	assembledPrompt := djinnctx.BuildSystemPrompt(projectCtx, *systemPrompt)
 
 	chatDriver, err := CreateDriver(*driverName, sess.Model, assembledPrompt, logResult.Logger)
