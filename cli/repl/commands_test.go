@@ -1,6 +1,7 @@
 package repl
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/dpopsuev/djinn/session"
@@ -100,5 +101,84 @@ func TestExecuteCommand_Unknown(t *testing.T) {
 	result := ExecuteCommand(Command{Name: "/bogus"}, sess)
 	if result.Output == "" {
 		t.Fatal("unknown command should produce output")
+	}
+}
+
+func TestExecuteCommand_Compact(t *testing.T) {
+	sess := session.New("test", "model", "/workspace")
+	for range 10 {
+		sess.Append(session.Entry{Content: "padding message"})
+	}
+	result := ExecuteCommand(Command{Name: "/compact"}, sess)
+	if result.Output == "" {
+		t.Fatal("compact should produce output")
+	}
+	// History should be shorter after compaction
+	if sess.History.Len() >= 10 {
+		t.Fatalf("history = %d, should be compacted", sess.History.Len())
+	}
+}
+
+func TestExecuteCommand_Diff(t *testing.T) {
+	sess := session.New("test", "model", "/workspace")
+	result := ExecuteCommand(Command{Name: "/diff"}, sess)
+	// Should not crash, may produce empty diff or git output
+	_ = result
+}
+
+func TestExecuteCommand_Mode_Show(t *testing.T) {
+	sess := session.New("test", "model", "/workspace")
+	result := ExecuteCommand(Command{Name: "/mode"}, sess)
+	if !strings.Contains(result.Output, "agent") {
+		t.Fatalf("mode output should show current mode: %q", result.Output)
+	}
+}
+
+func TestExecuteCommand_Mode_Switch(t *testing.T) {
+	sess := session.New("test", "model", "/workspace")
+	result := ExecuteCommand(Command{Name: "/mode", Args: []string{"plan"}}, sess)
+	if result.Output == "" {
+		t.Fatal("mode switch should produce output")
+	}
+}
+
+func TestExecuteCommand_Permissions(t *testing.T) {
+	sess := session.New("test", "model", "/workspace")
+	result := ExecuteCommand(Command{Name: "/permissions"}, sess)
+	if result.Output == "" {
+		t.Fatal("permissions should produce output")
+	}
+}
+
+func TestExecuteCommand_Memory(t *testing.T) {
+	sess := session.New("test", "model", "/workspace")
+	result := ExecuteCommand(Command{Name: "/memory"}, sess)
+	if result.Output == "" {
+		t.Fatal("memory should produce output")
+	}
+}
+
+func TestExecuteCommand_Mcp(t *testing.T) {
+	sess := session.New("test", "model", "/workspace")
+	result := ExecuteCommand(Command{Name: "/mcp"}, sess)
+	if result.Output == "" {
+		t.Fatal("mcp should produce output")
+	}
+}
+
+func TestExecuteCommand_Resume(t *testing.T) {
+	sess := session.New("test", "model", "/workspace")
+	result := ExecuteCommand(Command{Name: "/resume"}, sess)
+	if result.Output == "" {
+		t.Fatal("resume should produce output")
+	}
+}
+
+func TestExecuteCommand_Copy(t *testing.T) {
+	sess := session.New("test", "model", "/workspace")
+	sess.Append(session.Entry{Role: "assistant", Content: "last response"})
+	result := ExecuteCommand(Command{Name: "/copy"}, sess)
+	if result.Output == "" {
+		t.Fatal("copy should produce output")
 	}
 }

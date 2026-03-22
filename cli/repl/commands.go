@@ -2,8 +2,10 @@ package repl
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
 
+	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/session"
 )
 
@@ -22,14 +24,26 @@ type CommandResult struct {
 
 // Slash command names.
 const (
-	cmdHelp   = "/help"
-	cmdClear  = "/clear"
-	cmdExit   = "/exit"
-	cmdQuit   = "/quit"
-	cmdModel  = "/model"
-	cmdStatus = "/status"
-	cmdCost   = "/cost"
+	cmdHelp        = "/help"
+	cmdClear       = "/clear"
+	cmdExit        = "/exit"
+	cmdQuit        = "/quit"
+	cmdModel       = "/model"
+	cmdStatus      = "/status"
+	cmdCost        = "/cost"
+	cmdCompact     = "/compact"
+	cmdDiff        = "/diff"
+	cmdMode        = "/mode"
+	cmdPermissions = "/permissions"
+	cmdMemory      = "/memory"
+	cmdMcp         = "/mcp"
+	cmdResume      = "/resume"
+	cmdCopy        = "/copy"
+	cmdReview      = "/review"
 )
+
+// Default mode name.
+const defaultModeName = "agent"
 
 // ParseCommand parses a slash command string into a Command.
 func ParseCommand(input string) (Command, bool) {
@@ -71,6 +85,33 @@ func ExecuteCommand(cmd Command, sess *session.Session) CommandResult {
 			Output: fmt.Sprintf("tokens used: ~%d (approximate)", sess.TotalTokens()),
 		}
 
+	case cmdCompact:
+		return executeCompact(sess)
+
+	case cmdDiff:
+		return executeDiff()
+
+	case cmdMode:
+		return executeMode(cmd, sess)
+
+	case cmdPermissions:
+		return CommandResult{Output: "tools: Read, Write, Edit, Bash, Glob, Grep\napproval: ask (default)"}
+
+	case cmdMemory:
+		return executeMemory(sess)
+
+	case cmdMcp:
+		return CommandResult{Output: "mcp servers: (use --mcp-config to configure)"}
+
+	case cmdResume:
+		return CommandResult{Output: "use 'djinn ls' to list sessions, 'djinn attach <name>' to resume"}
+
+	case cmdCopy:
+		return executeCopy(sess)
+
+	case cmdReview:
+		return CommandResult{Output: "review: (send /review as a prompt to request agent code review)"}
+
 	case cmdHelp:
 		return CommandResult{Output: helpText()}
 
@@ -79,12 +120,115 @@ func ExecuteCommand(cmd Command, sess *session.Session) CommandResult {
 	}
 }
 
+func executeCompact(sess *session.Session) CommandResult {
+	before := sess.History.Len()
+	if before <= 4 {
+		return CommandResult{Output: "nothing to compact (history too short)"}
+	}
+
+	// Keep last 4 entries, summarize the rest
+	entries := sess.Entries()
+	keepFrom := len(entries) - 4
+	old := entries[:keepFrom]
+	recent := entries[keepFrom:]
+
+	var summaryParts []string
+	for _, e := range old {
+		first := e.Content
+		if idx := strings.IndexByte(first, '\n'); idx >= 0 {
+			first = first[:idx]
+		}
+		const maxLine = 60
+		if len(first) > maxLine {
+			first = first[:maxLine] + "..."
+		}
+		if first != "" {
+			summaryParts = append(summaryParts, e.Role+": "+first)
+		}
+	}
+
+	sess.History.Clear()
+	if len(summaryParts) > 0 {
+		sess.Append(session.Entry{
+			Role:    driver.RoleUser,
+			Content: "[Compacted history]\n" + strings.Join(summaryParts, "\n"),
+		})
+	}
+	for _, e := range recent {
+		sess.Append(e)
+	}
+
+	after := sess.History.Len()
+	return CommandResult{
+		Output: fmt.Sprintf("compacted: %d → %d turns", before, after),
+	}
+}
+
+func executeDiff() CommandResult {
+	out, err := exec.Command("git", "diff", "--stat").Output()
+	if err != nil {
+		return CommandResult{Output: "no git diff available"}
+	}
+	diff := strings.TrimSpace(string(out))
+	if diff == "" {
+		return CommandResult{Output: "no changes (working tree clean)"}
+	}
+	return CommandResult{Output: diff}
+}
+
+func executeMode(cmd Command, sess *session.Session) CommandResult {
+	// Mode stored in session metadata (stub for TSK-48)
+	currentMode := defaultModeName
+
+	if len(cmd.Args) > 0 {
+		newMode := cmd.Args[0]
+		switch newMode {
+		case "ask", "plan", "agent", "auto":
+			return CommandResult{Output: fmt.Sprintf("mode: %s (modes are a stub — full implementation in TSK-48)", newMode)}
+		default:
+			return CommandResult{Output: fmt.Sprintf("unknown mode: %s (available: ask, plan, agent, auto)", newMode)}
+		}
+	}
+	return CommandResult{Output: fmt.Sprintf("current mode: %s", currentMode)}
+}
+
+func executeMemory(sess *session.Session) CommandResult {
+	return CommandResult{
+		Output: fmt.Sprintf("session: %s\nmodel: %s\nworkdir: %s\nturns: %d\ntokens: ~%d",
+			sess.ID, sess.Model, sess.WorkDir, sess.History.Len(), sess.TotalTokens()),
+	}
+}
+
+func executeCopy(sess *session.Session) CommandResult {
+	entries := sess.Entries()
+	if len(entries) == 0 {
+		return CommandResult{Output: "nothing to copy (empty history)"}
+	}
+
+	// Find last assistant message
+	for i := len(entries) - 1; i >= 0; i-- {
+		if entries[i].Role == driver.RoleAssistant {
+			return CommandResult{Output: "copied last response to clipboard (stub — clipboard integration pending)"}
+		}
+	}
+	return CommandResult{Output: "no assistant response to copy"}
+}
+
 func helpText() string {
 	return `commands:
-  /model [name]  show or switch model
-  /status        session info
-  /cost          token usage
-  /clear         clear conversation history
-  /help          show this help
-  /exit          quit`
+  /model [name]    show or switch model
+  /mode [mode]     show or switch mode (ask, plan, agent, auto)
+  /status          session info
+  /cost            token usage
+  /compact         compress conversation history
+  /diff            show git diff
+  /copy            copy last response
+  /permissions     show tool access
+  /memory          show session details
+  /mcp             show MCP servers
+  /resume          resume a session (use djinn attach)
+  /review          request code review
+  /clear           clear conversation history
+  /help            show this help
+  /exit            quit`
 }
