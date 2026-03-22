@@ -1,6 +1,9 @@
 package ari
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // WorkstreamSnapshot is a summary of a workstream for ARI consumers.
 type WorkstreamSnapshot struct {
@@ -18,6 +21,14 @@ type AndonSnapshot struct {
 	Cordons     int                  `json:"cordons"`
 }
 
+// SearchResult is a single item from a federated search.
+type SearchResult struct {
+	Kind      string    `json:"kind"`
+	ID        string    `json:"id"`
+	Summary   string    `json:"summary"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
 // Runtime defines the operations the ARI server needs from the Broker.
 // This interface breaks the circular dependency between ari/ and broker/.
 type Runtime interface {
@@ -26,4 +37,5 @@ type Runtime interface {
 	ClearCordon(paths []string)
 	Andon() AndonSnapshot
 	ListWorkstreams() []WorkstreamSnapshot
+	Search(query string) []SearchResult
 }

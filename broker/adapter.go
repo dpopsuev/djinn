@@ -59,3 +59,17 @@ func (a *RuntimeAdapter) ListWorkstreams() []ari.WorkstreamSnapshot {
 	}
 	return out
 }
+
+func (a *RuntimeAdapter) Search(query string) []ari.SearchResult {
+	brokerResults := a.broker.Search(query)
+	out := make([]ari.SearchResult, len(brokerResults))
+	for i, r := range brokerResults {
+		out[i] = ari.SearchResult{
+			Kind:      r.Kind,
+			ID:        r.ID,
+			Summary:   r.Summary,
+			Timestamp: r.Timestamp,
+		}
+	}
+	return out
+}

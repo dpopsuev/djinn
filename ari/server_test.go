@@ -40,6 +40,10 @@ func (m *mockRuntime) Andon() AndonSnapshot {
 	}
 }
 
+func (m *mockRuntime) Search(query string) []SearchResult {
+	return []SearchResult{{Kind: "signal", ID: "ws-1", Summary: "match: " + query}}
+}
+
 func (m *mockRuntime) ListWorkstreams() []WorkstreamSnapshot {
 	return []WorkstreamSnapshot{
 		{ID: "ws-1", IntentID: "int-1", Action: "fix", Status: "running", Health: "green"},

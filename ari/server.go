@@ -16,6 +16,7 @@ const (
 	RouteWorkstreams = "/workstreams"
 	RouteCordonClear = "/cordon/clear"
 	RouteEvents      = "/events"
+	RouteSearch      = "/search"
 )
 
 // SSE event type names.
@@ -84,6 +85,7 @@ func NewServer(rt Runtime) *Server {
 	mux.HandleFunc(RouteWorkstreams, s.handleWorkstreams)
 	mux.HandleFunc(RouteCordonClear, s.handleCordonClear)
 	mux.HandleFunc(RouteEvents, s.handleEvents)
+	mux.HandleFunc(RouteSearch, s.handleSearch)
 	return s
 }
 
@@ -244,4 +246,21 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+const queryParam = "q"
+
+func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, errMethodNotAllowed, http.StatusMethodNotAllowed)
+		return
+	}
+	q := r.URL.Query().Get(queryParam)
+	if q == "" {
+		http.Error(w, errInvalidBody, http.StatusBadRequest)
+		return
+	}
+	results := s.runtime.Search(q)
+	w.Header().Set(headerContentType, contentTypeJSON)
+	json.NewEncoder(w).Encode(results)
 }
