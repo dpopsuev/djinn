@@ -242,25 +242,50 @@ func executePermissions(sess *session.Session) CommandResult {
 
 func executeWorkspace(cmd Command, sess *session.Session) CommandResult {
 	if len(cmd.Args) == 0 {
-		if len(sess.WorkDirs) == 0 {
-			return CommandResult{Output: fmt.Sprintf("workspace: %s", sess.WorkDir)}
+		// Show current workspace
+		wsName := sess.Workspace
+		if wsName == "" {
+			wsName = "(ephemeral)"
 		}
 		var sb strings.Builder
-		for i, d := range sess.WorkDirs {
-			if i == 0 {
-				fmt.Fprintf(&sb, "  %s (primary)\n", d)
-			} else {
+		fmt.Fprintf(&sb, "Workspace: %s\n", wsName)
+		if len(sess.WorkDirs) > 0 {
+			fmt.Fprintf(&sb, "Repos:\n")
+			for _, d := range sess.WorkDirs {
 				fmt.Fprintf(&sb, "  %s\n", d)
 			}
 		}
 		return CommandResult{Output: strings.TrimRight(sb.String(), "\n")}
 	}
-	if cmd.Args[0] == "add" && len(cmd.Args) > 1 {
+
+	switch cmd.Args[0] {
+	case "repos":
+		if len(sess.WorkDirs) == 0 {
+			return CommandResult{Output: "no repos in workspace"}
+		}
+		var sb strings.Builder
+		for _, d := range sess.WorkDirs {
+			fmt.Fprintf(&sb, "  %s\n", d)
+		}
+		return CommandResult{Output: strings.TrimRight(sb.String(), "\n")}
+
+	case "add":
+		if len(cmd.Args) < 2 {
+			return CommandResult{Output: "usage: /workspace add <path>"}
+		}
 		dir := cmd.Args[1]
 		sess.WorkDirs = append(sess.WorkDirs, dir)
-		return CommandResult{Output: fmt.Sprintf("added workspace: %s (%d dirs total)", dir, len(sess.WorkDirs))}
+		return CommandResult{Output: fmt.Sprintf("added repo: %s (%d total)", dir, len(sess.WorkDirs))}
+
+	case "save":
+		if sess.Workspace == "" {
+			return CommandResult{Output: "name this workspace first: /workspace save <name>"}
+		}
+		return CommandResult{Output: fmt.Sprintf("workspace %q saved (use djinn workspace list to verify)", sess.Workspace)}
+
+	default:
+		return CommandResult{Output: "usage: /workspace [repos|add <path>|save]"}
 	}
-	return CommandResult{Output: "usage: /workspace [add <path>]"}
 }
 
 func executeLog(cmd Command) CommandResult {

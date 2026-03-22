@@ -23,6 +23,7 @@ import (
 	djinnctx "github.com/dpopsuev/djinn/context"
 	"github.com/dpopsuev/djinn/djinnlog"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
+	djinnws "github.com/dpopsuev/djinn/workspace"
 	"github.com/dpopsuev/djinn/djinnfile"
 	"github.com/dpopsuev/djinn/driver"
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
@@ -95,6 +96,8 @@ func Run(args []string, stderr io.Writer) error {
 		return RunImport(args[1:], stderr)
 	case "config":
 		return RunConfig(args[1:], stderr)
+	case "workspace":
+		return RunWorkspace(args[1:], stderr)
 	case "log":
 		return RunLog(stderr)
 	case "doctor":
@@ -123,6 +126,8 @@ Usage:
   djinn ls                            list sessions
   djinn attach <name>                 resume session
   djinn kill <name>                   delete session
+  djinn workspace list                list saved workspaces
+  djinn workspace create <name>       create a workspace
   djinn config dump                   dump runtime config as YAML
   djinn log                           show recent log entries
   djinn doctor                        health check
@@ -139,8 +144,7 @@ Flags (repl/run):
   --system-file <path>                load system prompt from file
   --mode <ask|plan|agent|auto>        agent mode (default: agent)
   --config <file>                     load config from YAML file
-  --workspace <path>                   project workspace (default: cwd)
-  --add-dir <path>                    additional workspace directory
+  -w, --workspace <name|file>          workspace name or manifest file
   --verbose                           show log output on terminal
   --no-persist                        don't save session to disk
 `)
@@ -164,8 +168,8 @@ func RunREPL(args []string, stderr io.Writer) error {
 	systemPrompt := fs.String("system", "", "system prompt")
 	systemFile := fs.String("system-file", "", "load system prompt from file")
 	verbose := fs.Bool("verbose", false, "show log output on terminal")
-	workspace := fs.String("workspace", "", "project workspace directory (default: cwd)")
-	addDir := fs.String("add-dir", "", "additional workspace directory")
+	wsFlag := fs.String("w", "", "workspace name or manifest file")
+	wsLong := fs.String("workspace", "", "workspace name or manifest file")
 	noPersist := fs.Bool("no-persist", false, "don't save session to disk")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -268,18 +272,40 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 	sess.Driver = *driverName
 
-	// Initialize workspace dirs
-	// Priority: session stored > --workspace flag > cwd
-	if len(sess.WorkDirs) == 0 {
-		if *workspace != "" {
-			sess.WorkDirs = []string{*workspace}
-		} else {
-			sess.WorkDirs = []string{Getwd()}
+	// Load workspace: -w flag > session stored > ephemeral from cwd
+	wsName := *wsFlag
+	if wsName == "" {
+		wsName = *wsLong
+	}
+
+	var ws *djinnws.Workspace
+	if wsName != "" {
+		var wsErr error
+		ws, wsErr = djinnws.Load(wsName)
+		if wsErr != nil {
+			return fmt.Errorf("workspace %q: %w", wsName, wsErr)
 		}
+		sess.Workspace = ws.Name
+	} else if sess.Workspace != "" {
+		ws, _ = djinnws.Load(sess.Workspace)
 	}
-	if *addDir != "" {
-		sess.WorkDirs = append(sess.WorkDirs, *addDir)
+	if ws == nil {
+		ws = djinnws.Ephemeral(Getwd())
 	}
+
+	// Workspace config overrides CLI defaults
+	if ws.Driver != "" && *driverName == DriverClaude {
+		*driverName = ws.Driver
+	}
+	if ws.Model != "" && *model == "" {
+		*model = ws.Model
+	}
+	if ws.Mode != "" && *mode == "agent" {
+		*mode = ws.Mode
+	}
+
+	// Set WorkDirs from workspace repos for context discovery
+	sess.WorkDirs = ws.Paths()
 
 	// Setup logging
 	logResult := djinnlog.Setup(djinnlog.Options{
@@ -602,6 +628,67 @@ func RunConfig(args []string, w io.Writer) error {
 	default:
 		return fmt.Errorf("unknown config command: %q (try: djinn config dump)", args[0])
 	}
+}
+
+// RunWorkspace handles the workspace subcommand.
+func RunWorkspace(args []string, w io.Writer) error {
+	if len(args) == 0 {
+		return RunWorkspaceList(w)
+	}
+	switch args[0] {
+	case "list", "ls":
+		return RunWorkspaceList(w)
+	case "create":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: djinn workspace create <name> --repo <path> [--repo <path>...]")
+		}
+		name := args[1]
+		ws := &djinnws.Workspace{Name: name}
+		// Parse --repo flags
+		for i := 2; i < len(args); i++ {
+			if args[i] == "--repo" && i+1 < len(args) {
+				i++
+				role := RolePrimary
+				if len(ws.Repos) > 0 {
+					role = RoleDependency
+				}
+				ws.Repos = append(ws.Repos, djinnws.Repo{Path: args[i], Role: role})
+			}
+		}
+		if len(ws.Repos) == 0 {
+			ws.Repos = []djinnws.Repo{{Path: Getwd(), Role: RolePrimary}}
+		}
+		if err := djinnws.Save(ws); err != nil {
+			return err
+		}
+		fmt.Fprintf(w, "workspace %q created (%d repos)\n", name, len(ws.Repos))
+		return nil
+	default:
+		return fmt.Errorf("unknown workspace command: %q (try: list, create)", args[0])
+	}
+}
+
+// RolePrimary and RoleDependency for workspace create convenience.
+const (
+	RolePrimary    = "primary"
+	RoleDependency = "dependency"
+)
+
+// RunWorkspaceList lists saved workspaces.
+func RunWorkspaceList(w io.Writer) error {
+	list, err := djinnws.List()
+	if err != nil {
+		return err
+	}
+	if len(list) == 0 {
+		fmt.Fprintln(w, "no workspaces (create one with: djinn workspace create <name> --repo <path>)")
+		return nil
+	}
+	fmt.Fprintln(w, "NAME\tREPOS\tPRIMARY\tMODIFIED")
+	for _, s := range list {
+		fmt.Fprintf(w, "%s\t%d\t%s\t%s\n", s.Name, s.Repos, s.Primary, s.Modified)
+	}
+	return nil
 }
 
 // RunLog displays the log file contents.

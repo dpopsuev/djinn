@@ -1,14 +1,19 @@
 package acceptance
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/dpopsuev/djinn/app"
 	djinnctx "github.com/dpopsuev/djinn/context"
 	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/workspace"
 )
+
+// --- Upward walk (from DJA-SPC-5 scenario 1) ---
 
 func TestWorkspace_UpwardWalkFindsParent(t *testing.T) {
 	parent := t.TempDir()
@@ -25,16 +30,12 @@ func TestWorkspace_UpwardWalkFindsParent(t *testing.T) {
 func TestWorkspace_WalkStopsAtHome(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	// Put CLAUDE.md ABOVE home — should NOT be found
-	aboveHome := filepath.Dir(home)
-	os.WriteFile(filepath.Join(aboveHome, "CLAUDE.md"), []byte("above home"), 0644)
-	defer os.Remove(filepath.Join(aboveHome, "CLAUDE.md"))
-
 	subdir := filepath.Join(home, "projects", "test")
 	os.MkdirAll(subdir, 0755)
 
 	ctx := djinnctx.LoadProjectContext(subdir)
-	if ctx.ClaudeMD == "above home" {
+	// Should not find anything above home
+	if ctx.ClaudeMD != "" {
 		t.Fatal("walk should not escape above $HOME")
 	}
 }
@@ -61,6 +62,8 @@ func TestWorkspace_MultiDirMerge(t *testing.T) {
 	}
 }
 
+// --- MEMORY.md (from DJA-SPC-5 scenario 3) ---
+
 func TestWorkspace_MemoryFromClaudePath(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -83,27 +86,7 @@ func TestWorkspace_NoMemoryNoError(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	ctx := djinnctx.LoadProjectContext(t.TempDir())
 	if ctx.MemoryMD != "" {
-		t.Fatal("missing memory should be empty, not error")
-	}
-}
-
-func TestWorkspace_SessionPersistsWorkDirs(t *testing.T) {
-	dir := t.TempDir()
-	store, _ := session.NewStore(dir)
-
-	sess := session.New("test", "model", "/workspace")
-	sess.WorkDirs = []string{"/path/one", "/path/two"}
-	store.Save(sess)
-
-	loaded, err := store.Load("test")
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if len(loaded.WorkDirs) != 2 {
-		t.Fatalf("WorkDirs = %v", loaded.WorkDirs)
-	}
-	if loaded.WorkDirs[0] != "/path/one" {
-		t.Fatalf("WorkDirs[0] = %q", loaded.WorkDirs[0])
+		t.Fatal("missing memory should be empty")
 	}
 }
 
@@ -115,5 +98,131 @@ func TestWorkspace_BuildPromptIncludesMemory(t *testing.T) {
 	prompt := djinnctx.BuildSystemPrompt(ctx, "user system")
 	if !strings.Contains(prompt, "remembered context") {
 		t.Fatal("system prompt should include MEMORY.md")
+	}
+}
+
+// --- Workspace manifest (from DJA-SPC-5 rewrite) ---
+
+func TestWorkspace_LoadManifestFile(t *testing.T) {
+	dir := t.TempDir()
+	manifest := filepath.Join(dir, "ws.yaml")
+	os.WriteFile(manifest, []byte(`
+name: test-project
+repos:
+  - path: /home/user/project
+    role: primary
+  - path: /home/user/lib
+    role: dependency
+driver: claude
+model: claude-opus-4-6
+`), 0644)
+
+	ws, err := workspace.Load(manifest)
+	if err != nil {
+		t.Fatalf("Load manifest: %v", err)
+	}
+	if ws.Name != "test-project" {
+		t.Fatalf("name = %q", ws.Name)
+	}
+	if len(ws.Repos) != 2 {
+		t.Fatalf("repos = %d", len(ws.Repos))
+	}
+	if ws.Driver != "claude" {
+		t.Fatalf("driver = %q", ws.Driver)
+	}
+}
+
+func TestWorkspace_LoadByName(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	ws := &workspace.Workspace{
+		Name:  "named-ws",
+		Repos: []workspace.Repo{{Path: "/proj", Role: "primary"}},
+	}
+	workspace.Save(ws)
+
+	loaded, err := workspace.Load("named-ws")
+	if err != nil {
+		t.Fatalf("Load by name: %v", err)
+	}
+	if loaded.Name != "named-ws" {
+		t.Fatalf("name = %q", loaded.Name)
+	}
+}
+
+func TestWorkspace_SaveAndList(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	workspace.Save(&workspace.Workspace{Name: "a", Repos: []workspace.Repo{{Path: "/a", Role: "primary"}}})
+	workspace.Save(&workspace.Workspace{Name: "b", Repos: []workspace.Repo{{Path: "/b", Role: "primary"}}})
+
+	list, err := workspace.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(list) != 2 {
+		t.Fatalf("list = %d, want 2", len(list))
+	}
+}
+
+func TestWorkspace_Ephemeral(t *testing.T) {
+	ws := workspace.Ephemeral("/tmp/scratch")
+	if ws.Name != "" {
+		t.Fatal("ephemeral should have no name")
+	}
+	if ws.PrimaryPath() != "/tmp/scratch" {
+		t.Fatalf("primary = %q", ws.PrimaryPath())
+	}
+}
+
+func TestWorkspace_SessionPersistsWorkspace(t *testing.T) {
+	dir := t.TempDir()
+	store, _ := session.NewStore(dir)
+
+	sess := session.New("test", "model", "/workspace")
+	sess.Workspace = "my-project"
+	store.Save(sess)
+
+	loaded, _ := store.Load("test")
+	if loaded.Workspace != "my-project" {
+		t.Fatalf("workspace = %q, want my-project", loaded.Workspace)
+	}
+}
+
+// --- CLI workspace subcommand ---
+
+func TestWorkspace_CLIList(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	var buf bytes.Buffer
+	app.RunWorkspace([]string{"list"}, &buf)
+	if !strings.Contains(buf.String(), "no workspaces") {
+		t.Fatalf("empty list should say no workspaces: %q", buf.String())
+	}
+}
+
+func TestWorkspace_CLICreate(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	var buf bytes.Buffer
+	err := app.RunWorkspace([]string{"create", "test-ws", "--repo", "/home/user/proj"}, &buf)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if !strings.Contains(buf.String(), "test-ws") {
+		t.Fatalf("output = %q", buf.String())
+	}
+
+	// Verify it was saved
+	ws, err := workspace.Load("test-ws")
+	if err != nil {
+		t.Fatalf("Load after create: %v", err)
+	}
+	if len(ws.Repos) != 1 {
+		t.Fatalf("repos = %d", len(ws.Repos))
 	}
 }

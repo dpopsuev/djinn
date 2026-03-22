@@ -34,7 +34,8 @@ type Session struct {
 	Model     string    `json:"model"`
 	Mode      string    `json:"mode,omitempty"`
 	WorkDir   string    `json:"work_dir"`
-	WorkDirs  []string  `json:"work_dirs,omitempty"`
+	WorkDirs  []string  `json:"work_dirs,omitempty"`  // deprecated: use Workspace
+	Workspace string   `json:"workspace,omitempty"`   // named workspace reference
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	History   *History  `json:"history"`
