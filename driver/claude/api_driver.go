@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 
@@ -42,6 +43,7 @@ const (
 var (
 	ErrNoAPIKey     = errors.New("no API key: set ANTHROPIC_API_KEY or ANTHROPIC_VERTEX_PROJECT_ID")
 	ErrAPIError     = errors.New("claude API error")
+	ErrAuthFailed   = errors.New("authentication failed")
 )
 
 // APIDriver implements driver.Driver by calling the Claude Messages API
@@ -52,6 +54,7 @@ type APIDriver struct {
 	systemPrompt string
 	apiURL     string
 	apiKey     string
+	useVertex  bool
 
 	mu       sync.Mutex
 	messages []apiMessage
@@ -92,7 +95,7 @@ func NewAPIDriver(config driver.DriverConfig, opts ...APIDriverOption) (*APIDriv
 		}
 		model := d.resolveModel()
 		d.apiURL = fmt.Sprintf(vertexAPITemplate, region, project, region, model)
-		// Vertex uses OAuth, not API key — handled by environment
+		d.useVertex = true
 	} else {
 		return nil, ErrNoAPIKey
 	}
@@ -110,9 +113,32 @@ func (d *APIDriver) Start(ctx context.Context, sandbox driver.SandboxHandle) err
 	if d.started {
 		return ErrAlreadyStarted
 	}
+
+	// Fail-fast: verify auth before REPL prompt appears
+	if d.useVertex {
+		token, err := getGCPAccessToken()
+		if err != nil {
+			return fmt.Errorf("%w: gcloud auth failed: %v (run: gcloud auth login)", ErrAuthFailed, err)
+		}
+		d.apiKey = token // reuse apiKey field for bearer token
+	}
+
 	d.started = true
 	d.messages = nil
 	return nil
+}
+
+// getGCPAccessToken obtains an OAuth2 token from gcloud CLI.
+func getGCPAccessToken() (string, error) {
+	out, err := exec.Command("gcloud", "auth", "print-access-token").Output()
+	if err != nil {
+		return "", fmt.Errorf("gcloud auth print-access-token: %w", err)
+	}
+	token := strings.TrimSpace(string(out))
+	if token == "" {
+		return "", fmt.Errorf("empty token from gcloud")
+	}
+	return token, nil
 }
 
 func (d *APIDriver) Stop(ctx context.Context) error {
@@ -274,12 +300,13 @@ type apiContent struct {
 }
 
 type apiRequest struct {
-	Model     string       `json:"model"`
-	MaxTokens int          `json:"max_tokens"`
-	System    string       `json:"system,omitempty"`
-	Messages  []apiMessage `json:"messages"`
-	Stream    bool         `json:"stream"`
-	Tools     []apiTool    `json:"tools,omitempty"`
+	Model             string       `json:"model"`
+	MaxTokens         int          `json:"max_tokens"`
+	System            string       `json:"system,omitempty"`
+	Messages          []apiMessage `json:"messages"`
+	Stream            bool         `json:"stream"`
+	Tools             []apiTool    `json:"tools,omitempty"`
+	AnthropicVersion  string       `json:"anthropic_version,omitempty"` // required for Vertex
 }
 
 type apiTool struct {
@@ -300,6 +327,10 @@ func (d *APIDriver) buildRequest(ctx context.Context, messages []apiMessage) (*h
 		System:    d.systemPrompt,
 		Messages:  messages,
 		Stream:    true,
+	}
+
+	if d.useVertex {
+		body.AnthropicVersion = "vertex-2023-10-16"
 	}
 
 	// Add tools if registry is set
@@ -324,9 +355,13 @@ func (d *APIDriver) buildRequest(ctx context.Context, messages []apiMessage) (*h
 	}
 
 	req.Header.Set(headerContentType2, "application/json")
-	req.Header.Set(headerAnthropicVer, anthropicVersion)
-	if d.apiKey != "" {
-		req.Header.Set(headerAPIKey, d.apiKey)
+	if d.useVertex {
+		req.Header.Set("Authorization", "Bearer "+d.apiKey)
+	} else {
+		req.Header.Set(headerAnthropicVer, anthropicVersion)
+		if d.apiKey != "" {
+			req.Header.Set(headerAPIKey, d.apiKey)
+		}
 	}
 
 	return req, nil
