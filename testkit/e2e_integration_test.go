@@ -103,7 +103,7 @@ func TestE2E_Integration_MisbahSandbox(t *testing.T) {
 	// These are environment issues, not code bugs.
 	if !results[0].Success {
 		summary := results[0].Summary
-		if containsAny(summary, "operation not supported", "permission denied", "network isolation") {
+		if containsAny(summary, "operation not supported", "permission denied", "network isolation", "bind:", "cannot assign") {
 			t.Skipf("skipping: host environment insufficient: %s", summary)
 		}
 		t.Fatalf("integration result: FAIL: %s", summary)
