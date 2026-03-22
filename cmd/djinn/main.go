@@ -59,6 +59,8 @@ func main() {
 		runAttachCmd(os.Args[2:])
 	case "kill":
 		runKillCmd(os.Args[2:])
+	case "import":
+		runImportCmd(os.Args[2:])
 	case "doctor":
 		runDoctorCmd()
 	case "version":
@@ -78,6 +80,7 @@ Usage:
   djinn [prompt]                      interactive REPL (default)
   djinn repl [flags] [prompt]         interactive REPL
   djinn run <prompt> [flags]          headless one-shot
+  djinn import claude <file> -s <name> import Claude Code session
   djinn ls                            list sessions
   djinn attach <name>                 resume session
   djinn kill <name>                   delete session
@@ -438,6 +441,58 @@ func loadMostRecent(store *session.Store) (*session.Session, error) {
 	}
 	// List is sorted by most recent first
 	return store.Load(list[0].Name)
+}
+
+func runImportCmd(args []string) {
+	if len(args) < 2 {
+		fmt.Fprintln(os.Stderr, "usage: djinn import claude <session.jsonl> [-s name]")
+		os.Exit(exitCodeError)
+	}
+
+	source := args[0]   // "claude"
+	filePath := args[1] // path to JSONL
+
+	fs := flag.NewFlagSet("import", flag.ExitOnError)
+	name := fs.String("s", "", "session name")
+	tokenBudget := fs.Int("token-budget", 0, "max tokens for imported history (0 = all)")
+	fs.Parse(args[2:])
+
+	switch source {
+	case "claude":
+		sess, err := session.ImportClaudeSession(filePath, *tokenBudget)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "djinn: import failed: %v\n", err)
+			os.Exit(exitCodeError)
+		}
+
+		if *name != "" {
+			sess.Name = *name
+		}
+		sess.Driver = driverClaude
+
+		store, err := session.NewStore(sessionDir())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "djinn: %v\n", err)
+			os.Exit(exitCodeError)
+		}
+
+		if err := store.Save(sess); err != nil {
+			fmt.Fprintf(os.Stderr, "djinn: save: %v\n", err)
+			os.Exit(exitCodeError)
+		}
+
+		displayName := sess.Name
+		if displayName == "" {
+			displayName = sess.ID
+		}
+		fmt.Fprintf(os.Stderr, "imported %d turns from Claude session → %s\n",
+			sess.History.Len(), displayName)
+		fmt.Fprintf(os.Stderr, "attach with: djinn attach %s\n", displayName)
+
+	default:
+		fmt.Fprintf(os.Stderr, "djinn: unsupported import source: %q (supported: claude)\n", source)
+		os.Exit(exitCodeError)
+	}
 }
 
 func mustGetwd() string {
