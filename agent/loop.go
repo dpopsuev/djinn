@@ -51,6 +51,7 @@ type Config struct {
 	MaxTurns     int
 	ToolsEnabled bool // false = ask/plan mode (no tool execution)
 	Mode         Mode // agent mode for auto-weave
+	ContextLimit int  // max tokens before auto-compact (0 = 200K default)
 	Approve      ApprovalFunc
 	Handler      EventHandler
 	Log          *slog.Logger
@@ -88,7 +89,18 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) {
 
 	var finalText string
 
+	contextLimit := cfg.ContextLimit
+	if contextLimit == 0 {
+		contextLimit = 200_000
+	}
+
 	for turn := range cfg.MaxTurns {
+		// Auto-compact if approaching context limit
+		if tokens := cfg.Session.TotalTokens(); tokens > int(float64(contextLimit)*0.8) {
+			before, after := session.Compact(cfg.Session, session.DefaultKeepRecent)
+			cfg.Log.Warn("auto-compact", "before", before, "after", after, "tokens", tokens)
+		}
+
 		turnStart := time.Now()
 		cfg.Log.Info("turn start", "turn", turn+1, "max", cfg.MaxTurns)
 

@@ -337,6 +337,9 @@ func RunREPL(args []string, stderr io.Writer) error {
 		}
 	}
 
+	// Initial prompt from remaining CLI args
+	initialPrompt := strings.Join(fs.Args(), " ")
+
 	// Build unified tool registry: built-in + MCP tools
 	registry := builtin.NewRegistry()
 	for _, tool := range mcpClient.MCPTools() {
@@ -354,6 +357,8 @@ func RunREPL(args []string, stderr io.Writer) error {
 		Mode:         *mode,
 		Log:          logResult.Logger,
 		Ring:         logResult.Ring,
+		Store:         store,
+		InitialPrompt: initialPrompt,
 	})
 
 	// Save session on exit

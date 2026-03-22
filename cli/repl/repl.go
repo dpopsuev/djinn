@@ -24,6 +24,8 @@ type Config struct {
 	Mode         string // "ask", "plan", "agent", "auto"
 	Log          *slog.Logger
 	Ring         *djinnlog.RingHandler
+	Store        *session.Store  // for auto-save after each turn
+	InitialPrompt string        // auto-submit on first render
 }
 
 // Run starts the interactive REPL. Blocks until /exit or ctrl-C.

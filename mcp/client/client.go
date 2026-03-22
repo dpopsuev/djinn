@@ -259,6 +259,18 @@ func (c *Client) Call(ctx context.Context, serverName, toolName string, input js
 	}
 }
 
+// Healthy checks if a server is responsive by sending tools/list.
+func (c *Client) Healthy(name string) bool {
+	c.mu.RLock()
+	conn, ok := c.servers[name]
+	c.mu.RUnlock()
+	if !ok {
+		return false
+	}
+	resp, err := conn.send("tools/list", nil)
+	return err == nil && resp.Error == nil
+}
+
 // ServerNames returns names of all connected servers.
 func (c *Client) ServerNames() []string {
 	c.mu.RLock()

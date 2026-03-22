@@ -56,6 +56,7 @@ type Model struct {
 	autoApprove  bool
 	mode         agent.Mode
 	approvalCh   chan bool // bridges approval from UI to agent goroutine
+	store        *session.Store // auto-save after each turn
 	log          *slog.Logger
 	ctx          context.Context
 
@@ -77,8 +78,9 @@ type Model struct {
 	chunkedBuf   strings.Builder // accumulates full response for chunked mode
 	width        int
 	height       int
-	ready        bool
-	quitting     bool
+	ready          bool
+	quitting       bool
+	initialPrompt  string // auto-submit on first render
 }
 
 // NewModel creates a new REPL model.
@@ -107,12 +109,14 @@ func NewModel(cfg Config) Model {
 		autoApprove:  cfg.AutoApprove,
 		mode:         mode,
 		approvalCh:   make(chan bool, 1),
+		store:        cfg.Store,
 		log:          log,
 		ctx:          context.Background(),
 		state:        stateInput,
 		textInput:    ti,
-		historyIdx:   -1,
-		handler:      agent.NilHandler{},
+		historyIdx:    -1,
+		handler:       agent.NilHandler{},
+		initialPrompt: cfg.InitialPrompt,
 	}
 }
 
@@ -130,6 +134,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.ready = true
+		// Auto-submit initial prompt if provided
+		if m.initialPrompt != "" {
+			m.textInput.SetValue(m.initialPrompt)
+			m.initialPrompt = "" // only once
+			return m.handleSubmit()
+		}
 		return m, nil
 
 	case tea.KeyMsg:
@@ -196,6 +206,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case AgentDoneMsg:
+		// Auto-save session after each turn
+		if m.store != nil {
+			if err := m.store.Save(m.sess); err != nil {
+				m.log.Warn("auto-save failed", "error", err)
+			}
+		}
 		// Flush remaining buffers
 		if m.outputMode == outputChunked && m.chunkedBuf.Len() > 0 {
 			// Chunked mode: render full response now

@@ -142,44 +142,10 @@ func ExecuteCommand(cmd Command, sess *session.Session) CommandResult {
 }
 
 func executeCompact(sess *session.Session) CommandResult {
-	before := sess.History.Len()
-	if before <= 4 {
+	before, after := session.Compact(sess, session.DefaultKeepRecent)
+	if before == after {
 		return CommandResult{Output: "nothing to compact (history too short)"}
 	}
-
-	// Keep last 4 entries, summarize the rest
-	entries := sess.Entries()
-	keepFrom := len(entries) - 4
-	old := entries[:keepFrom]
-	recent := entries[keepFrom:]
-
-	var summaryParts []string
-	for _, e := range old {
-		first := e.Content
-		if idx := strings.IndexByte(first, '\n'); idx >= 0 {
-			first = first[:idx]
-		}
-		const maxLine = 60
-		if len(first) > maxLine {
-			first = first[:maxLine] + "..."
-		}
-		if first != "" {
-			summaryParts = append(summaryParts, e.Role+": "+first)
-		}
-	}
-
-	sess.History.Clear()
-	if len(summaryParts) > 0 {
-		sess.Append(session.Entry{
-			Role:    driver.RoleUser,
-			Content: "[Compacted history]\n" + strings.Join(summaryParts, "\n"),
-		})
-	}
-	for _, e := range recent {
-		sess.Append(e)
-	}
-
-	after := sess.History.Len()
 	return CommandResult{
 		Output: fmt.Sprintf("compacted: %d → %d turns", before, after),
 	}

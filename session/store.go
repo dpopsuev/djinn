@@ -49,7 +49,8 @@ func NewStore(dir string) (*Store, error) {
 	return &Store{dir: dir}, nil
 }
 
-// Save writes a session to disk. Uses Name as filename if set, otherwise ID.
+// Save writes a session to disk using atomic write (temp + rename).
+// Uses Name as filename if set, otherwise ID.
 func (s *Store) Save(sess *Session) error {
 	data, err := json.MarshalIndent(sess, "", "  ")
 	if err != nil {
@@ -57,7 +58,15 @@ func (s *Store) Save(sess *Session) error {
 	}
 
 	path := s.sessionPath(sess)
-	return os.WriteFile(path, data, sessionFilePerm)
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, sessionFilePerm); err != nil {
+		return fmt.Errorf("write temp: %w", err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp)
+		return fmt.Errorf("atomic rename: %w", err)
+	}
+	return nil
 }
 
 // Load reads a session from disk by name or ID.

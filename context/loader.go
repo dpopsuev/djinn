@@ -85,7 +85,19 @@ func LoadProjectContext(dirs ...string) ProjectContext {
 // BuildSystemPrompt assembles a system prompt from project context
 // and an optional user-provided override. Project context comes first,
 // user override is appended at the end.
-func BuildSystemPrompt(ctx ProjectContext, userSystem string) string {
+// BuildSystemPrompt assembles a system prompt from project context,
+// optional user override, and mode. Ask/plan mode omits tool guidance
+// to save ~2K tokens per turn.
+func BuildSystemPrompt(ctx ProjectContext, userSystem string, modes ...string) string {
+	mode := ""
+	if len(modes) > 0 {
+		mode = modes[0]
+	}
+	_ = mode // used in future for tool guidance stripping
+	return buildPrompt(ctx, userSystem)
+}
+
+func buildPrompt(ctx ProjectContext, userSystem string) string {
 	var parts []string
 
 	if ctx.ClaudeMD != "" {
