@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -116,8 +117,26 @@ func runREPLCmd(args []string) {
 	maxTurns := fs.Int("max-turns", 20, "max agent turns per prompt")
 	autoApprove := fs.Bool("auto-approve", false, "auto-approve all tool calls")
 	systemPrompt := fs.String("system", "", "system prompt")
+	systemFile := fs.String("system-file", "", "load system prompt from file")
+	mode := fs.String("mode", "agent", "agent mode: ask, plan, agent, auto")
+	verbose := fs.Bool("verbose", false, "verbose output")
 	noPersist := fs.Bool("no-persist", false, "don't save session to disk")
 	fs.Parse(args)
+
+	// Load system prompt from file if specified
+	if *systemFile != "" {
+		fileContent := readSystemFile(*systemFile)
+		if fileContent != "" {
+			if *systemPrompt != "" {
+				*systemPrompt = *systemPrompt + "\n\n" + fileContent
+			} else {
+				*systemPrompt = fileContent
+			}
+		}
+	}
+
+	_ = mode    // stub — wired in TSK-48
+	_ = verbose // stub — wired when debug logging added
 
 	// Resolve short flags
 	if *modelShort != "" && *model == "" {
@@ -324,26 +343,63 @@ func runDoctorCmd() {
 	fmt.Fprintln(os.Stderr, "djinn doctor")
 	fmt.Fprintln(os.Stderr, "  version: 0.1.0")
 
-	// Check Claude API
+	// Check drivers
+	fmt.Fprintln(os.Stderr, "\n  drivers:")
+
+	// Claude
 	if os.Getenv("ANTHROPIC_API_KEY") != "" {
-		fmt.Fprintln(os.Stderr, "  claude api: ANTHROPIC_API_KEY set")
+		fmt.Fprintln(os.Stderr, "    claude: ANTHROPIC_API_KEY set ✓")
 	} else if os.Getenv("ANTHROPIC_VERTEX_PROJECT_ID") != "" {
-		fmt.Fprintln(os.Stderr, "  claude api: Vertex AI ("+os.Getenv("ANTHROPIC_VERTEX_PROJECT_ID")+")")
+		project := os.Getenv("ANTHROPIC_VERTEX_PROJECT_ID")
+		// Probe gcloud auth
+		if out, err := exec.Command("gcloud", "auth", "print-access-token").Output(); err == nil && len(out) > 0 {
+			fmt.Fprintf(os.Stderr, "    claude: Vertex AI (%s) — gcloud auth ✓\n", project)
+		} else {
+			fmt.Fprintf(os.Stderr, "    claude: Vertex AI (%s) — gcloud auth FAILED (run: gcloud auth login)\n", project)
+		}
 	} else {
-		fmt.Fprintln(os.Stderr, "  claude api: NOT CONFIGURED")
+		fmt.Fprintln(os.Stderr, "    claude: NOT CONFIGURED")
 	}
 
-	// Check session dir
+	// Ollama
+	if out, err := exec.Command("curl", "-s", "http://localhost:11434/api/tags").Output(); err == nil && len(out) > 0 {
+		fmt.Fprintln(os.Stderr, "    ollama: running ✓")
+	} else {
+		fmt.Fprintln(os.Stderr, "    ollama: not running")
+	}
+
+	// Project context
+	fmt.Fprintln(os.Stderr, "\n  context:")
+	projectCtx := djinnctx.LoadProjectContext(mustGetwd())
+	if projectCtx.ClaudeMD != "" {
+		fmt.Fprintln(os.Stderr, "    CLAUDE.md: found ✓")
+	}
+	if projectCtx.AgentsMD != "" {
+		fmt.Fprintln(os.Stderr, "    AGENTS.md: found ✓")
+	}
+	if projectCtx.GeminiMD != "" {
+		fmt.Fprintln(os.Stderr, "    GEMINI.md: found ✓")
+	}
+	if projectCtx.CursorRules != "" {
+		fmt.Fprintln(os.Stderr, "    .cursorrules: found ✓")
+	}
+	if projectCtx.ClaudeMD == "" && projectCtx.AgentsMD == "" && projectCtx.GeminiMD == "" {
+		fmt.Fprintln(os.Stderr, "    no project instruction files found")
+	}
+
+	// Sessions
+	fmt.Fprintln(os.Stderr, "\n  sessions:")
 	dir := sessionDir()
 	if _, err := os.Stat(dir); err == nil {
 		store, _ := session.NewStore(dir)
 		list, _ := store.List()
-		fmt.Fprintf(os.Stderr, "  sessions: %d in %s\n", len(list), dir)
+		fmt.Fprintf(os.Stderr, "    %d sessions in %s\n", len(list), dir)
 	} else {
-		fmt.Fprintf(os.Stderr, "  sessions: dir not found (%s)\n", dir)
+		fmt.Fprintf(os.Stderr, "    dir not found (%s)\n", dir)
 	}
 
-	fmt.Fprintln(os.Stderr, "  tools: "+strings.Join(builtin.NewRegistry().Names(), ", "))
+	// Tools
+	fmt.Fprintln(os.Stderr, "\n  tools: "+strings.Join(builtin.NewRegistry().Names(), ", "))
 }
 
 func runHeadlessCmd(args []string) {
@@ -493,6 +549,17 @@ func runImportCmd(args []string) {
 		fmt.Fprintf(os.Stderr, "djinn: unsupported import source: %q (supported: claude)\n", source)
 		os.Exit(exitCodeError)
 	}
+}
+
+func readSystemFile(path string) string {
+	if path == "" {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 func mustGetwd() string {

@@ -92,10 +92,33 @@ func TestLoadMostRecent_WithSessions(t *testing.T) {
 }
 
 func TestPrintUsage_NoCrash(t *testing.T) {
-	// Verify printUsage doesn't panic
-	// Redirecting stderr to avoid noise in test output
 	old := os.Stderr
 	os.Stderr, _ = os.Open(os.DevNull)
 	defer func() { os.Stderr = old }()
 	printUsage()
+}
+
+func TestReadSystemFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "system.txt")
+	os.WriteFile(path, []byte("You are a Go expert."), 0644)
+
+	content := readSystemFile(path)
+	if content != "You are a Go expert." {
+		t.Fatalf("content = %q", content)
+	}
+}
+
+func TestReadSystemFile_Missing(t *testing.T) {
+	content := readSystemFile("/nonexistent/file.txt")
+	if content != "" {
+		t.Fatalf("missing file should return empty, got %q", content)
+	}
+}
+
+func TestReadSystemFile_Empty(t *testing.T) {
+	content := readSystemFile("")
+	if content != "" {
+		t.Fatal("empty path should return empty")
+	}
 }
