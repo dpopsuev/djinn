@@ -40,6 +40,7 @@ const (
 	cmdResume      = "/resume"
 	cmdCopy        = "/copy"
 	cmdReview      = "/review"
+	cmdOutput      = "/output"
 )
 
 // Default mode name.
@@ -111,6 +112,9 @@ func ExecuteCommand(cmd Command, sess *session.Session) CommandResult {
 
 	case cmdReview:
 		return CommandResult{Output: "review: (send /review as a prompt to request agent code review)"}
+
+	case cmdOutput:
+		return executeOutput(cmd)
 
 	case cmdHelp:
 		return CommandResult{Output: helpText()}
@@ -192,6 +196,18 @@ func executeMode(cmd Command, sess *session.Session) CommandResult {
 	return CommandResult{Output: fmt.Sprintf("current mode: %s", currentMode)}
 }
 
+func executeOutput(cmd Command) CommandResult {
+	if len(cmd.Args) == 0 {
+		return CommandResult{Output: "output modes:\n  /output streaming  — token-by-token (default)\n  /output chunked    — all-at-once after completion\n  /output follow     — auto-scroll to latest (default)\n  /output static     — manual scroll"}
+	}
+	switch cmd.Args[0] {
+	case "streaming", "chunked", "follow", "static":
+		return CommandResult{Output: fmt.Sprintf("output mode set to: %s", cmd.Args[0])}
+	default:
+		return CommandResult{Output: fmt.Sprintf("unknown output mode: %s (streaming, chunked, follow, static)", cmd.Args[0])}
+	}
+}
+
 func executeMemory(sess *session.Session) CommandResult {
 	return CommandResult{
 		Output: fmt.Sprintf("session: %s\nmodel: %s\nworkdir: %s\nturns: %d\ntokens: ~%d",
@@ -218,6 +234,7 @@ func helpText() string {
 	return `commands:
   /model [name]    show or switch model
   /mode [mode]     show or switch mode (ask, plan, agent, auto)
+  /output [mode]   output mode (streaming, chunked, follow, static)
   /status          session info
   /cost            token usage
   /compact         compress conversation history

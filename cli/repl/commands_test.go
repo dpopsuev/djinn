@@ -174,6 +174,30 @@ func TestExecuteCommand_Resume(t *testing.T) {
 	}
 }
 
+func TestExecuteCommand_Output_Show(t *testing.T) {
+	sess := session.New("test", "model", "/workspace")
+	result := ExecuteCommand(Command{Name: "/output"}, sess)
+	if !strings.Contains(result.Output, "streaming") {
+		t.Fatalf("output should list modes: %q", result.Output)
+	}
+}
+
+func TestExecuteCommand_Output_Set(t *testing.T) {
+	sess := session.New("test", "model", "/workspace")
+	result := ExecuteCommand(Command{Name: "/output", Args: []string{"chunked"}}, sess)
+	if !strings.Contains(result.Output, "chunked") {
+		t.Fatalf("output = %q", result.Output)
+	}
+}
+
+func TestExecuteCommand_Output_Invalid(t *testing.T) {
+	sess := session.New("test", "model", "/workspace")
+	result := ExecuteCommand(Command{Name: "/output", Args: []string{"invalid"}}, sess)
+	if !strings.Contains(result.Output, "unknown") {
+		t.Fatalf("output = %q", result.Output)
+	}
+}
+
 func TestExecuteCommand_Copy(t *testing.T) {
 	sess := session.New("test", "model", "/workspace")
 	sess.Append(session.Entry{Role: "assistant", Content: "last response"})

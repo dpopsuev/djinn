@@ -27,6 +27,22 @@ const (
 	stateToolApproval
 )
 
+// OutputMode controls how agent responses are rendered.
+type OutputMode int
+
+const (
+	outputStreaming OutputMode = iota // token-by-token (default)
+	outputChunked                    // all-at-once after completion
+)
+
+// ScrollMode controls auto-scroll behavior.
+type ScrollMode int
+
+const (
+	scrollFollow ScrollMode = iota // always show latest (default)
+	scrollStatic                   // user scrolls manually
+)
+
 // Model is the Bubbletea model for the Djinn REPL.
 type Model struct {
 	// Dependencies
@@ -51,6 +67,9 @@ type Model struct {
 	totalOut     int      // cumulative output tokens
 	lastError    string
 	handler      agent.EventHandler
+	outputMode   OutputMode
+	scrollMode   ScrollMode
+	chunkedBuf   strings.Builder // accumulates full response for chunked mode
 	width        int
 	height       int
 	ready        bool
@@ -98,8 +117,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKey(msg)
 
 	case TextMsg:
-		m.streamBuf.WriteString(string(msg))
-		return m, nil // wait for tick to render
+		if m.outputMode == outputChunked {
+			m.chunkedBuf.WriteString(string(msg))
+		} else {
+			m.streamBuf.WriteString(string(msg))
+		}
+		return m, nil // wait for tick to render (streaming) or done (chunked)
 
 	case ThinkingMsg:
 		m.conversation = append(m.conversation,
@@ -153,7 +176,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case AgentDoneMsg:
-		// Flush remaining stream buffer
+		// Flush remaining buffers
+		if m.outputMode == outputChunked && m.chunkedBuf.Len() > 0 {
+			// Chunked mode: render full response now
+			if len(m.conversation) > 0 {
+				last := len(m.conversation) - 1
+				m.conversation[last] += m.chunkedBuf.String()
+			}
+			m.chunkedBuf.Reset()
+		}
 		m.flushStreamBuffer()
 		if msg.Err != nil {
 			m.conversation = append(m.conversation,
