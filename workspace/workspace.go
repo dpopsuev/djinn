@@ -35,14 +35,21 @@ const (
 	RoleReference  = "reference"
 )
 
+// SandboxConfig declares the desired isolation level and backend.
+type SandboxConfig struct {
+	Backend string `yaml:"backend,omitempty"` // misbah, bubblewrap, podman, nsjail, firecracker
+	Level   string `yaml:"level,omitempty"`   // none, namespace, container, kata
+}
+
 // Workspace is a named project configuration.
 type Workspace struct {
-	Name   string            `yaml:"name"`
-	Repos  []Repo            `yaml:"repos"`
-	Driver string            `yaml:"driver,omitempty"`
-	Model  string            `yaml:"model,omitempty"`
-	Mode   string            `yaml:"mode,omitempty"`
-	MCP    map[string]MCPDef `yaml:"mcp,omitempty"`
+	Name    string            `yaml:"name"`
+	Sandbox SandboxConfig     `yaml:"sandbox,omitempty"`
+	Repos   []Repo            `yaml:"repos"`
+	Driver  string            `yaml:"driver,omitempty"`
+	Model   string            `yaml:"model,omitempty"`
+	Mode    string            `yaml:"mode,omitempty"`
+	MCP     map[string]MCPDef `yaml:"mcp,omitempty"`
 }
 
 // Repo is a directory with a role in the workspace.
