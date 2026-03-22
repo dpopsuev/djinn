@@ -43,8 +43,12 @@ type Model struct {
 	textInput    textinput.Model
 	streamBuf    strings.Builder
 	conversation []string // rendered conversation lines
+	inputHistory []string // previous prompts
+	historyIdx   int      // -1 = not browsing history
 	pendingTool  *driver.ToolCall
 	lastUsage    *driver.Usage
+	totalIn      int      // cumulative input tokens
+	totalOut     int      // cumulative output tokens
 	lastError    string
 	handler      agent.EventHandler
 	width        int
@@ -69,6 +73,7 @@ func NewModel(cfg Config) Model {
 		ctx:          context.Background(),
 		state:        stateInput,
 		textInput:    ti,
+		historyIdx:   -1,
 		handler:      agent.NilHandler{},
 	}
 }
@@ -135,6 +140,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case DoneMsg:
 		m.lastUsage = msg.Usage
+		if msg.Usage != nil {
+			m.totalIn += msg.Usage.InputTokens
+			m.totalOut += msg.Usage.OutputTokens
+		}
 		return m, nil
 
 	case ErrorMsg:
@@ -180,8 +189,9 @@ func (m Model) View() string {
 
 	// Welcome header (first time)
 	if len(m.conversation) == 0 && m.state == stateInput {
-		sb.WriteString(assistStyle.Render("Djinn REPL"))
-		sb.WriteString(dimStyle.Render(fmt.Sprintf(" — model: %s — tools: %d — /help for commands",
+		sb.WriteString(logoStyle.Render(djinnLogo))
+		sb.WriteString("\n")
+		sb.WriteString(dimStyle.Render(fmt.Sprintf("  model: %s — tools: %d — /help for commands",
 			m.sess.Model, len(m.tools.Names()))))
 		sb.WriteString("\n\n")
 	}
@@ -206,6 +216,17 @@ func (m Model) View() string {
 	// Input
 	if m.state == stateInput {
 		sb.WriteString(m.textInput.View())
+	}
+
+	// Status bar
+	if m.ready && !m.quitting {
+		sb.WriteString("\n")
+		status := fmt.Sprintf("  %s │ tokens: %d in, %d out │ turns: %d",
+			m.sess.Model, m.totalIn, m.totalOut, m.sess.History.Len())
+		if m.sess.Name != "" {
+			status += " │ " + m.sess.Name
+		}
+		sb.WriteString(statusStyle.Render(status))
 	}
 
 	if m.quitting {
@@ -242,6 +263,33 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.state == stateInput {
+		// Input history navigation
+		switch msg.Type {
+		case tea.KeyUp:
+			if len(m.inputHistory) > 0 {
+				if m.historyIdx == -1 {
+					m.historyIdx = len(m.inputHistory) - 1
+				} else if m.historyIdx > 0 {
+					m.historyIdx--
+				}
+				m.textInput.SetValue(m.inputHistory[m.historyIdx])
+				m.textInput.CursorEnd()
+			}
+			return m, nil
+		case tea.KeyDown:
+			if m.historyIdx >= 0 {
+				m.historyIdx++
+				if m.historyIdx >= len(m.inputHistory) {
+					m.historyIdx = -1
+					m.textInput.SetValue("")
+				} else {
+					m.textInput.SetValue(m.inputHistory[m.historyIdx])
+					m.textInput.CursorEnd()
+				}
+			}
+			return m, nil
+		}
+
 		var cmd tea.Cmd
 		m.textInput, cmd = m.textInput.Update(msg)
 		return m, cmd
@@ -253,10 +301,14 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 	input := strings.TrimSpace(m.textInput.Value())
 	m.textInput.Reset()
+	m.historyIdx = -1 // reset history browsing
 
 	if input == "" {
 		return m, nil
 	}
+
+	// Record in input history
+	m.inputHistory = append(m.inputHistory, input)
 
 	// Add user input to conversation
 	m.conversation = append(m.conversation, userStyle.Render(labelUser)+input)
