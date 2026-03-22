@@ -221,3 +221,54 @@ func TestPrintUsage_ContainsMode(t *testing.T) {
 		t.Fatal("usage should mention --mode flag")
 	}
 }
+
+func TestPrintUsage_ContainsConfig(t *testing.T) {
+	var buf bytes.Buffer
+	PrintUsage(&buf)
+	if !strings.Contains(buf.String(), "--config") {
+		t.Fatal("usage should mention --config flag")
+	}
+	if !strings.Contains(buf.String(), "config dump") {
+		t.Fatal("usage should mention config dump subcommand")
+	}
+}
+
+func TestRunConfig_Dump(t *testing.T) {
+	var buf bytes.Buffer
+	err := RunConfig([]string{"dump"}, &buf)
+	if err != nil {
+		t.Fatalf("RunConfig dump: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "mode:") {
+		t.Fatal("dump should contain mode")
+	}
+	if !strings.Contains(out, "driver:") {
+		t.Fatal("dump should contain driver")
+	}
+}
+
+func TestRunConfig_MissingArgs(t *testing.T) {
+	var buf bytes.Buffer
+	err := RunConfig(nil, &buf)
+	if err == nil {
+		t.Fatal("expected error for missing args")
+	}
+}
+
+func TestRunConfig_Unknown(t *testing.T) {
+	var buf bytes.Buffer
+	err := RunConfig([]string{"bogus"}, &buf)
+	if err == nil {
+		t.Fatal("expected error for unknown subcommand")
+	}
+}
+
+func TestDefaultHomeDir(t *testing.T) {
+	if DefaultHomeDir != ".djinn" {
+		t.Fatalf("DefaultHomeDir = %q, want .djinn", DefaultHomeDir)
+	}
+	if DefaultSessionDir != ".djinn/sessions" {
+		t.Fatalf("DefaultSessionDir = %q, want .djinn/sessions", DefaultSessionDir)
+	}
+}

@@ -18,6 +18,7 @@ import (
 	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/cli/repl"
+	djinnconfig "github.com/dpopsuev/djinn/config"
 	djinnctx "github.com/dpopsuev/djinn/context"
 	"github.com/dpopsuev/djinn/djinnfile"
 	"github.com/dpopsuev/djinn/driver"
@@ -35,7 +36,8 @@ import (
 // Constants.
 const (
 	Version           = "0.1.0"
-	DefaultSessionDir = ".config/djinn/sessions"
+	DefaultHomeDir    = ".djinn"
+	DefaultSessionDir = ".djinn/sessions"
 	DefaultModel      = "claude-sonnet-4-6"
 	PollInterval      = 50 * time.Millisecond
 )
@@ -71,6 +73,8 @@ func Run(args []string, stderr io.Writer) error {
 		return RunKill(args[1:], stderr)
 	case "import":
 		return RunImport(args[1:], stderr)
+	case "config":
+		return RunConfig(args[1:], stderr)
 	case "doctor":
 		return RunDoctor(stderr)
 	case "version":
@@ -97,6 +101,7 @@ Usage:
   djinn ls                            list sessions
   djinn attach <name>                 resume session
   djinn kill <name>                   delete session
+  djinn config dump                    dump runtime config as YAML
   djinn doctor                        health check
   djinn version                       version info
 
@@ -110,6 +115,7 @@ Flags (repl/run):
   --system <prompt>                   system prompt
   --system-file <path>                load system prompt from file
   --mode <ask|plan|agent|auto>        agent mode (default: agent)
+  --config <file>                     load config from YAML file
   --no-persist                        don't save session to disk
 `)
 }
@@ -128,6 +134,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	maxTurns := fs.Int("max-turns", 20, "max agent turns per prompt")
 	autoApprove := fs.Bool("auto-approve", false, "auto-approve all tool calls")
 	mode := fs.String("mode", "agent", "agent mode: ask, plan, agent, auto")
+	configFile := fs.String("config", "", "load config from YAML file")
 	systemPrompt := fs.String("system", "", "system prompt")
 	systemFile := fs.String("system-file", "", "load system prompt from file")
 	noPersist := fs.Bool("no-persist", false, "don't save session to disk")
@@ -144,6 +151,36 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 	if *contShort {
 		*cont = true
+	}
+
+	// Load config files (defaults → discovered files → explicit → CLI flags override)
+	cfgRegistry := djinnconfig.NewRegistry()
+	modeConf := &djinnconfig.ModeConfig{Mode: *mode}
+	driverConf := &djinnconfig.DriverConfigurable{Name: *driverName, Model: *model}
+	sessConf := &djinnconfig.SessionConfigurable{MaxTurns: *maxTurns, AutoApprove: *autoApprove}
+	cfgRegistry.Register(modeConf)
+	cfgRegistry.Register(driverConf)
+	cfgRegistry.Register(sessConf)
+
+	if err := djinnconfig.LoadAll(cfgRegistry, Getwd(), *configFile); err != nil {
+		fmt.Fprintf(stderr, "djinn: config: %v\n", err)
+	}
+
+	// Apply config file values back to flags (file values as defaults, CLI flags win)
+	if *mode == "agent" && modeConf.Mode != "agent" {
+		*mode = modeConf.Mode
+	}
+	if *model == "" && driverConf.Model != "" {
+		*model = driverConf.Model
+	}
+	if *driverName == DriverClaude && driverConf.Name != DriverClaude {
+		*driverName = driverConf.Name
+	}
+	if *maxTurns == 20 && sessConf.MaxTurns != 20 {
+		*maxTurns = sessConf.MaxTurns
+	}
+	if !*autoApprove && sessConf.AutoApprove {
+		*autoApprove = sessConf.AutoApprove
 	}
 
 	// Load system prompt from file
@@ -446,6 +483,37 @@ func RunDoctor(w io.Writer) error {
 	// Tools
 	fmt.Fprintln(w, "\n  tools: "+strings.Join(builtin.NewRegistry().Names(), ", "))
 	return nil
+}
+
+// RunConfig handles the config subcommand.
+func RunConfig(args []string, w io.Writer) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: djinn config dump")
+	}
+
+	switch args[0] {
+	case "dump":
+		r := djinnconfig.NewRegistry()
+		r.Register(&djinnconfig.ModeConfig{Mode: "agent"})
+		r.Register(&djinnconfig.DriverConfigurable{Name: DriverClaude, Model: DefaultModel})
+		r.Register(&djinnconfig.SessionConfigurable{MaxTurns: 20})
+		r.Register(&djinnconfig.ToolsConfigurable{Enabled: builtin.NewRegistry().Names()})
+
+		// Load discovered config files to show actual values
+		if err := djinnconfig.LoadAll(r, Getwd(), ""); err != nil {
+			fmt.Fprintf(w, "# warning: %v\n", err)
+		}
+
+		data, err := r.DumpYAML()
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(data)
+		return err
+
+	default:
+		return fmt.Errorf("unknown config command: %q (try: djinn config dump)", args[0])
+	}
 }
 
 // RunHeadless runs a one-shot headless execution.

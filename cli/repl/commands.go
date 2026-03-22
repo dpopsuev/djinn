@@ -42,6 +42,7 @@ const (
 	cmdCopy        = "/copy"
 	cmdReview      = "/review"
 	cmdOutput      = "/output"
+	cmdConfig      = "/config"
 )
 
 // Default mode name.
@@ -116,6 +117,9 @@ func ExecuteCommand(cmd Command, sess *session.Session) CommandResult {
 
 	case cmdOutput:
 		return executeOutput(cmd)
+
+	case cmdConfig:
+		return executeConfig(sess)
 
 	case cmdHelp:
 		return CommandResult{Output: helpText()}
@@ -237,6 +241,17 @@ func executeCopy(sess *session.Session) CommandResult {
 	return CommandResult{Output: "no assistant response to copy"}
 }
 
+func executeConfig(sess *session.Session) CommandResult {
+	mode := sess.Mode
+	if mode == "" {
+		mode = defaultModeName
+	}
+	return CommandResult{
+		Output: fmt.Sprintf("driver: %s\nmodel: %s\nmode: %s\nturns: %d\nworkdir: %s",
+			sess.Driver, sess.Model, mode, sess.History.Len(), sess.WorkDir),
+	}
+}
+
 func helpText() string {
 	return `commands:
   /model [name]    show or switch model
@@ -252,6 +267,7 @@ func helpText() string {
   /mcp             show MCP servers
   /resume          resume a session (use djinn attach)
   /review          request code review
+  /config          show runtime config
   /clear           clear conversation history
   /help            show this help
   /exit            quit`
