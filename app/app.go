@@ -127,6 +127,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	contShort := fs.Bool("c", false, "resume most recent (short)")
 	maxTurns := fs.Int("max-turns", 20, "max agent turns per prompt")
 	autoApprove := fs.Bool("auto-approve", false, "auto-approve all tool calls")
+	mode := fs.String("mode", "agent", "agent mode: ask, plan, agent, auto")
 	systemPrompt := fs.String("system", "", "system prompt")
 	systemFile := fs.String("system-file", "", "load system prompt from file")
 	noPersist := fs.Bool("no-persist", false, "don't save session to disk")
@@ -239,6 +240,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 		SystemPrompt: assembledPrompt,
 		MaxTurns:     *maxTurns,
 		AutoApprove:  *autoApprove,
+		Mode:         *mode,
 	})
 
 	// Save session on exit

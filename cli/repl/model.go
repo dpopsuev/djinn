@@ -52,6 +52,8 @@ type Model struct {
 	systemPrompt string
 	maxTurns     int
 	autoApprove  bool
+	mode         agent.Mode
+	approvalCh   chan bool // bridges approval from UI to agent goroutine
 	ctx          context.Context
 
 	// UI state
@@ -82,6 +84,11 @@ func NewModel(cfg Config) Model {
 	ti.Prompt = userStyle.Render(labelUser)
 	ti.Focus()
 
+	mode, err := agent.ParseMode(cfg.Mode)
+	if err != nil {
+		mode = agent.ModeAgent
+	}
+
 	return Model{
 		chatDriver:   cfg.Driver,
 		tools:        cfg.Tools,
@@ -89,6 +96,8 @@ func NewModel(cfg Config) Model {
 		systemPrompt: cfg.SystemPrompt,
 		maxTurns:     cfg.MaxTurns,
 		autoApprove:  cfg.AutoApprove,
+		mode:         mode,
+		approvalCh:   make(chan bool, 1),
 		ctx:          context.Background(),
 		state:        stateInput,
 		textInput:    ti,
@@ -135,7 +144,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			toolArgStyle.Render(truncate(string(msg.Call.Input), 80)))
 		m.conversation = append(m.conversation, line)
 
-		if !m.autoApprove {
+		// In agent mode (not auto), prompt for approval
+		if m.mode == agent.ModeAgent && !m.autoApprove {
 			m.state = stateToolApproval
 			m.pendingTool = &msg.Call
 		}
@@ -252,8 +262,8 @@ func (m Model) View() string {
 	// Status bar
 	if m.ready && !m.quitting {
 		sb.WriteString("\n")
-		status := fmt.Sprintf("  %s │ tokens: %d in, %d out │ turns: %d",
-			m.sess.Model, m.totalIn, m.totalOut, m.sess.History.Len())
+		status := fmt.Sprintf("  %s │ %s │ tokens: %d in, %d out │ turns: %d",
+			m.sess.Model, m.mode, m.totalIn, m.totalOut, m.sess.History.Len())
 		if m.sess.Name != "" {
 			status += " │ " + m.sess.Name
 		}
@@ -294,6 +304,15 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.state == stateInput {
+		// Alt+M cycles mode: ask → plan → agent → auto → ask
+		if msg.Alt && msg.Type == tea.KeyRunes && len(msg.Runes) == 1 && (msg.Runes[0] == 'm' || msg.Runes[0] == 'M') {
+			m.mode = m.mode.Next()
+			m.sess.Mode = m.mode.String()
+			m.conversation = append(m.conversation,
+				dimStyle.Render(fmt.Sprintf("  mode: %s", m.mode)))
+			return m, nil
+		}
+
 		// Input history navigation
 		switch msg.Type {
 		case tea.KeyUp:
@@ -350,6 +369,11 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 		if result.Output != "" {
 			m.conversation = append(m.conversation, result.Output)
 		}
+		if result.ModeChange != "" {
+			if newMode, err := agent.ParseMode(result.ModeChange); err == nil {
+				m.mode = newMode
+			}
+		}
 		if result.Exit {
 			m.quitting = true
 			return m, tea.Quit
@@ -383,24 +407,44 @@ func (m *Model) handleApproval(key string) (tea.Model, tea.Cmd) {
 		m.conversation = append(m.conversation, errorStyle.Render("  denied"))
 	}
 
-	return m, nil
+	// Send decision to agent goroutine via channel
+	ch := m.approvalCh
+	return m, func() tea.Msg {
+		ch <- approved
+		return nil
+	}
 }
 
 func (m *Model) runAgent(prompt string) tea.Cmd {
+	mode := m.mode
+	ch := m.approvalCh
 	return func() tea.Msg {
-		// The handler will be set after program starts — use a placeholder
-		// that sends messages back to the program. This is handled by
-		// the Run() function which creates the handler after tea.NewProgram.
 		result, err := agent.Run(m.ctx, agent.Config{
 			Driver:       m.chatDriver,
 			Tools:        m.tools,
 			Session:      m.sess,
 			SystemPrompt: m.systemPrompt,
 			MaxTurns:     m.maxTurns,
-			Approve:      agent.AutoApprove,
+			ToolsEnabled: mode.ToolsEnabled(),
+			Approve:      approvalForMode(mode, ch),
 			Handler:      globalHandler,
 		}, prompt)
 		return AgentDoneMsg{Result: result, Err: err}
+	}
+}
+
+// approvalForMode returns the approval function for the given mode.
+// In agent mode, blocks on the channel waiting for the UI decision.
+func approvalForMode(mode agent.Mode, ch chan bool) agent.ApprovalFunc {
+	switch mode {
+	case agent.ModeAuto:
+		return agent.AutoApprove
+	case agent.ModeAgent:
+		return func(_ driver.ToolCall) bool {
+			return <-ch
+		}
+	default:
+		return agent.DenyAll
 	}
 }
 

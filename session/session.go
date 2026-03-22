@@ -32,6 +32,7 @@ type Session struct {
 	Name      string    `json:"name,omitempty"`
 	Driver    string    `json:"driver,omitempty"`
 	Model     string    `json:"model"`
+	Mode      string    `json:"mode,omitempty"`
 	WorkDir   string    `json:"work_dir"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

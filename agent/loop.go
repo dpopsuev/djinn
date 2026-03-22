@@ -46,6 +46,7 @@ type Config struct {
 	Session      *session.Session
 	SystemPrompt string
 	MaxTurns     int
+	ToolsEnabled bool // false = ask/plan mode (no tool execution)
 	Approve      ApprovalFunc
 	Handler      EventHandler
 }
@@ -105,6 +106,11 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) {
 
 		// If no tool calls, we're done
 		if len(response.toolCalls) == 0 {
+			break
+		}
+
+		// Tools disabled (ask/plan mode): skip execution
+		if !cfg.ToolsEnabled {
 			break
 		}
 

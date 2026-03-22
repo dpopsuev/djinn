@@ -140,6 +140,36 @@ func TestExecuteCommand_Mode_Switch(t *testing.T) {
 	if result.Output == "" {
 		t.Fatal("mode switch should produce output")
 	}
+	if sess.Mode != "plan" {
+		t.Fatalf("session mode = %q, want plan", sess.Mode)
+	}
+	if result.ModeChange != "plan" {
+		t.Fatalf("ModeChange = %q, want plan", result.ModeChange)
+	}
+}
+
+func TestExecuteCommand_Mode_InvalidMode(t *testing.T) {
+	sess := session.New("test", "model", "/workspace")
+	result := ExecuteCommand(Command{Name: "/mode", Args: []string{"yolo"}}, sess)
+	if !strings.Contains(result.Output, "unknown mode") {
+		t.Fatalf("output = %q", result.Output)
+	}
+	if result.ModeChange != "" {
+		t.Fatal("invalid mode should not set ModeChange")
+	}
+}
+
+func TestExecuteCommand_Mode_AllModes(t *testing.T) {
+	for _, mode := range []string{"ask", "plan", "agent", "auto"} {
+		sess := session.New("test", "model", "/workspace")
+		result := ExecuteCommand(Command{Name: "/mode", Args: []string{mode}}, sess)
+		if sess.Mode != mode {
+			t.Fatalf("mode %q: session.Mode = %q", mode, sess.Mode)
+		}
+		if result.ModeChange != mode {
+			t.Fatalf("mode %q: ModeChange = %q", mode, result.ModeChange)
+		}
+	}
 }
 
 func TestExecuteCommand_Permissions(t *testing.T) {

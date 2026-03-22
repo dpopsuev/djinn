@@ -17,9 +17,10 @@ type Command struct {
 
 // CommandResult is the outcome of executing a slash command.
 type CommandResult struct {
-	Output  string
-	Exit    bool
-	Cleared bool
+	Output     string
+	Exit       bool
+	Cleared    bool
+	ModeChange string // non-empty = mode was changed
 }
 
 // Slash command names.
@@ -181,14 +182,20 @@ func executeDiff() CommandResult {
 }
 
 func executeMode(cmd Command, sess *session.Session) CommandResult {
-	// Mode stored in session metadata (stub for TSK-48)
-	currentMode := defaultModeName
+	currentMode := sess.Mode
+	if currentMode == "" {
+		currentMode = defaultModeName
+	}
 
 	if len(cmd.Args) > 0 {
 		newMode := cmd.Args[0]
 		switch newMode {
 		case "ask", "plan", "agent", "auto":
-			return CommandResult{Output: fmt.Sprintf("mode: %s (modes are a stub — full implementation in TSK-48)", newMode)}
+			sess.Mode = newMode
+			return CommandResult{
+				Output:     fmt.Sprintf("mode: %s", newMode),
+				ModeChange: newMode,
+			}
 		default:
 			return CommandResult{Output: fmt.Sprintf("unknown mode: %s (available: ask, plan, agent, auto)", newMode)}
 		}

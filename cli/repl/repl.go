@@ -19,6 +19,7 @@ type Config struct {
 	SystemPrompt string
 	MaxTurns     int
 	AutoApprove  bool
+	Mode         string // "ask", "plan", "agent", "auto"
 }
 
 // Run starts the interactive REPL. Blocks until /exit or ctrl-C.
