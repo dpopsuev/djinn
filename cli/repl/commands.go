@@ -98,7 +98,7 @@ func ExecuteCommand(cmd Command, sess *session.Session) CommandResult {
 		return executeMode(cmd, sess)
 
 	case cmdPermissions:
-		return CommandResult{Output: "tools: Read, Write, Edit, Bash, Glob, Grep\napproval: ask (default)"}
+		return executePermissions(sess)
 
 	case cmdMemory:
 		return executeMemory(sess)
@@ -220,9 +220,13 @@ func executeOutput(cmd Command) CommandResult {
 }
 
 func executeMemory(sess *session.Session) CommandResult {
+	name := sess.Name
+	if name == "" {
+		name = sess.ID
+	}
 	return CommandResult{
-		Output: fmt.Sprintf("session: %s\nmodel: %s\nworkdir: %s\nturns: %d\ntokens: ~%d",
-			sess.ID, sess.Model, sess.WorkDir, sess.History.Len(), sess.TotalTokens()),
+		Output: fmt.Sprintf("Session:   %s\nModel:     %s\nWorkdir:   %s\nTurns:     %d\nTokens:    ~%d",
+			name, sess.Model, sess.WorkDir, sess.History.Len(), sess.TotalTokens()),
 	}
 }
 
@@ -239,6 +243,23 @@ func executeCopy(sess *session.Session) CommandResult {
 		}
 	}
 	return CommandResult{Output: "no assistant response to copy"}
+}
+
+func executePermissions(sess *session.Session) CommandResult {
+	mode := sess.Mode
+	if mode == "" {
+		mode = defaultModeName
+	}
+	approval := "interactive"
+	switch mode {
+	case "auto":
+		approval = "auto-approve (no prompts)"
+	case "ask", "plan":
+		approval = "none (tools disabled)"
+	}
+	return CommandResult{
+		Output: fmt.Sprintf("tools: Read, Write, Edit, Bash, Glob, Grep\napproval: %s\nmode: %s", approval, mode),
+	}
 }
 
 func executeConfig(sess *session.Session) CommandResult {

@@ -101,7 +101,7 @@ Usage:
   djinn ls                            list sessions
   djinn attach <name>                 resume session
   djinn kill <name>                   delete session
-  djinn config dump                    dump runtime config as YAML
+  djinn config dump                   dump runtime config as YAML
   djinn doctor                        health check
   djinn version                       version info
 
@@ -208,7 +208,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 
 	store, err := session.NewStore(SessionDir())
 	if err != nil {
-		return fmt.Errorf("session store: %w", err)
+		return fmt.Errorf("cannot open session store at %s: %w", SessionDir(), err)
 	}
 
 	// Session: resume, continue, or new
@@ -252,7 +252,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	defer cancel()
 
 	if err := chatDriver.Start(ctx, ""); err != nil {
-		return fmt.Errorf("driver start: %w", err)
+		return fmt.Errorf("cannot start %s driver: %w (try: djinn doctor)", *driverName, err)
 	}
 	defer chatDriver.Stop(ctx)
 
@@ -342,7 +342,7 @@ func RunList(w io.Writer) error {
 // RunAttach resumes a session.
 func RunAttach(args []string, stderr io.Writer) error {
 	if len(args) < 1 {
-		return fmt.Errorf("%w: djinn attach <name>", ErrMissingArgs)
+		return fmt.Errorf("attach requires a session name (usage: djinn attach <name>)")
 	}
 	return RunREPL(append([]string{"--session", args[0]}, args[1:]...), stderr)
 }
@@ -350,7 +350,7 @@ func RunAttach(args []string, stderr io.Writer) error {
 // RunKill deletes a session.
 func RunKill(args []string, stderr io.Writer) error {
 	if len(args) < 1 {
-		return fmt.Errorf("%w: djinn kill <name>", ErrMissingArgs)
+		return fmt.Errorf("kill requires a session name (usage: djinn kill <name>)")
 	}
 
 	store, err := session.NewStore(SessionDir())
@@ -369,7 +369,7 @@ func RunKill(args []string, stderr io.Writer) error {
 // RunImport imports a session from another CLI tool.
 func RunImport(args []string, stderr io.Writer) error {
 	if len(args) < 2 {
-		return fmt.Errorf("%w: djinn import claude <session.jsonl> [-s name]", ErrMissingArgs)
+		return fmt.Errorf("import requires source and file (usage: djinn import claude <session.jsonl> [-s name])")
 	}
 
 	source := args[0]
@@ -519,7 +519,7 @@ func RunConfig(args []string, w io.Writer) error {
 // RunHeadless runs a one-shot headless execution.
 func RunHeadless(args []string, stderr io.Writer) error {
 	if len(args) < 1 {
-		return fmt.Errorf("%w: djinn run <prompt>", ErrMissingArgs)
+		return fmt.Errorf("run requires a prompt (usage: djinn run <prompt>)")
 	}
 
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
