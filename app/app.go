@@ -128,6 +128,7 @@ Flags (repl/run):
   --system-file <path>                load system prompt from file
   --mode <ask|plan|agent|auto>        agent mode (default: agent)
   --config <file>                     load config from YAML file
+  --workspace <path>                   project workspace (default: cwd)
   --add-dir <path>                    additional workspace directory
   --verbose                           show log output on terminal
   --no-persist                        don't save session to disk
@@ -152,6 +153,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	systemPrompt := fs.String("system", "", "system prompt")
 	systemFile := fs.String("system-file", "", "load system prompt from file")
 	verbose := fs.Bool("verbose", false, "show log output on terminal")
+	workspace := fs.String("workspace", "", "project workspace directory (default: cwd)")
 	addDir := fs.String("add-dir", "", "additional workspace directory")
 	noPersist := fs.Bool("no-persist", false, "don't save session to disk")
 	if err := fs.Parse(args); err != nil {
@@ -256,8 +258,13 @@ func RunREPL(args []string, stderr io.Writer) error {
 	sess.Driver = *driverName
 
 	// Initialize workspace dirs
+	// Priority: session stored > --workspace flag > cwd
 	if len(sess.WorkDirs) == 0 {
-		sess.WorkDirs = []string{Getwd()}
+		if *workspace != "" {
+			sess.WorkDirs = []string{*workspace}
+		} else {
+			sess.WorkDirs = []string{Getwd()}
+		}
 	}
 	if *addDir != "" {
 		sess.WorkDirs = append(sess.WorkDirs, *addDir)
