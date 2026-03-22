@@ -9,6 +9,7 @@ import (
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/workspace"
 	"github.com/dpopsuev/djinn/tools/builtin"
@@ -29,6 +30,8 @@ type Config struct {
 	InitialPrompt string             // auto-submit on first render
 	WorkspaceBus  *workspace.Bus     // workspace event bus for /workspace-switch
 	Transport     interface{}        // clutch.Transport for hot-swap (nil = direct agent.Run)
+	Enforcer      policy.Enforcer   // PolicyEnforcer for agent call mediation
+	Token         policy.CapabilityToken
 }
 
 // Run starts the interactive REPL. Blocks until /exit or ctrl-C.

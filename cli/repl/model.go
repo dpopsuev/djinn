@@ -13,6 +13,7 @@ import (
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -57,6 +58,8 @@ type Model struct {
 	mode         agent.Mode
 	approvalCh   chan bool // bridges approval from UI to agent goroutine
 	store        *session.Store // auto-save after each turn
+	enforcer     policy.Enforcer
+	token        policy.CapabilityToken
 	log          *slog.Logger
 	ctx          context.Context
 
@@ -110,6 +113,8 @@ func NewModel(cfg Config) Model {
 		mode:         mode,
 		approvalCh:   make(chan bool, 1),
 		store:        cfg.Store,
+		enforcer:     cfg.Enforcer,
+		token:        cfg.Token,
 		log:          log,
 		ctx:          context.Background(),
 		state:        stateInput,
@@ -455,6 +460,8 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 			ToolsEnabled: mode.ToolsEnabled(),
 			Mode:         mode,
 			Approve:      approvalForMode(mode, ch),
+			Enforcer:     m.enforcer,
+			Token:        m.token,
 			Handler:      globalHandler,
 			Log:          agentLog,
 		}, prompt)

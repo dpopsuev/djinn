@@ -14,6 +14,7 @@ import (
 
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -53,6 +54,8 @@ type Config struct {
 	Mode         Mode // agent mode for auto-weave
 	ContextLimit int  // max tokens before auto-compact (0 = 200K default)
 	Approve      ApprovalFunc
+	Enforcer     policy.Enforcer        // agent call mediation (nil = NopEnforcer)
+	Token        policy.CapabilityToken // immutable capability token
 	Handler      EventHandler
 	Log          *slog.Logger
 }
@@ -253,6 +256,20 @@ func executeTools(ctx context.Context, cfg Config, calls []driver.ToolCall) ([]d
 	var resultBlocks []driver.ContentBlock
 
 	for _, call := range calls {
+		// Agent call mediation — PolicyEnforcer gates every tool call
+		if cfg.Enforcer != nil {
+			if err := cfg.Enforcer.Check(cfg.Token, call.Name, call.Input); err != nil {
+				cfg.Log.Warn("agent call denied", "tool", call.Name, "reason", err)
+				resultBlocks = append(resultBlocks, driver.NewToolResultBlock(
+					call.ID, fmt.Sprintf("denied by policy: %v", err), true,
+				))
+				if cfg.Handler != nil {
+					cfg.Handler.OnToolResult(call.ID, call.Name, "denied by policy", true)
+				}
+				continue
+			}
+		}
+
 		// Check approval
 		if cfg.Approve != nil && !cfg.Approve(call) {
 			resultBlocks = append(resultBlocks, driver.NewToolResultBlock(

@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/dpopsuev/djinn/policy"
 	"gopkg.in/yaml.v3"
 )
 
@@ -72,6 +73,20 @@ type Summary struct {
 	Repos    int
 	Primary  string
 	Modified string
+}
+
+// ToCapabilityToken generates an immutable capability token from the workspace.
+// WritablePaths = repo paths. DeniedPaths = Djinn config directories.
+func (w *Workspace) ToCapabilityToken() policy.CapabilityToken {
+	home, _ := os.UserHomeDir()
+	return policy.CapabilityToken{
+		WritablePaths: w.Paths(),
+		DeniedPaths: []string{
+			filepath.Join(home, ".config", "djinn"),
+			filepath.Join(home, ".djinn"),
+		},
+		Tier: "mod", // default
+	}
 }
 
 // Paths returns all repo paths.

@@ -19,6 +19,7 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
+	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	djinnws "github.com/dpopsuev/djinn/workspace"
@@ -257,6 +258,11 @@ func RunREPL(args []string, stderr io.Writer) error {
 		sess.WorkDirs = evt.New.Paths()
 	})
 
+	// PolicyEnforcer — agent call mediation
+	enforcer := policy.NewDefaultEnforcer()
+	capToken := ws.ToCapabilityToken()
+	log.Info("policy enforcer active", "writable", len(capToken.WritablePaths), "denied", len(capToken.DeniedPaths))
+
 	// Build tool registry
 	registry := builtin.NewRegistry()
 	for _, tool := range mcpClient.MCPTools() {
@@ -295,6 +301,8 @@ func RunREPL(args []string, stderr io.Writer) error {
 		InitialPrompt: initialPrompt,
 		WorkspaceBus:  wsBus,
 		Transport:     transport,
+		Enforcer:      enforcer,
+		Token:         capToken,
 	})
 
 	if !*noPersist {
