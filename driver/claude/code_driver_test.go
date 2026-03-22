@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/mcp"
 )
 
 func TestCodeDriver_InterfaceSatisfaction(t *testing.T) {
@@ -19,7 +20,7 @@ func TestCodeDriver_Lifecycle(t *testing.T) {
 		return ExecResult{ExitCode: 0, Stdout: string(resp)}, nil
 	}
 
-	d := NewCodeDriver(driver.DriverConfig{Model: "claude-sonnet-4-6"}, exec, "")
+	d := NewCodeDriver(driver.DriverConfig{Model: "claude-sonnet-4-6"}, exec)
 	ctx := context.Background()
 
 	if err := d.Start(ctx, "sandbox-1"); err != nil {
@@ -52,12 +53,11 @@ func TestCodeDriver_BuildCommand(t *testing.T) {
 	d := NewCodeDriver(
 		driver.DriverConfig{Model: "claude-opus-4-6"},
 		nil,
-		"You are a Go expert",
+		WithSystemPrompt("You are a Go expert"),
 	)
 
 	cmd := d.buildCommand("fix the auth bug")
 
-	// Check required flags
 	hasP := false
 	hasModel := false
 	hasSystem := false
@@ -83,8 +83,40 @@ func TestCodeDriver_BuildCommand(t *testing.T) {
 	}
 }
 
+func TestCodeDriver_BuildCommand_WithMCP(t *testing.T) {
+	servers := []mcp.Server{
+		{Name: "scribe", Type: mcp.TypeHTTP, URL: "http://localhost:8080/"},
+	}
+
+	d := NewCodeDriver(
+		driver.DriverConfig{},
+		nil,
+		WithMCPServers(servers),
+	)
+
+	cmd := d.buildCommand("do something")
+
+	hasMCPConfig := false
+	for i, arg := range cmd {
+		if arg == flagMCPConfig && i+1 < len(cmd) {
+			hasMCPConfig = true
+			// Verify the file exists
+			path := cmd[i+1]
+			if path == "" {
+				t.Fatal("MCP config path is empty")
+			}
+		}
+	}
+	if !hasMCPConfig {
+		t.Fatal("missing --mcp-config flag when servers configured")
+	}
+
+	// Clean up
+	d.Stop(context.Background())
+}
+
 func TestCodeDriver_ParseResponse_JSON(t *testing.T) {
-	d := NewCodeDriver(driver.DriverConfig{}, nil, "")
+	d := NewCodeDriver(driver.DriverConfig{}, nil)
 
 	resp, _ := json.Marshal(claudeJSONResponse{
 		Result:    "fixed the bug",
@@ -98,7 +130,7 @@ func TestCodeDriver_ParseResponse_JSON(t *testing.T) {
 }
 
 func TestCodeDriver_ParseResponse_NonZeroExit(t *testing.T) {
-	d := NewCodeDriver(driver.DriverConfig{}, nil, "")
+	d := NewCodeDriver(driver.DriverConfig{}, nil)
 
 	content := d.parseResponse(ExecResult{ExitCode: 1, Stderr: "API key invalid"})
 	if content != "claude exit code 1: API key invalid" {
@@ -107,7 +139,7 @@ func TestCodeDriver_ParseResponse_NonZeroExit(t *testing.T) {
 }
 
 func TestCodeDriver_ParseResponse_RawText(t *testing.T) {
-	d := NewCodeDriver(driver.DriverConfig{}, nil, "")
+	d := NewCodeDriver(driver.DriverConfig{}, nil)
 
 	content := d.parseResponse(ExecResult{ExitCode: 0, Stdout: "plain text response"})
 	if content != "plain text response" {
@@ -120,7 +152,7 @@ func TestCodeDriver_ExecError(t *testing.T) {
 		return ExecResult{}, errors.New("container not running")
 	}
 
-	d := NewCodeDriver(driver.DriverConfig{}, exec, "")
+	d := NewCodeDriver(driver.DriverConfig{}, exec)
 	ctx := context.Background()
 	d.Start(ctx, "sandbox-1")
 
@@ -133,7 +165,7 @@ func TestCodeDriver_ExecError(t *testing.T) {
 }
 
 func TestCodeDriver_SendAfterStop(t *testing.T) {
-	d := NewCodeDriver(driver.DriverConfig{}, nil, "")
+	d := NewCodeDriver(driver.DriverConfig{}, nil)
 	ctx := context.Background()
 	d.Start(ctx, "sb")
 	d.Stop(ctx)

@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/mcp"
 )
 
 // Claude Code CLI flags and defaults.
@@ -41,9 +43,11 @@ type ExecResult struct {
 // CodeDriver implements driver.Driver by running Claude Code CLI
 // inside a Misbah container via an exec function.
 type CodeDriver struct {
-	config     driver.DriverConfig
-	execFn     ExecFunc
+	config       driver.DriverConfig
+	execFn       ExecFunc
 	systemPrompt string
+	mcpServers   []mcp.Server
+	mcpConfigDir string // temp dir for MCP config file, cleaned up on Stop
 
 	mu      sync.Mutex
 	sandbox driver.SandboxHandle
@@ -52,15 +56,31 @@ type CodeDriver struct {
 	stopped bool
 }
 
+// CodeDriverOption configures a CodeDriver.
+type CodeDriverOption func(*CodeDriver)
+
+// WithMCPServers registers MCP servers to expose to Claude Code.
+func WithMCPServers(servers []mcp.Server) CodeDriverOption {
+	return func(d *CodeDriver) { d.mcpServers = servers }
+}
+
+// WithSystemPrompt sets the system prompt appended to Claude Code.
+func WithSystemPrompt(prompt string) CodeDriverOption {
+	return func(d *CodeDriver) { d.systemPrompt = prompt }
+}
+
 // NewCodeDriver creates a driver that runs Claude Code CLI via exec.
 // execFn is called to execute commands inside the container.
-func NewCodeDriver(config driver.DriverConfig, execFn ExecFunc, systemPrompt string) *CodeDriver {
-	return &CodeDriver{
-		config:       config,
-		execFn:       execFn,
-		systemPrompt: systemPrompt,
-		recvCh:       make(chan driver.Message, 1),
+func NewCodeDriver(config driver.DriverConfig, execFn ExecFunc, opts ...CodeDriverOption) *CodeDriver {
+	d := &CodeDriver{
+		config: config,
+		execFn: execFn,
+		recvCh: make(chan driver.Message, 1),
 	}
+	for _, opt := range opts {
+		opt(d)
+	}
+	return d
 }
 
 func (d *CodeDriver) Start(ctx context.Context, sandbox driver.SandboxHandle) error {
@@ -112,8 +132,14 @@ func (d *CodeDriver) Stop(ctx context.Context) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.stopped = true
+	if d.mcpConfigDir != "" {
+		os.RemoveAll(d.mcpConfigDir)
+		d.mcpConfigDir = ""
+	}
 	return nil
 }
+
+const flagMCPConfig = "--mcp-config"
 
 func (d *CodeDriver) buildCommand(prompt string) []string {
 	cmd := []string{
@@ -130,6 +156,18 @@ func (d *CodeDriver) buildCommand(prompt string) []string {
 
 	if d.systemPrompt != "" {
 		cmd = append(cmd, flagAppendSystem, d.systemPrompt)
+	}
+
+	// Write MCP config file if servers are configured
+	if len(d.mcpServers) > 0 {
+		dir, err := os.MkdirTemp("", "djinn-mcp-*")
+		if err == nil {
+			path, err := mcp.WriteConfigFile(dir, d.mcpServers)
+			if err == nil {
+				d.mcpConfigDir = dir
+				cmd = append(cmd, flagMCPConfig, path)
+			}
+		}
 	}
 
 	return cmd

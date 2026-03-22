@@ -85,7 +85,9 @@ func hello() string {
 					Stderr:   result.Stderr,
 				}, nil
 			}
-			return claudedriver.NewCodeDriver(cfg, execFn, "You are working in a Go project. Be concise.")
+			return claudedriver.NewCodeDriver(cfg, execFn,
+				claudedriver.WithSystemPrompt("You are working in a Go project. Be concise."),
+			)
 		},
 		func(cfg gate.GateConfig) gate.Gate {
 			return stubs.AlwaysPassGate()
@@ -139,7 +141,7 @@ func hello() string {
 	// Skip on infrastructure failures
 	if !results[0].Success {
 		summary := results[0].Summary
-		if containsAny(summary, "operation not supported", "permission denied", "network isolation", "exec error", "API key") {
+		if containsAny(summary, "operation not supported", "permission denied", "network isolation", "exec error", "API key", "cannot assign requested address", "bind:") {
 			t.Skipf("skipping: infrastructure issue: %s", summary)
 		}
 		t.Fatalf("cross-ecosystem E2E failed: %s", summary)
