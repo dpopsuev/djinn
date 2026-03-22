@@ -52,18 +52,21 @@ const (
 )
 
 // HomeDir returns the Djinn home directory.
-// Checks ~/.djinn first, falls back to ~/.config/djinn, defaults to ~/.djinn for new installs.
+// Prefers XDG: ~/.config/djinn. Falls back to ~/.djinn for legacy installs.
 func HomeDir() string {
 	home, _ := os.UserHomeDir()
-	djinnDir := filepath.Join(home, ".djinn")
-	if _, err := os.Stat(djinnDir); err == nil {
-		return djinnDir
-	}
+	// XDG standard: ~/.config/djinn (preferred)
 	configDir := filepath.Join(home, ".config", "djinn")
 	if _, err := os.Stat(configDir); err == nil {
 		return configDir
 	}
-	return djinnDir // default for new installs
+	// Legacy: ~/.djinn
+	djinnDir := filepath.Join(home, ".djinn")
+	if _, err := os.Stat(djinnDir); err == nil {
+		return djinnDir
+	}
+	// Default for new installs: XDG
+	return configDir
 }
 
 // SessionDir returns the default session directory.

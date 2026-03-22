@@ -27,26 +27,26 @@ func TestHomeDir_DualPath(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
-	// Neither exists → default to ~/.djinn
+	// Neither exists → default to XDG ~/.config/djinn
 	dir := HomeDir()
-	if !strings.HasSuffix(dir, ".djinn") {
-		t.Fatalf("default should be .djinn, got %q", dir)
+	if !strings.Contains(dir, ".config/djinn") {
+		t.Fatalf("default should be .config/djinn (XDG), got %q", dir)
 	}
 
-	// Create ~/.config/djinn → should find it
-	configDir := filepath.Join(home, ".config", "djinn")
-	os.MkdirAll(configDir, 0755)
-	dir = HomeDir()
-	if dir != configDir {
-		t.Fatalf("should find .config/djinn, got %q", dir)
-	}
-
-	// Create ~/.djinn → should prefer it
+	// Create ~/.djinn (legacy) → should find it
 	djinnDir := filepath.Join(home, ".djinn")
 	os.MkdirAll(djinnDir, 0755)
 	dir = HomeDir()
 	if dir != djinnDir {
-		t.Fatalf("should prefer .djinn over .config/djinn, got %q", dir)
+		t.Fatalf("should find legacy .djinn, got %q", dir)
+	}
+
+	// Create ~/.config/djinn (XDG) → should prefer it
+	configDir := filepath.Join(home, ".config", "djinn")
+	os.MkdirAll(configDir, 0755)
+	dir = HomeDir()
+	if dir != configDir {
+		t.Fatalf("should prefer XDG .config/djinn, got %q", dir)
 	}
 }
 
