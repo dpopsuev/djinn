@@ -202,11 +202,16 @@ func TestRunKill_MissingArgs(t *testing.T) {
 	}
 }
 
-func TestRunAttach_MissingArgs(t *testing.T) {
+func TestRunAttach_NoArgs_ShowsTelescope(t *testing.T) {
 	var buf bytes.Buffer
 	err := RunAttach(nil, &buf)
-	if err == nil {
-		t.Fatal("expected error for missing args")
+	if err != nil {
+		t.Fatalf("telescope should not error: %v", err)
+	}
+	// Should show "no sessions" or session list
+	out := buf.String()
+	if out == "" {
+		t.Fatal("should produce output")
 	}
 }
 

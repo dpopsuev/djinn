@@ -67,12 +67,38 @@ func RunList(w io.Writer) error {
 	return nil
 }
 
-// RunAttach resumes a session.
+// RunAttach resumes a session. No args = telescope picker with fuzzy search.
 func RunAttach(args []string, stderr io.Writer) error {
-	if len(args) < 1 {
-		return fmt.Errorf("attach requires a session name (usage: djinn attach <name>)")
+	if len(args) >= 1 {
+		return RunREPL(append([]string{"--session", args[0]}, args[1:]...), stderr)
 	}
-	return RunREPL(append([]string{"--session", args[0]}, args[1:]...), stderr)
+
+	// Telescope: list sessions, filter by optional query
+	store, err := session.NewStore(SessionDir())
+	if err != nil {
+		return err
+	}
+	list, err := store.List()
+	if err != nil {
+		return err
+	}
+	if len(list) == 0 {
+		fmt.Fprintln(stderr, "no sessions to attach (start one with: djinn repl -s <name>)")
+		return nil
+	}
+
+	// Show all sessions as a numbered list
+	fmt.Fprintln(stderr, "sessions:")
+	for i, s := range list {
+		name := s.Name
+		if name == "" {
+			name = s.ID
+		}
+		fmt.Fprintf(stderr, "  %d. %s (%s, %d turns, %s)\n",
+			i+1, name, s.Model, s.Turns, s.UpdatedAt.Format("2006-01-02 15:04"))
+	}
+	fmt.Fprintf(stderr, "\nattach with: djinn attach <name>\n")
+	return nil
 }
 
 // RunKill deletes a session.

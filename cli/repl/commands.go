@@ -24,10 +24,11 @@ type CommandResult struct {
 
 // Slash command names.
 const (
-	cmdHelp    = "/help"
-	cmdClear   = "/clear"
-	cmdExit    = "/exit"
-	cmdQuit    = "/quit"
+	cmdHelp     = "/help"
+	cmdClear    = "/clear"
+	cmdExit     = "/exit"
+	cmdQuit     = "/quit"
+	cmdSessions = "/sessions"
 )
 
 // ParseCommand parses a slash command string into a Command.
@@ -75,6 +76,8 @@ func ExecuteCommand(cmd Command, sess *session.Session) CommandResult {
 		return executeOutput(cmd)
 	case cmdResume:
 		return CommandResult{Output: "use 'djinn ls' to list sessions, 'djinn attach <name>' to resume"}
+	case cmdSessions:
+		return executeSessions(cmd, sess)
 
 	// Workspace
 	case cmdWorkspace:
@@ -117,6 +120,7 @@ func helpText() string {
   /memory                 show session details
   /copy                   copy last response
   /permissions            show tool access
+  /sessions [query]       search sessions (telescope)
   /output [mode]          output mode (streaming, chunked, follow, static)
 
   /workspace              show current workspace

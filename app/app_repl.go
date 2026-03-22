@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/cli/repl"
+	"github.com/dpopsuev/djinn/clutch"
 	djinnconfig "github.com/dpopsuev/djinn/config"
 	djinnctx "github.com/dpopsuev/djinn/context"
 	"github.com/dpopsuev/djinn/djinnlog"
@@ -263,6 +264,23 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 	log.Info("tools registered", "builtin", 6, "mcp", len(mcpClient.MCPTools()), "total", len(registry.Names()))
 
+	// Start clutch backend in goroutine
+	transport := clutch.NewChannelTransport()
+	defer transport.Close()
+
+	go func() {
+		err := clutch.RunBackend(ctx, transport, clutch.BackendConfig{
+			Driver:       chatDriver,
+			Tools:        registry,
+			Session:      sess,
+			SystemPrompt: assembledPrompt,
+			MaxTurns:     *maxTurns,
+		})
+		if err != nil {
+			log.Error("backend exited", "error", err)
+		}
+	}()
+
 	replErr := repl.Run(ctx, repl.Config{
 		Driver:        chatDriver,
 		Tools:         registry,
@@ -276,6 +294,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 		Store:         store,
 		InitialPrompt: initialPrompt,
 		WorkspaceBus:  wsBus,
+		Transport:     transport,
 	})
 
 	if !*noPersist {

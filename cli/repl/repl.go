@@ -28,6 +28,7 @@ type Config struct {
 	Store         *session.Store      // for auto-save after each turn
 	InitialPrompt string             // auto-submit on first render
 	WorkspaceBus  *workspace.Bus     // workspace event bus for /workspace-switch
+	Transport     interface{}        // clutch.Transport for hot-swap (nil = direct agent.Run)
 }
 
 // Run starts the interactive REPL. Blocks until /exit or ctrl-C.

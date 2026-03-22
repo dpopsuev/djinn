@@ -3,6 +3,7 @@ package repl
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/session"
@@ -117,6 +118,38 @@ func executePermissions(sess *session.Session) CommandResult {
 	return CommandResult{
 		Output: fmt.Sprintf("tools: Read, Write, Edit, Bash, Glob, Grep\napproval: %s\nmode: %s", approval, mode),
 	}
+}
+
+func executeSessions(cmd Command, sess *session.Session) CommandResult {
+	store, err := session.NewStore(sess.WorkDir)
+	if err != nil {
+		// Try default session dir via home
+		return CommandResult{Output: "use 'djinn ls' to list sessions, 'djinn attach <name>' to resume"}
+	}
+	list, err := store.List()
+	if err != nil || len(list) == 0 {
+		return CommandResult{Output: "no sessions found"}
+	}
+
+	query := ""
+	if len(cmd.Args) > 0 {
+		query = cmd.Args[0]
+	}
+	matches := session.Search(list, query)
+
+	if len(matches) == 0 {
+		return CommandResult{Output: fmt.Sprintf("no sessions matching %q", query)}
+	}
+
+	var sb strings.Builder
+	for _, s := range matches {
+		name := s.Name
+		if name == "" {
+			name = s.ID
+		}
+		fmt.Fprintf(&sb, "  %s (%s, %d turns)\n", name, s.Model, s.Turns)
+	}
+	return CommandResult{Output: strings.TrimRight(sb.String(), "\n")}
 }
 
 func executeOutput(cmd Command) CommandResult {
