@@ -11,14 +11,18 @@ import (
 
 	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/broker"
+	"github.com/dpopsuev/djinn/cli/repl"
 	"github.com/dpopsuev/djinn/djinnfile"
 	"github.com/dpopsuev/djinn/driver"
+	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/orchestrator"
+	"github.com/dpopsuev/djinn/session"
 	msbsandbox "github.com/dpopsuev/djinn/sandbox/misbah"
 	sigsvc "github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
 const (
@@ -28,6 +32,23 @@ const (
 )
 
 func main() {
+	// Subcommand: djinn repl
+	if len(os.Args) > 1 && os.Args[1] == "repl" {
+		replCmd := flag.NewFlagSet("repl", flag.ExitOnError)
+		model := replCmd.String("model", "claude-sonnet-4-6", "model to use")
+		systemPrompt := replCmd.String("system", "", "system prompt to append")
+		maxTurns := replCmd.Int("max-turns", 20, "max agent turns per prompt")
+		autoApprove := replCmd.Bool("auto-approve", false, "auto-approve all tool calls")
+		replCmd.Parse(os.Args[2:])
+
+		if err := runREPL(*model, *systemPrompt, *maxTurns, *autoApprove); err != nil {
+			fmt.Fprintf(os.Stderr, "djinn: %v\n", err)
+			os.Exit(exitCodeError)
+		}
+		return
+	}
+
+	// Legacy headless mode
 	djinnfilePath := flag.String("f", defaultDjinnfile, "path to Djinnfile (JSON)")
 	intentStr := flag.String("intent", "", "intent action (e.g. 'fix:rate limiting bug')")
 	misbahSocket := flag.String("misbah-socket", "", "Misbah daemon socket path (empty = use stubs)")
@@ -35,17 +56,50 @@ func main() {
 	flag.Parse()
 
 	if *intentStr == "" {
-		fmt.Fprintf(os.Stderr, "usage: djinn -intent <action[:description]> [-f Djinnfile] [-misbah-socket path]\n")
+		fmt.Fprintf(os.Stderr, "usage:\n")
+		fmt.Fprintf(os.Stderr, "  djinn repl [-model claude-sonnet-4-6]   interactive mode\n")
+		fmt.Fprintf(os.Stderr, "  djinn -intent <action> [-f Djinnfile]   headless mode\n")
 		os.Exit(exitCodeError)
 	}
 
-	if err := run(*djinnfilePath, *intentStr, *misbahSocket, *workspace); err != nil {
+	if err := runHeadless(*djinnfilePath, *intentStr, *misbahSocket, *workspace); err != nil {
 		fmt.Fprintf(os.Stderr, "djinn: %v\n", err)
 		os.Exit(exitCodeError)
 	}
 }
 
-func run(djinnfilePath, intentStr, misbahSocket, workspace string) error {
+func runREPL(model, systemPrompt string, maxTurns int, autoApprove bool) error {
+	apiDriver, err := claudedriver.NewAPIDriver(
+		driver.DriverConfig{Model: model},
+		claudedriver.WithTools(builtin.NewRegistry()),
+		claudedriver.WithAPISystemPrompt(systemPrompt),
+	)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	if err := apiDriver.Start(ctx, ""); err != nil {
+		return err
+	}
+	defer apiDriver.Stop(ctx)
+
+	sess := session.New("repl-1", model, ".")
+	tools := builtin.NewRegistry()
+
+	return repl.Run(ctx, repl.Config{
+		Driver:       apiDriver,
+		Tools:        tools,
+		Session:      sess,
+		SystemPrompt: systemPrompt,
+		MaxTurns:     maxTurns,
+		AutoApprove:  autoApprove,
+	})
+}
+
+func runHeadless(djinnfilePath, intentStr, misbahSocket, workspace string) error {
 	f, err := os.Open(djinnfilePath)
 	if err != nil {
 		return fmt.Errorf("open djinnfile: %w", err)
@@ -65,14 +119,12 @@ func run(djinnfilePath, intentStr, misbahSocket, workspace string) error {
 	var destroySandbox func(ctx context.Context, id string) error
 
 	if misbahSocket != "" {
-		// Real Misbah integration
 		sandbox := msbsandbox.New(misbahSocket, workspace)
 		defer sandbox.Close()
 		createSandbox = sandbox.Create
 		destroySandbox = sandbox.Destroy
 		fmt.Fprintf(os.Stderr, "djinn: using Misbah daemon at %s\n", misbahSocket)
 	} else {
-		// Stub mode
 		stubSandbox := stubs.NewStubSandbox()
 		createSandbox = stubSandbox.Create
 		destroySandbox = stubSandbox.Destroy
