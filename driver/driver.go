@@ -24,10 +24,22 @@ type Message struct {
 	Content string
 }
 
-// Driver is the interface for LLM agent communication.
+// Driver is the interface for headless/subprocess LLM communication.
 type Driver interface {
 	Start(ctx context.Context, sandbox SandboxHandle) error
 	Send(ctx context.Context, msg Message) error
 	Recv(ctx context.Context) <-chan Message
 	Stop(ctx context.Context) error
+}
+
+// ChatDriver is the interface for interactive REPL-style LLM communication.
+// Supports streaming, tool calling, rich messages, and conversation history.
+// Any model backend (Claude, OpenAI, Ollama, Gemini) implements this.
+type ChatDriver interface {
+	Start(ctx context.Context, sandbox SandboxHandle) error
+	Stop(ctx context.Context) error
+	Send(ctx context.Context, msg Message) error
+	SendRich(ctx context.Context, msg RichMessage) error
+	Chat(ctx context.Context) (<-chan StreamEvent, error)
+	AppendAssistant(msg RichMessage)
 }

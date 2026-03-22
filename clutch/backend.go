@@ -6,14 +6,13 @@ import (
 
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/driver"
-	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
 // BackendConfig configures the backend process.
 type BackendConfig struct {
-	Driver       *claudedriver.APIDriver
+	Driver       driver.ChatDriver
 	Tools        *builtin.Registry
 	Session      *session.Session
 	SystemPrompt string

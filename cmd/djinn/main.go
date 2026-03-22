@@ -184,7 +184,7 @@ func runREPLCmd(args []string) {
 	assembledPrompt := djinnctx.BuildSystemPrompt(projectCtx, *systemPrompt)
 
 	// Create driver with assembled system prompt
-	apiDriver, err := createDriver(*driverName, sess.Model, assembledPrompt)
+	chatDriver, err := createDriver(*driverName, sess.Model, assembledPrompt)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "djinn: %v\n", err)
 		os.Exit(exitCodeError)
@@ -193,18 +193,18 @@ func runREPLCmd(args []string) {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	if err := apiDriver.Start(ctx, ""); err != nil {
+	if err := chatDriver.Start(ctx, ""); err != nil {
 		fmt.Fprintf(os.Stderr, "djinn: driver start: %v\n", err)
 		os.Exit(exitCodeError)
 	}
-	defer apiDriver.Stop(ctx)
+	defer chatDriver.Stop(ctx)
 
 	// Replay history to driver if resuming
 	for _, entry := range sess.Entries() {
 		if entry.Role == driver.RoleUser {
-			apiDriver.Send(ctx, driver.Message{Role: entry.Role, Content: entry.TextContent()})
+			chatDriver.Send(ctx, driver.Message{Role: entry.Role, Content: entry.TextContent()})
 		} else if entry.Role == driver.RoleAssistant {
-			apiDriver.AppendAssistant(driver.RichMessage{
+			chatDriver.AppendAssistant(driver.RichMessage{
 				Role:    entry.Role,
 				Content: entry.TextContent(),
 				Blocks:  entry.Blocks,
@@ -216,7 +216,7 @@ func runREPLCmd(args []string) {
 	prompt := strings.Join(fs.Args(), " ")
 
 	replErr := repl.Run(ctx, repl.Config{
-		Driver:       apiDriver,
+		Driver:       chatDriver,
 		Tools:        builtin.NewRegistry(),
 		Session:      sess,
 		SystemPrompt: *systemPrompt,
@@ -239,7 +239,7 @@ func runREPLCmd(args []string) {
 	}
 }
 
-func createDriver(driverName, model, systemPrompt string) (*claudedriver.APIDriver, error) {
+func createDriver(driverName, model, systemPrompt string) (driver.ChatDriver, error) {
 	switch driverName {
 	case driverClaude:
 		opts := []claudedriver.APIDriverOption{

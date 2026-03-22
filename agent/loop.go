@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/dpopsuev/djinn/driver"
-	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -42,7 +41,7 @@ type EventHandler interface {
 
 // Config configures an agent loop execution.
 type Config struct {
-	Driver       *claudedriver.APIDriver
+	Driver       driver.ChatDriver
 	Tools        *builtin.Registry
 	Session      *session.Session
 	SystemPrompt string

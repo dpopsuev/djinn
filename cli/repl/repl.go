@@ -6,14 +6,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/agent"
-	claudedriver "github.com/dpopsuev/djinn/driver/claude"
+	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
 // Config configures the REPL.
 type Config struct {
-	Driver       *claudedriver.APIDriver
+	Driver       driver.ChatDriver
 	Tools        *builtin.Registry
 	Session      *session.Session
 	SystemPrompt string

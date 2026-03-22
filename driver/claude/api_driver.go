@@ -46,8 +46,9 @@ var (
 	ErrAuthFailed   = errors.New("authentication failed")
 )
 
-// APIDriver implements driver.Driver by calling the Claude Messages API
+// APIDriver implements driver.ChatDriver by calling the Claude Messages API
 // directly with streaming SSE support.
+var _ driver.ChatDriver = (*APIDriver)(nil)
 type APIDriver struct {
 	config     driver.DriverConfig
 	tools      *builtin.Registry

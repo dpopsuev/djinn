@@ -11,7 +11,6 @@ import (
 
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/driver"
-	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -31,7 +30,7 @@ const (
 // Model is the Bubbletea model for the Djinn REPL.
 type Model struct {
 	// Dependencies
-	apiDriver    *claudedriver.APIDriver
+	chatDriver   driver.ChatDriver
 	tools        *builtin.Registry
 	sess         *session.Session
 	systemPrompt string
@@ -61,7 +60,7 @@ func NewModel(cfg Config) Model {
 	ti.Focus()
 
 	return Model{
-		apiDriver:    cfg.Driver,
+		chatDriver:   cfg.Driver,
 		tools:        cfg.Tools,
 		sess:         cfg.Session,
 		systemPrompt: cfg.SystemPrompt,
@@ -310,7 +309,7 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 		// that sends messages back to the program. This is handled by
 		// the Run() function which creates the handler after tea.NewProgram.
 		result, err := agent.Run(m.ctx, agent.Config{
-			Driver:       m.apiDriver,
+			Driver:       m.chatDriver,
 			Tools:        m.tools,
 			Session:      m.sess,
 			SystemPrompt: m.systemPrompt,
