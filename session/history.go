@@ -1,5 +1,7 @@
 package session
 
+import "encoding/json"
+
 // approximateTokensPerChar is a rough estimate for token counting.
 // English text averages ~4 chars per token. This is intentionally
 // conservative (overestimates) to prevent context overflow.
@@ -50,6 +52,16 @@ func (h *History) TotalTokens() int {
 // Clear removes all entries.
 func (h *History) Clear() {
 	h.entries = nil
+}
+
+// MarshalJSON serializes the history as a JSON array of entries.
+func (h *History) MarshalJSON() ([]byte, error) {
+	return json.Marshal(h.entries)
+}
+
+// UnmarshalJSON deserializes a JSON array of entries into the history.
+func (h *History) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &h.entries)
 }
 
 func (h *History) trimIfNeeded() {

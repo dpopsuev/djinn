@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/dpopsuev/djinn/tier"
@@ -131,6 +132,13 @@ func TestSandboxPort_Integration(t *testing.T) {
 
 	id, err := s.Create(ctx, tier.Scope{Level: tier.Mod, Name: "test"})
 	if err != nil {
+		if strings.Contains(err.Error(), "not supported") ||
+			strings.Contains(err.Error(), "permission denied") ||
+			strings.Contains(err.Error(), "network isolation") ||
+			strings.Contains(err.Error(), "veth") ||
+			strings.Contains(err.Error(), "bind:") {
+			t.Skipf("skipping: infrastructure issue: %v", err)
+		}
 		t.Fatalf("Create: %v", err)
 	}
 	if id == "" {

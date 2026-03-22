@@ -29,19 +29,24 @@ func (e Entry) TextContent() string {
 // Session holds the state of an interactive conversation.
 type Session struct {
 	ID        string    `json:"id"`
+	Name      string    `json:"name,omitempty"`
+	Driver    string    `json:"driver,omitempty"`
 	Model     string    `json:"model"`
 	WorkDir   string    `json:"work_dir"`
 	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 	History   *History  `json:"history"`
 }
 
 // New creates a new session.
 func New(id, model, workDir string) *Session {
+	now := time.Now()
 	return &Session{
 		ID:        id,
 		Model:     model,
 		WorkDir:   workDir,
-		CreatedAt: time.Now(),
+		CreatedAt: now,
+		UpdatedAt: now,
 		History:   NewHistory(0), // unlimited by default
 	}
 }
@@ -52,6 +57,7 @@ func (s *Session) Append(entry Entry) {
 		entry.Timestamp = time.Now()
 	}
 	s.History.Append(entry)
+	s.UpdatedAt = time.Now()
 }
 
 // Entries returns the conversation history.
