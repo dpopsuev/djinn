@@ -22,6 +22,7 @@ import (
 	djinnconfig "github.com/dpopsuev/djinn/config"
 	djinnctx "github.com/dpopsuev/djinn/context"
 	"github.com/dpopsuev/djinn/djinnlog"
+	mcpclient "github.com/dpopsuev/djinn/mcp/client"
 	"github.com/dpopsuev/djinn/djinnfile"
 	"github.com/dpopsuev/djinn/driver"
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
@@ -291,9 +292,33 @@ func RunREPL(args []string, stderr io.Writer) error {
 		}
 	}
 
+	// Connect to MCP servers
+	mcpClient := mcpclient.New(djinnlog.For(logResult.Logger, "mcp"))
+	defer mcpClient.Close()
+
+	mcpConfigs := mcpclient.LoadMCPConfig(Getwd(), filepath.Join(HomeDir()))
+	for name, cfg := range mcpConfigs {
+		var connectErr error
+		if cfg.IsHTTP() {
+			connectErr = mcpClient.ConnectHTTP(ctx, name, cfg.URL)
+		} else if cfg.Command != "" {
+			connectErr = mcpClient.ConnectStdio(ctx, name, cfg.Command, cfg.Args, cfg.Env)
+		}
+		if connectErr != nil {
+			log.Warn("MCP server failed", "server", name, "error", connectErr)
+		}
+	}
+
+	// Build unified tool registry: built-in + MCP tools
+	registry := builtin.NewRegistry()
+	for _, tool := range mcpClient.MCPTools() {
+		registry.Register(tool)
+	}
+	log.Info("tools registered", "builtin", 6, "mcp", len(mcpClient.MCPTools()), "total", len(registry.Names()))
+
 	replErr := repl.Run(ctx, repl.Config{
 		Driver:       chatDriver,
-		Tools:        builtin.NewRegistry(),
+		Tools:        registry,
 		Session:      sess,
 		SystemPrompt: assembledPrompt,
 		MaxTurns:     *maxTurns,
