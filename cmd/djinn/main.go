@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/ari"
+	djinnctx "github.com/dpopsuev/djinn/context"
 	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/cli/repl"
 	"github.com/dpopsuev/djinn/djinnfile"
@@ -175,8 +176,12 @@ func runREPLCmd(args []string) {
 	}
 	sess.Driver = *driverName
 
-	// Create driver
-	apiDriver, err := createDriver(*driverName, sess.Model, *systemPrompt)
+	// Auto-discover project context (CLAUDE.md, AGENTS.md, GEMINI.md, etc.)
+	projectCtx := djinnctx.LoadProjectContext(mustGetwd())
+	assembledPrompt := djinnctx.BuildSystemPrompt(projectCtx, *systemPrompt)
+
+	// Create driver with assembled system prompt
+	apiDriver, err := createDriver(*driverName, sess.Model, assembledPrompt)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "djinn: %v\n", err)
 		os.Exit(exitCodeError)
