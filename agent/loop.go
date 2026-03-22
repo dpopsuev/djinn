@@ -50,6 +50,7 @@ type Config struct {
 	SystemPrompt string
 	MaxTurns     int
 	ToolsEnabled bool // false = ask/plan mode (no tool execution)
+	Mode         Mode // agent mode for auto-weave
 	Approve      ApprovalFunc
 	Handler      EventHandler
 	Log          *slog.Logger
@@ -63,6 +64,12 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) {
 	}
 	if cfg.Log == nil {
 		cfg.Log = djinnlog.Nop()
+	}
+
+	// Plan mode auto-weave: enrich prompt with Scribe + Lex context
+	if cfg.Mode == ModePlan {
+		userPrompt = AutoWeaveContext(ctx, cfg.Tools, userPrompt)
+		cfg.Log.Debug("plan mode auto-weave applied")
 	}
 
 	// Append user message to session

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/dpopsuev/djinn/djinnlog"
 )
@@ -198,7 +199,10 @@ func (c *Client) ServerTools(name string) ([]ToolDef, error) {
 	return conn.tools, nil
 }
 
-// Call executes a tool on the specified server.
+// DefaultCallTimeout is the maximum time for a single MCP tool call.
+const DefaultCallTimeout = 30 * time.Second
+
+// Call executes a tool on the specified server with a timeout.
 func (c *Client) Call(ctx context.Context, serverName, toolName string, input json.RawMessage) (string, error) {
 	c.mu.RLock()
 	conn, ok := c.servers[serverName]
@@ -208,34 +212,51 @@ func (c *Client) Call(ctx context.Context, serverName, toolName string, input js
 		return "", fmt.Errorf("%w: %s", ErrServerNotFound, serverName)
 	}
 
-	resp, err := conn.send("tools/call", toolCallParams{
-		Name:      toolName,
-		Arguments: input,
-	})
-	if err != nil {
-		return "", fmt.Errorf("tools/call %s.%s: %w", serverName, toolName, err)
-	}
-	if resp.Error != nil {
-		return "", resp.Error
-	}
+	// Apply timeout
+	callCtx, cancel := context.WithTimeout(ctx, DefaultCallTimeout)
+	defer cancel()
 
-	var result toolCallResult
-	if err := json.Unmarshal(resp.Result, &result); err != nil {
-		return "", fmt.Errorf("parse result: %w", err)
+	type callResult struct {
+		resp jsonRPCResponse
+		err  error
 	}
+	ch := make(chan callResult, 1)
+	go func() {
+		resp, err := conn.send("tools/call", toolCallParams{
+			Name:      toolName,
+			Arguments: input,
+		})
+		ch <- callResult{resp, err}
+	}()
 
-	// Concatenate text content blocks
-	var sb strings.Builder
-	for _, block := range result.Content {
-		if block.Type == "text" {
-			sb.WriteString(block.Text)
+	select {
+	case <-callCtx.Done():
+		return "", fmt.Errorf("tools/call %s.%s: %w", serverName, toolName, callCtx.Err())
+	case cr := <-ch:
+		if cr.err != nil {
+			return "", fmt.Errorf("tools/call %s.%s: %w", serverName, toolName, cr.err)
 		}
-	}
+		if cr.resp.Error != nil {
+			return "", cr.resp.Error
+		}
 
-	if result.IsError {
-		return sb.String(), fmt.Errorf("tool error: %s", sb.String())
+		var result toolCallResult
+		if err := json.Unmarshal(cr.resp.Result, &result); err != nil {
+			return "", fmt.Errorf("parse result: %w", err)
+		}
+
+		var sb strings.Builder
+		for _, block := range result.Content {
+			if block.Type == "text" {
+				sb.WriteString(block.Text)
+			}
+		}
+
+		if result.IsError {
+			return sb.String(), fmt.Errorf("tool error: %s", sb.String())
+		}
+		return sb.String(), nil
 	}
-	return sb.String(), nil
 }
 
 // ServerNames returns names of all connected servers.

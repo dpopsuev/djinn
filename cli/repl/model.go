@@ -437,6 +437,7 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 			SystemPrompt: m.systemPrompt,
 			MaxTurns:     m.maxTurns,
 			ToolsEnabled: mode.ToolsEnabled(),
+			Mode:         mode,
 			Approve:      approvalForMode(mode, ch),
 			Handler:      globalHandler,
 			Log:          agentLog,
