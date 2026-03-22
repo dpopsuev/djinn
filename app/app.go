@@ -366,6 +366,28 @@ func RunREPL(args []string, stderr io.Writer) error {
 	// Initial prompt from remaining CLI args
 	initialPrompt := strings.Join(fs.Args(), " ")
 
+	// Workspace event bus — Observer pattern for hot-switch
+	wsBus := djinnws.NewBus(djinnlog.For(logResult.Logger, "workspace"))
+
+	// Subscribe: update driver system prompt on workspace switch
+	wsBus.On("driver-prompt", func(evt djinnws.Event) {
+		if evt.New == nil {
+			return
+		}
+		newCtx := djinnctx.LoadProjectContext(evt.New.Paths()...)
+		newPrompt := djinnctx.BuildSystemPrompt(newCtx, *systemPrompt)
+		chatDriver.SetSystemPrompt(newPrompt)
+	})
+
+	// Subscribe: update session fields on workspace switch
+	wsBus.On("session", func(evt djinnws.Event) {
+		if evt.New == nil {
+			return
+		}
+		sess.Workspace = evt.New.Name
+		sess.WorkDirs = evt.New.Paths()
+	})
+
 	// Build unified tool registry: built-in + MCP tools
 	registry := builtin.NewRegistry()
 	for _, tool := range mcpClient.MCPTools() {
@@ -385,6 +407,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 		Ring:         logResult.Ring,
 		Store:         store,
 		InitialPrompt: initialPrompt,
+		WorkspaceBus:  wsBus,
 	})
 
 	// Save session on exit

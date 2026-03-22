@@ -11,6 +11,7 @@ import (
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 // Command represents a parsed slash command.
@@ -48,7 +49,12 @@ const (
 	cmdOutput      = "/output"
 	cmdConfig      = "/config"
 	cmdLog         = "/log"
-	cmdWorkspace   = "/workspace"
+	cmdWorkspace       = "/workspace"
+	cmdWorkspaceSwitch = "/workspace-switch"
+	cmdWorkspaceAdd    = "/workspace-add"
+	cmdWorkspaceRepos  = "/workspace-repos"
+	cmdWorkspaceSave   = "/workspace-save"
+	cmdConfigSave      = "/config-save"
 )
 
 // Default mode name.
@@ -132,6 +138,38 @@ func ExecuteCommand(cmd Command, sess *session.Session) CommandResult {
 
 	case cmdWorkspace:
 		return executeWorkspace(cmd, sess)
+
+	case cmdWorkspaceSwitch:
+		return executeWorkspaceSwitch(cmd, sess)
+
+	case cmdWorkspaceAdd:
+		if len(cmd.Args) < 1 {
+			return CommandResult{Output: "usage: /workspace-add <path>"}
+		}
+		sess.WorkDirs = append(sess.WorkDirs, cmd.Args[0])
+		if globalWorkspaceBus != nil {
+			globalWorkspaceBus.Emit(workspace.Event{
+				Type: workspace.EventRepoAdd,
+				New:  &workspace.Workspace{Repos: []workspace.Repo{{Path: cmd.Args[0]}}},
+				Repo: &workspace.Repo{Path: cmd.Args[0], Role: "dependency"},
+			})
+		}
+		return CommandResult{Output: fmt.Sprintf("added repo: %s", cmd.Args[0])}
+
+	case cmdWorkspaceRepos:
+		return executeWorkspace(Command{Name: cmdWorkspace, Args: []string{"repos"}}, sess)
+
+	case cmdWorkspaceSave:
+		return executeWorkspace(Command{Name: cmdWorkspace, Args: []string{"save"}}, sess)
+
+	case cmdConfigSave:
+		saveArgs := []string{"save"}
+		if len(cmd.Args) > 0 {
+			saveArgs = append(saveArgs, cmd.Args...)
+		} else {
+			saveArgs = append(saveArgs, "djinn.yaml")
+		}
+		return executeConfig(Command{Name: cmdConfig, Args: saveArgs}, sess)
 
 	case cmdHelp:
 		return CommandResult{Output: helpText()}
@@ -238,6 +276,36 @@ func executePermissions(sess *session.Session) CommandResult {
 	return CommandResult{
 		Output: fmt.Sprintf("tools: Read, Write, Edit, Bash, Glob, Grep\napproval: %s\nmode: %s", approval, mode),
 	}
+}
+
+func executeWorkspaceSwitch(cmd Command, sess *session.Session) CommandResult {
+	if len(cmd.Args) < 1 {
+		return CommandResult{Output: "usage: /workspace-switch <name|file>"}
+	}
+
+	name := cmd.Args[0]
+	newWS, err := workspace.Load(name)
+	if err != nil {
+		return CommandResult{Output: fmt.Sprintf("cannot load workspace %q: %v", name, err)}
+	}
+
+	oldName := sess.Workspace
+	sess.Workspace = newWS.Name
+	sess.WorkDirs = newWS.Paths()
+
+	if globalWorkspaceBus != nil {
+		var oldWS *workspace.Workspace
+		if oldName != "" {
+			oldWS, _ = workspace.Load(oldName)
+		}
+		globalWorkspaceBus.Emit(workspace.Event{
+			Type: workspace.EventSwitch,
+			Old:  oldWS,
+			New:  newWS,
+		})
+	}
+
+	return CommandResult{Output: fmt.Sprintf("switched to workspace %q (%d repos)", newWS.Name, len(newWS.Repos))}
 }
 
 func executeWorkspace(cmd Command, sess *session.Session) CommandResult {

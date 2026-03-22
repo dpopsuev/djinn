@@ -42,4 +42,5 @@ type ChatDriver interface {
 	SendRich(ctx context.Context, msg RichMessage) error
 	Chat(ctx context.Context) (<-chan StreamEvent, error)
 	AppendAssistant(msg RichMessage)
+	SetSystemPrompt(prompt string) // update prompt at runtime (workspace switch)
 }

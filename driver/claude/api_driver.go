@@ -85,6 +85,14 @@ func WithAPIURL(url string) APIDriverOption {
 	return func(d *APIDriver) { d.apiURL = url }
 }
 
+// SetSystemPrompt updates the system prompt at runtime (thread-safe).
+// Takes effect on the next Chat() call.
+func (d *APIDriver) SetSystemPrompt(prompt string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.systemPrompt = prompt
+}
+
 // WithLogger sets the logger for the driver.
 func WithLogger(log *slog.Logger) APIDriverOption {
 	return func(d *APIDriver) { d.log = log }

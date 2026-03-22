@@ -10,6 +10,7 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/workspace"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -24,8 +25,9 @@ type Config struct {
 	Mode         string // "ask", "plan", "agent", "auto"
 	Log          *slog.Logger
 	Ring         *djinnlog.RingHandler
-	Store        *session.Store  // for auto-save after each turn
-	InitialPrompt string        // auto-submit on first render
+	Store         *session.Store      // for auto-save after each turn
+	InitialPrompt string             // auto-submit on first render
+	WorkspaceBus  *workspace.Bus     // workspace event bus for /workspace-switch
 }
 
 // Run starts the interactive REPL. Blocks until /exit or ctrl-C.
@@ -43,6 +45,7 @@ func Run(ctx context.Context, cfg Config) error {
 	// This is necessary because Bubbletea's Model is copied by value.
 	setGlobalHandler(handler)
 	globalRing = cfg.Ring
+	globalWorkspaceBus = cfg.WorkspaceBus
 
 	_, err := p.Run()
 	return err
@@ -55,6 +58,9 @@ var globalHandler agent.EventHandler = agent.NilHandler{}
 
 // globalRing is set before the program runs and read by /log command.
 var globalRing *djinnlog.RingHandler
+
+// globalWorkspaceBus is set before the program runs and read by /workspace-switch.
+var globalWorkspaceBus *workspace.Bus
 
 func setGlobalHandler(h agent.EventHandler) {
 	globalHandler = h
