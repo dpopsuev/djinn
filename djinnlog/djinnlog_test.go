@@ -247,3 +247,100 @@ func TestPerf_ContextPct_ZeroTotal(t *testing.T) {
 		t.Fatal("zero total should return 0")
 	}
 }
+
+// --- Redaction tests ---
+
+func TestRedactHandler_RedactsSensitiveKeys(t *testing.T) {
+	var buf bytes.Buffer
+	inner := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+	redact := NewRedactHandler(inner)
+	log := slog.New(redact)
+
+	log.Info("auth", "api_key", "sk-secret-123", "model", "claude")
+
+	out := buf.String()
+	if strings.Contains(out, "sk-secret-123") {
+		t.Fatalf("api_key value should be redacted: %s", out)
+	}
+	if !strings.Contains(out, "[REDACTED]") {
+		t.Fatalf("should contain REDACTED: %s", out)
+	}
+	// Non-sensitive keys should pass through
+	if !strings.Contains(out, "claude") {
+		t.Fatalf("model should pass through: %s", out)
+	}
+}
+
+func TestRedactHandler_RedactsMultiplePatterns(t *testing.T) {
+	sensitiveAttrs := []struct {
+		key   string
+		value string
+	}{
+		{"api_key", "sk-123"},
+		{"apikey", "sk-456"},
+		{"token", "gcloud-token"},
+		{"secret", "my-secret"},
+		{"password", "hunter2"},
+		{"authorization", "Bearer xxx"},
+		{"bearer", "yyy"},
+	}
+
+	for _, tt := range sensitiveAttrs {
+		var buf bytes.Buffer
+		inner := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+		log := slog.New(NewRedactHandler(inner))
+		log.Info("test", tt.key, tt.value)
+
+		if strings.Contains(buf.String(), tt.value) {
+			t.Fatalf("key %q: value %q should be redacted in: %s", tt.key, tt.value, buf.String())
+		}
+	}
+}
+
+func TestRedactHandler_PassesSafeKeys(t *testing.T) {
+	var buf bytes.Buffer
+	inner := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+	log := slog.New(NewRedactHandler(inner))
+
+	log.Info("safe", "model", "claude", "turns", 5, "component", "driver")
+
+	out := buf.String()
+	if !strings.Contains(out, "claude") {
+		t.Fatalf("safe key should pass: %s", out)
+	}
+}
+
+func TestRedactHandler_WithAttrs(t *testing.T) {
+	var buf bytes.Buffer
+	inner := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+	redact := NewRedactHandler(inner)
+	log := slog.New(redact.WithAttrs([]slog.Attr{slog.String("api_key", "leaked")}))
+
+	log.Info("test")
+
+	if strings.Contains(buf.String(), "leaked") {
+		t.Fatalf("WithAttrs should redact: %s", buf.String())
+	}
+}
+
+func TestSetup_RedactsInAllHandlers(t *testing.T) {
+	dir := t.TempDir()
+	result := Setup(Options{
+		LogFile:  filepath.Join(dir, "test.log"),
+		RingSize: 10,
+	})
+
+	result.Logger.Info("auth check", "api_key", "sk-should-not-appear")
+
+	// Check ring buffer
+	entries := result.Ring.Entries()
+	for _, e := range entries {
+		for k, v := range e.Attrs {
+			if strings.Contains(strings.ToLower(k), "api_key") {
+				if str, ok := v.(string); ok && str != "[REDACTED]" {
+					t.Fatalf("ring should redact api_key, got %q", str)
+				}
+			}
+		}
+	}
+}

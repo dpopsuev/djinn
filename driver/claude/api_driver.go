@@ -8,12 +8,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -56,6 +59,7 @@ type APIDriver struct {
 	apiURL     string
 	apiKey     string
 	useVertex  bool
+	log        *slog.Logger
 
 	mu       sync.Mutex
 	messages []apiMessage
@@ -81,10 +85,16 @@ func WithAPIURL(url string) APIDriverOption {
 	return func(d *APIDriver) { d.apiURL = url }
 }
 
+// WithLogger sets the logger for the driver.
+func WithLogger(log *slog.Logger) APIDriverOption {
+	return func(d *APIDriver) { d.log = log }
+}
+
 // NewAPIDriver creates a Claude Messages API driver.
 func NewAPIDriver(config driver.DriverConfig, opts ...APIDriverOption) (*APIDriver, error) {
 	d := &APIDriver{
 		config: config,
+		log:    djinnlog.Nop(),
 	}
 	for _, opt := range opts {
 		opt(d)
@@ -207,16 +217,23 @@ func (d *APIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 		return nil, fmt.Errorf("build request: %w", err)
 	}
 
+	d.log.Debug("sending request", "model", d.resolveModel(), "messages", len(messages))
+	reqStart := time.Now()
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		d.log.Error("API call failed", "error", err)
 		return nil, fmt.Errorf("api call: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
+		d.log.Error("API error", "status", resp.StatusCode, slog.Duration("rtt", time.Since(reqStart)))
 		return nil, fmt.Errorf("%w: %d: %s", ErrAPIError, resp.StatusCode, string(body))
 	}
+
+	d.log.Debug("response received", "status", resp.StatusCode, slog.Duration("rtt", time.Since(reqStart)))
 
 	ch := make(chan driver.StreamEvent, 100)
 	go d.streamResponse(resp.Body, ch)

@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +21,7 @@ import (
 	"github.com/dpopsuev/djinn/cli/repl"
 	djinnconfig "github.com/dpopsuev/djinn/config"
 	djinnctx "github.com/dpopsuev/djinn/context"
+	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/djinnfile"
 	"github.com/dpopsuev/djinn/driver"
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
@@ -48,6 +50,12 @@ const (
 	DriverOllama = "ollama"
 )
 
+// HomeDir returns the Djinn home directory (~/.djinn).
+func HomeDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, DefaultHomeDir)
+}
+
 // SessionDir returns the default session directory.
 func SessionDir() string {
 	home, _ := os.UserHomeDir()
@@ -75,6 +83,8 @@ func Run(args []string, stderr io.Writer) error {
 		return RunImport(args[1:], stderr)
 	case "config":
 		return RunConfig(args[1:], stderr)
+	case "log":
+		return RunLog(stderr)
 	case "doctor":
 		return RunDoctor(stderr)
 	case "version":
@@ -102,6 +112,7 @@ Usage:
   djinn attach <name>                 resume session
   djinn kill <name>                   delete session
   djinn config dump                   dump runtime config as YAML
+  djinn log                           show recent log entries
   djinn doctor                        health check
   djinn version                       version info
 
@@ -116,6 +127,7 @@ Flags (repl/run):
   --system-file <path>                load system prompt from file
   --mode <ask|plan|agent|auto>        agent mode (default: agent)
   --config <file>                     load config from YAML file
+  --verbose                           show log output on terminal
   --no-persist                        don't save session to disk
 `)
 }
@@ -137,6 +149,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	configFile := fs.String("config", "", "load config from YAML file")
 	systemPrompt := fs.String("system", "", "system prompt")
 	systemFile := fs.String("system-file", "", "load system prompt from file")
+	verbose := fs.Bool("verbose", false, "show log output on terminal")
 	noPersist := fs.Bool("no-persist", false, "don't save session to disk")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -239,11 +252,19 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 	sess.Driver = *driverName
 
+	// Setup logging
+	logResult := djinnlog.Setup(djinnlog.Options{
+		Verbose: *verbose,
+		LogFile: filepath.Join(HomeDir(), "djinn.log"),
+	})
+	log := djinnlog.For(logResult.Logger, "app")
+	log.Info("session starting", "driver", *driverName, "model", *model, "mode", *mode)
+
 	// Auto-discover project context
 	projectCtx := djinnctx.LoadProjectContext(Getwd())
 	assembledPrompt := djinnctx.BuildSystemPrompt(projectCtx, *systemPrompt)
 
-	chatDriver, err := CreateDriver(*driverName, sess.Model, assembledPrompt)
+	chatDriver, err := CreateDriver(*driverName, sess.Model, assembledPrompt, logResult.Logger)
 	if err != nil {
 		return err
 	}
@@ -278,6 +299,8 @@ func RunREPL(args []string, stderr io.Writer) error {
 		MaxTurns:     *maxTurns,
 		AutoApprove:  *autoApprove,
 		Mode:         *mode,
+		Log:          logResult.Logger,
+		Ring:         logResult.Ring,
 	})
 
 	// Save session on exit
@@ -291,11 +314,18 @@ func RunREPL(args []string, stderr io.Writer) error {
 }
 
 // CreateDriver creates a ChatDriver for the given driver name.
-func CreateDriver(driverName, model, systemPrompt string) (driver.ChatDriver, error) {
+func CreateDriver(driverName, model, systemPrompt string, log ...*slog.Logger) (driver.ChatDriver, error) {
+	var driverLog *slog.Logger
+	if len(log) > 0 && log[0] != nil {
+		driverLog = djinnlog.For(log[0], "driver")
+	}
 	switch driverName {
 	case DriverClaude:
 		opts := []claudedriver.APIDriverOption{
 			claudedriver.WithTools(builtin.NewRegistry()),
+		}
+		if driverLog != nil {
+			opts = append(opts, claudedriver.WithLogger(driverLog))
 		}
 		if systemPrompt != "" {
 			opts = append(opts, claudedriver.WithAPISystemPrompt(systemPrompt))
@@ -514,6 +544,24 @@ func RunConfig(args []string, w io.Writer) error {
 	default:
 		return fmt.Errorf("unknown config command: %q (try: djinn config dump)", args[0])
 	}
+}
+
+// RunLog displays the log file contents.
+func RunLog(w io.Writer) error {
+	logPath := filepath.Join(HomeDir(), "djinn.log")
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		return fmt.Errorf("cannot read log file at %s: %w", logPath, err)
+	}
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	// Show last 50 lines
+	if len(lines) > 50 {
+		lines = lines[len(lines)-50:]
+	}
+	for _, line := range lines {
+		fmt.Fprintln(w, line)
+	}
+	return nil
 }
 
 // RunHeadless runs a one-shot headless execution.

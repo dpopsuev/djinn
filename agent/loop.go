@@ -8,8 +8,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
+	"time"
 
+	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
@@ -49,6 +52,7 @@ type Config struct {
 	ToolsEnabled bool // false = ask/plan mode (no tool execution)
 	Approve      ApprovalFunc
 	Handler      EventHandler
+	Log          *slog.Logger
 }
 
 // Run executes the agentic ReAct loop: send → receive → tool calls → repeat.
@@ -56,6 +60,9 @@ type Config struct {
 func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) {
 	if cfg.MaxTurns == 0 {
 		cfg.MaxTurns = DefaultMaxTurns
+	}
+	if cfg.Log == nil {
+		cfg.Log = djinnlog.Nop()
 	}
 
 	// Append user message to session
@@ -75,7 +82,8 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) {
 	var finalText string
 
 	for turn := range cfg.MaxTurns {
-		_ = turn
+		turnStart := time.Now()
+		cfg.Log.Info("turn start", "turn", turn+1, "max", cfg.MaxTurns)
 
 		// Get streaming response
 		events, err := cfg.Driver.Chat(ctx)
@@ -106,11 +114,20 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) {
 
 		// If no tool calls, we're done
 		if len(response.toolCalls) == 0 {
+			cfg.Log.Info("turn complete", "turn", turn+1,
+				slog.Group("perf",
+					djinnlog.RTT(time.Since(turnStart)),
+					djinnlog.TokensIn(usageIn(response.usage)),
+					djinnlog.TokensOut(usageOut(response.usage)),
+					djinnlog.Throughput(usageOut(response.usage), time.Since(turnStart)),
+				),
+			)
 			break
 		}
 
 		// Tools disabled (ask/plan mode): skip execution
 		if !cfg.ToolsEnabled {
+			cfg.Log.Info("tools disabled, skipping execution", "turn", turn+1, "tool_calls", len(response.toolCalls))
 			break
 		}
 
@@ -211,6 +228,9 @@ func collectResponse(events <-chan driver.StreamEvent, handler EventHandler) (co
 }
 
 func executeTools(ctx context.Context, cfg Config, calls []driver.ToolCall) ([]driver.ContentBlock, error) {
+	if cfg.Log == nil {
+		cfg.Log = djinnlog.Nop()
+	}
 	var resultBlocks []driver.ContentBlock
 
 	for _, call := range calls {
@@ -226,6 +246,8 @@ func executeTools(ctx context.Context, cfg Config, calls []driver.ToolCall) ([]d
 		}
 
 		// Execute
+		cfg.Log.Info("tool call", "tool", call.Name)
+		toolStart := time.Now()
 		output, err := cfg.Tools.Execute(ctx, call.Name, call.Input)
 		isError := err != nil
 		if isError {
@@ -242,6 +264,7 @@ func executeTools(ctx context.Context, cfg Config, calls []driver.ToolCall) ([]d
 			call.ID, output, isError,
 		))
 
+		cfg.Log.Debug("tool result", "tool", call.Name, "error", isError, djinnlog.ToolLatency(time.Since(toolStart)))
 		if cfg.Handler != nil {
 			cfg.Handler.OnToolResult(call.ID, call.Name, truncateForDisplay(output), isError)
 		}
@@ -287,6 +310,20 @@ func (NilHandler) OnError(error)                                  {}
 
 // ensure NilHandler satisfies EventHandler
 var _ EventHandler = NilHandler{}
+
+func usageIn(u *driver.Usage) int {
+	if u == nil {
+		return 0
+	}
+	return u.InputTokens
+}
+
+func usageOut(u *driver.Usage) int {
+	if u == nil {
+		return 0
+	}
+	return u.OutputTokens
+}
 
 // ensure json is used (for tool input parsing in tests)
 var _ = json.Marshal

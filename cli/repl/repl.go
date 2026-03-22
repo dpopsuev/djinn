@@ -2,11 +2,13 @@ package repl
 
 import (
 	"context"
+	"log/slog"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -20,6 +22,8 @@ type Config struct {
 	MaxTurns     int
 	AutoApprove  bool
 	Mode         string // "ask", "plan", "agent", "auto"
+	Log          *slog.Logger
+	Ring         *djinnlog.RingHandler
 }
 
 // Run starts the interactive REPL. Blocks until /exit or ctrl-C.
@@ -36,6 +40,7 @@ func Run(ctx context.Context, cfg Config) error {
 	// We do this by storing it in a package-level variable that runAgent reads.
 	// This is necessary because Bubbletea's Model is copied by value.
 	setGlobalHandler(handler)
+	globalRing = cfg.Ring
 
 	_, err := p.Run()
 	return err
@@ -45,6 +50,9 @@ func Run(ctx context.Context, cfg Config) error {
 // This bridges the gap between Bubbletea's value-copy Model and
 // the agent.EventHandler which needs a stable program reference.
 var globalHandler agent.EventHandler = agent.NilHandler{}
+
+// globalRing is set before the program runs and read by /log command.
+var globalRing *djinnlog.RingHandler
 
 func setGlobalHandler(h agent.EventHandler) {
 	globalHandler = h

@@ -3,6 +3,7 @@ package repl
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/agent"
+	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
@@ -54,6 +56,7 @@ type Model struct {
 	autoApprove  bool
 	mode         agent.Mode
 	approvalCh   chan bool // bridges approval from UI to agent goroutine
+	log          *slog.Logger
 	ctx          context.Context
 
 	// UI state
@@ -89,6 +92,12 @@ func NewModel(cfg Config) Model {
 		mode = agent.ModeAgent
 	}
 
+	log := cfg.Log
+	if log == nil {
+		log = djinnlog.Nop()
+	}
+	log = djinnlog.For(log, "repl")
+
 	return Model{
 		chatDriver:   cfg.Driver,
 		tools:        cfg.Tools,
@@ -98,6 +107,7 @@ func NewModel(cfg Config) Model {
 		autoApprove:  cfg.AutoApprove,
 		mode:         mode,
 		approvalCh:   make(chan bool, 1),
+		log:          log,
 		ctx:          context.Background(),
 		state:        stateInput,
 		textInput:    ti,
@@ -418,6 +428,7 @@ func (m *Model) handleApproval(key string) (tea.Model, tea.Cmd) {
 func (m *Model) runAgent(prompt string) tea.Cmd {
 	mode := m.mode
 	ch := m.approvalCh
+	agentLog := djinnlog.For(m.log, "agent")
 	return func() tea.Msg {
 		result, err := agent.Run(m.ctx, agent.Config{
 			Driver:       m.chatDriver,
@@ -428,6 +439,7 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 			ToolsEnabled: mode.ToolsEnabled(),
 			Approve:      approvalForMode(mode, ch),
 			Handler:      globalHandler,
+			Log:          agentLog,
 		}, prompt)
 		return AgentDoneMsg{Result: result, Err: err}
 	}

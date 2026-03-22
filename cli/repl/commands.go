@@ -2,9 +2,12 @@ package repl
 
 import (
 	"fmt"
+	"log/slog"
 	"os/exec"
+	"strconv"
 	"strings"
 
+	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/session"
 )
@@ -43,6 +46,7 @@ const (
 	cmdReview      = "/review"
 	cmdOutput      = "/output"
 	cmdConfig      = "/config"
+	cmdLog         = "/log"
 )
 
 // Default mode name.
@@ -120,6 +124,9 @@ func ExecuteCommand(cmd Command, sess *session.Session) CommandResult {
 
 	case cmdConfig:
 		return executeConfig(sess)
+
+	case cmdLog:
+		return executeLog(cmd)
 
 	case cmdHelp:
 		return CommandResult{Output: helpText()}
@@ -262,6 +269,63 @@ func executePermissions(sess *session.Session) CommandResult {
 	}
 }
 
+func executeLog(cmd Command) CommandResult {
+	if globalRing == nil {
+		return CommandResult{Output: "logging not initialized"}
+	}
+
+	// Parse args: /log [count|level]
+	count := 20
+	var levelFilter *slog.Level
+	if len(cmd.Args) > 0 {
+		switch cmd.Args[0] {
+		case "error":
+			lvl := slog.LevelError
+			levelFilter = &lvl
+		case "warn":
+			lvl := slog.LevelWarn
+			levelFilter = &lvl
+		case "info":
+			lvl := slog.LevelInfo
+			levelFilter = &lvl
+		case "debug":
+			lvl := slog.LevelDebug
+			levelFilter = &lvl
+		default:
+			if n, err := strconv.Atoi(cmd.Args[0]); err == nil && n > 0 {
+				count = n
+			}
+		}
+	}
+
+	var entries []djinnlog.Entry
+	if levelFilter != nil {
+		entries = globalRing.Filter(*levelFilter)
+	} else {
+		entries = globalRing.Entries()
+	}
+
+	// Take last N
+	if len(entries) > count {
+		entries = entries[len(entries)-count:]
+	}
+
+	if len(entries) == 0 {
+		return CommandResult{Output: "no log entries"}
+	}
+
+	var sb strings.Builder
+	for _, e := range entries {
+		comp := e.Component
+		if comp == "" {
+			comp = "-"
+		}
+		sb.WriteString(fmt.Sprintf("[%s] %s %-8s %s\n",
+			e.Time.Format("15:04:05"), e.Level.String(), comp, e.Message))
+	}
+	return CommandResult{Output: strings.TrimRight(sb.String(), "\n")}
+}
+
 func executeConfig(sess *session.Session) CommandResult {
 	mode := sess.Mode
 	if mode == "" {
@@ -289,6 +353,7 @@ func helpText() string {
   /resume          resume a session (use djinn attach)
   /review          request code review
   /config          show runtime config
+  /log [n|level]   show recent log entries
   /clear           clear conversation history
   /help            show this help
   /exit            quit`

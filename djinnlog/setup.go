@@ -58,6 +58,9 @@ func Setup(opts Options) Result {
 		handler = NewMultiHandler(handlers...)
 	}
 
+	// Belt & Suspenders: redact sensitive data before any handler sees it
+	handler = NewRedactHandler(handler)
+
 	return Result{
 		Logger: slog.New(handler),
 		Ring:   ring,
