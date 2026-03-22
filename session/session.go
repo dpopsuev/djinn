@@ -1,0 +1,65 @@
+// Package session manages conversation history and context for
+// multi-turn agent interactions.
+package session
+
+import (
+	"time"
+
+	"github.com/dpopsuev/djinn/driver"
+)
+
+// Entry represents a single turn in a conversation.
+type Entry struct {
+	Role        string             `json:"role"`
+	Content     string             `json:"content,omitempty"`
+	Blocks      []driver.ContentBlock `json:"blocks,omitempty"`
+	Timestamp   time.Time          `json:"timestamp"`
+	TokenCount  int                `json:"token_count,omitempty"` // approximate
+}
+
+// TextContent returns the text from this entry.
+func (e Entry) TextContent() string {
+	if len(e.Blocks) == 0 {
+		return e.Content
+	}
+	rm := driver.RichMessage{Content: e.Content, Blocks: e.Blocks}
+	return rm.TextContent()
+}
+
+// Session holds the state of an interactive conversation.
+type Session struct {
+	ID        string    `json:"id"`
+	Model     string    `json:"model"`
+	WorkDir   string    `json:"work_dir"`
+	CreatedAt time.Time `json:"created_at"`
+	History   *History  `json:"history"`
+}
+
+// New creates a new session.
+func New(id, model, workDir string) *Session {
+	return &Session{
+		ID:        id,
+		Model:     model,
+		WorkDir:   workDir,
+		CreatedAt: time.Now(),
+		History:   NewHistory(0), // unlimited by default
+	}
+}
+
+// Append adds a user or assistant entry to the session history.
+func (s *Session) Append(entry Entry) {
+	if entry.Timestamp.IsZero() {
+		entry.Timestamp = time.Now()
+	}
+	s.History.Append(entry)
+}
+
+// Entries returns the conversation history.
+func (s *Session) Entries() []Entry {
+	return s.History.Entries()
+}
+
+// TotalTokens returns the approximate total token count.
+func (s *Session) TotalTokens() int {
+	return s.History.TotalTokens()
+}

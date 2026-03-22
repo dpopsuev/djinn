@@ -1,0 +1,75 @@
+package session
+
+// approximateTokensPerChar is a rough estimate for token counting.
+// English text averages ~4 chars per token. This is intentionally
+// conservative (overestimates) to prevent context overflow.
+const approximateTokensPerChar = 4
+
+// History manages the conversation entries with optional token budget.
+type History struct {
+	entries    []Entry
+	maxTokens  int // 0 = unlimited
+}
+
+// NewHistory creates a history with an optional token budget.
+func NewHistory(maxTokens int) *History {
+	return &History{maxTokens: maxTokens}
+}
+
+// Append adds an entry. If a token budget is set, trims oldest entries
+// to stay within budget.
+func (h *History) Append(e Entry) {
+	if e.TokenCount == 0 {
+		e.TokenCount = estimateTokens(e.TextContent())
+	}
+	h.entries = append(h.entries, e)
+	h.trimIfNeeded()
+}
+
+// Entries returns a copy of all entries.
+func (h *History) Entries() []Entry {
+	out := make([]Entry, len(h.entries))
+	copy(out, h.entries)
+	return out
+}
+
+// Len returns the number of entries.
+func (h *History) Len() int {
+	return len(h.entries)
+}
+
+// TotalTokens returns the approximate total token count.
+func (h *History) TotalTokens() int {
+	total := 0
+	for _, e := range h.entries {
+		total += e.TokenCount
+	}
+	return total
+}
+
+// Clear removes all entries.
+func (h *History) Clear() {
+	h.entries = nil
+}
+
+func (h *History) trimIfNeeded() {
+	if h.maxTokens <= 0 {
+		return
+	}
+	// Keep removing oldest entries (but always keep at least the latest)
+	for h.TotalTokens() > h.maxTokens && len(h.entries) > 1 {
+		h.entries = h.entries[1:]
+	}
+}
+
+func estimateTokens(text string) int {
+	chars := len(text)
+	if chars == 0 {
+		return 1 // minimum 1 token for empty messages
+	}
+	tokens := chars / approximateTokensPerChar
+	if tokens == 0 {
+		tokens = 1
+	}
+	return tokens
+}
