@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/dpopsuev/djinn/session"
@@ -142,5 +143,81 @@ func TestRun_Help(t *testing.T) {
 	}
 	if buf.Len() == 0 {
 		t.Fatal("help output should not be empty")
+	}
+}
+
+func TestRun_Routing(t *testing.T) {
+	tests := []struct {
+		args    []string
+		want    string
+		wantErr bool
+	}{
+		{[]string{"version"}, "djinn " + Version, false},
+		{[]string{"--help"}, "djinn", false},
+		{[]string{"-h"}, "djinn", false},
+		{[]string{"help"}, "djinn", false},
+	}
+	for _, tt := range tests {
+		var buf bytes.Buffer
+		err := Run(tt.args, &buf)
+		if tt.wantErr && err == nil {
+			t.Fatalf("args=%v: expected error", tt.args)
+		}
+		if !tt.wantErr && err != nil {
+			t.Fatalf("args=%v: %v", tt.args, err)
+		}
+		if !strings.Contains(buf.String(), tt.want) {
+			t.Fatalf("args=%v: output=%q, want %q", tt.args, buf.String(), tt.want)
+		}
+	}
+}
+
+func TestRunKill_MissingArgs(t *testing.T) {
+	var buf bytes.Buffer
+	err := RunKill(nil, &buf)
+	if err == nil {
+		t.Fatal("expected error for missing args")
+	}
+}
+
+func TestRunAttach_MissingArgs(t *testing.T) {
+	var buf bytes.Buffer
+	err := RunAttach(nil, &buf)
+	if err == nil {
+		t.Fatal("expected error for missing args")
+	}
+}
+
+func TestRunImport_MissingArgs(t *testing.T) {
+	var buf bytes.Buffer
+	err := RunImport(nil, &buf)
+	if err == nil {
+		t.Fatal("expected error for missing args")
+	}
+}
+
+func TestRunDoctor_Output(t *testing.T) {
+	var buf bytes.Buffer
+	err := RunDoctor(&buf)
+	if err != nil {
+		t.Fatalf("RunDoctor: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "djinn doctor") {
+		t.Fatal("missing header")
+	}
+	if !strings.Contains(out, "version:") {
+		t.Fatal("missing version")
+	}
+	if !strings.Contains(out, "drivers:") {
+		t.Fatal("missing drivers section")
+	}
+}
+
+func TestPrintUsage_ContainsMode(t *testing.T) {
+	var buf bytes.Buffer
+	PrintUsage(&buf)
+	if !strings.Contains(buf.String(), "--mode") {
+		t.Fatal("usage should mention --mode flag")
 	}
 }
