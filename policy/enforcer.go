@@ -55,7 +55,7 @@ func (e *DefaultEnforcer) checkFilePath(token CapabilityToken, tool string, inpu
 		Path    string `json:"path"`
 		FilePath string `json:"file_path"`
 	}
-	json.Unmarshal(input, &params)
+	_ = json.Unmarshal(input, &params) //nolint:errcheck // best-effort parse for path extraction
 
 	path := params.Path
 	if path == "" {
@@ -107,7 +107,7 @@ func (e *DefaultEnforcer) checkBash(token CapabilityToken, input json.RawMessage
 	var params struct {
 		Command string `json:"command"`
 	}
-	json.Unmarshal(input, &params)
+	_ = json.Unmarshal(input, &params) //nolint:errcheck // best-effort parse for command extraction
 
 	if params.Command == "" {
 		return nil

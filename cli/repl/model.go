@@ -42,14 +42,6 @@ const (
 	outputChunked                    // all-at-once after completion
 )
 
-// ScrollMode controls auto-scroll behavior.
-type ScrollMode int
-
-const (
-	scrollFollow ScrollMode = iota // always show latest (default)
-	scrollStatic                   // user scrolls manually
-)
-
 // Model is the Bubbletea model for the Djinn REPL.
 type Model struct {
 	// Dependencies
@@ -83,7 +75,6 @@ type Model struct {
 	lastError    string
 	handler      agent.EventHandler
 	outputMode   OutputMode
-	scrollMode   ScrollMode
 	chunkedBuf   strings.Builder // accumulates full response for chunked mode
 	width        int
 	height       int

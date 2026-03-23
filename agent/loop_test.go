@@ -41,31 +41,6 @@ data: {"type":"message_stop"}
 	}
 }
 
-func newTestDriver(t *testing.T, handler http.HandlerFunc) *claudedriver.APIDriver {
-	t.Helper()
-	srv := httptest.NewServer(handler)
-	t.Cleanup(srv.Close)
-
-	// Temporarily set API key for driver construction
-	os.Setenv("ANTHROPIC_API_KEY", "test-key")
-	defer os.Unsetenv("ANTHROPIC_API_KEY")
-
-	d, err := claudedriver.NewAPIDriver(
-		driver.DriverConfig{Model: "test-model", MaxTokens: 1024},
-		claudedriver.WithTools(builtin.NewRegistry()),
-	)
-	if err != nil {
-		t.Fatalf("NewAPIDriver: %v", err)
-	}
-
-	// Override URL to test server (using reflection-free approach: recreate with test URL)
-	// Since we can't set apiURL directly, we'll use the driver as-is but
-	// override at the HTTP level via the test server
-	// Actually, we need to set the URL. Let's create the driver differently.
-	t.Cleanup(func() { d.Stop(context.Background()) })
-	return d
-}
-
 func TestRun_SimpleText(t *testing.T) {
 	srv := httptest.NewServer(sseTextResponse("Hello from Claude"))
 	defer srv.Close()
@@ -332,7 +307,7 @@ func TestRun_FullCycle_TextOnly(t *testing.T) {
 
 func TestRun_ToolApprovalDenied(t *testing.T) {
 	// Mock that returns a tool call
-	toolSSE := fmt.Sprintf(`event: message_start
+	toolSSE := `event: message_start
 data: {"type":"message_start","message":{"id":"msg-1","role":"assistant"}}
 
 event: content_block_start
@@ -347,7 +322,7 @@ data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"outpu
 event: message_stop
 data: {"type":"message_stop"}
 
-`)
+`
 
 	callCount := 0
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -358,7 +333,7 @@ data: {"type":"message_stop"}
 			fmt.Fprint(w, toolSSE)
 		} else {
 			// Second call (after tool result): return text
-			fmt.Fprint(w, fmt.Sprintf(`event: message_start
+			fmt.Fprint(w, `event: message_start
 data: {"type":"message_start","message":{"id":"msg-2","role":"assistant"}}
 
 event: content_block_delta
@@ -370,7 +345,7 @@ data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}
 event: message_stop
 data: {"type":"message_stop"}
 
-`))
+`)
 		}
 	}
 

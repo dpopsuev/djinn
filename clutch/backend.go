@@ -24,7 +24,7 @@ type BackendConfig struct {
 // or the context is cancelled.
 func RunBackend(ctx context.Context, transport Transport, cfg BackendConfig) error {
 	// Announce ready with session state
-	transport.SendToShell(BackendMsg{
+	transport.SendToShell(BackendMsg{ //nolint:errcheck // fire-and-forget channel send
 		Type:       BackendReady,
 		Version:    ProtocolVersion,
 		Model:      cfg.Session.Model,
@@ -39,7 +39,7 @@ func RunBackend(ctx context.Context, transport Transport, cfg BackendConfig) err
 
 		switch msg.Type {
 		case ShellQuit:
-			transport.SendToShell(BackendMsg{Type: BackendExiting})
+			transport.SendToShell(BackendMsg{Type: BackendExiting}) //nolint:errcheck // fire-and-forget channel send
 			return nil
 
 		case ShellPrompt:
@@ -55,7 +55,7 @@ func RunBackend(ctx context.Context, transport Transport, cfg BackendConfig) err
 			}, msg.Text)
 
 			if err != nil {
-				transport.SendToShell(BackendMsg{
+				transport.SendToShell(BackendMsg{ //nolint:errcheck // fire-and-forget channel send
 					Type:  BackendError,
 					Error: err.Error(),
 				})
@@ -80,19 +80,19 @@ type backendHandler struct {
 }
 
 func (h *backendHandler) OnText(text string) {
-	h.transport.SendToShell(BackendMsg{Type: BackendText, Text: text})
+	h.transport.SendToShell(BackendMsg{Type: BackendText, Text: text}) //nolint:errcheck // fire-and-forget
 }
 
 func (h *backendHandler) OnThinking(text string) {
-	h.transport.SendToShell(BackendMsg{Type: BackendThinking, Text: text})
+	h.transport.SendToShell(BackendMsg{Type: BackendThinking, Text: text}) //nolint:errcheck // fire-and-forget
 }
 
 func (h *backendHandler) OnToolCall(call driver.ToolCall) {
-	h.transport.SendToShell(BackendMsg{Type: BackendToolCall, ToolCall: &call})
+	h.transport.SendToShell(BackendMsg{Type: BackendToolCall, ToolCall: &call}) //nolint:errcheck // fire-and-forget
 }
 
 func (h *backendHandler) OnToolResult(callID, name, output string, isError bool) {
-	h.transport.SendToShell(BackendMsg{
+	h.transport.SendToShell(BackendMsg{ //nolint:errcheck // fire-and-forget
 		Type:       BackendToolResult,
 		ToolName:   name,
 		ToolOutput: output,
@@ -101,9 +101,9 @@ func (h *backendHandler) OnToolResult(callID, name, output string, isError bool)
 }
 
 func (h *backendHandler) OnDone(usage *driver.Usage) {
-	h.transport.SendToShell(BackendMsg{Type: BackendDone, Usage: usage})
+	h.transport.SendToShell(BackendMsg{Type: BackendDone, Usage: usage}) //nolint:errcheck // fire-and-forget
 }
 
 func (h *backendHandler) OnError(err error) {
-	h.transport.SendToShell(BackendMsg{Type: BackendError, Error: err.Error()})
+	h.transport.SendToShell(BackendMsg{Type: BackendError, Error: err.Error()}) //nolint:errcheck // fire-and-forget
 }

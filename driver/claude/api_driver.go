@@ -60,6 +60,7 @@ type APIDriver struct {
 	apiKey     string
 	useVertex  bool
 	log        *slog.Logger
+	client     *http.Client
 
 	mu       sync.Mutex
 	messages []apiMessage
@@ -98,6 +99,11 @@ func WithLogger(log *slog.Logger) APIDriverOption {
 	return func(d *APIDriver) { d.log = log }
 }
 
+// WithHTTPClient overrides the HTTP client (for testing).
+func WithHTTPClient(c *http.Client) APIDriverOption {
+	return func(d *APIDriver) { d.client = c }
+}
+
 // NewAPIDriver creates a Claude Messages API driver.
 func NewAPIDriver(config driver.DriverConfig, opts ...APIDriverOption) (*APIDriver, error) {
 	d := &APIDriver{
@@ -128,6 +134,13 @@ func NewAPIDriver(config driver.DriverConfig, opts ...APIDriverOption) (*APIDriv
 
 	if d.config.Model == "" {
 		d.config.Model = defaultModel
+	}
+
+	if d.client == nil {
+		d.client = &http.Client{
+			Transport: newRetryTransport(http.DefaultTransport, DefaultRetryConfig(), d.log),
+			// No Timeout — SSE streaming can run for minutes. Context handles cancellation.
+		}
 	}
 
 	return d, nil
@@ -220,6 +233,10 @@ func (d *APIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 	copy(messages, d.messages)
 	d.mu.Unlock()
 
+	if err := d.validateRequest(messages); err != nil {
+		return nil, err
+	}
+
 	req, err := d.buildRequest(ctx, messages)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
@@ -228,7 +245,7 @@ func (d *APIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 	d.log.Debug("sending request", "model", d.resolveModel(), "messages", len(messages))
 	reqStart := time.Now()
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := d.client.Do(req)
 	if err != nil {
 		d.log.Error("API call failed", "error", err)
 		return nil, fmt.Errorf("api call: %w", err)
@@ -238,7 +255,13 @@ func (d *APIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		d.log.Error("API error", "status", resp.StatusCode, slog.Duration("rtt", time.Since(reqStart)))
-		return nil, fmt.Errorf("%w: %d: %s", ErrAPIError, resp.StatusCode, string(body))
+		return nil, &driver.DriverError{
+			StatusCode: resp.StatusCode,
+			Retryable:  driver.ClassifyRetryable(resp.StatusCode),
+			Provider:   d.providerName(),
+			RequestID:  driver.ExtractRequestID(body),
+			Message:    string(body),
+		}
 	}
 
 	d.log.Debug("response received", "status", resp.StatusCode, slog.Duration("rtt", time.Since(reqStart)))
@@ -289,6 +312,13 @@ func (d *APIDriver) appendMessage(m apiMessage) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.messages = append(d.messages, m)
+}
+
+func (d *APIDriver) providerName() string {
+	if d.useVertex {
+		return "claude-vertex"
+	}
+	return "claude-direct"
 }
 
 func (d *APIDriver) resolveModel() string {

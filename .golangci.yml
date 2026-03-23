@@ -1,0 +1,38 @@
+run:
+  timeout: 2m
+  build-tags:
+    - e2e
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - gosimple
+    - typecheck
+
+linters-settings:
+  errcheck:
+    check-type-assertions: false
+    exclude-functions:
+      - (*encoding/json.Encoder).Encode
+      - (io.Closer).Close
+      - (net/http.ResponseWriter).Write
+      - fmt.Fprint
+      - fmt.Fprintf
+      - fmt.Fprintln
+
+issues:
+  exclude-use-default: true
+  max-issues-per-linter: 50
+  max-same-issues: 5
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+    - path: testkit/
+      linters:
+        - errcheck
+        - unused

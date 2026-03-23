@@ -111,13 +111,13 @@ func (o *SimpleOrchestrator) executeStage(ctx context.Context, execID string, st
 	if err != nil {
 		return fmt.Errorf("create sandbox: %w", err)
 	}
-	defer o.destroySandbox(ctx, sandboxID)
+	defer o.destroySandbox(ctx, sandboxID) //nolint:errcheck // best-effort cleanup on exit
 
 	d := o.driverFactory(stage.Driver)
 	if err := d.Start(stageCtx, sandboxID); err != nil {
 		return fmt.Errorf("start driver: %w", err)
 	}
-	defer d.Stop(ctx)
+	defer d.Stop(ctx) //nolint:errcheck // best-effort cleanup on exit
 
 	if err := d.Send(stageCtx, driver.Message{Role: driver.RoleUser, Content: stage.Prompt}); err != nil {
 		return fmt.Errorf("send prompt: %w", err)

@@ -2,11 +2,11 @@ package claude
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/dpopsuev/djinn/djinnlog"
@@ -57,6 +57,7 @@ func newTestAPIDriver(t *testing.T, handler http.HandlerFunc) *APIDriver {
 		apiURL: srv.URL,
 		apiKey: "test-key",
 		log:    djinnlog.Nop(),
+		client: srv.Client(),
 	}
 	d.Start(context.Background(), "")
 	return d
@@ -188,7 +189,7 @@ func TestAPIDriver_WithTools(t *testing.T) {
 func TestAPIDriver_APIError(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error": "invalid api key"}`))
+		w.Write([]byte(`{"error": "invalid api key", "request_id": "req_test_123"}`))
 	}
 
 	d := newTestAPIDriver(t, handler)
@@ -198,8 +199,22 @@ func TestAPIDriver_APIError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for 401")
 	}
-	if !strings.Contains(err.Error(), "401") {
-		t.Fatalf("error = %v, expected 401", err)
+
+	var de *driver.DriverError
+	if !errors.As(err, &de) {
+		t.Fatalf("expected DriverError, got %T: %v", err, err)
+	}
+	if de.StatusCode != 401 {
+		t.Fatalf("StatusCode = %d, want 401", de.StatusCode)
+	}
+	if de.Retryable {
+		t.Fatal("401 should not be retryable")
+	}
+	if de.Provider != "claude-direct" {
+		t.Fatalf("Provider = %q, want claude-direct", de.Provider)
+	}
+	if de.RequestID != "req_test_123" {
+		t.Fatalf("RequestID = %q, want req_test_123", de.RequestID)
 	}
 }
 

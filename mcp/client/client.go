@@ -87,7 +87,7 @@ func (c *Client) ConnectStdio(ctx context.Context, name, command string, args []
 
 	conn := &ServerConn{name: name, transport: t}
 	if err := c.initializeServer(conn); err != nil {
-		cmd.Process.Kill()
+		_ = cmd.Process.Kill()
 		return fmt.Errorf("initialize %s: %w", name, err)
 	}
 
@@ -129,10 +129,9 @@ func (c *Client) initializeServer(conn *ServerConn) error {
 		return resp.Error
 	}
 
-	// Send initialized notification — must complete before tools/list
-	if err := conn.sendNotification("notifications/initialized", nil); err != nil {
-		// Some servers don't respond to notifications — continue anyway
-	}
+	// Send initialized notification — must complete before tools/list.
+	// Some servers don't respond to notifications — continue anyway.
+	_ = conn.sendNotification("notifications/initialized", nil)
 
 	// List tools
 	toolsResp, err := conn.send("tools/list", nil)

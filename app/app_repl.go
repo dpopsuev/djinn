@@ -224,13 +224,13 @@ func RunREPL(args []string, stderr io.Writer) error {
 	if err := chatDriver.Start(ctx, ""); err != nil {
 		return fmt.Errorf("cannot start %s driver: %w (try: djinn doctor)", *driverName, err)
 	}
-	defer chatDriver.Stop(ctx)
+	defer chatDriver.Stop(ctx) //nolint:errcheck // best-effort cleanup on exit
 
 	// Replay history
 	for _, entry := range sess.Entries() {
 		switch entry.Role {
 		case driver.RoleUser:
-			chatDriver.Send(ctx, driver.Message{Role: entry.Role, Content: entry.TextContent()})
+			chatDriver.Send(ctx, driver.Message{Role: entry.Role, Content: entry.TextContent()}) //nolint:errcheck // best-effort history replay
 		case driver.RoleAssistant:
 			chatDriver.AppendAssistant(driver.RichMessage{
 				Role:    entry.Role,
