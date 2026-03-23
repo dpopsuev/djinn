@@ -3,6 +3,9 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
 func TestFocusManager_Cycle(t *testing.T) {
@@ -217,11 +220,34 @@ func TestRenderWithDepth_Focused(t *testing.T) {
 	}
 }
 
-func TestRenderWithDepth_Unfocused(t *testing.T) {
-	d1 := RenderWithDepth("hello", 1)
-	d2 := RenderWithDepth("hello", 2)
-	if d1 == "" || d2 == "" {
+func TestRenderWithDepth_Unfocused_DiffersFromFocused(t *testing.T) {
+	// Force color output — lipgloss emits nothing without a TTY
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	defer lipgloss.SetColorProfile(termenv.Ascii)
+
+	focused := RenderWithDepth("hello", 0)
+	dim1 := RenderWithDepth("hello", 1)
+	dim2 := RenderWithDepth("hello", 2)
+
+	if dim1 == "" || dim2 == "" {
 		t.Fatal("dimmed output should not be empty")
+	}
+	if dim1 == focused {
+		t.Fatal("depth 1 MUST differ from depth 0 — dimming has no visible effect")
+	}
+	if dim2 == focused {
+		t.Fatal("depth 2 MUST differ from depth 0")
+	}
+}
+
+func TestRenderFocusIndicator(t *testing.T) {
+	focused := RenderFocusIndicator(true)
+	unfocused := RenderFocusIndicator(false)
+	if focused == unfocused {
+		t.Fatal("focused indicator must differ from unfocused")
+	}
+	if focused == "" {
+		t.Fatal("focused indicator should not be empty")
 	}
 }
 

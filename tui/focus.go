@@ -8,11 +8,16 @@ import "github.com/charmbracelet/lipgloss"
 // Focus depth styles — progressively dimmer.
 var (
 	// Depth 0: focused panel — full brightness (no transformation)
-	// Depth 1: sibling — slightly muted
-	depthDim1 = lipgloss.NewStyle()
-	// Depth 2+: distant — faint
-	depthDim2 = lipgloss.NewStyle().Faint(true)
+	// Depth 1: sibling — visibly muted (gray foreground)
+	depthDim1 = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#808080", Dark: "#707070"})
+	// Depth 2+: distant — very faint (dark gray)
+	depthDim2 = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#a0a0a0", Dark: "#404040"})
 )
+
+// Focused panel separator accent
+var focusAccent = lipgloss.NewStyle().
+	Foreground(lipgloss.AdaptiveColor{Light: "#3b82f6", Dark: "#60a5fa"}).
+	Bold(true)
 
 // RenderWithDepth wraps panel content with depth-based dimming.
 // Depth 0 = focused (full brightness). Higher depth = dimmer.
@@ -21,10 +26,18 @@ func RenderWithDepth(content string, depth int) string {
 	case depth <= 0:
 		return content // focused: full brightness
 	case depth == 1:
-		return depthDim1.Render(content) // sibling: slightly muted
+		return depthDim1.Render(content) // sibling: visibly muted
 	default:
-		return depthDim2.Render(content) // distant: faint
+		return depthDim2.Render(content) // distant: very faint
 	}
+}
+
+// RenderFocusIndicator returns a focus marker for the active panel.
+func RenderFocusIndicator(focused bool) string {
+	if focused {
+		return focusAccent.Render("▌")
+	}
+	return " "
 }
 
 // FocusDepths calculates the focus depth for each panel in a flat list.
