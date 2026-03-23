@@ -359,10 +359,9 @@ func (m Model) overlayContent() string {
 	}
 }
 
-// separator renders a separator line between panels.
-func (m Model) separator(panelIdx int) string {
-	focused := m.focus.ActiveIndex() == panelIdx
-	return "\n" + tui.RenderFocusIndicator(focused) + tui.Separator(m.width-1, 0, focused) + "\n"
+// separator renders a thin line between panels.
+func (m Model) separator(_ int) string {
+	return "\n"
 }
 
 // fixedHeight returns the number of lines consumed by non-output panels.

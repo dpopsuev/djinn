@@ -215,8 +215,11 @@ func TestFocusDepths_FirstFocused(t *testing.T) {
 
 func TestRenderWithDepth_Focused(t *testing.T) {
 	result := RenderWithDepth("hello", 0)
-	if result != "hello" {
-		t.Fatal("depth 0 should return content unchanged")
+	if result == "hello" {
+		t.Fatal("depth 0 should wrap content in border (not return unchanged)")
+	}
+	if !strings.Contains(result, "hello") {
+		t.Fatal("depth 0 should contain the original content")
 	}
 }
 
@@ -241,13 +244,11 @@ func TestRenderWithDepth_Unfocused_DiffersFromFocused(t *testing.T) {
 }
 
 func TestRenderFocusIndicator(t *testing.T) {
+	// Focus indicator is now empty — active panel uses a border instead.
 	focused := RenderFocusIndicator(true)
 	unfocused := RenderFocusIndicator(false)
-	if focused == unfocused {
-		t.Fatal("focused indicator must differ from unfocused")
-	}
-	if focused == "" {
-		t.Fatal("focused indicator should not be empty")
+	if focused != "" || unfocused != "" {
+		t.Fatal("focus indicator should be empty (border handles focus now)")
 	}
 }
 

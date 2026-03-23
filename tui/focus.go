@@ -1,43 +1,39 @@
 // focus.go — depth-based brightness dimming for panel focus indication.
-// Focused panel renders at full brightness. Unfocused panels dim
-// progressively by distance from focus in the panel tree.
+// Focused panel gets a rounded border. Unfocused panels dim progressively.
 package tui
 
 import "github.com/charmbracelet/lipgloss"
 
 // Focus depth styles — progressively dimmer.
 var (
-	// Depth 0: focused panel — full brightness (no transformation)
-	// Depth 1: sibling — visibly muted (gray foreground)
 	depthDim1 = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#808080", Dark: "#707070"})
-	// Depth 2+: distant — very faint (dark gray)
 	depthDim2 = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#a0a0a0", Dark: "#404040"})
 )
 
-// Focused panel separator accent
-var focusAccent = lipgloss.NewStyle().
-	Foreground(lipgloss.AdaptiveColor{Light: "#3b82f6", Dark: "#60a5fa"}).
-	Bold(true)
+// Focused panel border style — rounded edges, RedHatRed accent.
+var focusBorder = lipgloss.NewStyle().
+	Border(lipgloss.RoundedBorder()).
+	BorderForeground(RedHatRed)
 
 // RenderWithDepth wraps panel content with depth-based dimming.
-// Depth 0 = focused (full brightness). Higher depth = dimmer.
+// Depth 0 = focused (rounded border). Higher depth = dimmer, no border.
 func RenderWithDepth(content string, depth int) string {
 	switch {
 	case depth <= 0:
-		return content // focused: full brightness
+		return focusBorder.Render(content)
 	case depth == 1:
-		return depthDim1.Render(content) // sibling: visibly muted
+		return depthDim1.Render(content)
 	default:
-		return depthDim2.Render(content) // distant: very faint
+		return depthDim2.Render(content)
 	}
 }
 
 // RenderFocusIndicator returns a focus marker for the active panel.
 func RenderFocusIndicator(focused bool) string {
 	if focused {
-		return focusAccent.Render("▌")
+		return ""
 	}
-	return " "
+	return ""
 }
 
 // FocusDepths calculates the focus depth for each panel in a flat list.
