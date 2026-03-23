@@ -22,6 +22,7 @@ import (
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
+	"github.com/dpopsuev/djinn/tui"
 	djinnws "github.com/dpopsuev/djinn/workspace"
 )
 
@@ -240,7 +241,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 		}
 	}
 
-	var mcpFailures []repl.HealthReport
+	var mcpFailures []tui.HealthReport
 	mcpConfigs := mcpclient.LoadMCPConfig(Getwd(), filepath.Join(HomeDir()), wsMCPConfig)
 	for name, cfg := range mcpConfigs {
 		var connectErr error
@@ -251,21 +252,21 @@ func RunREPL(args []string, stderr io.Writer) error {
 		}
 		if connectErr != nil {
 			log.Warn("MCP server failed", "server", name, "error", connectErr)
-			mcpFailures = append(mcpFailures, repl.HealthReport{
+			mcpFailures = append(mcpFailures, tui.HealthReport{
 				Component: name,
-				Status:    repl.StatusYellow,
+				Status:    tui.StatusYellow,
 				Message:   connectErr.Error(),
 			})
 		}
 	}
 
 	// Build health reports from MCP connection results
-	var healthReports []repl.HealthReport
+	var healthReports []tui.HealthReport
 	for _, name := range mcpClient.ServerNames() {
 		tools, _ := mcpClient.ServerTools(name)
-		healthReports = append(healthReports, repl.HealthReport{
+		healthReports = append(healthReports, tui.HealthReport{
 			Component: name,
-			Status:    repl.StatusGreen,
+			Status:    tui.StatusGreen,
 			Message:   fmt.Sprintf("%d tools", len(tools)),
 		})
 	}

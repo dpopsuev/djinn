@@ -4,13 +4,12 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/agent"
+	"github.com/dpopsuev/djinn/tui"
 )
 
 // Compile-time check that BubbletaHandler implements agent.EventHandler.
-var _ agent.EventHandler = &BubbletaHandler{}
+var _ agent.EventHandler = &tui.BubbletaHandler{}
 
 func TestBubbletaHandler_ImplementsEventHandler(t *testing.T) {
-	// This test passes if the compile-time check above compiles.
-	// BubbletaHandler must satisfy agent.EventHandler.
-	_ = &BubbletaHandler{}
+	_ = &tui.BubbletaHandler{}
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
+	"github.com/dpopsuev/djinn/tui"
 )
 
 func testTUIModel(t *testing.T, mode string) *repl.Model {
@@ -51,14 +52,14 @@ func TestTUI_TextBufferedAndFlushed(t *testing.T) {
 	m.SetState(repl.StateStreaming)
 	m.AppendConversation("assistant: ")
 
-	m2, _ := m.Update(repl.TextMsg("hello world"))
+	m2, _ := m.Update(tui.TextMsg("hello world"))
 	model := toModelPtr(m2)
 
 	if model.StreamBufString() != "hello world" {
 		t.Fatalf("streamBuf = %q", model.StreamBufString())
 	}
 
-	m3, _ := model.Update(repl.TickMsg(time.Now()))
+	m3, _ := model.Update(tui.TickMsg(time.Now()))
 	model2 := toModelPtr(m3)
 	if model2.StreamBufString() != "" {
 		t.Fatal("buffer should be empty after tick flush")
@@ -68,7 +69,7 @@ func TestTUI_TextBufferedAndFlushed(t *testing.T) {
 func TestTUI_ToolApprovalInAgentMode(t *testing.T) {
 	m := testTUIModel(t, "agent")
 	m.SetState(repl.StateStreaming)
-	m2, _ := m.Update(repl.ToolCallMsg{Call: driver.ToolCall{
+	m2, _ := m.Update(tui.ToolCallMsg{Call: driver.ToolCall{
 		ID: "c1", Name: "Bash", Input: json.RawMessage(`{}`),
 	}})
 	model := toModelPtr(m2)
@@ -80,7 +81,7 @@ func TestTUI_ToolApprovalInAgentMode(t *testing.T) {
 func TestTUI_AutoModeSkipsApproval(t *testing.T) {
 	m := testTUIModel(t, "auto")
 	m.SetState(repl.StateStreaming)
-	m2, _ := m.Update(repl.ToolCallMsg{Call: driver.ToolCall{
+	m2, _ := m.Update(tui.ToolCallMsg{Call: driver.ToolCall{
 		ID: "c1", Name: "Bash", Input: json.RawMessage(`{}`),
 	}})
 	model := toModelPtr(m2)

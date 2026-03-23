@@ -1,4 +1,4 @@
-package repl
+package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
@@ -6,8 +6,6 @@ import (
 )
 
 // BubbletaHandler bridges agent.EventHandler to Bubbletea messages.
-// Each On* method sends a tea.Msg via program.Send(), which is
-// thread-safe and non-blocking.
 type BubbletaHandler struct {
 	program *tea.Program
 }

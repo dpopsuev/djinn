@@ -16,6 +16,7 @@ import (
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
+	"github.com/dpopsuev/djinn/tui"
 )
 
 // Frame rate for smooth streaming (60fps).
@@ -81,7 +82,7 @@ type Model struct {
 	chunkedBuf   strings.Builder // accumulates full response for chunked mode
 	width        int
 	height       int
-	healthReports  []HealthReport // component health for status line
+	healthReports  []tui.HealthReport // component health for status line
 	ready          bool
 	quitting       bool
 	initialPrompt  string // auto-submit on first render
@@ -90,7 +91,7 @@ type Model struct {
 // NewModel creates a new REPL model.
 func NewModel(cfg Config) Model {
 	ti := textinput.New()
-	ti.Prompt = userStyle.Render(labelUser)
+	ti.Prompt = tui.UserStyle.Render(tui.LabelUser)
 	ti.Focus()
 
 	mode, err := agent.ParseMode(cfg.Mode)
@@ -141,7 +142,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.ready = true
-		reinitRenderer(msg.Width)
+		tui.ReinitRenderer(msg.Width)
 		// Auto-submit initial prompt if provided
 		if m.initialPrompt != "" {
 			m.textInput.SetValue(m.initialPrompt)
@@ -153,7 +154,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 
-	case TextMsg:
+	case tui.TextMsg:
 		if m.outputMode == outputChunked {
 			m.chunkedBuf.WriteString(string(msg))
 		} else {
@@ -161,15 +162,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil // wait for tick to render (streaming) or done (chunked)
 
-	case ThinkingMsg:
+	case tui.ThinkingMsg:
 		m.conversation = append(m.conversation,
-			dimStyle.Render(string(msg)))
+			tui.DimStyle.Render(string(msg)))
 		return m, nil
 
-	case ToolCallMsg:
+	case tui.ToolCallMsg:
 		line := fmt.Sprintf("  %s %s",
-			toolNameStyle.Render(msg.Call.Name),
-			toolArgStyle.Render(truncate(string(msg.Call.Input), 80)))
+			tui.ToolNameStyle.Render(msg.Call.Name),
+			tui.ToolArgStyle.Render(truncate(string(msg.Call.Input), 80)))
 		m.conversation = append(m.conversation, line)
 
 		// In agent mode (not auto), prompt for approval
@@ -179,27 +180,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case ToolResultMsg:
+	case tui.ToolResultMsg:
 		var line string
 		if msg.IsError {
 			line = fmt.Sprintf("  %s %s",
-				errorStyle.Render(msg.Name),
-				dimStyle.Render(truncate(msg.Output, 100)))
+				tui.ErrorStyle.Render(msg.Name),
+				tui.DimStyle.Render(truncate(msg.Output, 100)))
 		} else {
 			lines := strings.Count(msg.Output, "\n")
 			if lines > 3 {
 				line = fmt.Sprintf("  %s (%d lines)",
-					toolSuccessStyle.Render(msg.Name), lines)
+					tui.ToolSuccessStyle.Render(msg.Name), lines)
 			} else {
 				line = fmt.Sprintf("  %s %s",
-					toolSuccessStyle.Render(msg.Name),
-					dimStyle.Render(truncate(msg.Output, 100)))
+					tui.ToolSuccessStyle.Render(msg.Name),
+					tui.DimStyle.Render(truncate(msg.Output, 100)))
 			}
 		}
 		m.conversation = append(m.conversation, line)
 		return m, nil
 
-	case DoneMsg:
+	case tui.DoneMsg:
 		m.lastUsage = msg.Usage
 		if msg.Usage != nil {
 			m.totalIn += msg.Usage.InputTokens
@@ -207,13 +208,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case ErrorMsg:
+	case tui.ErrorMsg:
 		m.lastError = msg.Error()
 		m.conversation = append(m.conversation,
-			errorStyle.Render("error: "+msg.Error()))
+			tui.ErrorStyle.Render("error: "+msg.Error()))
 		return m, nil
 
-	case AgentDoneMsg:
+	case tui.AgentDoneMsg:
 		// Auto-save session after each turn
 		if m.store != nil {
 			if err := m.store.Save(m.sess); err != nil {
@@ -235,19 +236,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			last := len(m.conversation) - 1
 			raw := m.conversation[last]
 			// Strip the assistant label prefix, render, re-add
-			prefix := assistStyle.Render(labelAssist) + ": "
+			prefix := tui.AssistStyle.Render(tui.LabelAssist) + ": "
 			if after, found := strings.CutPrefix(raw, prefix); found {
-				rendered := renderMarkdown(after)
+				rendered := tui.RenderMarkdown(after)
 				m.conversation[last] = prefix + rendered
 			}
 		}
 		if msg.Err != nil {
 			m.conversation = append(m.conversation,
-				errorStyle.Render("error: "+msg.Err.Error()))
+				tui.ErrorStyle.Render("error: "+msg.Err.Error()))
 		}
 		if m.lastUsage != nil {
 			m.conversation = append(m.conversation,
-				statusStyle.Render(fmt.Sprintf("[tokens: %d in, %d out]",
+				tui.StatusStyle.Render(fmt.Sprintf("[tokens: %d in, %d out]",
 					m.lastUsage.InputTokens, m.lastUsage.OutputTokens)))
 		}
 		m.conversation = append(m.conversation, "") // blank line
@@ -255,7 +256,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.textInput.Focus()
 		return m, nil
 
-	case TickMsg:
+	case tui.TickMsg:
 		if m.state == stateStreaming {
 			m.flushStreamBuffer()
 			return m, tickCmd()
@@ -275,9 +276,9 @@ func (m Model) View() string {
 
 	// Welcome header (first time)
 	if len(m.conversation) == 0 && m.state == stateInput {
-		sb.WriteString(logoStyle.Render(djinnLogo))
+		sb.WriteString(tui.LogoStyle.Render(tui.DjinnLogo))
 		sb.WriteString("\n")
-		sb.WriteString(dimStyle.Render(fmt.Sprintf("  model: %s — tools: %d — /help for commands",
+		sb.WriteString(tui.DimStyle.Render(fmt.Sprintf("  model: %s — tools: %d — /help for commands",
 			m.sess.Model, len(m.tools.Names()))))
 		sb.WriteString("\n\n")
 	}
@@ -295,7 +296,7 @@ func (m Model) View() string {
 
 	// Tool approval prompt
 	if m.state == stateToolApproval && m.pendingTool != nil {
-		sb.WriteString(toolNameStyle.Render(
+		sb.WriteString(tui.ToolNameStyle.Render(
 			fmt.Sprintf("  approve %s? [y/n] ", m.pendingTool.Name)))
 	}
 
@@ -307,7 +308,7 @@ func (m Model) View() string {
 	// Unified status line
 	if m.ready && !m.quitting {
 		sb.WriteString("\n")
-		sb.WriteString(renderStatusLine(
+		sb.WriteString(tui.RenderStatusLine(
 			m.sess.Workspace,
 			m.sess.Driver,
 			m.sess.Model,
@@ -357,7 +358,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.mode = m.mode.Next()
 			m.sess.Mode = m.mode.String()
 			m.conversation = append(m.conversation,
-				dimStyle.Render(fmt.Sprintf("  mode: %s", m.mode)))
+				tui.DimStyle.Render(fmt.Sprintf("  mode: %s", m.mode)))
 			return m, nil
 		}
 
@@ -409,7 +410,7 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 	m.inputHistory = append(m.inputHistory, input)
 
 	// Add user input to conversation
-	m.conversation = append(m.conversation, userStyle.Render(labelUser)+input)
+	m.conversation = append(m.conversation, tui.UserStyle.Render(tui.LabelUser)+input)
 
 	// Check for slash command
 	if cmd, ok := ParseCommand(input); ok {
@@ -435,7 +436,7 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 	m.streamBuf.Reset()
 	m.lastUsage = nil
 	m.lastError = ""
-	m.conversation = append(m.conversation, assistStyle.Render(labelAssist)+": ")
+	m.conversation = append(m.conversation, tui.AssistStyle.Render(tui.LabelAssist)+": ")
 	m.textInput.Blur()
 
 	return m, tea.Batch(
@@ -450,9 +451,9 @@ func (m *Model) handleApproval(key string) (tea.Model, tea.Cmd) {
 	m.state = stateStreaming
 
 	if approved {
-		m.conversation = append(m.conversation, dimStyle.Render("  approved"))
+		m.conversation = append(m.conversation, tui.DimStyle.Render("  approved"))
 	} else {
-		m.conversation = append(m.conversation, errorStyle.Render("  denied"))
+		m.conversation = append(m.conversation, tui.ErrorStyle.Render("  denied"))
 	}
 
 	// Send decision to agent goroutine via channel
@@ -482,7 +483,7 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 			Handler:      globalHandler,
 			Log:          agentLog,
 		}, prompt)
-		return AgentDoneMsg{Result: result, Err: err}
+		return tui.AgentDoneMsg{Result: result, Err: err}
 	}
 }
 
@@ -548,7 +549,7 @@ const (
 
 func tickCmd() tea.Cmd {
 	return tea.Tick(tickInterval, func(t time.Time) tea.Msg {
-		return TickMsg(t)
+		return tui.TickMsg(t)
 	})
 }
 

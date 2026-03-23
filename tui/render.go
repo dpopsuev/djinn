@@ -1,6 +1,5 @@
 // render.go — markdown rendering for agent output.
-// Uses glamour for styled terminal markdown with syntax highlighting.
-package repl
+package tui
 
 import (
 	"strings"
@@ -15,16 +14,15 @@ var (
 	mdWidth        int
 )
 
-// initRenderer creates the glamour markdown renderer.
-// Called on first render or when terminal width changes.
-func initRenderer(width int) {
+// InitRenderer creates the glamour markdown renderer.
+func InitRenderer(width int) {
 	if width <= 0 {
 		width = 80
 	}
 	mdWidth = width
 	r, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(width-4), // leave margin
+		glamour.WithWordWrap(width-4),
 	)
 	if err != nil {
 		return
@@ -32,12 +30,11 @@ func initRenderer(width int) {
 	mdRenderer = r
 }
 
-// renderMarkdown renders markdown text to styled terminal output.
-// Falls back to plain text if renderer is not initialized or fails.
-func renderMarkdown(text string) string {
+// RenderMarkdown renders markdown text to styled terminal output.
+func RenderMarkdown(text string) string {
 	if mdRenderer == nil {
 		mdRendererOnce.Do(func() {
-			initRenderer(80)
+			InitRenderer(80)
 		})
 	}
 	if mdRenderer == nil || text == "" {
@@ -49,13 +46,12 @@ func renderMarkdown(text string) string {
 		return text
 	}
 
-	// glamour adds trailing newlines — trim excess
 	return strings.TrimRight(out, "\n")
 }
 
-// reinitRenderer recreates the renderer with a new width.
-func reinitRenderer(width int) {
+// ReinitRenderer recreates the renderer with a new width.
+func ReinitRenderer(width int) {
 	if width != mdWidth && width > 0 {
-		initRenderer(width)
+		InitRenderer(width)
 	}
 }

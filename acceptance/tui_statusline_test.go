@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/cli/repl"
+	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 
@@ -71,9 +72,9 @@ func TestStatusLine_HealthAllGreen(t *testing.T) {
 		Tools:   builtin.NewRegistry(),
 		Session: sess,
 		Mode:    "agent",
-		HealthReports: []repl.HealthReport{
-			{Component: "scribe", Status: repl.StatusGreen},
-			{Component: "locus", Status: repl.StatusGreen},
+		HealthReports: []tui.HealthReport{
+			{Component: "scribe", Status: tui.StatusGreen},
+			{Component: "locus", Status: tui.StatusGreen},
 		},
 	})
 	m2, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
@@ -91,9 +92,9 @@ func TestStatusLine_HealthMixed(t *testing.T) {
 		Tools:   builtin.NewRegistry(),
 		Session: sess,
 		Mode:    "agent",
-		HealthReports: []repl.HealthReport{
-			{Component: "scribe", Status: repl.StatusYellow},
-			{Component: "origami", Status: repl.StatusGreen},
+		HealthReports: []tui.HealthReport{
+			{Component: "scribe", Status: tui.StatusYellow},
+			{Component: "origami", Status: tui.StatusGreen},
 		},
 	})
 	m2, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})

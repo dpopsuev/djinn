@@ -14,6 +14,7 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
+	"github.com/dpopsuev/djinn/tui"
 )
 
 func testModel() Model {
@@ -60,7 +61,7 @@ func TestModel_WindowSizeMsg(t *testing.T) {
 func TestModel_TextMsg_Streaming(t *testing.T) {
 	m := testModel()
 	m.state = stateStreaming
-	m2, _ := m.Update(TextMsg("hello"))
+	m2, _ := m.Update(tui.TextMsg("hello"))
 	model := asModel(t, m2)
 	if model.streamBuf.String() != "hello" {
 		t.Fatalf("streamBuf = %q", model.streamBuf.String())
@@ -71,7 +72,7 @@ func TestModel_TextMsg_Chunked(t *testing.T) {
 	m := testModel()
 	m.state = stateStreaming
 	m.outputMode = outputChunked
-	m2, _ := m.Update(TextMsg("hello"))
+	m2, _ := m.Update(tui.TextMsg("hello"))
 	model := asModel(t, m2)
 	if model.chunkedBuf.String() != "hello" {
 		t.Fatalf("chunkedBuf = %q", model.chunkedBuf.String())
@@ -84,7 +85,7 @@ func TestModel_TextMsg_Chunked(t *testing.T) {
 func TestModel_ThinkingMsg(t *testing.T) {
 	m := testModel()
 	before := len(m.conversation)
-	m2, _ := m.Update(ThinkingMsg("let me think"))
+	m2, _ := m.Update(tui.ThinkingMsg("let me think"))
 	model := asModel(t, m2)
 	if len(model.conversation) != before+1 {
 		t.Fatal("should append to conversation")
@@ -95,7 +96,7 @@ func TestModel_ToolCallMsg_AgentMode(t *testing.T) {
 	m := testModel()
 	m.mode = agent.ModeAgent
 	m.state = stateStreaming
-	m2, _ := m.Update(ToolCallMsg{Call: driver.ToolCall{
+	m2, _ := m.Update(tui.ToolCallMsg{Call: driver.ToolCall{
 		ID: "c1", Name: "Bash", Input: json.RawMessage(`{"command":"ls"}`),
 	}})
 	model := asModel(t, m2)
@@ -111,7 +112,7 @@ func TestModel_ToolCallMsg_AutoMode(t *testing.T) {
 	m := testModel()
 	m.mode = agent.ModeAuto
 	m.state = stateStreaming
-	m2, _ := m.Update(ToolCallMsg{Call: driver.ToolCall{
+	m2, _ := m.Update(tui.ToolCallMsg{Call: driver.ToolCall{
 		ID: "c1", Name: "Bash", Input: json.RawMessage(`{}`),
 	}})
 	model := asModel(t, m2)
@@ -123,7 +124,7 @@ func TestModel_ToolCallMsg_AutoMode(t *testing.T) {
 func TestModel_ToolResultMsg_Success(t *testing.T) {
 	m := testModel()
 	before := len(m.conversation)
-	m2, _ := m.Update(ToolResultMsg{Name: "Read", Output: "file contents", IsError: false})
+	m2, _ := m.Update(tui.ToolResultMsg{Name: "Read", Output: "file contents", IsError: false})
 	model := asModel(t, m2)
 	if len(model.conversation) != before+1 {
 		t.Fatal("should append to conversation")
@@ -133,7 +134,7 @@ func TestModel_ToolResultMsg_Success(t *testing.T) {
 func TestModel_ToolResultMsg_Error(t *testing.T) {
 	m := testModel()
 	before := len(m.conversation)
-	m2, _ := m.Update(ToolResultMsg{Name: "Read", Output: "not found", IsError: true})
+	m2, _ := m.Update(tui.ToolResultMsg{Name: "Read", Output: "not found", IsError: true})
 	model := asModel(t, m2)
 	if len(model.conversation) != before+1 {
 		t.Fatal("should append to conversation")
@@ -142,7 +143,7 @@ func TestModel_ToolResultMsg_Error(t *testing.T) {
 
 func TestModel_DoneMsg(t *testing.T) {
 	m := testModel()
-	m2, _ := m.Update(DoneMsg{Usage: &driver.Usage{InputTokens: 100, OutputTokens: 50}})
+	m2, _ := m.Update(tui.DoneMsg{Usage: &driver.Usage{InputTokens: 100, OutputTokens: 50}})
 	model := asModel(t, m2)
 	if model.totalIn != 100 || model.totalOut != 50 {
 		t.Fatalf("tokens = %d/%d, want 100/50", model.totalIn, model.totalOut)
@@ -152,7 +153,7 @@ func TestModel_DoneMsg(t *testing.T) {
 func TestModel_AgentDoneMsg(t *testing.T) {
 	m := testModel()
 	m.state = stateStreaming
-	m2, _ := m.Update(AgentDoneMsg{Result: "done"})
+	m2, _ := m.Update(tui.AgentDoneMsg{Result: "done"})
 	model := asModel(t, m2)
 	if model.state != stateInput {
 		t.Fatalf("state = %d, want stateInput", model.state)
@@ -162,7 +163,7 @@ func TestModel_AgentDoneMsg(t *testing.T) {
 func TestModel_AgentDoneMsg_WithError(t *testing.T) {
 	m := testModel()
 	m.state = stateStreaming
-	m2, _ := m.Update(AgentDoneMsg{Err: errors.New("something failed")})
+	m2, _ := m.Update(tui.AgentDoneMsg{Err: errors.New("something failed")})
 	model := asModel(t, m2)
 	found := false
 	for _, line := range model.conversation {
@@ -181,7 +182,7 @@ func TestModel_TickMsg_WhileStreaming(t *testing.T) {
 	m.streamBuf.WriteString("buffered text")
 	m.conversation = append(m.conversation, "assistant: ")
 
-	m2, cmd := m.Update(TickMsg(time.Now()))
+	m2, cmd := m.Update(tui.TickMsg(time.Now()))
 	model := asModel(t, m2)
 	if cmd == nil {
 		t.Fatal("should return tick cmd while streaming")
@@ -194,7 +195,7 @@ func TestModel_TickMsg_WhileStreaming(t *testing.T) {
 func TestModel_TickMsg_WhileInput(t *testing.T) {
 	m := testModel()
 	m.state = stateInput
-	_, cmd := m.Update(TickMsg(time.Now()))
+	_, cmd := m.Update(tui.TickMsg(time.Now()))
 	if cmd != nil {
 		t.Fatal("no tick cmd when not streaming")
 	}

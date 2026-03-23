@@ -1,5 +1,4 @@
-// health.go — HealthReporter interface and status line rendering.
-package repl
+package tui
 
 import (
 	"fmt"
@@ -12,16 +11,16 @@ import (
 type HealthStatus int
 
 const (
-	StatusGreen  HealthStatus = iota // healthy
-	StatusYellow                     // degraded
-	StatusRed                        // fatal
+	StatusGreen  HealthStatus = iota
+	StatusYellow
+	StatusRed
 )
 
 // HealthReport is a single component's health.
 type HealthReport struct {
 	Component string
 	Status    HealthStatus
-	Message   string // optional detail
+	Message   string
 }
 
 // HealthReporter is implemented by components that report health.
@@ -36,37 +35,31 @@ var (
 	healthRed    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#ef4444", Dark: "#f87171"})
 )
 
-// renderStatusLine builds the unified status line.
-// Left: workspace │ driver/model │ mode
-// Center: tokens │ turns
-// Right: health indicators (hidden when all green)
-func renderStatusLine(workspace, driver, model, mode string, tokensIn, tokensOut, turns int, reports []HealthReport) string {
+// RenderStatusLine builds the unified status line.
+func RenderStatusLine(workspace, driverName, model, mode string, tokensIn, tokensOut, turns int, reports []HealthReport) string {
 	var parts []string
 
-	// Left: identity
 	wsName := workspace
 	if wsName == "" {
 		wsName = "(ephemeral)"
 	}
 	driverModel := model
-	if driver != "" && driver != "claude" {
-		driverModel = driver + "/" + model
+	if driverName != "" && driverName != "claude" {
+		driverModel = driverName + "/" + model
 	}
 	parts = append(parts, fmt.Sprintf("  %s │ %s │ %s", wsName, driverModel, mode))
-
-	// Center: metrics
 	parts = append(parts, fmt.Sprintf("%d in, %d out │ %d turns", tokensIn, tokensOut, turns))
 
-	// Right: health
-	healthStr := renderHealth(reports)
+	healthStr := RenderHealth(reports)
 	if healthStr != "" {
 		parts = append(parts, healthStr)
 	}
 
-	return statusStyle.Render(strings.Join(parts, " │ "))
+	return StatusStyle.Render(strings.Join(parts, " │ "))
 }
 
-func renderHealth(reports []HealthReport) string {
+// RenderHealth renders health indicators.
+func RenderHealth(reports []HealthReport) string {
 	if len(reports) == 0 {
 		return ""
 	}
@@ -95,7 +88,6 @@ func renderHealth(reports []HealthReport) string {
 		return ""
 	}
 
-	// Show non-green + green count
 	if greenCount > 0 {
 		indicators = append(indicators, healthGreen.Render(fmt.Sprintf("✓ %d", greenCount)))
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/workspace"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -32,7 +33,7 @@ type Config struct {
 	Transport     interface{}        // clutch.Transport for hot-swap (nil = direct agent.Run)
 	Enforcer      policy.Enforcer   // PolicyEnforcer for agent call mediation
 	Token         policy.CapabilityToken
-	HealthReports []HealthReport   // initial health from startup
+	HealthReports []tui.HealthReport   // initial health from startup
 }
 
 // Run starts the interactive REPL. Blocks until /exit or ctrl-C.
@@ -43,7 +44,7 @@ func Run(ctx context.Context, cfg Config) error {
 	p := tea.NewProgram(m)
 
 	// Create handler that bridges agent events to Bubbletea messages
-	handler := NewHandler(p)
+	handler := tui.NewHandler(p)
 
 	// Set the handler on the model (it needs access to send messages)
 	// We do this by storing it in a package-level variable that runAgent reads.
