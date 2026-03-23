@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -68,7 +68,7 @@ type Model struct {
 
 	// UI state
 	state        State
-	textInput    textinput.Model
+	textInput    textarea.Model
 	vp           viewport.Model
 	vpReady      bool
 	streamBuf    strings.Builder
@@ -97,8 +97,11 @@ type Model struct {
 
 // NewModel creates a new REPL model.
 func NewModel(cfg Config) Model {
-	ti := textinput.New()
+	ti := textarea.New()
 	ti.Prompt = tui.UserStyle.Render(tui.LabelUser)
+	ti.ShowLineNumbers = false
+	ti.SetHeight(1)
+	ti.CharLimit = 0 // unlimited
 	ti.Focus()
 
 	mode, err := agent.ParseMode(cfg.Mode)
@@ -139,7 +142,7 @@ func NewModel(cfg Config) Model {
 
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
-		textinput.Blink,
+		textarea.Blink,
 		tea.SetWindowTitle("djinn"),
 	)
 }
@@ -396,6 +399,12 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.handleApproval(msg.String())
 		}
 		if m.state == stateInput {
+			// Alt+Enter = newline in textarea (let textarea handle it)
+			if msg.Alt {
+				var cmd tea.Cmd
+				m.textInput, cmd = m.textInput.Update(msg)
+				return m, cmd
+			}
 			return m.handleSubmit()
 		}
 	}
@@ -438,7 +447,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.historyIdx--
 				}
 				m.textInput.SetValue(m.inputHistory[m.historyIdx])
-				m.textInput.CursorEnd()
+				// cursor moves to end naturally with SetValue
 			}
 			return m, nil
 		case tea.KeyDown:
@@ -449,7 +458,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.textInput.SetValue("")
 				} else {
 					m.textInput.SetValue(m.inputHistory[m.historyIdx])
-					m.textInput.CursorEnd()
+					// cursor moves to end naturally with SetValue
 				}
 			}
 			return m, nil
