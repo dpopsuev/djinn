@@ -1,0 +1,113 @@
+# Djinn Staff Configuration — Default Roles and Slots
+#
+# Customize by copying to ~/.config/djinn/staff.yaml
+# or placing in your ecosystem directory.
+#
+# Roles define WHO does work (prompt, mode, slot surface).
+# Slots define WHAT capabilities exist (backend, tools).
+# The agent sees only slot names — never raw tools or MCP servers.
+
+roles:
+  - name: gensec
+    prompt: |
+      You are the General Secretary — second in command to the Head of Staff.
+      Listen to the operator, capture needs as NED-* artifacts via WorkTracker.
+      Triage incoming needs. Narrate pipeline activity. Surface blockers.
+      Relay directives from the operator to any role.
+      You do NOT write code. You capture, triage, and coordinate.
+    mode: plan
+    slots: [WorkTracker, IssueTracker, SignalBus, MemoryRecall]
+
+  - name: auditor
+    prompt: |
+      You are the Auditor — the adversarial quality gate for artifacts.
+      Review every artifact before it matures. Find gaps, challenge assumptions.
+      Check against rules via RuleResolver.
+      Stamp (approve) or return (reject with specific feedback).
+      You do NOT write code.
+    mode: plan
+    slots: [WorkTracker, RuleResolver, MemoryRecall]
+
+  - name: scheduler
+    prompt: |
+      You are the Scheduler — the work planner.
+      Read approved specs from WorkTracker. Use topo_sort for dependency order.
+      Use ArchExplorer for coupling analysis. Construct task batches.
+      Create TSK-* artifacts with clear goals and dependency edges.
+      You do NOT write code.
+    mode: plan
+    slots: [WorkTracker, ArchExplorer, MemoryRecall]
+
+  - name: executor
+    prompt: |
+      You are the Executor — the one who writes code.
+      Implement the assigned task unit. Follow acceptance criteria.
+      Write tests alongside implementation. Signal done when complete.
+      The mechanical gate will verify automatically — don't skip it.
+      Follow the flywheel: build before test, test before commit.
+    mode: agent
+    slots: [WorkTracker, CodeEditor, Shell, FileSearch, QualityGate, MemoryRecall, WebSearch]
+
+  - name: inspector
+    prompt: |
+      You are the Inspector — the quality reviewer.
+      Review implementation against spec and architecture.
+      Check via ArchExplorer for violations, coupling, drift.
+      Check via QualityGate for test results and coverage.
+      Approve or reject with specific, actionable feedback.
+      You do NOT write code.
+    mode: plan
+    slots: [CodeEditor, QualityGate, ArchExplorer, RuleResolver, MemoryRecall]
+
+slots:
+  - name: WorkTracker
+    description: Create, list, update work artifacts
+    backend: scribe
+    tools: [artifact, graph, admin]
+
+  - name: IssueTracker
+    description: Issue management across platforms
+    backend: emcee
+    tools: [emcee, emcee_manage]
+
+  - name: RuleResolver
+    description: Resolve coding rules and conventions
+    backend: lex
+    tools: [lexicon]
+
+  - name: ArchExplorer
+    description: Architecture analysis and coupling
+    backend: locus
+    tools: [codograph, analysis]
+
+  - name: CodeEditor
+    description: Read, write, edit source files
+    backend: builtin
+    tools: [Read, Write, Edit]
+
+  - name: Shell
+    description: Execute shell commands
+    backend: builtin
+    tools: [Bash]
+
+  - name: FileSearch
+    description: Find files and search content
+    backend: builtin
+    tools: [Glob, Grep]
+
+  - name: QualityGate
+    description: CI health and quality checks
+    backend: limes
+    tools: [run, status, results]
+
+  - name: SignalBus
+    description: Emit and receive pipeline signals
+    backend: builtin
+
+  - name: MemoryRecall
+    description: Search and retrieve conversation history
+    backend: builtin
+
+  - name: WebSearch
+    description: Web search and page retrieval
+    backend: gundog
