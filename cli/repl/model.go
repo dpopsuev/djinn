@@ -90,6 +90,9 @@ type Model struct {
 	spin           spinner.Model
 	spinnerActive  bool
 	activeToolIdx  int  // conversation index of active tool spinner (-1 = none)
+	outputPanel    *tui.OutputPanel
+	dashboard      *tui.DashboardPanel
+	focus          *tui.FocusManager
 	ready          bool
 	quitting       bool
 	initialPrompt  string // auto-submit on first render
@@ -115,7 +118,7 @@ func NewModel(cfg Config) Model {
 	}
 	log = djinnlog.For(log, "repl")
 
-	return Model{
+	m := Model{
 		chatDriver:   cfg.Driver,
 		tools:        cfg.Tools,
 		sess:         cfg.Session,
@@ -136,8 +139,16 @@ func NewModel(cfg Config) Model {
 		healthReports:  cfg.HealthReports,
 		spin:           spinner.New(spinner.WithSpinner(spinner.Dot)),
 		activeToolIdx:  -1,
+		outputPanel:    tui.NewOutputPanel(),
+		dashboard:      tui.NewDashboardPanel(),
 		initialPrompt:  cfg.InitialPrompt,
 	}
+
+	m.focus = tui.NewFocusManager(m.outputPanel, m.dashboard)
+	m.dashboard.SetIdentity(cfg.Session.Workspace, cfg.Session.Driver, cfg.Session.Model, cfg.Mode)
+	m.dashboard.SetHealth(cfg.HealthReports)
+
+	return m
 }
 
 func (m Model) Init() tea.Cmd {
@@ -352,33 +363,38 @@ func (m Model) View() string {
 			fmt.Sprintf("  approve %s? [y/n] ", m.pendingTool.Name)))
 	}
 
-	// Render through viewport if ready, otherwise direct
+	// Sync output panel with conversation content
+	m.outputPanel.InitViewport(m.width, m.height-3)
+
+	// Render output through panel
+	depths := tui.FocusDepths(m.focus.Count(), m.focus.ActiveIndex())
+	outputView := content.String()
 	if m.vpReady {
-		m.vp.SetContent(content.String())
-		m.vp.GotoBottom() // auto-follow
-		sb.WriteString(m.vp.View())
-	} else {
-		sb.WriteString(content.String())
+		m.vp.SetContent(outputView)
+		m.vp.GotoBottom()
+		outputView = m.vp.View()
 	}
+	sb.WriteString(tui.RenderWithDepth(outputView, depths[0]))
+
+	// Separator: output ↔ input
+	sb.WriteString("\n")
+	sb.WriteString(tui.Separator(m.width, 0, m.focus.ActiveIndex() == 0))
+	sb.WriteString("\n")
 
 	// Input
 	if m.state == stateInput {
-		sb.WriteString("\n")
 		sb.WriteString(m.textInput.View())
 	}
 
-	// Unified status line
+	// Separator: input ↔ dashboard
+	sb.WriteString("\n")
+	sb.WriteString(tui.Separator(m.width, 0, m.focus.ActiveIndex() == 1))
+	sb.WriteString("\n")
+
+	// Dashboard
 	if m.ready && !m.quitting {
-		sb.WriteString("\n")
-		sb.WriteString(tui.RenderStatusLine(
-			m.sess.Workspace,
-			m.sess.Driver,
-			m.sess.Model,
-			m.mode.String(),
-			m.totalIn, m.totalOut,
-			m.sess.History.Len(),
-			m.healthReports,
-		))
+		m.dashboard.SetMetrics(m.totalIn, m.totalOut, m.sess.History.Len())
+		sb.WriteString(tui.RenderWithDepth(m.dashboard.View(m.width), depths[len(depths)-1]))
 	}
 
 	if m.quitting {
@@ -417,6 +433,12 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "n", "N":
 			return m.handleApproval("n")
 		}
+		return m, nil
+	}
+
+	// Tab cycles focus between panels
+	if msg.Type == tea.KeyTab && m.state == stateInput {
+		m.focus.Cycle()
 		return m, nil
 	}
 

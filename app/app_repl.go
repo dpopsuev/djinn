@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -192,6 +193,22 @@ func RunREPL(args []string, stderr io.Writer) error {
 	log := djinnlog.For(logResult.Logger, "app")
 	log.Info("session starting", "driver", *driverName, "model", *model, "mode", *mode)
 
+	// Auto-import Claude session for new empty sessions
+	if sess.History.Len() == 0 && ws.PrimaryPath() != "" {
+		home, _ := os.UserHomeDir()
+		slug := strings.ReplaceAll(ws.PrimaryPath(), "/", "-")
+		claudeDir := filepath.Join(home, ".claude", "projects", slug)
+		if jsonl := findMostRecentJSONL(claudeDir); jsonl != "" {
+			imported, importErr := session.ImportClaudeSession(jsonl, 0)
+			if importErr == nil && imported.History.Len() > 0 {
+				for _, entry := range imported.Entries() {
+					sess.Append(entry)
+				}
+				log.Info("auto-imported Claude session", "turns", imported.History.Len())
+			}
+		}
+	}
+
 	// Auto-discover project context
 	projectCtx := djinnctx.LoadProjectContext(sess.WorkDirs...)
 	assembledPrompt := djinnctx.BuildSystemPrompt(projectCtx, *systemPrompt)
@@ -348,6 +365,30 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 
 	return replErr
+}
+
+// findMostRecentJSONL scans a directory for .jsonl files and returns the most recent.
+func findMostRecentJSONL(dir string) string {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return ""
+	}
+	var best string
+	var bestTime int64
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".jsonl") {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		if info.ModTime().UnixNano() > bestTime {
+			bestTime = info.ModTime().UnixNano()
+			best = filepath.Join(dir, e.Name())
+		}
+	}
+	return best
 }
 
 // CreateDriver creates a ChatDriver for the given driver name.

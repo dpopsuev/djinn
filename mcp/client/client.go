@@ -203,7 +203,26 @@ func (c *Client) ServerTools(name string) ([]ToolDef, error) {
 const DefaultCallTimeout = 30 * time.Second
 
 // Call executes a tool on the specified server with a timeout.
+// If the call fails with a session/connection error, auto-reinitializes and retries once.
 func (c *Client) Call(ctx context.Context, serverName, toolName string, input json.RawMessage) (string, error) {
+	result, err := c.callOnce(ctx, serverName, toolName, input)
+	if err != nil && isSessionError(err) {
+		// MCP invisible reconnect — auto-reinitialize and retry
+		c.mu.RLock()
+		conn, ok := c.servers[serverName]
+		c.mu.RUnlock()
+		if ok {
+			c.log.Info("MCP reconnecting", "server", serverName)
+			if reinitErr := c.initializeServer(conn); reinitErr == nil {
+				c.log.Info("MCP reconnected", "server", serverName)
+				return c.callOnce(ctx, serverName, toolName, input)
+			}
+		}
+	}
+	return result, err
+}
+
+func (c *Client) callOnce(ctx context.Context, serverName, toolName string, input json.RawMessage) (string, error) {
 	c.mu.RLock()
 	conn, ok := c.servers[serverName]
 	c.mu.RUnlock()
@@ -212,21 +231,20 @@ func (c *Client) Call(ctx context.Context, serverName, toolName string, input js
 		return "", fmt.Errorf("%w: %s", ErrServerNotFound, serverName)
 	}
 
-	// Apply timeout
 	callCtx, cancel := context.WithTimeout(ctx, DefaultCallTimeout)
 	defer cancel()
 
-	type callResult struct {
+	type callResultType struct {
 		resp jsonRPCResponse
 		err  error
 	}
-	ch := make(chan callResult, 1)
+	ch := make(chan callResultType, 1)
 	go func() {
 		resp, err := conn.send("tools/call", toolCallParams{
 			Name:      toolName,
 			Arguments: input,
 		})
-		ch <- callResult{resp, err}
+		ch <- callResultType{resp, err}
 	}()
 
 	select {
@@ -257,6 +275,20 @@ func (c *Client) Call(ctx context.Context, serverName, toolName string, input js
 		}
 		return sb.String(), nil
 	}
+}
+
+// isSessionError returns true if the error suggests a session/connection failure
+// that can be recovered by re-initializing the MCP connection.
+func isSessionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "session") ||
+		strings.Contains(msg, "connection") ||
+		strings.Contains(msg, "eof") ||
+		strings.Contains(msg, "refused") ||
+		strings.Contains(msg, "broken pipe")
 }
 
 // Healthy checks if a server is responsive by sending tools/list.
