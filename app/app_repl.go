@@ -226,8 +226,22 @@ func RunREPL(args []string, stderr io.Writer) error {
 	mcpClient := mcpclient.New(djinnlog.For(logResult.Logger, "mcp"))
 	defer mcpClient.Close()
 
+	// Convert workspace MCP defs to client config
+	var wsMCPConfig map[string]mcpclient.ServerConfig
+	if len(ws.MCP) > 0 {
+		wsMCPConfig = make(map[string]mcpclient.ServerConfig, len(ws.MCP))
+		for name, def := range ws.MCP {
+			wsMCPConfig[name] = mcpclient.ServerConfig{
+				URL:     def.URL,
+				Command: def.Command,
+				Args:    def.Args,
+				Env:     def.Env,
+			}
+		}
+	}
+
 	var mcpFailures []repl.HealthReport
-	mcpConfigs := mcpclient.LoadMCPConfig(Getwd(), filepath.Join(HomeDir()))
+	mcpConfigs := mcpclient.LoadMCPConfig(Getwd(), filepath.Join(HomeDir()), wsMCPConfig)
 	for name, cfg := range mcpConfigs {
 		var connectErr error
 		if cfg.IsHTTP() {

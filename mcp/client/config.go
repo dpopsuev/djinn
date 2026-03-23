@@ -21,9 +21,19 @@ func (c ServerConfig) IsHTTP() bool {
 	return c.URL != ""
 }
 
-// LoadMCPConfig loads MCP server configs from djinn.yaml and/or Claude Code settings.
-// djinn.yaml takes priority on conflicts.
-func LoadMCPConfig(workdir string, claudeHome string) map[string]ServerConfig {
+// LoadMCPConfig loads MCP server configs.
+// If workspaceMCP is non-empty, it's used exclusively (workspace owns MCP config).
+// Otherwise falls back to djinn.yaml + cursor/claude config.
+func LoadMCPConfig(workdir string, claudeHome string, workspaceMCP ...map[string]ServerConfig) map[string]ServerConfig {
+	// Workspace MCP section = exclusive source (no merging with cursor)
+	if len(workspaceMCP) > 0 && len(workspaceMCP[0]) > 0 {
+		servers := make(map[string]ServerConfig)
+		for k, v := range workspaceMCP[0] {
+			servers[k] = v
+		}
+		return servers
+	}
+
 	servers := make(map[string]ServerConfig)
 
 	// 1. Claude Code: ~/.cursor/mcp.json (lower priority)
