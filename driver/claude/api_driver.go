@@ -355,7 +355,6 @@ func (d *APIDriver) buildRequest(ctx context.Context, messages []apiMessage) (*h
 	}
 
 	body := apiRequest{
-		Model:     d.resolveModel(),
 		MaxTokens: maxTokens,
 		System:    d.systemPrompt,
 		Messages:  messages,
@@ -364,6 +363,9 @@ func (d *APIDriver) buildRequest(ctx context.Context, messages []apiMessage) (*h
 
 	if d.useVertex {
 		body.AnthropicVersion = "vertex-2023-10-16"
+		// Vertex puts model in URL, not body — omit model field
+	} else {
+		body.Model = d.resolveModel()
 	}
 
 	// Add tools if registry is set
