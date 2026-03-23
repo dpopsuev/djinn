@@ -48,7 +48,8 @@ func RunREPL(args []string, stderr io.Writer) error {
 	wsFlag := fs.String("w", "", "workspace name or manifest file")
 	wsLong := fs.String("workspace", "", "workspace name or manifest file")
 	noPersist := fs.Bool("no-persist", false, "don't save session to disk")
-	debugTapFile := fs.String("debug-tap", "", "capture TUI frames to JSONL file + HTTP debug server")
+	debugTapFile := fs.String("debug-tap", "", "capture TUI frames to JSONL file")
+	liveDebug := fs.Bool("live-debug", false, "start HTTP debug server for live TUI inspection")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -340,21 +341,31 @@ func RunREPL(args []string, stderr io.Writer) error {
 		}
 	}()
 
-	// DebugTap: capture TUI frames for inspection
+	// DebugTap: --debug-tap for JSONL capture, --live-debug for HTTP server.
+	// Both require explicit opt-in. Neither is on by default.
 	var debugTap *tui.DebugTap
-	if *debugTapFile != "" {
+	if *debugTapFile != "" || *liveDebug {
+		tapPath := ""
+		if *debugTapFile != "" {
+			tapPath = *debugTapFile
+		}
 		var tapErr error
-		debugTap, tapErr = tui.NewDebugTap(100, *debugTapFile)
+		debugTap, tapErr = tui.NewDebugTap(100, tapPath)
 		if tapErr != nil {
 			fmt.Fprintf(stderr, "djinn: debug tap: %v\n", tapErr)
 		} else {
-			ln, srvErr := debugTap.ServeHTTP()
-			if srvErr != nil {
-				fmt.Fprintf(stderr, "djinn: debug server: %v\n", srvErr)
-			} else {
-				fmt.Fprintf(stderr, "djinn: debug server at http://%s/debug/view\n", ln.Addr())
-			}
 			defer debugTap.Close() //nolint:errcheck
+			if tapPath != "" {
+				fmt.Fprintf(stderr, "djinn: debug tap writing to %s\n", tapPath)
+			}
+			if *liveDebug {
+				ln, srvErr := debugTap.ServeHTTP()
+				if srvErr != nil {
+					fmt.Fprintf(stderr, "djinn: debug server: %v\n", srvErr)
+				} else {
+					fmt.Fprintf(stderr, "djinn: debug server at http://%s/debug/\n", ln.Addr())
+				}
+			}
 		}
 	}
 

@@ -290,3 +290,62 @@ func TestTUI_ViewRender_NoPanic(t *testing.T) {
 		t.Fatal("view contains raw ANSI escape literals (DJN-BUG-5)")
 	}
 }
+
+// --- DebugTap Acceptance Tests ---
+
+func TestTUI_DebugTap_CapturesFrames(t *testing.T) {
+	dt, err := tui.NewDebugTap(10, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sess := session.New("debug-test", "test-model", "/workspace")
+	m := repl.NewModel(repl.Config{
+		Tools:    builtin.NewRegistry(),
+		Session:  sess,
+		Mode:     "agent",
+		DebugTap: dt,
+	})
+	m2, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	model := toModelPtr(m2)
+
+	// View() should capture a frame
+	_ = model.View()
+
+	last, ok := dt.Last()
+	if !ok {
+		t.Fatal("DebugTap should have captured a frame from View()")
+	}
+	if last.Width != 80 {
+		t.Fatalf("width = %d", last.Width)
+	}
+	if last.Role != "gensec" {
+		t.Fatalf("role = %q, want gensec", last.Role)
+	}
+}
+
+func TestTUI_DebugTap_Nil_NoPanic(t *testing.T) {
+	// With nil DebugTap, View() should not panic
+	m := testTUIModel(t, "agent")
+	view := m.View()
+	if view == "" {
+		t.Fatal("view should not be empty")
+	}
+}
+
+func TestTUI_DebugTap_NotStartedWithoutFlag(t *testing.T) {
+	// Creating a DebugTap does NOT start the HTTP server.
+	// ServeHTTP must be called explicitly (--live-debug).
+	dt, err := tui.NewDebugTap(10, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dt.Close() //nolint:errcheck
+
+	// Just capturing — no server running. This is --debug-tap without --live-debug.
+	dt.Capture("frame", "input", "gensec", 80, 24)
+	last, ok := dt.Last()
+	if !ok || last.Frame != "frame" {
+		t.Fatal("capture should work without server")
+	}
+}
