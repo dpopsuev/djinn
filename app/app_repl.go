@@ -48,6 +48,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	wsFlag := fs.String("w", "", "workspace name or manifest file")
 	wsLong := fs.String("workspace", "", "workspace name or manifest file")
 	noPersist := fs.Bool("no-persist", false, "don't save session to disk")
+	debugTapFile := fs.String("debug-tap", "", "capture TUI frames to JSONL file + HTTP debug server")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -339,6 +340,24 @@ func RunREPL(args []string, stderr io.Writer) error {
 		}
 	}()
 
+	// DebugTap: capture TUI frames for inspection
+	var debugTap *tui.DebugTap
+	if *debugTapFile != "" {
+		var tapErr error
+		debugTap, tapErr = tui.NewDebugTap(100, *debugTapFile)
+		if tapErr != nil {
+			fmt.Fprintf(stderr, "djinn: debug tap: %v\n", tapErr)
+		} else {
+			ln, srvErr := debugTap.ServeHTTP()
+			if srvErr != nil {
+				fmt.Fprintf(stderr, "djinn: debug server: %v\n", srvErr)
+			} else {
+				fmt.Fprintf(stderr, "djinn: debug server at http://%s/debug/view\n", ln.Addr())
+			}
+			defer debugTap.Close() //nolint:errcheck
+		}
+	}
+
 	replErr := repl.Run(ctx, repl.Config{
 		Driver:        chatDriver,
 		Tools:         registry,
@@ -357,6 +376,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 		Token:         capToken,
 		HealthReports: healthReports,
 		Version:       Version,
+		DebugTap:      debugTap,
 	})
 
 	if !*noPersist {

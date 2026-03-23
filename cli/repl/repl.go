@@ -35,6 +35,7 @@ type Config struct {
 	Token         policy.CapabilityToken
 	HealthReports []tui.HealthReport   // initial health from startup
 	Version       string              // app version for MOTD (set via ldflags)
+	DebugTap      *tui.DebugTap       // nil = disabled; captures rendered frames
 }
 
 // Run starts the interactive REPL. Blocks until /exit or ctrl-C.

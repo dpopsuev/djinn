@@ -3,6 +3,9 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
 // --- WrapText tests ---
@@ -195,5 +198,52 @@ func TestRenderMarkdown_RawBufferApproach(t *testing.T) {
 		if strings.Contains(r, "[0m[38") || strings.Contains(r, "38;5;252") {
 			t.Fatalf("render %d contains ANSI garbage:\n%s", i+1, r)
 		}
+	}
+}
+
+// TestGlamourInsideBorder_TrueColor_NoVisibleANSI reproduces DJN-BUG-9
+// with forced TrueColor profile to match real terminal behavior.
+func TestGlamourInsideBorder_TrueColor_NoVisibleANSI(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	defer lipgloss.SetColorProfile(termenv.Ascii)
+
+	InitRenderer(80)
+	rendered := RenderMarkdown("Hello **world**, how are you? This is a longer sentence to trigger glamour padding.")
+	if rendered == "" {
+		t.Fatal("glamour should produce output")
+	}
+
+	bordered := RenderWithDepth(rendered, 0)
+
+	// Check for visible ANSI escape code literals
+	if strings.Contains(bordered, "[0m[38") {
+		t.Fatalf("DJN-BUG-9: glamour ANSI visible inside border (TrueColor):\n%q", bordered[:min(len(bordered), 400)])
+	}
+	if strings.Contains(bordered, "38;5;252") {
+		t.Fatalf("DJN-BUG-9: glamour color codes as text (TrueColor):\n%q", bordered[:min(len(bordered), 400)])
+	}
+}
+
+// TestGlamourInsideBorder_NoVisibleANSI reproduces DJN-BUG-9:
+// glamour pads lines with ANSI codes, lipgloss border re-processes them,
+// making escape codes visible as literal text.
+func TestGlamourInsideBorder_NoVisibleANSI(t *testing.T) {
+	InitRenderer(80)
+
+	// Render markdown through glamour
+	rendered := RenderMarkdown("Hello **world**, how are you?")
+	if rendered == "" {
+		t.Fatal("glamour should produce output")
+	}
+
+	// Wrap in a lipgloss rounded border (same as RenderWithDepth depth=0)
+	bordered := RenderWithDepth(rendered, 0)
+
+	// The bordered output should NOT contain visible ANSI escape literals.
+	if strings.Contains(bordered, "[0m[38") {
+		t.Fatalf("DJN-BUG-9: glamour padding ANSI visible inside border:\n%q", bordered[:min(len(bordered), 300)])
+	}
+	if strings.Contains(bordered, "38;5;252") {
+		t.Fatalf("DJN-BUG-9: glamour color codes visible as text inside border:\n%q", bordered[:min(len(bordered), 300)])
 	}
 }

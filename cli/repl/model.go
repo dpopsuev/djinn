@@ -87,6 +87,9 @@ type Model struct {
 	version        string // app version for MOTD
 	rawStreamLine  *strings.Builder // raw unrendered text for incremental markdown (pointer: Builder can't be copied)
 
+	// Debug
+	debugTap     *tui.DebugTap
+
 	// Staff — role pipeline
 	currentRole  string
 	roleMemory   *staff.RoleMemory
@@ -133,6 +136,7 @@ func NewModel(cfg Config) Model {
 		dashboard:      tui.NewDashboardPanel(),
 		initialPrompt:  cfg.InitialPrompt,
 		version:        cfg.Version,
+		debugTap:       cfg.DebugTap,
 		streamBuf:      &strings.Builder{},
 		chunkedBuf:     &strings.Builder{},
 		rawStreamLine:  &strings.Builder{},
@@ -345,7 +349,21 @@ func (m Model) View() string {
 	sb.WriteString(m.separator(1))
 	sb.WriteString(tui.RenderWithDepth(m.dashboard.View(m.width), depths[2]))
 
-	return sb.String()
+	result := sb.String()
+
+	// DebugTap: capture every rendered frame
+	if m.debugTap != nil {
+		stateStr := "input"
+		switch m.state {
+		case stateStreaming:
+			stateStr = "streaming"
+		case stateToolApproval:
+			stateStr = "approval"
+		}
+		m.debugTap.Capture(result, stateStr, m.currentRole, m.width, m.height)
+	}
+
+	return result
 }
 
 // overlayContent returns ephemeral content for the output panel based on state.
@@ -611,16 +629,12 @@ func (m *Model) flushStreamBuffer() {
 	text := m.streamBuf.String()
 	m.streamBuf.Reset()
 
-	// Track raw text separately — never feed glamour output back into glamour.
+	// Accumulate raw text for completion-time markdown render.
 	m.rawStreamLine.WriteString(text)
 
-	// Render from raw every tick, set the rendered output for display.
-	if m.outputPanel.LineCount() > 0 {
-		last := m.outputPanel.LineCount() - 1
-		prefix := tui.AssistStyle.Render(tui.LabelAssist) + ": "
-		rendered := tui.RenderMarkdown(m.rawStreamLine.String())
-		m.outputPanel.SetLine(last, prefix+rendered)
-	}
+	// Display raw text during streaming — glamour renders on completion only.
+	// Glamour's width-padding ANSI codes look like garbage inside lipgloss borders.
+	m.outputPanel.AppendToLast(text)
 }
 
 // Test accessors — exported for acceptance tests.
