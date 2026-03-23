@@ -604,22 +604,11 @@ func (m *Model) flushStreamBuffer() {
 	if m.streamBuf.Len() == 0 {
 		return
 	}
-	// Move buffered text into conversation as part of assistant message
 	text := m.streamBuf.String()
 	m.streamBuf.Reset()
-
 	m.outputPanel.AppendToLast(text)
-
-	// Incremental markdown: re-render the current assistant line
-	if m.outputPanel.LineCount() > 0 {
-		last := m.outputPanel.LineCount() - 1
-		raw := m.outputPanel.Lines()[last]
-		prefix := tui.AssistStyle.Render(tui.LabelAssist) + ": "
-		if after, found := strings.CutPrefix(raw, prefix); found {
-			rendered := tui.RenderMarkdown(after)
-			m.outputPanel.SetLine(last, prefix+rendered)
-		}
-	}
+	// Markdown rendered on AgentDoneMsg only — incremental rendering
+	// double-encodes ANSI escapes (DJN-BUG-5).
 }
 
 // Test accessors — exported for acceptance tests.
