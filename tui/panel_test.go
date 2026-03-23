@@ -251,6 +251,116 @@ func TestRenderFocusIndicator(t *testing.T) {
 	}
 }
 
+func TestInputPanel_TabComplete_Prefix(t *testing.T) {
+	p := NewInputPanel()
+	p.SetCompletions([]string{"/clear", "/compact", "/config", "/config-save", "/help"})
+
+	p.SetValue("/co")
+	if !p.TabComplete() {
+		t.Fatal("should handle /co prefix")
+	}
+	val := p.Value()
+	if val != "/compact" && val != "/config" && val != "/config-save" {
+		t.Fatalf("completed = %q, want one of /compact, /config, /config-save", val)
+	}
+}
+
+func TestInputPanel_TabComplete_NoSlash(t *testing.T) {
+	p := NewInputPanel()
+	p.SetCompletions([]string{"/help"})
+
+	p.SetValue("hello")
+	if p.TabComplete() {
+		t.Fatal("should not handle non-slash input")
+	}
+}
+
+func TestInputPanel_TabComplete_Cycle(t *testing.T) {
+	p := NewInputPanel()
+	p.SetCompletions([]string{"/config", "/config-save", "/help"})
+
+	p.SetValue("/config")
+	p.TabComplete()
+	first := p.Value()
+
+	p.TabComplete() // cycle
+	second := p.Value()
+
+	if first == second {
+		t.Fatal("cycling should produce different value")
+	}
+}
+
+func TestInputPanel_TabComplete_ExactMatch(t *testing.T) {
+	p := NewInputPanel()
+	p.SetCompletions([]string{"/help", "/history"})
+
+	p.SetValue("/help")
+	if !p.TabComplete() {
+		t.Fatal("should handle exact match")
+	}
+	if p.Value() != "/help" {
+		t.Fatalf("exact match should complete to /help, got %q", p.Value())
+	}
+}
+
+func TestInputPanel_TabComplete_NoMatch(t *testing.T) {
+	p := NewInputPanel()
+	p.SetCompletions([]string{"/help", "/config"})
+
+	p.SetValue("/zzz")
+	if !p.TabComplete() {
+		t.Fatal("should consume Tab even with no matches")
+	}
+	if p.Value() != "/zzz" {
+		t.Fatalf("no match should keep original value, got %q", p.Value())
+	}
+}
+
+func TestInputPanel_Visible(t *testing.T) {
+	p := NewInputPanel()
+	if !p.Visible() {
+		t.Fatal("should be visible by default")
+	}
+	p.SetVisible(false)
+	if p.Visible() {
+		t.Fatal("should be hidden after SetVisible(false)")
+	}
+	if p.View(80) != "" {
+		t.Fatal("hidden panel should return empty view")
+	}
+}
+
+func TestOutputPanel_Overlay(t *testing.T) {
+	p := NewOutputPanel()
+	p.Append("hello")
+	p.SetOverlay("thinking...")
+
+	view := p.View(80)
+	if !strings.Contains(view, "hello") {
+		t.Fatal("should contain lines")
+	}
+	if !strings.Contains(view, "thinking...") {
+		t.Fatal("should contain overlay")
+	}
+
+	p.SetOverlay("")
+	view = p.View(80)
+	if strings.Contains(view, "thinking...") {
+		t.Fatal("overlay should be cleared")
+	}
+}
+
+func TestOutputPanel_AppendToLast(t *testing.T) {
+	p := NewOutputPanel()
+	p.Append("hello ")
+	p.AppendToLast("world")
+
+	if p.Lines()[0] != "hello world" {
+		t.Fatalf("line = %q, want 'hello world'", p.Lines()[0])
+	}
+}
+
 func TestBasePanel_Defaults(t *testing.T) {
 	b := NewBasePanel("test", 5)
 	if b.ID() != "test" {

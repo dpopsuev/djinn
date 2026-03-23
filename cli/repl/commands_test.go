@@ -236,3 +236,29 @@ func TestExecuteCommand_Copy(t *testing.T) {
 		t.Fatal("copy should produce output")
 	}
 }
+
+func TestCommandNames_Sorted(t *testing.T) {
+	names := CommandNames()
+	for i := 1; i < len(names); i++ {
+		if names[i] < names[i-1] {
+			t.Fatalf("not sorted: %q before %q", names[i-1], names[i])
+		}
+	}
+}
+
+func TestCommandNames_Count(t *testing.T) {
+	names := CommandNames()
+	if len(names) < 20 {
+		t.Fatalf("expected 20+ commands, got %d", len(names))
+	}
+	// Spot-check key commands are present.
+	has := make(map[string]bool)
+	for _, n := range names {
+		has[n] = true
+	}
+	for _, want := range []string{"/help", "/exit", "/model", "/workspace", "/diff", "/config"} {
+		if !has[want] {
+			t.Errorf("missing command: %s", want)
+		}
+	}
+}

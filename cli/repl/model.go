@@ -10,7 +10,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/agent"
@@ -60,15 +59,10 @@ type Model struct {
 	ctx          context.Context
 
 	// UI state
-	state        State
-	textInput    textarea.Model
-	vp           viewport.Model
-	vpReady      bool
-	streamBuf    strings.Builder
-	conversation []string // rendered conversation lines
-	inputHistory []string // previous prompts
-	historyIdx   int      // -1 = not browsing history
-	pendingTool  *driver.ToolCall
+	state       State
+	inputPanel  *tui.InputPanel
+	streamBuf   strings.Builder
+	pendingTool *driver.ToolCall
 	lastUsage    *driver.Usage
 	totalIn      int      // cumulative input tokens
 	totalOut     int      // cumulative output tokens
@@ -93,12 +87,8 @@ type Model struct {
 
 // NewModel creates a new REPL model.
 func NewModel(cfg Config) Model {
-	ti := textarea.New()
-	ti.Prompt = tui.UserStyle.Render(tui.LabelUser)
-	ti.ShowLineNumbers = false
-	ti.SetHeight(1)
-	ti.CharLimit = 0 // unlimited
-	ti.Focus()
+	inputPanel := tui.NewInputPanel()
+	inputPanel.SetCompletions(CommandNames())
 
 	mode, err := agent.ParseMode(cfg.Mode)
 	if err != nil {
@@ -126,8 +116,7 @@ func NewModel(cfg Config) Model {
 		log:          log,
 		ctx:          context.Background(),
 		state:        stateInput,
-		textInput:    ti,
-		historyIdx:    -1,
+		inputPanel:   inputPanel,
 		handler:       agent.NilHandler{},
 		healthReports:  cfg.HealthReports,
 		spin:           spinner.New(spinner.WithSpinner(spinner.Dot)),
@@ -138,7 +127,7 @@ func NewModel(cfg Config) Model {
 		version:        cfg.Version,
 	}
 
-	m.focus = tui.NewFocusManager(m.outputPanel, m.dashboard)
+	m.focus = tui.NewFocusManager(m.outputPanel, m.inputPanel, m.dashboard)
 	m.dashboard.SetIdentity(cfg.Session.Workspace, cfg.Session.Driver, cfg.Session.Model, cfg.Mode)
 	m.dashboard.SetHealth(cfg.HealthReports)
 
@@ -160,21 +149,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.ready = true
 		tui.ReinitRenderer(msg.Width)
-		// Reserve 3 lines: input + status + padding
-		vpHeight := msg.Height - 3
-		if vpHeight < 5 {
-			vpHeight = 5
-		}
-		if !m.vpReady {
-			m.vp = viewport.New(msg.Width, vpHeight)
-			m.vpReady = true
-		} else {
-			m.vp.Width = msg.Width
-			m.vp.Height = vpHeight
+		m.outputPanel.InitViewport(msg.Width, msg.Height-m.fixedHeight())
+		// Render MOTD once when viewport is first initialized
+		if m.outputPanel.LineCount() == 0 {
+			m.outputPanel.Append(renderMOTD(m.sess, m.tools, m.version))
 		}
 		// Auto-submit initial prompt if provided
 		if m.initialPrompt != "" {
-			m.textInput.SetValue(m.initialPrompt)
+			m.inputPanel.SetValue(m.initialPrompt)
 			m.initialPrompt = "" // only once
 			return m.handleSubmit()
 		}
@@ -201,8 +183,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tui.ThinkingMsg:
-		m.conversation = append(m.conversation,
-			tui.DimStyle.Render(string(msg)))
+		m.outputPanel.Append(tui.DimStyle.Render(string(msg)))
 		return m, nil
 
 	case tui.ToolCallMsg:
@@ -210,8 +191,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.spin.View(),
 			tui.ToolNameStyle.Render(msg.Call.Name),
 			tui.ToolArgStyle.Render(truncate(string(msg.Call.Input), 80)))
-		m.conversation = append(m.conversation, line)
-		m.activeToolIdx = len(m.conversation) - 1
+		m.outputPanel.Append(line)
+		m.activeToolIdx = m.outputPanel.LineCount() - 1
 
 		// In agent mode (not auto), prompt for approval
 		if m.mode == agent.ModeAgent && !m.autoApprove {
@@ -238,11 +219,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		// Replace spinner line with result if we have an active tool
-		if m.activeToolIdx >= 0 && m.activeToolIdx < len(m.conversation) {
-			m.conversation[m.activeToolIdx] = line
+		if m.activeToolIdx >= 0 && m.activeToolIdx < m.outputPanel.LineCount() {
+			m.outputPanel.SetLine(m.activeToolIdx, line)
 			m.activeToolIdx = -1
 		} else {
-			m.conversation = append(m.conversation, line)
+			m.outputPanel.Append(line)
 		}
 		return m, nil
 
@@ -256,8 +237,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tui.ErrorMsg:
 		m.lastError = msg.Error()
-		m.conversation = append(m.conversation,
-			tui.ErrorStyle.Render("error: "+msg.Error()))
+		m.outputPanel.Append(tui.ErrorStyle.Render("error: " + msg.Error()))
 		return m, nil
 
 	case tui.AgentDoneMsg:
@@ -270,36 +250,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Flush remaining buffers
 		if m.outputMode == outputChunked && m.chunkedBuf.Len() > 0 {
 			// Chunked mode: render full response now
-			if len(m.conversation) > 0 {
-				last := len(m.conversation) - 1
-				m.conversation[last] += m.chunkedBuf.String()
+			if m.outputPanel.LineCount() > 0 {
+				last := m.outputPanel.LineCount() - 1
+				m.outputPanel.SetLine(last, m.outputPanel.Lines()[last]+m.chunkedBuf.String())
 			}
 			m.chunkedBuf.Reset()
 		}
 		m.flushStreamBuffer()
 		// Render the completed response as markdown
-		if len(m.conversation) > 0 {
-			last := len(m.conversation) - 1
-			raw := m.conversation[last]
+		if m.outputPanel.LineCount() > 0 {
+			last := m.outputPanel.LineCount() - 1
+			raw := m.outputPanel.Lines()[last]
 			// Strip the assistant label prefix, render, re-add
 			prefix := tui.AssistStyle.Render(tui.LabelAssist) + ": "
 			if after, found := strings.CutPrefix(raw, prefix); found {
 				rendered := tui.RenderMarkdown(after)
-				m.conversation[last] = prefix + rendered
+				m.outputPanel.SetLine(last, prefix+rendered)
 			}
 		}
 		if msg.Err != nil {
-			m.conversation = append(m.conversation,
-				tui.ErrorStyle.Render("error: "+msg.Err.Error()))
+			m.outputPanel.Append(tui.ErrorStyle.Render("error: " + msg.Err.Error()))
 		}
 		if m.lastUsage != nil {
-			m.conversation = append(m.conversation,
-				tui.StatusStyle.Render(fmt.Sprintf("[tokens: %d in, %d out]",
-					m.lastUsage.InputTokens, m.lastUsage.OutputTokens)))
+			m.outputPanel.Append(tui.StatusStyle.Render(fmt.Sprintf("[tokens: %d in, %d out]",
+				m.lastUsage.InputTokens, m.lastUsage.OutputTokens)))
 		}
-		m.conversation = append(m.conversation, "") // blank line
+		m.outputPanel.Append("") // blank line
 		m.state = stateInput
-		m.textInput.Focus()
+		m.inputPanel.FocusInput()
 		return m, nil
 
 	case tui.TickMsg:
@@ -317,84 +295,52 @@ func (m Model) View() string {
 	if !m.ready {
 		return "initializing..."
 	}
+	if m.quitting {
+		return "goodbye.\n"
+	}
+
+	depths := tui.FocusDepths(m.focus.Count(), m.focus.ActiveIndex())
+
+	// Set ephemeral overlay (spinner, streaming text, approval prompt)
+	m.outputPanel.SetOverlay(m.overlayContent())
+	m.outputPanel.InitViewport(m.width, m.height-m.fixedHeight())
+	m.dashboard.SetMetrics(m.totalIn, m.totalOut, m.sess.History.Len())
 
 	var sb strings.Builder
-
-	// Build conversation content for viewport
-	var content strings.Builder
-
-	// Welcome header (first time)
-	if len(m.conversation) == 0 && m.state == stateInput {
-		content.WriteString(renderMOTD(m.sess, m.tools, m.version))
-		content.WriteString("\n")
-	}
-
-	// Conversation history (word-wrapped)
-	for _, line := range m.conversation {
-		if m.width > 0 {
-			content.WriteString(tui.WrapText(line, m.width-2))
-		} else {
-			content.WriteString(line)
-		}
-		content.WriteString("\n")
-	}
-
-	// Spinner or streaming text
-	if m.state == stateStreaming {
-		if m.spinnerActive {
-			content.WriteString("  " + m.spin.View() + " thinking...\n")
-		} else if m.streamBuf.Len() > 0 {
-			content.WriteString(m.streamBuf.String())
-		}
-	}
-
-	// Tool approval prompt
-	if m.state == stateToolApproval && m.pendingTool != nil {
-		content.WriteString(tui.ToolNameStyle.Render(
-			fmt.Sprintf("  approve %s? [y/n] ", m.pendingTool.Name)))
-	}
-
-	// Sync output panel with conversation content
-	m.outputPanel.InitViewport(m.width, m.height-3)
-
-	// Render output through panel
-	depths := tui.FocusDepths(m.focus.Count(), m.focus.ActiveIndex())
-	outputView := content.String()
-	if m.vpReady {
-		m.vp.SetContent(outputView)
-		m.vp.GotoBottom()
-		outputView = m.vp.View()
-	}
-	sb.WriteString(tui.RenderWithDepth(outputView, depths[0]))
-
-	// Separator: output ↔ input (with focus indicator)
-	sb.WriteString("\n")
-	sb.WriteString(tui.RenderFocusIndicator(m.focus.ActiveIndex() == 0))
-	sb.WriteString(tui.Separator(m.width-1, 0, m.focus.ActiveIndex() == 0))
-	sb.WriteString("\n")
-
-	// Input
+	sb.WriteString(tui.RenderWithDepth(m.outputPanel.View(m.width), depths[0]))
+	sb.WriteString(m.separator(0))
 	if m.state == stateInput {
-		sb.WriteString(m.textInput.View())
+		sb.WriteString(tui.RenderWithDepth(m.inputPanel.View(m.width), depths[1]))
 	}
-
-	// Separator: input ↔ dashboard (with focus indicator)
-	sb.WriteString("\n")
-	sb.WriteString(tui.RenderFocusIndicator(m.focus.ActiveIndex() == 1))
-	sb.WriteString(tui.Separator(m.width-1, 0, m.focus.ActiveIndex() == 1))
-	sb.WriteString("\n")
-
-	// Dashboard
-	if m.ready && !m.quitting {
-		m.dashboard.SetMetrics(m.totalIn, m.totalOut, m.sess.History.Len())
-		sb.WriteString(tui.RenderWithDepth(m.dashboard.View(m.width), depths[len(depths)-1]))
-	}
-
-	if m.quitting {
-		sb.WriteString("\ngoodbye.\n")
-	}
+	sb.WriteString(m.separator(1))
+	sb.WriteString(tui.RenderWithDepth(m.dashboard.View(m.width), depths[2]))
 
 	return sb.String()
+}
+
+// overlayContent returns ephemeral content for the output panel based on state.
+func (m Model) overlayContent() string {
+	switch {
+	case m.state == stateStreaming && m.spinnerActive:
+		return "  " + m.spin.View() + " thinking..."
+	case m.state == stateStreaming && m.streamBuf.Len() > 0:
+		return m.streamBuf.String()
+	case m.state == stateToolApproval && m.pendingTool != nil:
+		return tui.ToolNameStyle.Render(fmt.Sprintf("  approve %s? [y/n] ", m.pendingTool.Name))
+	default:
+		return ""
+	}
+}
+
+// separator renders a separator line between panels.
+func (m Model) separator(panelIdx int) string {
+	focused := m.focus.ActiveIndex() == panelIdx
+	return "\n" + tui.RenderFocusIndicator(focused) + tui.Separator(m.width-1, 0, focused) + "\n"
+}
+
+// fixedHeight returns the number of lines consumed by non-output panels.
+func (m Model) fixedHeight() int {
+	return 5 // input(1) + dashboard(1) + separators(2) + padding(1)
 }
 
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -410,7 +356,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.state == stateInput {
 			if msg.Alt {
 				var cmd tea.Cmd
-				m.textInput, cmd = m.textInput.Update(msg)
+				_, cmd = m.inputPanel.Update(msg)
 				return m, cmd
 			}
 			return m.handleSubmit()
@@ -428,16 +374,18 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Tab cycles focus between panels
+	// Tab: try slash-command completion first, then cycle focus
 	if msg.Type == tea.KeyTab && m.state == stateInput {
+		if m.inputPanel.TabComplete() {
+			return m, nil
+		}
 		m.focus.Cycle()
 		return m, nil
 	}
 
-	// Forward PgUp/PgDn to viewport for scrolling
-	if m.vpReady && (msg.Type == tea.KeyPgUp || msg.Type == tea.KeyPgDown) {
-		var cmd tea.Cmd
-		m.vp, cmd = m.vp.Update(msg)
+	// Forward PgUp/PgDn to output panel for scrolling
+	if msg.Type == tea.KeyPgUp || msg.Type == tea.KeyPgDown {
+		_, cmd := m.outputPanel.Update(msg)
 		return m, cmd
 	}
 
@@ -446,40 +394,22 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if msg.Alt && msg.Type == tea.KeyRunes && len(msg.Runes) == 1 && (msg.Runes[0] == 'm' || msg.Runes[0] == 'M') {
 			m.mode = m.mode.Next()
 			m.sess.Mode = m.mode.String()
-			m.conversation = append(m.conversation,
-				tui.DimStyle.Render(fmt.Sprintf("  mode: %s", m.mode)))
+			m.outputPanel.Append(tui.DimStyle.Render(fmt.Sprintf("  mode: %s", m.mode)))
 			return m, nil
 		}
 
 		// Input history navigation
 		switch msg.Type {
 		case tea.KeyUp:
-			if len(m.inputHistory) > 0 {
-				if m.historyIdx == -1 {
-					m.historyIdx = len(m.inputHistory) - 1
-				} else if m.historyIdx > 0 {
-					m.historyIdx--
-				}
-				m.textInput.SetValue(m.inputHistory[m.historyIdx])
-				// cursor moves to end naturally with SetValue
-			}
+			m.inputPanel.HistoryUp()
 			return m, nil
 		case tea.KeyDown:
-			if m.historyIdx >= 0 {
-				m.historyIdx++
-				if m.historyIdx >= len(m.inputHistory) {
-					m.historyIdx = -1
-					m.textInput.SetValue("")
-				} else {
-					m.textInput.SetValue(m.inputHistory[m.historyIdx])
-					// cursor moves to end naturally with SetValue
-				}
-			}
+			m.inputPanel.HistoryDown()
 			return m, nil
 		}
 
 		var cmd tea.Cmd
-		m.textInput, cmd = m.textInput.Update(msg)
+		_, cmd = m.inputPanel.Update(msg)
 		return m, cmd
 	}
 
@@ -487,25 +417,24 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
-	input := strings.TrimSpace(m.textInput.Value())
-	m.textInput.Reset()
-	m.historyIdx = -1 // reset history browsing
+	input := strings.TrimSpace(m.inputPanel.Value())
+	m.inputPanel.Reset()
 
 	if input == "" {
 		return m, nil
 	}
 
 	// Record in input history
-	m.inputHistory = append(m.inputHistory, input)
+	m.inputPanel.AddHistory(input)
 
 	// Add user input to conversation
-	m.conversation = append(m.conversation, tui.UserStyle.Render(tui.LabelUser)+input)
+	m.outputPanel.Append(tui.UserStyle.Render(tui.LabelUser) + input)
 
 	// Check for slash command
 	if cmd, ok := ParseCommand(input); ok {
 		result := ExecuteCommand(cmd, m.sess)
 		if result.Output != "" {
-			m.conversation = append(m.conversation, result.Output)
+			m.outputPanel.Append(result.Output)
 		}
 		if result.ModeChange != "" {
 			if newMode, err := agent.ParseMode(result.ModeChange); err == nil {
@@ -516,7 +445,7 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		}
-		m.conversation = append(m.conversation, "") // blank line
+		m.outputPanel.Append("") // blank line
 		return m, nil
 	}
 
@@ -526,8 +455,8 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 	m.lastUsage = nil
 	m.lastError = ""
 	m.spinnerActive = true
-	m.conversation = append(m.conversation, tui.AssistStyle.Render(tui.LabelAssist)+": ")
-	m.textInput.Blur()
+	m.outputPanel.Append(tui.AssistStyle.Render(tui.LabelAssist) + ": ")
+	m.inputPanel.BlurInput()
 
 	return m, tea.Batch(
 		m.runAgent(input),
@@ -542,9 +471,9 @@ func (m *Model) handleApproval(key string) (tea.Model, tea.Cmd) {
 	m.state = stateStreaming
 
 	if approved {
-		m.conversation = append(m.conversation, tui.DimStyle.Render("  approved"))
+		m.outputPanel.Append(tui.DimStyle.Render("  approved"))
 	} else {
-		m.conversation = append(m.conversation, tui.ErrorStyle.Render("  denied"))
+		m.outputPanel.Append(tui.ErrorStyle.Render("  denied"))
 	}
 
 	// Send decision to agent goroutine via channel
@@ -601,11 +530,7 @@ func (m *Model) flushStreamBuffer() {
 	text := m.streamBuf.String()
 	m.streamBuf.Reset()
 
-	// Append to the last conversation line (the assistant label)
-	if len(m.conversation) > 0 {
-		last := len(m.conversation) - 1
-		m.conversation[last] += text
-	}
+	m.outputPanel.AppendToLast(text)
 }
 
 // Test accessors — exported for acceptance tests.
@@ -642,13 +567,16 @@ func renderMOTD(sess *session.Session, tools *builtin.Registry, version string) 
 }
 
 // SetTextInput sets the text input value (for testing).
-func (m *Model) SetTextInput(v string) { m.textInput.SetValue(v) }
+func (m *Model) SetTextInput(v string) { m.inputPanel.SetValue(v) }
 
 // SetState sets the model state (for testing).
 func (m *Model) SetState(s State) { m.state = s }
 
 // AppendConversation adds a line to conversation (for testing).
-func (m *Model) AppendConversation(line string) { m.conversation = append(m.conversation, line) }
+func (m *Model) AppendConversation(line string) { m.outputPanel.Append(line) }
+
+// ConversationLen returns the number of conversation lines (for testing).
+func (m *Model) ConversationLen() int { return m.outputPanel.LineCount() }
 
 // StreamBufString returns the stream buffer contents (for testing).
 func (m Model) StreamBufString() string { return m.streamBuf.String() }
@@ -657,10 +585,10 @@ func (m Model) StreamBufString() string { return m.streamBuf.String() }
 func (m Model) CurrentState() State { return m.state }
 
 // TextInputValue returns the text input value (for testing).
-func (m Model) TextInputValue() string { return m.textInput.Value() }
+func (m Model) TextInputValue() string { return m.inputPanel.Value() }
 
 // AddInputHistory adds an entry to input history (for testing).
-func (m *Model) AddInputHistory(s string) { m.inputHistory = append(m.inputHistory, s) }
+func (m *Model) AddInputHistory(s string) { m.inputPanel.AddHistory(s) }
 
 // Export state constants for acceptance tests.
 const (

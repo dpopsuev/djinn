@@ -11,9 +11,10 @@ import (
 // OutputPanel is the scrollable conversation area.
 type OutputPanel struct {
 	BasePanel
-	vp       viewport.Model
-	vpReady  bool
-	lines    []string
+	vp      viewport.Model
+	vpReady bool
+	lines   []string
+	overlay string // ephemeral content (spinner, streaming, approval)
 }
 
 const panelIDOutput = "output"
@@ -65,6 +66,19 @@ func (p *OutputPanel) Lines() []string {
 	return p.lines
 }
 
+// SetOverlay sets ephemeral content rendered after the lines.
+func (p *OutputPanel) SetOverlay(text string) {
+	p.overlay = text
+}
+
+// AppendToLast extends the last line (for stream flush).
+func (p *OutputPanel) AppendToLast(text string) {
+	if len(p.lines) > 0 {
+		p.lines[len(p.lines)-1] += text
+		p.syncViewport()
+	}
+}
+
 // Clear removes all lines.
 func (p *OutputPanel) Clear() {
 	p.lines = nil
@@ -88,8 +102,14 @@ func (p *OutputPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 }
 
 func (p *OutputPanel) View(width int) string {
-	if !p.vpReady {
-		return strings.Join(p.lines, "\n")
+	content := strings.Join(p.lines, "\n")
+	if p.overlay != "" {
+		content += "\n" + p.overlay
 	}
-	return p.vp.View()
+	if p.vpReady {
+		p.vp.SetContent(content)
+		p.vp.GotoBottom()
+		return p.vp.View()
+	}
+	return content
 }

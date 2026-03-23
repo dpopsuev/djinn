@@ -84,10 +84,10 @@ func TestModel_TextMsg_Chunked(t *testing.T) {
 
 func TestModel_ThinkingMsg(t *testing.T) {
 	m := testModel()
-	before := len(m.conversation)
+	before := m.outputPanel.LineCount()
 	m2, _ := m.Update(tui.ThinkingMsg("let me think"))
 	model := asModel(t, m2)
-	if len(model.conversation) != before+1 {
+	if model.outputPanel.LineCount() != before+1 {
 		t.Fatal("should append to conversation")
 	}
 }
@@ -123,20 +123,20 @@ func TestModel_ToolCallMsg_AutoMode(t *testing.T) {
 
 func TestModel_ToolResultMsg_Success(t *testing.T) {
 	m := testModel()
-	before := len(m.conversation)
+	before := m.outputPanel.LineCount()
 	m2, _ := m.Update(tui.ToolResultMsg{Name: "Read", Output: "file contents", IsError: false})
 	model := asModel(t, m2)
-	if len(model.conversation) != before+1 {
+	if model.outputPanel.LineCount() != before+1 {
 		t.Fatal("should append to conversation")
 	}
 }
 
 func TestModel_ToolResultMsg_Error(t *testing.T) {
 	m := testModel()
-	before := len(m.conversation)
+	before := m.outputPanel.LineCount()
 	m2, _ := m.Update(tui.ToolResultMsg{Name: "Read", Output: "not found", IsError: true})
 	model := asModel(t, m2)
-	if len(model.conversation) != before+1 {
+	if model.outputPanel.LineCount() != before+1 {
 		t.Fatal("should append to conversation")
 	}
 }
@@ -166,7 +166,7 @@ func TestModel_AgentDoneMsg_WithError(t *testing.T) {
 	m2, _ := m.Update(tui.AgentDoneMsg{Err: errors.New("something failed")})
 	model := asModel(t, m2)
 	found := false
-	for _, line := range model.conversation {
+	for _, line := range model.outputPanel.Lines() {
 		if strings.Contains(line, "something failed") {
 			found = true
 		}
@@ -180,7 +180,7 @@ func TestModel_TickMsg_WhileStreaming(t *testing.T) {
 	m := testModel()
 	m.state = stateStreaming
 	m.streamBuf.WriteString("buffered text")
-	m.conversation = append(m.conversation, "assistant: ")
+	m.outputPanel.Append("assistant: ")
 
 	m2, cmd := m.Update(tui.TickMsg(time.Now()))
 	model := asModel(t, m2)
@@ -215,23 +215,27 @@ func TestModel_HandleKey_CtrlC(t *testing.T) {
 
 func TestModel_HandleKey_HistoryUp(t *testing.T) {
 	m := testModel()
-	m.inputHistory = []string{"first", "second", "third"}
+	m.AddInputHistory("first")
+	m.AddInputHistory("second")
+	m.AddInputHistory("third")
 	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
 	model := asModel(t, m2)
-	if model.textInput.Value() != "third" {
-		t.Fatalf("value = %q, want third", model.textInput.Value())
+	if model.TextInputValue() != "third" {
+		t.Fatalf("value = %q, want third", model.TextInputValue())
 	}
 }
 
 func TestModel_HandleKey_HistoryDown(t *testing.T) {
 	m := testModel()
-	m.inputHistory = []string{"first", "second"}
-	m.historyIdx = 0 // browsing at "first"
-	m.textInput.SetValue("first")
+	m.AddInputHistory("first")
+	m.AddInputHistory("second")
+	// Navigate up twice to land on "first", then down once to get "second"
+	m.Update(tea.KeyMsg{Type: tea.KeyUp}) // → "second"
+	m.Update(tea.KeyMsg{Type: tea.KeyUp}) // → "first"
 	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
 	model := asModel(t, m2)
-	if model.textInput.Value() != "second" {
-		t.Fatalf("value = %q, want second", model.textInput.Value())
+	if model.TextInputValue() != "second" {
+		t.Fatalf("value = %q, want second", model.TextInputValue())
 	}
 }
 
@@ -253,7 +257,7 @@ func TestModel_HandleApproval_N(t *testing.T) {
 	m2, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
 	model := asModel(t, m2)
 	found := false
-	for _, line := range model.conversation {
+	for _, line := range model.outputPanel.Lines() {
 		if strings.Contains(line, "denied") {
 			found = true
 		}
@@ -265,7 +269,10 @@ func TestModel_HandleApproval_N(t *testing.T) {
 
 func TestModel_View_Welcome(t *testing.T) {
 	m := testModel()
-	view := m.View()
+	// Trigger WindowSizeMsg to initialize viewport and render MOTD
+	m2, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	model := asModel(t, m2)
+	view := model.View()
 	// Structural: welcome view should contain the logo (non-empty)
 	if !strings.Contains(view, tui.DjinnLogo[:10]) {
 		t.Fatal("welcome should render the logo")
@@ -295,18 +302,18 @@ func TestModel_View_StatusBar(t *testing.T) {
 
 func TestModel_HandleSubmit_SlashCommand(t *testing.T) {
 	m := testModel()
-	m.textInput.SetValue("/help")
+	m.SetTextInput("/help")
 	m2, _ := m.handleSubmit()
 	model := asModel(t, m2)
 	// Assert conversation grew (structural), not exact text content (brittle)
-	if len(model.conversation) == 0 {
+	if model.outputPanel.LineCount() == 0 {
 		t.Fatal("help should add output to conversation")
 	}
 }
 
 func TestModel_HandleSubmit_ModeSwitch(t *testing.T) {
 	m := testModel()
-	m.textInput.SetValue("/mode auto")
+	m.SetTextInput("/mode auto")
 	m2, _ := m.handleSubmit()
 	model := asModel(t, m2)
 	if model.mode != agent.ModeAuto {
@@ -316,7 +323,7 @@ func TestModel_HandleSubmit_ModeSwitch(t *testing.T) {
 
 func TestModel_HandleSubmit_Empty(t *testing.T) {
 	m := testModel()
-	m.textInput.SetValue("")
+	m.SetTextInput("")
 	m2, cmd := m.handleSubmit()
 	model := asModel(t, m2)
 	if cmd != nil {
@@ -329,7 +336,7 @@ func TestModel_HandleSubmit_Empty(t *testing.T) {
 
 func TestModel_HandleSubmit_Exit(t *testing.T) {
 	m := testModel()
-	m.textInput.SetValue("/exit")
+	m.SetTextInput("/exit")
 	m2, _ := m.handleSubmit()
 	model := asModel(t, m2)
 	if !model.quitting {
@@ -350,10 +357,11 @@ func TestTruncate(t *testing.T) {
 
 func TestModel_FlushStreamBuffer(t *testing.T) {
 	m := testModel()
-	m.conversation = append(m.conversation, "assistant: ")
+	m.outputPanel.Append("assistant: ")
 	m.streamBuf.WriteString("hello world")
 	m.flushStreamBuffer()
-	last := m.conversation[len(m.conversation)-1]
+	lines := m.outputPanel.Lines()
+	last := lines[len(lines)-1]
 	if !strings.Contains(last, "hello world") {
 		t.Fatalf("last line = %q", last)
 	}
@@ -364,9 +372,9 @@ func TestModel_FlushStreamBuffer(t *testing.T) {
 
 func TestModel_FlushStreamBuffer_Empty(t *testing.T) {
 	m := testModel()
-	before := len(m.conversation)
+	before := m.outputPanel.LineCount()
 	m.flushStreamBuffer()
-	if len(m.conversation) != before {
+	if m.outputPanel.LineCount() != before {
 		t.Fatal("empty flush should not modify conversation")
 	}
 }
@@ -392,7 +400,7 @@ func TestModel_NewModel_ParsesMode(t *testing.T) {
 
 func TestModel_SpinnerActiveOnStreaming(t *testing.T) {
 	m := testModel()
-	m.textInput.SetValue("hello")
+	m.SetTextInput("hello")
 	// Can't test full submit without driver, but verify initial state
 	if m.spinnerActive {
 		t.Fatal("spinner should be inactive initially")
@@ -414,11 +422,11 @@ func TestModel_SpinnerDeactivatedOnText(t *testing.T) {
 
 func TestModel_ViewportInitOnResize(t *testing.T) {
 	m := testModel()
-	m.vpReady = false
 	m2, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	model := asModel(t, m2)
-	if !model.vpReady {
-		t.Fatal("viewport should initialize on WindowSizeMsg")
+	// Verify the output panel has content (MOTD rendered on first init)
+	if model.outputPanel.LineCount() == 0 {
+		t.Fatal("output panel should have MOTD after WindowSizeMsg")
 	}
 }
 
@@ -437,13 +445,13 @@ func TestModel_ToolProgressReplacement(t *testing.T) {
 	if model.activeToolIdx < 0 {
 		t.Fatal("activeToolIdx should be set after ToolCallMsg")
 	}
-	beforeLen := len(model.conversation)
+	beforeLen := model.outputPanel.LineCount()
 
 	// Tool result replaces the spinner line (same length, not appended)
 	m3, _ := model.Update(tui.ToolResultMsg{Name: "Read", Output: "contents", IsError: false})
 	model2 := asModel(t, m3)
-	if len(model2.conversation) != beforeLen {
-		t.Fatalf("tool result should replace, not append: %d → %d", beforeLen, len(model2.conversation))
+	if model2.outputPanel.LineCount() != beforeLen {
+		t.Fatalf("tool result should replace, not append: %d → %d", beforeLen, model2.outputPanel.LineCount())
 	}
 	if model2.activeToolIdx != -1 {
 		t.Fatal("activeToolIdx should reset to -1 after result")

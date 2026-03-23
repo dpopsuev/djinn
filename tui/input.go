@@ -2,6 +2,8 @@
 package tui
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -13,6 +15,14 @@ type InputPanel struct {
 	history  []string
 	histIdx  int
 	onSubmit func(string) // callback when Enter pressed
+	visible  bool
+
+	// Tab completion state.
+	completions    []string // sorted command names
+	matches        []string // current matches for prefix
+	compPrefix     string   // the prefix being completed
+	compIdx        int      // index into matches
+	lastCompletion string   // last completed value (for cycle detection)
 }
 
 const panelIDInput = "input"
@@ -33,6 +43,8 @@ func NewInputPanel() *InputPanel {
 		BasePanel: NewBasePanel(panelIDInput, 1),
 		textarea:  ta,
 		histIdx:   -1,
+		visible:   true,
+		compIdx:   -1,
 	}
 }
 
@@ -118,5 +130,60 @@ func (p *InputPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 }
 
 func (p *InputPanel) View(width int) string {
+	if !p.visible {
+		return ""
+	}
 	return p.textarea.View()
+}
+
+// SetVisible controls whether the input panel renders.
+func (p *InputPanel) SetVisible(v bool) { p.visible = v }
+
+// Visible returns whether the input panel is visible.
+func (p *InputPanel) Visible() bool { return p.visible }
+
+// SetCompletions configures the sorted command names for tab completion.
+func (p *InputPanel) SetCompletions(names []string) {
+	p.completions = names
+}
+
+// TabComplete attempts slash command completion. Returns true if it handled
+// the Tab press (input starts with /), false if Tab should cycle focus instead.
+func (p *InputPanel) TabComplete() bool {
+	val := p.textarea.Value()
+	if !strings.HasPrefix(val, "/") {
+		p.compPrefix = ""
+		p.lastCompletion = ""
+		return false
+	}
+
+	// Determine the prefix to match against.
+	if val == p.lastCompletion && p.compPrefix != "" {
+		// User pressed Tab again on a completed value — cycle to next match.
+	} else {
+		// New prefix — start fresh.
+		p.compPrefix = val
+		p.compIdx = -1
+		p.matches = filterPrefix(p.completions, val)
+	}
+
+	if len(p.matches) == 0 {
+		return true // consumed Tab but no matches
+	}
+
+	p.compIdx = (p.compIdx + 1) % len(p.matches)
+	completed := p.matches[p.compIdx]
+	p.textarea.SetValue(completed)
+	p.lastCompletion = completed
+	return true
+}
+
+func filterPrefix(names []string, prefix string) []string {
+	var out []string
+	for _, n := range names {
+		if strings.HasPrefix(n, prefix) {
+			out = append(out, n)
+		}
+	}
+	return out
 }

@@ -3,6 +3,7 @@ package repl
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/dpopsuev/djinn/session"
@@ -30,6 +31,20 @@ const (
 	cmdQuit     = "/quit"
 	cmdSessions = "/sessions"
 )
+
+// CommandNames returns all slash command names in sorted order.
+func CommandNames() []string {
+	names := []string{
+		cmdHelp, cmdClear, cmdExit, cmdQuit, cmdSessions,
+		cmdModel, cmdMode, cmdStatus, cmdCost, cmdCompact,
+		cmdMemory, cmdCopy, cmdPermissions, cmdOutput, cmdResume,
+		cmdWorkspace, cmdWorkspaceSwitch, cmdWorkspaceAdd,
+		cmdWorkspaceRepos, cmdWorkspaceSave,
+		cmdDiff, cmdLog, cmdConfig, cmdConfigSave, cmdMcp, cmdReview,
+	}
+	sort.Strings(names)
+	return names
+}
 
 // ParseCommand parses a slash command string into a Command.
 func ParseCommand(input string) (Command, bool) {
