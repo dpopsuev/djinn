@@ -131,3 +131,69 @@ func TestRenderStatusLine_Structure(t *testing.T) {
 		t.Fatal("should produce output")
 	}
 }
+
+// TestRenderMarkdown_DoubleRenderCorrupts reproduces DJN-BUG-5:
+// glamour pads each line to full width. Re-rendering padded output
+// creates new lines per tick. After N ticks the output is N × width
+// chars of whitespace — the text explodes and markdown breaks.
+func TestRenderMarkdown_DoubleRenderCorrupts(t *testing.T) {
+	InitRenderer(80)
+
+	// Simulate 5 streaming ticks with re-render on each tick.
+	// This is what flushStreamBuffer did: append raw, render whole, store rendered.
+	prefix := "djinn: "
+	line := prefix
+
+	for i, chunk := range []string{"Hello ", "world, ", "this ", "is ", "streaming."} {
+		// Append raw chunk to (previously rendered) line
+		line += chunk
+		// Strip prefix, re-render the whole thing through glamour
+		after, _ := strings.CutPrefix(line, prefix)
+		rendered := RenderMarkdown(after)
+		line = prefix + rendered
+
+		// After each tick, the line should NOT grow unboundedly.
+		// Clean "Hello world, this is streaming." is ~40 chars.
+		// With glamour padding, each re-render adds ~80 chars of whitespace.
+		// After 5 ticks: ~400 chars of garbage instead of ~40.
+		// Verify: re-rendering glamour output DOES corrupt.
+		// This test documents WHY we use the raw buffer approach.
+		if i == 4 && len(line) < 200 {
+			t.Fatal("expected output to explode from double-render — if this passes, glamour changed behavior")
+		}
+	}
+}
+
+// TestRenderMarkdown_RawBufferApproach verifies the correct fix:
+// always render from raw text, never from previously rendered output.
+func TestRenderMarkdown_RawBufferApproach(t *testing.T) {
+	InitRenderer(80)
+
+	// Simulate incremental streaming: accumulate raw, render fresh each time.
+	var rawBuf strings.Builder
+
+	rawBuf.WriteString("Hello ")
+	r1 := RenderMarkdown(rawBuf.String())
+	if r1 == "" {
+		t.Fatal("render 1 should produce output")
+	}
+
+	rawBuf.WriteString("**bold** ")
+	r2 := RenderMarkdown(rawBuf.String())
+	if r2 == "" {
+		t.Fatal("render 2 should produce output")
+	}
+
+	rawBuf.WriteString("world")
+	r3 := RenderMarkdown(rawBuf.String())
+	if r3 == "" {
+		t.Fatal("render 3 should produce output")
+	}
+
+	// None of the renders should contain raw escape code literals.
+	for i, r := range []string{r1, r2, r3} {
+		if strings.Contains(r, "[0m[38") || strings.Contains(r, "38;5;252") {
+			t.Fatalf("render %d contains ANSI garbage:\n%s", i+1, r)
+		}
+	}
+}

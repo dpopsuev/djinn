@@ -85,6 +85,7 @@ type Model struct {
 	quitting       bool
 	initialPrompt  string // auto-submit on first render
 	version        string // app version for MOTD
+	rawStreamLine  strings.Builder // raw unrendered text for incremental markdown
 
 	// Staff — role pipeline
 	currentRole  string
@@ -256,6 +257,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tui.AgentDoneMsg:
+		m.rawStreamLine.Reset()
 		// Auto-save session after each turn
 		if m.store != nil {
 			if err := m.store.Save(m.sess); err != nil {
@@ -606,9 +608,17 @@ func (m *Model) flushStreamBuffer() {
 	}
 	text := m.streamBuf.String()
 	m.streamBuf.Reset()
-	m.outputPanel.AppendToLast(text)
-	// Markdown rendered on AgentDoneMsg only — incremental rendering
-	// double-encodes ANSI escapes (DJN-BUG-5).
+
+	// Track raw text separately — never feed glamour output back into glamour.
+	m.rawStreamLine.WriteString(text)
+
+	// Render from raw every tick, set the rendered output for display.
+	if m.outputPanel.LineCount() > 0 {
+		last := m.outputPanel.LineCount() - 1
+		prefix := tui.AssistStyle.Render(tui.LabelAssist) + ": "
+		rendered := tui.RenderMarkdown(m.rawStreamLine.String())
+		m.outputPanel.SetLine(last, prefix+rendered)
+	}
 }
 
 // Test accessors — exported for acceptance tests.
