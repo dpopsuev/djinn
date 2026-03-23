@@ -334,7 +334,7 @@ func (t *stdioTransport) Close() error {
 	return t.cmd.Process.Kill()
 }
 
-// --- HTTP transport ---
+// --- HTTP transport (SSE-aware) ---
 
 type httpTransport struct {
 	url    string
@@ -358,11 +358,38 @@ func (t *httpTransport) Send(req jsonRPCRequest) (jsonRPCResponse, error) {
 		return jsonRPCResponse{}, fmt.Errorf("read body: %w", err)
 	}
 
+	// Try direct JSON first (Streamable HTTP)
 	var resp jsonRPCResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return jsonRPCResponse{}, fmt.Errorf("parse response: %w", err)
+	if err := json.Unmarshal(body, &resp); err == nil {
+		return resp, nil
+	}
+
+	// Fall back to SSE parsing: extract JSON from "data: {json}" lines
+	jsonData := extractSSEData(string(body))
+	if jsonData == "" {
+		return jsonRPCResponse{}, fmt.Errorf("parse response: no JSON found in SSE body")
+	}
+
+	if err := json.Unmarshal([]byte(jsonData), &resp); err != nil {
+		return jsonRPCResponse{}, fmt.Errorf("parse SSE data: %w", err)
 	}
 	return resp, nil
+}
+
+// extractSSEData finds the first "data: {json}" line in an SSE response.
+func extractSSEData(body string) string {
+	scanner := bufio.NewScanner(strings.NewReader(body))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if after, ok := strings.CutPrefix(line, "data: "); ok {
+			// Verify it looks like JSON
+			trimmed := strings.TrimSpace(after)
+			if len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[') {
+				return trimmed
+			}
+		}
+	}
+	return ""
 }
 
 func (t *httpTransport) Close() error {

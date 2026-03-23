@@ -256,6 +256,88 @@ mcp:
 	}
 }
 
+// --- SSE transport tests ---
+
+func TestConnectHTTP_SSE(t *testing.T) {
+	// Mock server that responds with SSE format (like real MCP HTTP servers)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req jsonRPCRequest
+		json.NewDecoder(r.Body).Decode(&req)
+
+		var result any
+		switch req.Method {
+		case "initialize":
+			result = initializeResult{ProtocolVersion: "2024-11-05"}
+		case "notifications/initialized":
+			result = struct{}{}
+		case "tools/list":
+			result = toolsListResult{
+				Tools: []ToolDef{
+					{Name: "artifact", Description: "Manage artifacts", InputSchema: json.RawMessage(`{"type":"object"}`)},
+				},
+			}
+		case "tools/call":
+			result = toolCallResult{
+				Content: []contentBlock{{Type: "text", Text: "sse result"}},
+			}
+		default:
+			result = struct{}{}
+		}
+
+		resultJSON, _ := json.Marshal(result)
+		resp := jsonRPCResponse{JSONRPC: jsonRPCVersion, ID: req.ID, Result: resultJSON}
+		respJSON, _ := json.Marshal(resp)
+
+		// Respond in SSE format
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprintf(w, "event: message\ndata: %s\n\n", respJSON)
+	}))
+	defer srv.Close()
+
+	c := New(djinnlog.Nop())
+	defer c.Close()
+
+	if err := c.ConnectHTTP(context.Background(), "scribe-sse", srv.URL); err != nil {
+		t.Fatalf("ConnectHTTP SSE: %v", err)
+	}
+
+	tools := c.Tools()
+	if len(tools) != 1 {
+		t.Fatalf("tools = %d, want 1", len(tools))
+	}
+	if tools[0].Name != "artifact" {
+		t.Fatalf("tool = %q", tools[0].Name)
+	}
+
+	// Test tool call via SSE
+	result, err := c.Call(context.Background(), "scribe-sse", "artifact", json.RawMessage(`{"action":"list"}`))
+	if err != nil {
+		t.Fatalf("Call: %v", err)
+	}
+	if result != "sse result" {
+		t.Fatalf("result = %q", result)
+	}
+}
+
+func TestExtractSSEData(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"event: message\ndata: {\"id\":1}\n\n", `{"id":1}`},
+		{"{\"id\":1}", ""},  // no SSE prefix — extractSSEData returns empty, direct JSON handled elsewhere
+		{"data: {\"result\":\"ok\"}\n", `{"result":"ok"}`},
+		{"event: error\ndata: not json\n", ""},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		got := extractSSEData(tt.input)
+		if got != tt.want {
+			t.Errorf("extractSSEData(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
 func TestLoadMCPConfig_NoFiles(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // prevent reading real ~/.cursor/mcp.json
 	configs := LoadMCPConfig(t.TempDir(), t.TempDir())
