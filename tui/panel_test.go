@@ -191,6 +191,40 @@ func TestInputPanel_History(t *testing.T) {
 	}
 }
 
+// --- Focus depth dimming tests ---
+
+func TestFocusDepths_MiddleFocused(t *testing.T) {
+	depths := FocusDepths(5, 2)
+	expected := []int{2, 1, 0, 1, 2}
+	for i, d := range depths {
+		if d != expected[i] {
+			t.Fatalf("depth[%d] = %d, want %d", i, d, expected[i])
+		}
+	}
+}
+
+func TestFocusDepths_FirstFocused(t *testing.T) {
+	depths := FocusDepths(3, 0)
+	if depths[0] != 0 || depths[1] != 1 || depths[2] != 2 {
+		t.Fatalf("depths = %v", depths)
+	}
+}
+
+func TestRenderWithDepth_Focused(t *testing.T) {
+	result := RenderWithDepth("hello", 0)
+	if result != "hello" {
+		t.Fatal("depth 0 should return content unchanged")
+	}
+}
+
+func TestRenderWithDepth_Unfocused(t *testing.T) {
+	d1 := RenderWithDepth("hello", 1)
+	d2 := RenderWithDepth("hello", 2)
+	if d1 == "" || d2 == "" {
+		t.Fatal("dimmed output should not be empty")
+	}
+}
+
 func TestBasePanel_Defaults(t *testing.T) {
 	b := NewBasePanel("test", 5)
 	if b.ID() != "test" {
