@@ -12,6 +12,7 @@ import (
 // Options configures the logging stack.
 type Options struct {
 	Verbose  bool   // enable terminal output at Info level
+	TUI      bool   // true = TUI active, verbose goes to file only (never stderr)
 	LogFile  string // path to log file (empty = no file)
 	RingSize int    // ring buffer capacity (default: 500)
 }
@@ -44,8 +45,9 @@ func Setup(opts Options) Result {
 		}
 	}
 
-	// Terminal handler: text at Info level (only if verbose)
-	if opts.Verbose {
+	// Terminal handler: text at Info level (only if verbose AND not TUI)
+	// When TUI is active, Bubbletea owns the terminal — no stderr output.
+	if opts.Verbose && !opts.TUI {
 		handlers = append(handlers, slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		}))

@@ -81,6 +81,7 @@ type Model struct {
 	chunkedBuf   strings.Builder // accumulates full response for chunked mode
 	width        int
 	height       int
+	healthReports  []HealthReport // component health for status line
 	ready          bool
 	quitting       bool
 	initialPrompt  string // auto-submit on first render
@@ -121,6 +122,7 @@ func NewModel(cfg Config) Model {
 		textInput:    ti,
 		historyIdx:    -1,
 		handler:       agent.NilHandler{},
+		healthReports: cfg.HealthReports,
 		initialPrompt: cfg.InitialPrompt,
 	}
 }
@@ -302,15 +304,18 @@ func (m Model) View() string {
 		sb.WriteString(m.textInput.View())
 	}
 
-	// Status bar
+	// Unified status line
 	if m.ready && !m.quitting {
 		sb.WriteString("\n")
-		status := fmt.Sprintf("  %s │ %s │ tokens: %d in, %d out │ turns: %d",
-			m.sess.Model, m.mode, m.totalIn, m.totalOut, m.sess.History.Len())
-		if m.sess.Name != "" {
-			status += " │ " + m.sess.Name
-		}
-		sb.WriteString(statusStyle.Render(status))
+		sb.WriteString(renderStatusLine(
+			m.sess.Workspace,
+			m.sess.Driver,
+			m.sess.Model,
+			m.mode.String(),
+			m.totalIn, m.totalOut,
+			m.sess.History.Len(),
+			m.healthReports,
+		))
 	}
 
 	if m.quitting {

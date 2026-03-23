@@ -185,6 +185,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	// Setup logging
 	logResult := djinnlog.Setup(djinnlog.Options{
 		Verbose: *verbose,
+		TUI:     true, // Bubbletea owns the terminal — no stderr output
 		LogFile: filepath.Join(HomeDir(), "djinn.log"),
 	})
 	log := djinnlog.For(logResult.Logger, "app")
@@ -225,6 +226,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	mcpClient := mcpclient.New(djinnlog.For(logResult.Logger, "mcp"))
 	defer mcpClient.Close()
 
+	var mcpFailures []repl.HealthReport
 	mcpConfigs := mcpclient.LoadMCPConfig(Getwd(), filepath.Join(HomeDir()))
 	for name, cfg := range mcpConfigs {
 		var connectErr error
@@ -235,8 +237,26 @@ func RunREPL(args []string, stderr io.Writer) error {
 		}
 		if connectErr != nil {
 			log.Warn("MCP server failed", "server", name, "error", connectErr)
+			mcpFailures = append(mcpFailures, repl.HealthReport{
+				Component: name,
+				Status:    repl.StatusYellow,
+				Message:   connectErr.Error(),
+			})
 		}
 	}
+
+	// Build health reports from MCP connection results
+	var healthReports []repl.HealthReport
+	for _, name := range mcpClient.ServerNames() {
+		tools, _ := mcpClient.ServerTools(name)
+		healthReports = append(healthReports, repl.HealthReport{
+			Component: name,
+			Status:    repl.StatusGreen,
+			Message:   fmt.Sprintf("%d tools", len(tools)),
+		})
+	}
+
+	healthReports = append(healthReports, mcpFailures...)
 
 	initialPrompt := strings.Join(fs.Args(), " ")
 
@@ -303,6 +323,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 		Transport:     transport,
 		Enforcer:      enforcer,
 		Token:         capToken,
+		HealthReports: healthReports,
 	})
 
 	if !*noPersist {

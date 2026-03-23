@@ -32,6 +32,7 @@ type Config struct {
 	Transport     interface{}        // clutch.Transport for hot-swap (nil = direct agent.Run)
 	Enforcer      policy.Enforcer   // PolicyEnforcer for agent call mediation
 	Token         policy.CapabilityToken
+	HealthReports []HealthReport   // initial health from startup
 }
 
 // Run starts the interactive REPL. Blocks until /exit or ctrl-C.
