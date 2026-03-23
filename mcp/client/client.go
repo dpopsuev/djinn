@@ -129,8 +129,10 @@ func (c *Client) initializeServer(conn *ServerConn) error {
 		return resp.Error
 	}
 
-	// Send initialized notification (no response expected for notifications, but some servers respond)
-	conn.sendNotification("notifications/initialized", nil)
+	// Send initialized notification — must complete before tools/list
+	if err := conn.sendNotification("notifications/initialized", nil); err != nil {
+		// Some servers don't respond to notifications — continue anyway
+	}
 
 	// List tools
 	toolsResp, err := conn.send("tools/list", nil)
@@ -163,7 +165,7 @@ func (conn *ServerConn) send(method string, params any) (jsonRPCResponse, error)
 	return conn.transport.Send(req)
 }
 
-func (conn *ServerConn) sendNotification(method string, params any) {
+func (conn *ServerConn) sendNotification(method string, params any) error {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 
@@ -172,7 +174,14 @@ func (conn *ServerConn) sendNotification(method string, params any) {
 		Method:  method,
 		Params:  params,
 	}
-	conn.transport.Send(req) // ignore response for notifications
+	resp, err := conn.transport.Send(req)
+	if err != nil {
+		return err
+	}
+	if resp.Error != nil {
+		return resp.Error
+	}
+	return nil
 }
 
 // Tools returns all tool definitions from all connected servers.
