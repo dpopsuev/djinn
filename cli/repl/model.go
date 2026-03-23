@@ -88,6 +88,7 @@ type Model struct {
 	ready          bool
 	quitting       bool
 	initialPrompt  string // auto-submit on first render
+	version        string // app version for MOTD
 }
 
 // NewModel creates a new REPL model.
@@ -134,6 +135,7 @@ func NewModel(cfg Config) Model {
 		outputPanel:    tui.NewOutputPanel(),
 		dashboard:      tui.NewDashboardPanel(),
 		initialPrompt:  cfg.InitialPrompt,
+		version:        cfg.Version,
 	}
 
 	m.focus = tui.NewFocusManager(m.outputPanel, m.dashboard)
@@ -323,7 +325,7 @@ func (m Model) View() string {
 
 	// Welcome header (first time)
 	if len(m.conversation) == 0 && m.state == stateInput {
-		content.WriteString(renderMOTD(m.sess, m.tools, m.healthReports, m.width))
+		content.WriteString(renderMOTD(m.sess, m.tools, m.version))
 		content.WriteString("\n")
 	}
 
@@ -609,7 +611,7 @@ func (m *Model) flushStreamBuffer() {
 // Test accessors — exported for acceptance tests.
 
 // renderMOTD builds the welcome banner with logo and workspace info.
-func renderMOTD(sess *session.Session, tools *builtin.Registry, health []tui.HealthReport, width int) string {
+func renderMOTD(sess *session.Session, tools *builtin.Registry, version string) string {
 	logo := tui.LogoStyle.Render(tui.DjinnLogo)
 
 	wsName := sess.Workspace
@@ -617,20 +619,23 @@ func renderMOTD(sess *session.Session, tools *builtin.Registry, health []tui.Hea
 		wsName = "(ephemeral)"
 	}
 
-	var info strings.Builder
-	info.WriteString(tui.AssistStyle.Render("Djinn v0.1.0") + "\n\n")
-	info.WriteString(fmt.Sprintf("  ws:    %s\n", wsName))
-	info.WriteString(fmt.Sprintf("  model: %s\n", sess.Model))
+	if version == "" {
+		version = "dev"
+	}
+
 	mode := sess.Mode
 	if mode == "" {
 		mode = "agent"
 	}
-	info.WriteString(fmt.Sprintf("  mode:  %s\n", mode))
-	info.WriteString(fmt.Sprintf("  tools: %d\n", len(tools.Names())))
+
+	var info strings.Builder
+	info.WriteString(tui.AssistStyle.Render("Djinn v"+version) + "\n\n")
+	fmt.Fprintf(&info, "  ws:    %s\n", wsName)
+	fmt.Fprintf(&info, "  model: %s\n", sess.Model)
+	fmt.Fprintf(&info, "  mode:  %s\n", mode)
+	fmt.Fprintf(&info, "  tools: %d\n", len(tools.Names()))
 	info.WriteString("\n")
 	info.WriteString(tui.DimStyle.Render("  /help for commands"))
-	info.WriteString("\n")
-	info.WriteString(tui.DimStyle.Render("  Tab to cycle panels"))
 
 	// Join logo (left) + info (right)
 	return lipgloss.JoinHorizontal(lipgloss.Top, logo+"   ", info.String())

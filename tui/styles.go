@@ -51,6 +51,6 @@ const DjinnLogo = `         ████  █████
 
 // Label constants.
 const (
-	LabelUser   = "> "
+	LabelUser   = "❯ "
 	LabelAssist = "djinn"
 )

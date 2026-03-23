@@ -34,6 +34,7 @@ type Config struct {
 	Enforcer      policy.Enforcer   // PolicyEnforcer for agent call mediation
 	Token         policy.CapabilityToken
 	HealthReports []tui.HealthReport   // initial health from startup
+	Version       string              // app version for MOTD (set via ldflags)
 }
 
 // Run starts the interactive REPL. Blocks until /exit or ctrl-C.

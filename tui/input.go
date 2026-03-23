@@ -23,6 +23,7 @@ var _ Panel = (*InputPanel)(nil)
 func NewInputPanel() *InputPanel {
 	ta := textarea.New()
 	ta.Prompt = UserStyle.Render(LabelUser)
+	ta.Placeholder = `Try "explain this codebase"`
 	ta.ShowLineNumbers = false
 	ta.SetHeight(1)
 	ta.CharLimit = 0

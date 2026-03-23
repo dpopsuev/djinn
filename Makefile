@@ -1,10 +1,13 @@
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+LDFLAGS := -ldflags "-X github.com/dpopsuev/djinn/app.Version=$(VERSION)"
+
 .PHONY: build install test test-accept lint vet circuit coverage clean doctor preflight smoke-claude smoke-vertex smoke-all
 
 build:
-	go build ./cmd/djinn/
+	go build $(LDFLAGS) ./cmd/djinn/
 
 install:
-	go install ./cmd/djinn/
+	go install $(LDFLAGS) ./cmd/djinn/
 
 test:
 	go test ./... -race -count=1 -timeout=60s

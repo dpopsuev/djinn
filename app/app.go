@@ -14,9 +14,11 @@ import (
 	"github.com/dpopsuev/djinn/session"
 )
 
+// Version is set via -ldflags at build time. Falls back to "dev".
+var Version = "0.1.0"
+
 // Constants.
 const (
-	Version           = "0.1.0"
 	DefaultHomeDir    = ".djinn"
 	DefaultSessionDir = ".djinn/sessions"
 	DefaultModel      = "claude-sonnet-4-6"
@@ -76,7 +78,7 @@ func Run(args []string, stderr io.Writer) error {
 		return RunLog(stderr)
 	case "doctor":
 		return RunDoctor(stderr)
-	case "version":
+	case "version", "--version", "-v":
 		fmt.Fprintln(stderr, "djinn "+Version)
 		return nil
 	case "--help", "-h", "help":

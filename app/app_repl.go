@@ -356,6 +356,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 		Enforcer:      enforcer,
 		Token:         capToken,
 		HealthReports: healthReports,
+		Version:       Version,
 	})
 
 	if !*noPersist {
