@@ -18,6 +18,8 @@ type EnvelopePanel struct {
 	done     bool // result received
 }
 
+var _ Panel = (*EnvelopePanel)(nil)
+
 // NewEnvelopePanel creates an envelope for a tool call.
 func NewEnvelopePanel(id, toolName, args string) *EnvelopePanel {
 	return &EnvelopePanel{

@@ -15,6 +15,10 @@ type InputPanel struct {
 	onSubmit func(string) // callback when Enter pressed
 }
 
+const panelIDInput = "input"
+
+var _ Panel = (*InputPanel)(nil)
+
 // NewInputPanel creates the input panel.
 func NewInputPanel() *InputPanel {
 	ta := textarea.New()
@@ -25,7 +29,7 @@ func NewInputPanel() *InputPanel {
 	ta.Focus()
 
 	return &InputPanel{
-		BasePanel: NewBasePanel("input", 1),
+		BasePanel: NewBasePanel(panelIDInput, 1),
 		textarea:  ta,
 		histIdx:   -1,
 	}

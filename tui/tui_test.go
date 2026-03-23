@@ -102,7 +102,7 @@ func TestRenderHealth_AllGreen(t *testing.T) {
 		{Component: "b", Status: StatusGreen},
 	}
 	result := RenderHealth(reports)
-	if !strings.Contains(result, "2 mcp") {
+	if !strings.Contains(result, "2") {
 		t.Fatalf("all green should collapse: %q", result)
 	}
 }

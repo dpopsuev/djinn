@@ -16,10 +16,14 @@ type DashboardPanel struct {
 	health    []HealthReport
 }
 
+const panelIDDashboard = "dashboard"
+
+var _ Panel = (*DashboardPanel)(nil)
+
 // NewDashboardPanel creates the dashboard.
 func NewDashboardPanel() *DashboardPanel {
 	return &DashboardPanel{
-		BasePanel: NewBasePanel("dashboard", 1),
+		BasePanel: NewBasePanel(panelIDDashboard, 1),
 	}
 }
 

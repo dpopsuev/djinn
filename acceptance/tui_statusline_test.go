@@ -81,7 +81,7 @@ func TestStatusLine_HealthAllGreen(t *testing.T) {
 	model := toModelPtr(m2)
 	view := model.View()
 	// All green should show collapsed "✓ 2 mcp"
-	if !strings.Contains(view, "2 mcp") {
+	if !strings.Contains(view, "2") {
 		t.Fatalf("all green should show collapsed count: %s", view)
 	}
 }

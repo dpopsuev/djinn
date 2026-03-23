@@ -16,12 +16,16 @@ type OutputPanel struct {
 	lines    []string
 }
 
+const panelIDOutput = "output"
+
 // NewOutputPanel creates the output panel.
 func NewOutputPanel() *OutputPanel {
 	return &OutputPanel{
-		BasePanel: NewBasePanel("output", 0), // flex height
+		BasePanel: NewBasePanel(panelIDOutput, 0),
 	}
 }
+
+var _ Panel = (*OutputPanel)(nil)
 
 func (p *OutputPanel) InitViewport(width, height int) {
 	if height < 3 {

@@ -28,37 +28,88 @@ type HealthReporter interface {
 	Health() HealthReport
 }
 
+// Status line field keys.
+const (
+	fieldWorkspace = "ws"
+	fieldModel     = "model"
+	fieldMode      = "mode"
+	fieldTokens    = "tok"
+	fieldTurns     = "turns"
+	fieldMCP       = "mcp"
+)
+
+// Status line display constants.
+const (
+	labelEphemeral = "(ephemeral)"
+	driverClaude   = "claude"
+)
+
 // Status line styles.
 var (
 	healthGreen  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#22c55e", Dark: "#4ade80"})
 	healthYellow = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#eab308", Dark: "#facc15"})
 	healthRed    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#ef4444", Dark: "#f87171"})
+
+	fieldKeyStyle   = lipgloss.NewStyle().Faint(true)
+	fieldValueStyle = lipgloss.NewStyle().Bold(true)
+	fieldSepStyle   = lipgloss.NewStyle().Faint(true)
 )
 
-// RenderStatusLine builds the unified status line.
-func RenderStatusLine(workspace, driverName, model, mode string, tokensIn, tokensOut, turns int, reports []HealthReport) string {
-	var parts []string
+// StatusField is a single key:value field in the status line.
+type StatusField struct {
+	Key   string
+	Value string
+	Style lipgloss.Style // optional override for value rendering
+}
 
+// FormatField renders a single key:value field with styled key and value.
+func FormatField(f StatusField) string {
+	val := fieldValueStyle.Render(f.Value)
+	if f.Style.Value() != "" {
+		val = f.Style.Render(f.Value)
+	}
+	return fieldKeyStyle.Render(f.Key+":") + val
+}
+
+// FormatStatusLine renders a list of fields separated by styled │.
+func FormatStatusLine(fields []StatusField) string {
+	parts := make([]string, 0, len(fields))
+	for _, f := range fields {
+		parts = append(parts, FormatField(f))
+	}
+	sep := fieldSepStyle.Render(" │ ")
+	return "  " + strings.Join(parts, sep)
+}
+
+// RenderStatusLine builds the unified status line from structured data.
+func RenderStatusLine(workspace, driverName, model, mode string, tokensIn, tokensOut, turns int, reports []HealthReport) string {
 	wsName := workspace
 	if wsName == "" {
-		wsName = "(ephemeral)"
+		wsName = labelEphemeral
 	}
 	driverModel := model
-	if driverName != "" && driverName != "claude" {
+	if driverName != "" && driverName != driverClaude {
 		driverModel = driverName + "/" + model
 	}
-	parts = append(parts, fmt.Sprintf("  ws:%s │ model:%s │ mode:%s", wsName, driverModel, mode))
-	parts = append(parts, fmt.Sprintf("tok:%d/%d │ turns:%d", tokensIn, tokensOut, turns))
+
+	fields := make([]StatusField, 0, 6)
+	fields = append(fields,
+		StatusField{Key: fieldWorkspace, Value: wsName},
+		StatusField{Key: fieldModel, Value: driverModel},
+		StatusField{Key: fieldMode, Value: mode},
+		StatusField{Key: fieldTokens, Value: fmt.Sprintf("%d/%d", tokensIn, tokensOut)},
+		StatusField{Key: fieldTurns, Value: fmt.Sprintf("%d", turns)},
+	)
 
 	healthStr := RenderHealth(reports)
 	if healthStr != "" {
-		parts = append(parts, healthStr)
+		fields = append(fields, StatusField{Key: fieldMCP, Value: healthStr})
 	}
 
-	return StatusStyle.Render(strings.Join(parts, " │ "))
+	return StatusStyle.Render(FormatStatusLine(fields))
 }
 
-// RenderHealth renders health indicators.
+// RenderHealth renders health indicators with color coding.
 func RenderHealth(reports []HealthReport) string {
 	if len(reports) == 0 {
 		return ""
@@ -66,7 +117,7 @@ func RenderHealth(reports []HealthReport) string {
 
 	allGreen := true
 	greenCount := 0
-	var indicators []string
+	indicators := make([]string, 0, len(reports))
 
 	for _, r := range reports {
 		switch r.Status {
@@ -83,13 +134,13 @@ func RenderHealth(reports []HealthReport) string {
 
 	if allGreen {
 		if greenCount > 0 {
-			return healthGreen.Render(fmt.Sprintf("✓ %d mcp", greenCount))
+			return healthGreen.Render(fmt.Sprintf("✓%d", greenCount))
 		}
 		return ""
 	}
 
 	if greenCount > 0 {
-		indicators = append(indicators, healthGreen.Render(fmt.Sprintf("✓ %d", greenCount)))
+		indicators = append(indicators, healthGreen.Render(fmt.Sprintf("✓%d", greenCount)))
 	}
 	return strings.Join(indicators, " ")
 }
