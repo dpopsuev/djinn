@@ -458,5 +458,35 @@ func TestModel_ToolProgressReplacement(t *testing.T) {
 	}
 }
 
+// TestModel_RawStreamLine_NoPanicOnCopy reproduces DJN-BUG-7:
+// Bubbletea copies Model by value in Update(). strings.Builder panics
+// when copied after first write. This test simulates the exact crash path.
+func TestModel_RawStreamLine_NoPanicOnCopy(t *testing.T) {
+	m := testModel()
+	m.SetState(StateStreaming)
+	m.AppendConversation(tui.AssistStyle.Render(tui.LabelAssist) + ": ")
+
+	// Write to rawStreamLine (simulates first flush)
+	m.rawStreamLine.WriteString("hello")
+
+	// Bubbletea copies the Model by value in Update().
+	// After fix: rawStreamLine is a *strings.Builder, so copy shares the pointer.
+	// Before fix: strings.Builder panics on copy after write.
+	panicked := func() (caught bool) {
+		defer func() {
+			if r := recover(); r != nil {
+				caught = true
+			}
+		}()
+		copied := m //nolint:govet // intentional copy to test
+		copied.rawStreamLine.WriteString(" world")
+		return false
+	}()
+
+	if panicked {
+		t.Fatal("DJN-BUG-7: panic on Model copy after rawStreamLine write — use *strings.Builder not strings.Builder")
+	}
+}
+
 // Ensure unused import suppression
 var _ = fmt.Sprint

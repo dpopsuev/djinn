@@ -63,7 +63,7 @@ type Model struct {
 	// UI state
 	state       State
 	inputPanel  *tui.InputPanel
-	streamBuf   strings.Builder
+	streamBuf   *strings.Builder
 	pendingTool *driver.ToolCall
 	lastUsage    *driver.Usage
 	totalIn      int      // cumulative input tokens
@@ -71,7 +71,7 @@ type Model struct {
 	lastError    string
 	handler      agent.EventHandler
 	outputMode   OutputMode
-	chunkedBuf   strings.Builder // accumulates full response for chunked mode
+	chunkedBuf   *strings.Builder // accumulates full response for chunked mode
 	width        int
 	height       int
 	healthReports  []tui.HealthReport // component health for status line
@@ -85,7 +85,7 @@ type Model struct {
 	quitting       bool
 	initialPrompt  string // auto-submit on first render
 	version        string // app version for MOTD
-	rawStreamLine  strings.Builder // raw unrendered text for incremental markdown
+	rawStreamLine  *strings.Builder // raw unrendered text for incremental markdown (pointer: Builder can't be copied)
 
 	// Staff — role pipeline
 	currentRole  string
@@ -133,6 +133,9 @@ func NewModel(cfg Config) Model {
 		dashboard:      tui.NewDashboardPanel(),
 		initialPrompt:  cfg.InitialPrompt,
 		version:        cfg.Version,
+		streamBuf:      &strings.Builder{},
+		chunkedBuf:     &strings.Builder{},
+		rawStreamLine:  &strings.Builder{},
 	}
 
 	m.focus = tui.NewFocusManager(m.outputPanel, m.inputPanel, m.dashboard)
