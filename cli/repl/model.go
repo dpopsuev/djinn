@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -331,11 +332,8 @@ func (m Model) View() string {
 
 	// Welcome header (first time)
 	if len(m.conversation) == 0 && m.state == stateInput {
-		content.WriteString(tui.LogoStyle.Render(tui.DjinnLogo))
+		content.WriteString(renderMOTD(m.sess, m.tools, m.healthReports, m.width))
 		content.WriteString("\n")
-		content.WriteString(tui.DimStyle.Render(fmt.Sprintf("  model: %s — tools: %d — /help for commands",
-			m.sess.Model, len(m.tools.Names()))))
-		content.WriteString("\n\n")
 	}
 
 	// Conversation history (word-wrapped)
@@ -376,9 +374,10 @@ func (m Model) View() string {
 	}
 	sb.WriteString(tui.RenderWithDepth(outputView, depths[0]))
 
-	// Separator: output ↔ input
+	// Separator: output ↔ input (with focus indicator)
 	sb.WriteString("\n")
-	sb.WriteString(tui.Separator(m.width, 0, m.focus.ActiveIndex() == 0))
+	sb.WriteString(tui.RenderFocusIndicator(m.focus.ActiveIndex() == 0))
+	sb.WriteString(tui.Separator(m.width-1, 0, m.focus.ActiveIndex() == 0))
 	sb.WriteString("\n")
 
 	// Input
@@ -386,9 +385,10 @@ func (m Model) View() string {
 		sb.WriteString(m.textInput.View())
 	}
 
-	// Separator: input ↔ dashboard
+	// Separator: input ↔ dashboard (with focus indicator)
 	sb.WriteString("\n")
-	sb.WriteString(tui.Separator(m.width, 0, m.focus.ActiveIndex() == 1))
+	sb.WriteString(tui.RenderFocusIndicator(m.focus.ActiveIndex() == 1))
+	sb.WriteString(tui.Separator(m.width-1, 0, m.focus.ActiveIndex() == 1))
 	sb.WriteString("\n")
 
 	// Dashboard
@@ -415,7 +415,6 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.handleApproval(msg.String())
 		}
 		if m.state == stateInput {
-			// Alt+Enter = newline in textarea (let textarea handle it)
 			if msg.Alt {
 				var cmd tea.Cmd
 				m.textInput, cmd = m.textInput.Update(msg)
@@ -617,6 +616,34 @@ func (m *Model) flushStreamBuffer() {
 }
 
 // Test accessors — exported for acceptance tests.
+
+// renderMOTD builds the welcome banner with logo and workspace info.
+func renderMOTD(sess *session.Session, tools *builtin.Registry, health []tui.HealthReport, width int) string {
+	logo := tui.LogoStyle.Render(tui.DjinnLogo)
+
+	wsName := sess.Workspace
+	if wsName == "" {
+		wsName = "(ephemeral)"
+	}
+
+	var info strings.Builder
+	info.WriteString(tui.AssistStyle.Render("Djinn v0.1.0") + "\n\n")
+	info.WriteString(fmt.Sprintf("  ws:    %s\n", wsName))
+	info.WriteString(fmt.Sprintf("  model: %s\n", sess.Model))
+	mode := sess.Mode
+	if mode == "" {
+		mode = "agent"
+	}
+	info.WriteString(fmt.Sprintf("  mode:  %s\n", mode))
+	info.WriteString(fmt.Sprintf("  tools: %d\n", len(tools.Names())))
+	info.WriteString("\n")
+	info.WriteString(tui.DimStyle.Render("  /help for commands"))
+	info.WriteString("\n")
+	info.WriteString(tui.DimStyle.Render("  Tab to cycle panels"))
+
+	// Join logo (left) + info (right)
+	return lipgloss.JoinHorizontal(lipgloss.Top, logo+"   ", info.String())
+}
 
 // SetTextInput sets the text input value (for testing).
 func (m *Model) SetTextInput(v string) { m.textInput.SetValue(v) }

@@ -47,8 +47,8 @@ func RenderStatusLine(workspace, driverName, model, mode string, tokensIn, token
 	if driverName != "" && driverName != "claude" {
 		driverModel = driverName + "/" + model
 	}
-	parts = append(parts, fmt.Sprintf("  %s │ %s │ %s", wsName, driverModel, mode))
-	parts = append(parts, fmt.Sprintf("%d in, %d out │ %d turns", tokensIn, tokensOut, turns))
+	parts = append(parts, fmt.Sprintf("  ws:%s │ model:%s │ mode:%s", wsName, driverModel, mode))
+	parts = append(parts, fmt.Sprintf("tok:%d/%d │ turns:%d", tokensIn, tokensOut, turns))
 
 	healthStr := RenderHealth(reports)
 	if healthStr != "" {
