@@ -319,6 +319,139 @@ func TestConnectHTTP_SSE(t *testing.T) {
 	}
 }
 
+// TestConnectHTTP_SSE_Chunked reproduces the real Scribe behavior:
+// Transfer-Encoding: chunked + Content-Type: text/event-stream
+// This is the exact format that caused "no JSON found in SSE body" in production.
+func TestConnectHTTP_SSE_Chunked(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req jsonRPCRequest
+		json.NewDecoder(r.Body).Decode(&req)
+
+		var result any
+		switch req.Method {
+		case "initialize":
+			result = initializeResult{ProtocolVersion: "2024-11-05"}
+		case "notifications/initialized":
+			result = struct{}{}
+		case "tools/list":
+			result = toolsListResult{
+				Tools: []ToolDef{
+					{Name: "artifact", Description: "Manage artifacts", InputSchema: json.RawMessage(`{"type":"object"}`)},
+				},
+			}
+		case "tools/call":
+			result = toolCallResult{
+				Content: []contentBlock{{Type: "text", Text: "chunked sse result"}},
+			}
+		default:
+			result = struct{}{}
+		}
+
+		resultJSON, _ := json.Marshal(result)
+		resp := jsonRPCResponse{JSONRPC: jsonRPCVersion, ID: req.ID, Result: resultJSON}
+		respJSON, _ := json.Marshal(resp)
+
+		// Respond EXACTLY like real Scribe: chunked SSE
+		w.Header().Set("Content-Type", "text/event-stream")
+		// Transfer-Encoding: chunked is automatic when using Flush()
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			t.Fatal("server doesn't support flushing")
+		}
+		fmt.Fprintf(w, "event: message\ndata: %s\n\n", respJSON)
+		flusher.Flush()
+	}))
+	defer srv.Close()
+
+	c := New(djinnlog.Nop())
+	defer c.Close()
+
+	err := c.ConnectHTTP(context.Background(), "scribe-chunked", srv.URL)
+	if err != nil {
+		t.Fatalf("ConnectHTTP chunked SSE: %v", err)
+	}
+
+	tools := c.Tools()
+	if len(tools) != 1 {
+		t.Fatalf("tools = %d, want 1", len(tools))
+	}
+
+	// Test tool call through chunked SSE
+	result, err := c.Call(context.Background(), "scribe-chunked", "artifact", json.RawMessage(`{"action":"list"}`))
+	if err != nil {
+		t.Fatalf("Call through chunked SSE: %v", err)
+	}
+	if result != "chunked sse result" {
+		t.Fatalf("result = %q", result)
+	}
+}
+
+// TestConnectHTTP_SSE_RequiresAcceptHeader reproduces the real Scribe bug:
+// Scribe returns 400 "Accept must contain both 'application/json' and 'text/event-stream'"
+// when the Accept header is missing.
+func TestConnectHTTP_SSE_RequiresAcceptHeader(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Mimic real Scribe: reject if Accept header doesn't contain both types
+		accept := r.Header.Get("Accept")
+		if accept == "" || !(contains(accept, "application/json") && contains(accept, "text/event-stream")) {
+			http.Error(w, "Accept must contain both 'application/json' and 'text/event-stream'", http.StatusBadRequest)
+			return
+		}
+
+		var req jsonRPCRequest
+		json.NewDecoder(r.Body).Decode(&req)
+
+		var result any
+		switch req.Method {
+		case "initialize":
+			result = initializeResult{ProtocolVersion: "2024-11-05"}
+		case "notifications/initialized":
+			result = struct{}{}
+		case "tools/list":
+			result = toolsListResult{
+				Tools: []ToolDef{
+					{Name: "artifact", Description: "Manage artifacts", InputSchema: json.RawMessage(`{"type":"object"}`)},
+				},
+			}
+		default:
+			result = struct{}{}
+		}
+
+		resultJSON, _ := json.Marshal(result)
+		resp := jsonRPCResponse{JSONRPC: jsonRPCVersion, ID: req.ID, Result: resultJSON}
+		respJSON, _ := json.Marshal(resp)
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprintf(w, "event: message\ndata: %s\n\n", respJSON)
+	}))
+	defer srv.Close()
+
+	c := New(djinnlog.Nop())
+	defer c.Close()
+
+	err := c.ConnectHTTP(context.Background(), "strict-scribe", srv.URL)
+	if err != nil {
+		t.Fatalf("ConnectHTTP should work with proper Accept header: %v", err)
+	}
+
+	if len(c.Tools()) != 1 {
+		t.Fatalf("tools = %d, want 1", len(c.Tools()))
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && stringContains(s, substr))
+}
+
+func stringContains(s, sub string) bool {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
+}
+
 func TestExtractSSEData(t *testing.T) {
 	tests := []struct {
 		input string

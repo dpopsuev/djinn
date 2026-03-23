@@ -379,7 +379,14 @@ func (t *httpTransport) Send(req jsonRPCRequest) (jsonRPCResponse, error) {
 		return jsonRPCResponse{}, err
 	}
 
-	httpResp, err := t.client.Post(t.url, "application/json", bytes.NewReader(data))
+	httpReq, err := http.NewRequest(http.MethodPost, t.url, bytes.NewReader(data))
+	if err != nil {
+		return jsonRPCResponse{}, fmt.Errorf("build request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "application/json, text/event-stream")
+
+	httpResp, err := t.client.Do(httpReq)
 	if err != nil {
 		return jsonRPCResponse{}, fmt.Errorf("http post: %w", err)
 	}
