@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
 )
@@ -83,6 +85,11 @@ type Model struct {
 	quitting       bool
 	initialPrompt  string // auto-submit on first render
 	version        string // app version for MOTD
+
+	// Staff — role pipeline
+	currentRole  string
+	roleMemory   *staff.RoleMemory
+	roles        map[string]staff.Role
 }
 
 // NewModel creates a new REPL model.
@@ -131,6 +138,13 @@ func NewModel(cfg Config) Model {
 	m.dashboard.SetIdentity(cfg.Session.Workspace, cfg.Session.Driver, cfg.Session.Model, cfg.Mode)
 	m.dashboard.SetHealth(cfg.HealthReports)
 
+	// Staff: initialize roles and memory
+	staffCfg := staff.DefaultConfig()
+	m.roles = staffCfg.RoleMap()
+	m.roleMemory = staff.NewRoleMemory()
+	m.currentRole = "gensec"
+	m.dashboard.SetUIState("GENSEC")
+
 	return m
 }
 
@@ -152,7 +166,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.outputPanel.InitViewport(msg.Width, msg.Height-m.fixedHeight())
 		// Render MOTD once when viewport is first initialized
 		if m.outputPanel.LineCount() == 0 {
-			m.outputPanel.Append(renderMOTD(m.sess, m.tools, m.version, msg.Width))
+			m.outputPanel.Append(renderMOTD(m.sess, m.tools, m.version, m.currentRole, msg.Width))
 		}
 		// Auto-submit initial prompt if provided
 		if m.initialPrompt != "" {
@@ -278,8 +292,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.outputPanel.Append("") // blank line
 		m.state = stateInput
-		m.dashboard.SetUIState("INSERT")
 		m.inputPanel.FocusInput()
+
+		// Auto-transition: determine next role
+		if m.currentRole == "executor" {
+			next := staff.NextRole(staff.SignalGatePassed)
+			m.switchRole(next)
+		} else if m.currentRole != "gensec" {
+			m.switchRole("gensec")
+		} else {
+			m.dashboard.SetUIState("GENSEC")
+		}
 		return m, nil
 
 	case tui.TickMsg:
@@ -343,6 +366,29 @@ func (m Model) separator(panelIdx int) string {
 // fixedHeight returns the number of lines consumed by non-output panels.
 func (m Model) fixedHeight() int {
 	return 5 // input(1) + dashboard(1) + separators(2) + padding(1)
+}
+
+// switchRole transitions to a new staff role — swaps prompt, mode, and narrates.
+func (m *Model) switchRole(roleName string) {
+	role, ok := m.roles[roleName]
+	if !ok {
+		return
+	}
+
+	m.currentRole = roleName
+	m.systemPrompt = role.Prompt
+	m.chatDriver.SetSystemPrompt(role.Prompt)
+
+	if newMode, err := agent.ParseMode(role.Mode); err == nil {
+		m.mode = newMode
+	}
+
+	m.dashboard.SetUIState(strings.ToUpper(roleName))
+	m.roleMemory.AppendBriefing(staff.Entry{
+		Content: fmt.Sprintf("→ switched to %s", roleName),
+	})
+	m.outputPanel.Append(tui.DimStyle.Render(
+		fmt.Sprintf("  → %s", roleName)))
 }
 
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -431,6 +477,34 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 
 	// Add user input to conversation
 	m.outputPanel.Append(tui.UserStyle.Render(tui.LabelUser) + input)
+
+	// Handle /role before the general command dispatcher (needs Model access)
+	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/role" {
+		if len(cmd.Args) == 0 {
+			names := make([]string, 0, len(m.roles))
+			for n := range m.roles {
+				names = append(names, n)
+			}
+			sort.Strings(names)
+			m.outputPanel.Append(fmt.Sprintf("current role: %s\navailable: %s",
+				m.currentRole, strings.Join(names, ", ")))
+		} else if cmd.Args[0] == "create" && len(cmd.Args) >= 3 {
+			// /role create <name> <mode> — create a role on the fly
+			name, mode := cmd.Args[1], cmd.Args[2]
+			m.roles[name] = staff.Role{
+				Name:   name,
+				Prompt: fmt.Sprintf("You are %s. The operator created this role on the fly.", name),
+				Mode:   mode,
+				Slots:  []string{}, // empty until configured
+			}
+			m.outputPanel.Append(fmt.Sprintf("created role %q (mode: %s, slots: none — use /role slots %s to configure)", name, mode, name))
+		} else {
+			m.switchRole(cmd.Args[0])
+			m.outputPanel.Append(fmt.Sprintf("switched to %s (manual override)", cmd.Args[0]))
+		}
+		m.outputPanel.Append("")
+		return m, nil
+	}
 
 	// Check for slash command
 	if cmd, ok := ParseCommand(input); ok {
@@ -552,7 +626,7 @@ func (m *Model) flushStreamBuffer() {
 
 // renderMOTD builds the welcome banner with logo and workspace info
 // inside a lipgloss rounded border box.
-func renderMOTD(sess *session.Session, tools *builtin.Registry, version string, width int) string {
+func renderMOTD(sess *session.Session, tools *builtin.Registry, version, currentRole string, width int) string {
 	logo := tui.LogoStyle.Render(tui.DjinnLogo)
 
 	wsName := sess.Workspace
@@ -573,6 +647,7 @@ func renderMOTD(sess *session.Session, tools *builtin.Registry, version string, 
 	fmt.Fprintf(&info, "  ecosystem: %s\n", wsName)
 	fmt.Fprintf(&info, "  model:     %s\n", sess.Model)
 	fmt.Fprintf(&info, "  mode:      %s\n", mode)
+	fmt.Fprintf(&info, "  role:      %s\n", currentRole)
 	fmt.Fprintf(&info, "  tools:     %d built-in\n", len(tools.Names()))
 	info.WriteString("\n")
 	info.WriteString(tui.DimStyle.Render("  /help for commands"))
