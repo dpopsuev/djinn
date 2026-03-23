@@ -39,11 +39,15 @@ var (
 			Bold(true)
 )
 
-// ASCII logo — Djinn text in Red Hat Red.
-const DjinnLogo = ` ___  _ ___ _   _
-|   \| |_ _| \ | |
-| |) | | | |  \| |
-|___/|_|___|_|\_|`
+// Djinn logo — Red Hat fedora rendered from rh_logo.svg in block characters.
+const DjinnLogo = `         ████  █████
+        ███████████████
+       █████████████████
+ █████    ███████████████
+█████████        █████   ███
+  █████████████        ███████
+      ████████████████████████
+            ████████████████`
 
 // Label constants.
 const (

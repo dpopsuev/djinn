@@ -266,9 +266,13 @@ func TestModel_HandleApproval_N(t *testing.T) {
 func TestModel_View_Welcome(t *testing.T) {
 	m := testModel()
 	view := m.View()
-	// Logo contains "___" pattern from ASCII art
-	if !strings.Contains(view, "___") {
-		t.Fatalf("welcome should show logo, got: %q", view[:min(len(view), 200)])
+	// Structural: welcome view should contain the logo (non-empty)
+	if !strings.Contains(view, tui.DjinnLogo[:10]) {
+		t.Fatal("welcome should render the logo")
+	}
+	// Structural: welcome view should contain help hint
+	if !strings.Contains(view, "/help") {
+		t.Fatal("welcome should contain /help hint")
 	}
 }
 
