@@ -12,6 +12,7 @@ import (
 	"github.com/dpopsuev/djinn/cli/repl"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
 )
@@ -119,5 +120,173 @@ func TestTUI_AllModesValid(t *testing.T) {
 		if m.String() != name {
 			t.Fatalf("roundtrip: %q != %q", m.String(), name)
 		}
+	}
+}
+
+// --- Event Loop Tests (DJN-BUG-8) ---
+// These tests push messages through multiple Update() copies,
+// simulating the exact value-copy path that Bubbletea does.
+
+// multiUpdate pushes N messages through the Model, copying on each step.
+// This catches strings.Builder and any other non-copyable fields.
+func multiUpdate(t *testing.T, m tea.Model, msgs ...tea.Msg) tea.Model {
+	t.Helper()
+	for i, msg := range msgs {
+		defer func(step int) {
+			if r := recover(); r != nil {
+				t.Fatalf("PANIC at Update step %d (msg=%T): %v", step, msgs[step], r)
+			}
+		}(i)
+		m, _ = m.Update(msg)
+	}
+	return m
+}
+
+func TestTUI_StreamingCycle_NoPanic(t *testing.T) {
+	// The most basic flow: init → type text → stream response → done.
+	// This catches value-copy panics on strings.Builder fields (DJN-BUG-7).
+	m := testTUIModel(t, "agent")
+
+	// Simulate: user types, agent streams tokens, agent finishes.
+	m.SetState(repl.StateStreaming)
+	m.AppendConversation(tui.AssistStyle.Render(tui.LabelAssist) + ": ")
+
+	result := multiUpdate(t, *m,
+		tui.TextMsg("Hello "),        // token 1
+		tui.TickMsg(time.Now()),       // flush 1
+		tui.TextMsg("world, "),        // token 2
+		tui.TickMsg(time.Now()),       // flush 2
+		tui.TextMsg("how are you?"),   // token 3
+		tui.TickMsg(time.Now()),       // flush 3
+		tui.AgentDoneMsg{},            // completion
+	)
+
+	model := toModelPtr(result)
+	if model.CurrentState() != repl.StateInput {
+		t.Fatalf("state after done = %d, want StateInput", model.CurrentState())
+	}
+}
+
+func TestTUI_MultipleConversationTurns_NoPanic(t *testing.T) {
+	// Two full conversation turns: prompt → stream → done → prompt → stream → done.
+	m := testTUIModel(t, "agent")
+
+	// Turn 1
+	m.SetState(repl.StateStreaming)
+	m.AppendConversation(tui.AssistStyle.Render(tui.LabelAssist) + ": ")
+
+	result := multiUpdate(t, *m,
+		tui.TextMsg("response one"),
+		tui.TickMsg(time.Now()),
+		tui.AgentDoneMsg{},
+	)
+
+	// Turn 2: re-enter streaming
+	model := toModelPtr(result)
+	model.SetState(repl.StateStreaming)
+	model.AppendConversation(tui.AssistStyle.Render(tui.LabelAssist) + ": ")
+
+	result2 := multiUpdate(t, *model,
+		tui.TextMsg("response two"),
+		tui.TickMsg(time.Now()),
+		tui.AgentDoneMsg{},
+	)
+
+	model2 := toModelPtr(result2)
+	if model2.CurrentState() != repl.StateInput {
+		t.Fatalf("state after turn 2 = %d", model2.CurrentState())
+	}
+	if model2.ConversationLen() < 4 {
+		t.Fatalf("conversation should have entries from both turns, got %d", model2.ConversationLen())
+	}
+}
+
+func TestTUI_ToolApprovalCycle_NoPanic(t *testing.T) {
+	// Stream → tool call → approval → stream → done.
+	m := testTUIModel(t, "agent")
+	m.SetState(repl.StateStreaming)
+	m.AppendConversation(tui.AssistStyle.Render(tui.LabelAssist) + ": ")
+
+	result := multiUpdate(t, *m,
+		tui.TextMsg("Let me read that file."),
+		tui.TickMsg(time.Now()),
+		tui.ToolCallMsg{Call: driver.ToolCall{ID: "c1", Name: "Read", Input: json.RawMessage(`{"path":"main.go"}`)}},
+	)
+
+	model := toModelPtr(result)
+	if model.CurrentState() != repl.StateToolApproval {
+		t.Fatalf("state = %d, want tool approval", model.CurrentState())
+	}
+
+	// Approve via key press
+	result2 := multiUpdate(t, *model,
+		tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}},
+	)
+
+	model2 := toModelPtr(result2)
+	if model2.CurrentState() == repl.StateToolApproval {
+		t.Fatal("should leave approval state after pressing y")
+	}
+}
+
+func TestTUI_SlashCommand_NoPanic(t *testing.T) {
+	// Type /help through the event loop — verify no panic on copy.
+	m := testTUIModel(t, "agent")
+
+	// Simulate typing /help and pressing Enter
+	m.SetTextInput("/help")
+	result := multiUpdate(t, *m,
+		tea.KeyMsg{Type: tea.KeyEnter},
+	)
+
+	model := toModelPtr(result)
+	if model.ConversationLen() == 0 {
+		t.Fatal("help should add output to conversation")
+	}
+}
+
+func TestTUI_RoleSwitch_NoPanic(t *testing.T) {
+	// Switch roles via /role command through the event loop.
+	// Needs a driver because switchRole calls SetSystemPrompt.
+	sess := session.New("tui-test", "test-model", "/workspace")
+	m := repl.NewModel(repl.Config{
+		Tools:   builtin.NewRegistry(),
+		Session: sess,
+		Mode:    "agent",
+		Driver:  &stubs.StubChatDriver{},
+	})
+	m2, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	mp := toModelPtr(m2)
+
+	mp.SetTextInput("/role executor")
+	result := multiUpdate(t, *mp,
+		tea.KeyMsg{Type: tea.KeyEnter},
+	)
+
+	model := toModelPtr(result)
+	view := model.View()
+	if !strings.Contains(strings.ToUpper(view), "EXECUTOR") {
+		t.Fatal("dashboard should show EXECUTOR after role switch")
+	}
+}
+
+func TestTUI_ViewRender_NoPanic(t *testing.T) {
+	// Render View() after streaming — catches any render-path panics.
+	m := testTUIModel(t, "agent")
+	m.SetState(repl.StateStreaming)
+	m.AppendConversation(tui.AssistStyle.Render(tui.LabelAssist) + ": ")
+
+	result := multiUpdate(t, *m,
+		tui.TextMsg("hello"),
+		tui.TickMsg(time.Now()),
+	)
+
+	model := toModelPtr(result)
+	view := model.View()
+	if view == "" {
+		t.Fatal("view should not be empty during streaming")
+	}
+	if strings.Contains(view, "[0m[38") {
+		t.Fatal("view contains raw ANSI escape literals (DJN-BUG-5)")
 	}
 }
