@@ -333,7 +333,7 @@ type apiContent struct {
 }
 
 type apiRequest struct {
-	Model             string       `json:"model"`
+	Model             string       `json:"model,omitempty"`
 	MaxTokens         int          `json:"max_tokens"`
 	System            string       `json:"system,omitempty"`
 	Messages          []apiMessage `json:"messages"`
