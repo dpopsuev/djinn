@@ -139,6 +139,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.ready = true
+		reinitRenderer(msg.Width)
 		// Auto-submit initial prompt if provided
 		if m.initialPrompt != "" {
 			m.textInput.SetValue(m.initialPrompt)
@@ -227,6 +228,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.chunkedBuf.Reset()
 		}
 		m.flushStreamBuffer()
+		// Render the completed response as markdown
+		if len(m.conversation) > 0 {
+			last := len(m.conversation) - 1
+			raw := m.conversation[last]
+			// Strip the assistant label prefix, render, re-add
+			prefix := assistStyle.Render(labelAssist) + ": "
+			if after, found := strings.CutPrefix(raw, prefix); found {
+				rendered := renderMarkdown(after)
+				m.conversation[last] = prefix + rendered
+			}
+		}
 		if msg.Err != nil {
 			m.conversation = append(m.conversation,
 				errorStyle.Render("error: "+msg.Err.Error()))
