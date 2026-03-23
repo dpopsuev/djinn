@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -83,6 +84,9 @@ type Model struct {
 	width        int
 	height       int
 	healthReports  []tui.HealthReport // component health for status line
+	spin           spinner.Model
+	spinnerActive  bool
+	activeToolIdx  int  // conversation index of active tool spinner (-1 = none)
 	ready          bool
 	quitting       bool
 	initialPrompt  string // auto-submit on first render
@@ -123,8 +127,10 @@ func NewModel(cfg Config) Model {
 		textInput:    ti,
 		historyIdx:    -1,
 		handler:       agent.NilHandler{},
-		healthReports: cfg.HealthReports,
-		initialPrompt: cfg.InitialPrompt,
+		healthReports:  cfg.HealthReports,
+		spin:           spinner.New(spinner.WithSpinner(spinner.Dot)),
+		activeToolIdx:  -1,
+		initialPrompt:  cfg.InitialPrompt,
 	}
 }
 
@@ -154,13 +160,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 
+	case spinner.TickMsg:
+		if m.spinnerActive {
+			var cmd tea.Cmd
+			m.spin, cmd = m.spin.Update(msg)
+			return m, cmd
+		}
+		return m, nil
+
 	case tui.TextMsg:
+		m.spinnerActive = false // first token arrived, hide spinner
 		if m.outputMode == outputChunked {
 			m.chunkedBuf.WriteString(string(msg))
 		} else {
 			m.streamBuf.WriteString(string(msg))
 		}
-		return m, nil // wait for tick to render (streaming) or done (chunked)
+		return m, nil
 
 	case tui.ThinkingMsg:
 		m.conversation = append(m.conversation,
@@ -168,10 +183,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tui.ToolCallMsg:
-		line := fmt.Sprintf("  %s %s",
+		line := fmt.Sprintf("  %s %s %s",
+			m.spin.View(),
 			tui.ToolNameStyle.Render(msg.Call.Name),
 			tui.ToolArgStyle.Render(truncate(string(msg.Call.Input), 80)))
 		m.conversation = append(m.conversation, line)
+		m.activeToolIdx = len(m.conversation) - 1
 
 		// In agent mode (not auto), prompt for approval
 		if m.mode == agent.ModeAgent && !m.autoApprove {
@@ -190,14 +207,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			lines := strings.Count(msg.Output, "\n")
 			if lines > 3 {
 				line = fmt.Sprintf("  %s (%d lines)",
-					tui.ToolSuccessStyle.Render(msg.Name), lines)
+					tui.ToolSuccessStyle.Render("✓ "+msg.Name), lines)
 			} else {
 				line = fmt.Sprintf("  %s %s",
-					tui.ToolSuccessStyle.Render(msg.Name),
+					tui.ToolSuccessStyle.Render("✓ "+msg.Name),
 					tui.DimStyle.Render(truncate(msg.Output, 100)))
 			}
 		}
-		m.conversation = append(m.conversation, line)
+		// Replace spinner line with result if we have an active tool
+		if m.activeToolIdx >= 0 && m.activeToolIdx < len(m.conversation) {
+			m.conversation[m.activeToolIdx] = line
+			m.activeToolIdx = -1
+		} else {
+			m.conversation = append(m.conversation, line)
+		}
 		return m, nil
 
 	case tui.DoneMsg:
@@ -283,15 +306,23 @@ func (m Model) View() string {
 		sb.WriteString("\n\n")
 	}
 
-	// Conversation history
+	// Conversation history (word-wrapped)
 	for _, line := range m.conversation {
-		sb.WriteString(line)
+		if m.width > 0 {
+			sb.WriteString(tui.WrapText(line, m.width-2))
+		} else {
+			sb.WriteString(line)
+		}
 		sb.WriteString("\n")
 	}
 
-	// Current streaming text
-	if m.state == stateStreaming && m.streamBuf.Len() > 0 {
-		sb.WriteString(m.streamBuf.String())
+	// Spinner or streaming text
+	if m.state == stateStreaming {
+		if m.spinnerActive {
+			sb.WriteString("  " + m.spin.View() + " thinking...\n")
+		} else if m.streamBuf.Len() > 0 {
+			sb.WriteString(m.streamBuf.String())
+		}
 	}
 
 	// Tool approval prompt
@@ -436,11 +467,13 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 	m.streamBuf.Reset()
 	m.lastUsage = nil
 	m.lastError = ""
+	m.spinnerActive = true
 	m.conversation = append(m.conversation, tui.AssistStyle.Render(tui.LabelAssist)+": ")
 	m.textInput.Blur()
 
 	return m, tea.Batch(
 		m.runAgent(input),
+		m.spin.Tick,
 		tickCmd(),
 	)
 }

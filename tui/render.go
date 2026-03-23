@@ -55,3 +55,44 @@ func ReinitRenderer(width int) {
 		InitRenderer(width)
 	}
 }
+
+// WrapText wraps lines longer than width at word boundaries.
+func WrapText(text string, width int) string {
+	if width <= 0 || len(text) <= width {
+		return text
+	}
+
+	var result strings.Builder
+	for _, line := range strings.Split(text, "\n") {
+		if len(line) <= width {
+			if result.Len() > 0 {
+				result.WriteByte('\n')
+			}
+			result.WriteString(line)
+			continue
+		}
+		// Wrap at word boundary
+		for len(line) > width {
+			breakAt := width
+			// Find last space before width
+			for i := width; i >= width/2; i-- {
+				if line[i] == ' ' {
+					breakAt = i
+					break
+				}
+			}
+			if result.Len() > 0 {
+				result.WriteByte('\n')
+			}
+			result.WriteString(line[:breakAt])
+			line = strings.TrimLeft(line[breakAt:], " ")
+		}
+		if len(line) > 0 {
+			if result.Len() > 0 {
+				result.WriteByte('\n')
+			}
+			result.WriteString(line)
+		}
+	}
+	return result.String()
+}

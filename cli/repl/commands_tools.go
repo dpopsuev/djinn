@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/session"
 )
 
@@ -24,7 +25,7 @@ const (
 )
 
 func executeDiff() CommandResult {
-	out, err := exec.Command("git", "diff", "--stat").Output()
+	out, err := exec.Command("git", "diff").Output()
 	if err != nil {
 		return CommandResult{Output: "no git diff available"}
 	}
@@ -32,7 +33,7 @@ func executeDiff() CommandResult {
 	if diff == "" {
 		return CommandResult{Output: "no changes (working tree clean)"}
 	}
-	return CommandResult{Output: diff}
+	return CommandResult{Output: tui.RenderDiff(diff)}
 }
 
 func executeLog(cmd Command) CommandResult {
