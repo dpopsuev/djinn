@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/agent"
@@ -68,6 +69,8 @@ type Model struct {
 	// UI state
 	state        State
 	textInput    textinput.Model
+	vp           viewport.Model
+	vpReady      bool
 	streamBuf    strings.Builder
 	conversation []string // rendered conversation lines
 	inputHistory []string // previous prompts
@@ -149,6 +152,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.ready = true
 		tui.ReinitRenderer(msg.Width)
+		// Reserve 3 lines: input + status + padding
+		vpHeight := msg.Height - 3
+		if vpHeight < 5 {
+			vpHeight = 5
+		}
+		if !m.vpReady {
+			m.vp = viewport.New(msg.Width, vpHeight)
+			m.vpReady = true
+		} else {
+			m.vp.Width = msg.Width
+			m.vp.Height = vpHeight
+		}
 		// Auto-submit initial prompt if provided
 		if m.initialPrompt != "" {
 			m.textInput.SetValue(m.initialPrompt)
@@ -297,42 +312,55 @@ func (m Model) View() string {
 
 	var sb strings.Builder
 
+	// Build conversation content for viewport
+	var content strings.Builder
+
 	// Welcome header (first time)
 	if len(m.conversation) == 0 && m.state == stateInput {
-		sb.WriteString(tui.LogoStyle.Render(tui.DjinnLogo))
-		sb.WriteString("\n")
-		sb.WriteString(tui.DimStyle.Render(fmt.Sprintf("  model: %s — tools: %d — /help for commands",
+		content.WriteString(tui.LogoStyle.Render(tui.DjinnLogo))
+		content.WriteString("\n")
+		content.WriteString(tui.DimStyle.Render(fmt.Sprintf("  model: %s — tools: %d — /help for commands",
 			m.sess.Model, len(m.tools.Names()))))
-		sb.WriteString("\n\n")
+		content.WriteString("\n\n")
 	}
 
 	// Conversation history (word-wrapped)
 	for _, line := range m.conversation {
 		if m.width > 0 {
-			sb.WriteString(tui.WrapText(line, m.width-2))
+			content.WriteString(tui.WrapText(line, m.width-2))
 		} else {
-			sb.WriteString(line)
+			content.WriteString(line)
 		}
-		sb.WriteString("\n")
+		content.WriteString("\n")
 	}
 
 	// Spinner or streaming text
 	if m.state == stateStreaming {
 		if m.spinnerActive {
-			sb.WriteString("  " + m.spin.View() + " thinking...\n")
+			content.WriteString("  " + m.spin.View() + " thinking...\n")
 		} else if m.streamBuf.Len() > 0 {
-			sb.WriteString(m.streamBuf.String())
+			content.WriteString(m.streamBuf.String())
 		}
 	}
 
 	// Tool approval prompt
 	if m.state == stateToolApproval && m.pendingTool != nil {
-		sb.WriteString(tui.ToolNameStyle.Render(
+		content.WriteString(tui.ToolNameStyle.Render(
 			fmt.Sprintf("  approve %s? [y/n] ", m.pendingTool.Name)))
+	}
+
+	// Render through viewport if ready, otherwise direct
+	if m.vpReady {
+		m.vp.SetContent(content.String())
+		m.vp.GotoBottom() // auto-follow
+		sb.WriteString(m.vp.View())
+	} else {
+		sb.WriteString(content.String())
 	}
 
 	// Input
 	if m.state == stateInput {
+		sb.WriteString("\n")
 		sb.WriteString(m.textInput.View())
 	}
 
@@ -381,6 +409,13 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.handleApproval("n")
 		}
 		return m, nil
+	}
+
+	// Forward PgUp/PgDn to viewport for scrolling
+	if m.vpReady && (msg.Type == tea.KeyPgUp || msg.Type == tea.KeyPgDown) {
+		var cmd tea.Cmd
+		m.vp, cmd = m.vp.Update(msg)
+		return m, cmd
 	}
 
 	if m.state == stateInput {
