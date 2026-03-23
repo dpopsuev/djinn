@@ -152,7 +152,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.outputPanel.InitViewport(msg.Width, msg.Height-m.fixedHeight())
 		// Render MOTD once when viewport is first initialized
 		if m.outputPanel.LineCount() == 0 {
-			m.outputPanel.Append(renderMOTD(m.sess, m.tools, m.version))
+			m.outputPanel.Append(renderMOTD(m.sess, m.tools, m.version, msg.Width))
 		}
 		// Auto-submit initial prompt if provided
 		if m.initialPrompt != "" {
@@ -197,6 +197,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// In agent mode (not auto), prompt for approval
 		if m.mode == agent.ModeAgent && !m.autoApprove {
 			m.state = stateToolApproval
+			m.dashboard.SetUIState("APPROVAL")
 			m.pendingTool = &msg.Call
 		}
 		return m, nil
@@ -277,6 +278,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.outputPanel.Append("") // blank line
 		m.state = stateInput
+		m.dashboard.SetUIState("INSERT")
 		m.inputPanel.FocusInput()
 		return m, nil
 
@@ -451,6 +453,7 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 
 	// Start agent loop
 	m.state = stateStreaming
+	m.dashboard.SetUIState("STREAMING")
 	m.streamBuf.Reset()
 	m.lastUsage = nil
 	m.lastError = ""
@@ -469,6 +472,7 @@ func (m *Model) handleApproval(key string) (tea.Model, tea.Cmd) {
 	approved := key == "y" || key == "Y"
 	m.pendingTool = nil
 	m.state = stateStreaming
+	m.dashboard.SetUIState("STREAMING")
 
 	if approved {
 		m.outputPanel.Append(tui.DimStyle.Render("  approved"))
@@ -531,12 +535,24 @@ func (m *Model) flushStreamBuffer() {
 	m.streamBuf.Reset()
 
 	m.outputPanel.AppendToLast(text)
+
+	// Incremental markdown: re-render the current assistant line
+	if m.outputPanel.LineCount() > 0 {
+		last := m.outputPanel.LineCount() - 1
+		raw := m.outputPanel.Lines()[last]
+		prefix := tui.AssistStyle.Render(tui.LabelAssist) + ": "
+		if after, found := strings.CutPrefix(raw, prefix); found {
+			rendered := tui.RenderMarkdown(after)
+			m.outputPanel.SetLine(last, prefix+rendered)
+		}
+	}
 }
 
 // Test accessors — exported for acceptance tests.
 
-// renderMOTD builds the welcome banner with logo and workspace info.
-func renderMOTD(sess *session.Session, tools *builtin.Registry, version string) string {
+// renderMOTD builds the welcome banner with logo and workspace info
+// inside a lipgloss rounded border box.
+func renderMOTD(sess *session.Session, tools *builtin.Registry, version string, width int) string {
 	logo := tui.LogoStyle.Render(tui.DjinnLogo)
 
 	wsName := sess.Workspace
@@ -554,16 +570,31 @@ func renderMOTD(sess *session.Session, tools *builtin.Registry, version string) 
 	}
 
 	var info strings.Builder
-	info.WriteString(tui.AssistStyle.Render("Djinn v"+version) + "\n\n")
-	fmt.Fprintf(&info, "  ws:    %s\n", wsName)
-	fmt.Fprintf(&info, "  model: %s\n", sess.Model)
-	fmt.Fprintf(&info, "  mode:  %s\n", mode)
-	fmt.Fprintf(&info, "  tools: %d\n", len(tools.Names()))
+	fmt.Fprintf(&info, "  ecosystem: %s\n", wsName)
+	fmt.Fprintf(&info, "  model:     %s\n", sess.Model)
+	fmt.Fprintf(&info, "  mode:      %s\n", mode)
+	fmt.Fprintf(&info, "  tools:     %d built-in\n", len(tools.Names()))
 	info.WriteString("\n")
 	info.WriteString(tui.DimStyle.Render("  /help for commands"))
+	info.WriteString("\n")
+	info.WriteString(tui.DimStyle.Render("  Tab to complete slash commands"))
 
-	// Join logo (left) + info (right)
-	return lipgloss.JoinHorizontal(lipgloss.Top, logo+"   ", info.String())
+	inner := lipgloss.JoinHorizontal(lipgloss.Top, logo+"   ", info.String())
+
+	// Bordered box with version in top border.
+	boxWidth := width - 2
+	if boxWidth < 40 {
+		boxWidth = 40
+	}
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(tui.RedHatRed).
+		Padding(1, 2).
+		Width(boxWidth)
+
+	title := tui.AssistStyle.Render(" Djinn v" + version + " ")
+
+	return box.Render(title + "\n\n" + inner)
 }
 
 // SetTextInput sets the text input value (for testing).
