@@ -42,8 +42,11 @@ type Diagnostic struct {
 // QualityGate runs mechanical quality checks on executor completion.
 // Default: MakeCircuitGate runs `make circuit` and parses exit code.
 // Full adapter: TripleGate calls Limes + Locus + Scribe MCP.
+// QualityGate runs mechanical quality checks on executor completion.
+// workDir specifies the directory to run checks in (worktree path for
+// isolated tasks, repo root otherwise).
 type QualityGate interface {
-	Check(ctx context.Context) (GateResult, error)
+	Check(ctx context.Context, workDir string) (GateResult, error)
 }
 
 // AgentIdentity provides human-readable labels for roles.
@@ -95,7 +98,7 @@ type MakeCircuitGate struct {
 	Target  string // default: "circuit"
 }
 
-func (g *MakeCircuitGate) Check(ctx context.Context) (GateResult, error) {
+func (g *MakeCircuitGate) Check(ctx context.Context, workDir string) (GateResult, error) {
 	cmd := g.Command
 	if cmd == "" {
 		cmd = "make"
@@ -105,7 +108,7 @@ func (g *MakeCircuitGate) Check(ctx context.Context) (GateResult, error) {
 		target = "circuit"
 	}
 
-	out, err := execCommand(ctx, cmd, target)
+	out, err := execCommandInDir(ctx, workDir, cmd, target)
 	if err != nil {
 		return GateResult{
 			Passed: false,
@@ -125,9 +128,13 @@ func (StringIdentity) Label(role string) string { return role }
 // Sentinel errors.
 var ErrRoleNotFound = fmt.Errorf("role not found")
 
-// execCommand runs a command and returns output + error.
-func execCommand(ctx context.Context, command, target string) ([]byte, error) {
-	return exec.CommandContext(ctx, command, target).CombinedOutput()
+// execCommandInDir runs a command in the given directory.
+func execCommandInDir(ctx context.Context, dir, command, target string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, command, target)
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	return cmd.CombinedOutput()
 }
 
 // Interface compliance.

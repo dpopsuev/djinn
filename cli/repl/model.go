@@ -21,6 +21,7 @@ import (
 	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
+	"github.com/dpopsuev/djinn/vcs"
 )
 
 // Frame rate for smooth streaming (60fps).
@@ -90,6 +91,10 @@ type Model struct {
 	// Tool routing
 	router       *staff.SlotRouter // slot-filtered tool dispatch (nil = raw registry)
 
+	// Worktree isolation for executor tasks
+	worktreeMgr  *vcs.WorktreeManager
+	activeWorktree string // current worktree path (empty = main repo)
+
 	// Debug
 	debugTap     *tui.DebugTap
 
@@ -146,6 +151,7 @@ func NewModel(cfg Config) Model {
 		initialPrompt:  cfg.InitialPrompt,
 		version:        cfg.Version,
 		router:         cfg.Router,
+		worktreeMgr:    vcs.NewWorktreeManager(cfg.Session.WorkDir),
 		debugTap:       cfg.DebugTap,
 		streamBuf:      &strings.Builder{},
 		chunkedBuf:     &strings.Builder{},
@@ -325,7 +331,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Executor gets a mechanical gate check before transitioning.
 		if m.currentRole == "executor" {
 			gate := &staff.MakeCircuitGate{}
-			result, gateErr := gate.Check(m.ctx)
+			// Run gate in the executor's working directory.
+			// If a worktree is active, run in the worktree. Otherwise main repo.
+			gateDir := m.sess.WorkDir
+			if m.activeWorktree != "" {
+				gateDir = m.activeWorktree
+			}
+			result, gateErr := gate.Check(m.ctx, gateDir)
 			if gateErr != nil {
 				m.outputPanel.Append(tui.ErrorStyle.Render("gate error: " + gateErr.Error()))
 			}
