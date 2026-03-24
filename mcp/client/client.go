@@ -404,8 +404,9 @@ func (t *stdioTransport) Close() error {
 // --- HTTP transport (SSE-aware) ---
 
 type httpTransport struct {
-	url    string
-	client *http.Client
+	url       string
+	client    *http.Client
+	sessionID string // Mcp-Session-Id for Streamable HTTP MCP
 }
 
 func (t *httpTransport) Send(req jsonRPCRequest) (jsonRPCResponse, error) {
@@ -420,12 +421,20 @@ func (t *httpTransport) Send(req jsonRPCRequest) (jsonRPCResponse, error) {
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "application/json, text/event-stream")
+	if t.sessionID != "" {
+		httpReq.Header.Set("Mcp-Session-Id", t.sessionID)
+	}
 
 	httpResp, err := t.client.Do(httpReq)
 	if err != nil {
 		return jsonRPCResponse{}, fmt.Errorf("http post: %w", err)
 	}
 	defer httpResp.Body.Close()
+
+	// Capture session ID from response header (Streamable HTTP MCP).
+	if sid := httpResp.Header.Get("Mcp-Session-Id"); sid != "" {
+		t.sessionID = sid
+	}
 
 	body, err := io.ReadAll(httpResp.Body)
 	if err != nil {
