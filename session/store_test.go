@@ -277,6 +277,55 @@ func TestStore_Load_SanitizesOrphanedToolUse(t *testing.T) {
 	}
 }
 
+func TestStore_Load_SanitizesNullStringInput(t *testing.T) {
+	// DJN-BUG-18: json.RawMessage("null") (4 bytes, literal string "null")
+	// is different from nil. Sanitize must catch BOTH.
+	// This is what actually happens when JSON has "input": null —
+	// json.Unmarshal produces json.RawMessage("null"), not nil.
+	dir := t.TempDir()
+
+	rawJSON := `{
+		"id": "null-str",
+		"name": "null-str",
+		"model": "test",
+		"work_dir": "/workspace",
+		"created_at": "2026-01-01T00:00:00Z",
+		"updated_at": "2026-01-01T00:00:00Z",
+		"history": [
+			{"role": "user", "content": "hello"},
+			{"role": "assistant", "blocks": [
+				{"type": "tool_use", "tool_call": {"id": "c1", "name": "Bash", "input": null}}
+			]},
+			{"role": "user", "blocks": [
+				{"type": "tool_result", "tool_result": {"tool_call_id": "c1", "output": "ok"}}
+			]}
+		]
+	}`
+	os.WriteFile(filepath.Join(dir, "null-str.json"), []byte(rawJSON), 0600) //nolint:errcheck
+
+	store, _ := NewStore(dir)
+	loaded, err := store.Load("null-str")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// After Load (which calls Sanitize), the tool_use input must be {}
+	for _, entry := range loaded.Entries() {
+		for _, block := range entry.Blocks {
+			if block.Type == driver.BlockToolUse && block.ToolCall != nil {
+				input := block.ToolCall.Input
+				inputStr := string(input)
+				if input == nil || inputStr == "null" || inputStr == "" {
+					t.Fatalf("BUG-18: after Load+Sanitize, tool_use.input = %q (should be {})", inputStr)
+				}
+				if inputStr != "{}" {
+					t.Fatalf("BUG-18: after Load+Sanitize, tool_use.input = %q (expected {})", inputStr)
+				}
+			}
+		}
+	}
+}
+
 func TestImport_NilToolUseInputDefaultsToEmptyObject(t *testing.T) {
 	// DJN-BUG-15: session file with null tool_use.input should be
 	// repaired through the sanitize-on-load path (defense in depth).

@@ -91,7 +91,33 @@ func (s *Store) Load(nameOrID string) (*Session, error) {
 	}
 
 	// Sanitize: repair corrupt entries, auto-compact oversized sessions (DJN-BUG-14).
-	Sanitize(&sess)
+	if repaired := Sanitize(&sess); repaired {
+		// Persist sanitized version immediately so fixes survive crashes (DJN-BUG-18).
+		s.Save(&sess) //nolint:errcheck
+	}
+
+	return &sess, nil
+}
+
+// LoadRaw reads a session WITHOUT sanitizing — for debug inspection.
+func (s *Store) LoadRaw(nameOrID string) (*Session, error) {
+	path := filepath.Join(s.dir, nameOrID+sessionFileExt)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("%w: %s", ErrSessionNotFound, nameOrID)
+		}
+		return nil, fmt.Errorf("read session: %w", err)
+	}
+
+	var sess Session
+	if err := json.Unmarshal(data, &sess); err != nil {
+		return nil, fmt.Errorf("unmarshal session %s: %w", nameOrID, err)
+	}
+
+	if sess.History == nil {
+		sess.History = NewHistory(0)
+	}
 
 	return &sess, nil
 }

@@ -17,12 +17,15 @@ const DefaultMaxLoadEntries = 200
 //
 // Compacts:
 //   - sessions with > DefaultMaxLoadEntries entries
-func Sanitize(sess *Session) {
+// Sanitize repairs known corruption patterns in session history.
+// Returns true if any repairs were made.
+func Sanitize(sess *Session) bool {
 	if sess.History == nil {
-		return
+		return false
 	}
 
 	entries := sess.History.Entries()
+	repaired := false
 
 	for i := range entries {
 		for j := range entries[i].Blocks {
@@ -30,6 +33,7 @@ func Sanitize(sess *Session) {
 			if block.Type == driver.BlockToolUse && block.ToolCall != nil {
 				if block.ToolCall.Input == nil || string(block.ToolCall.Input) == "null" {
 					block.ToolCall.Input = json.RawMessage(`{}`)
+					repaired = true
 				}
 			}
 		}
@@ -38,14 +42,20 @@ func Sanitize(sess *Session) {
 	// Repair orphaned tool_use blocks: inject synthetic tool_result.
 	// Vertex requires every tool_use to have a matching tool_result
 	// in the immediately following message (DJN-BUG-16).
-	entries = repairOrphanedToolUse(entries)
+	orphanEntries := repairOrphanedToolUse(entries)
+	if len(orphanEntries) != len(entries) {
+		repaired = true
+	}
 
-	sess.History.SetEntries(entries)
+	sess.History.SetEntries(orphanEntries)
 
 	// Auto-compact oversized sessions
 	if sess.History.Len() > DefaultMaxLoadEntries {
 		Compact(sess, DefaultKeepRecent)
+		repaired = true
 	}
+
+	return repaired
 }
 
 // repairOrphanedToolUse finds tool_use blocks without a matching
