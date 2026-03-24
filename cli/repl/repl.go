@@ -8,6 +8,7 @@ import (
 
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
@@ -31,6 +32,7 @@ type Config struct {
 	InitialPrompt string             // auto-submit on first render
 	WorkspaceBus  *workspace.Bus     // workspace event bus for /workspace-switch
 	Transport     interface{}        // clutch.Transport for hot-swap (nil = direct agent.Run)
+	Router        *staff.SlotRouter  // slot-based tool routing (nil = use raw registry)
 	Enforcer      policy.Enforcer   // PolicyEnforcer for agent call mediation
 	Token         policy.CapabilityToken
 	HealthReports []tui.HealthReport   // initial health from startup

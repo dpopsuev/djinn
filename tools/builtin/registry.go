@@ -24,6 +24,15 @@ type Tool interface {
 	Execute(ctx context.Context, input json.RawMessage) (string, error)
 }
 
+// ToolExecutor is the interface for tool dispatch — both Registry and
+// SlotRouter satisfy it. The agent loop programs against this interface
+// so it doesn't care whether tools are filtered by role or not.
+type ToolExecutor interface {
+	Execute(ctx context.Context, name string, input json.RawMessage) (string, error)
+	All() []Tool
+	Names() []string
+}
+
 // Registry holds registered tools and dispatches calls.
 type Registry struct {
 	tools map[string]Tool

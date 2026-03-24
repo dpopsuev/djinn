@@ -87,6 +87,9 @@ type Model struct {
 	version        string // app version for MOTD
 	rawStreamLine  *strings.Builder // raw unrendered text for incremental markdown (pointer: Builder can't be copied)
 
+	// Tool routing
+	router       *staff.SlotRouter // slot-filtered tool dispatch (nil = raw registry)
+
 	// Debug
 	debugTap     *tui.DebugTap
 
@@ -142,6 +145,7 @@ func NewModel(cfg Config) Model {
 		dashboard:      tui.NewDashboardPanel(),
 		initialPrompt:  cfg.InitialPrompt,
 		version:        cfg.Version,
+		router:         cfg.Router,
 		debugTap:       cfg.DebugTap,
 		streamBuf:      &strings.Builder{},
 		chunkedBuf:     &strings.Builder{},
@@ -445,8 +449,10 @@ func (m *Model) switchRole(roleName string) {
 	}
 
 	// Update tool restrictions based on role's allowed slots.
-	// Empty slots = no tools. Executor gets all.
 	m.token.AllowedTools = role.Slots
+	if m.router != nil {
+		m.router.SetRole(roleName)
+	}
 
 	m.dashboard.SetUIState(strings.ToUpper(roleName))
 	m.dashboard.SetIdentity(m.sess.Workspace, m.sess.Driver, m.sess.Model, m.mode.String())
@@ -674,9 +680,15 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 	ch := m.approvalCh
 	agentLog := djinnlog.For(m.log, "agent")
 	return func() tea.Msg {
+		// Use slot router if available — filters tools by current role.
+		// Falls back to raw registry if no router configured.
+		var tools builtin.ToolExecutor = m.tools
+		if m.router != nil {
+			tools = m.router
+		}
 		result, err := agent.Run(m.ctx, agent.Config{
 			Driver:       m.chatDriver,
-			Tools:        m.tools,
+			Tools:        tools,
 			Session:      m.sess,
 			SystemPrompt: m.systemPrompt,
 			MaxTurns:     m.maxTurns,

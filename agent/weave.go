@@ -1,3 +1,12 @@
+// weave.go — auto-weave planning context from available slots.
+//
+// When the agent is in plan mode, AutoWeaveContext enriches the user
+// prompt with context from whatever slots are available. It queries
+// slots by NAME (WorkTracker, RuleResolver), never by backend MCP
+// tool names. The slot router resolves which backend to call.
+//
+// The weave function doesn't know about Scribe, Lex, or any specific
+// MCP server. It knows about slot capabilities.
 package agent
 
 import (
@@ -9,26 +18,83 @@ import (
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
-// AutoWeaveContext enriches a user prompt with context from connected
-// MCP tools (Scribe, Lex) when in plan mode. This eliminates the manual
-// exploration phase that wastes 20K+ tokens per planning cycle.
-//
-// Only runs when:
-// 1. Mode is Plan (tools disabled, thinking only)
-// 2. MCP tools are available in the registry
-//
-// Queries are lightweight: 2 tool calls at most.
-func AutoWeaveContext(ctx context.Context, tools *builtin.Registry, prompt string) string {
-	var sections []string
+// SlotQuery defines a planning context query against a slot.
+// Each query specifies which tool to call and how to format the result.
+type SlotQuery struct {
+	// ToolName is the raw tool name the slot exposes (resolved by router).
+	// The weave function tries each tool — if unavailable, skips.
+	ToolName string
+	// BuildInput creates the tool input from the prompt keywords.
+	BuildInput func(keywords string) json.RawMessage
+	// WrapResult formats the tool output as a context section.
+	WrapResult func(result string) string
+}
 
-	// Query Scribe for related specs/tasks
-	if scribeCtx := queryScribe(ctx, tools, prompt); scribeCtx != "" {
-		sections = append(sections, scribeCtx)
+// DefaultSlotQueries returns the planning context queries.
+// These use raw tool names that the slot router maps to backends.
+// If the tool isn't available for the current role, it's silently skipped.
+var DefaultSlotQueries = []SlotQuery{
+	{
+		// WorkTracker slot — search for related work items.
+		ToolName: "artifact",
+		BuildInput: func(keywords string) json.RawMessage {
+			input, _ := json.Marshal(map[string]any{
+				"action": "list",
+				"query":  keywords,
+				"fields": []string{"id", "title", "status", "kind"},
+				"limit":  10,
+				"top":    10,
+			})
+			return input
+		},
+		WrapResult: func(result string) string {
+			if result == "" || result == "(0 artifacts)" {
+				return ""
+			}
+			return fmt.Sprintf("<work-context>\n%s\n</work-context>", result)
+		},
+	},
+	{
+		// RuleResolver slot — resolve applicable rules.
+		ToolName: "lexicon",
+		BuildInput: func(keywords string) json.RawMessage {
+			input, _ := json.Marshal(map[string]any{
+				"action":   "resolve",
+				"keywords": strings.Fields(keywords),
+				"budget":   2000,
+			})
+			return input
+		},
+		WrapResult: func(result string) string {
+			if result == "" {
+				return ""
+			}
+			return fmt.Sprintf("<rules-context>\n%s\n</rules-context>", result)
+		},
+	},
+}
+
+// AutoWeaveContext enriches a user prompt with context from available
+// slots. Queries each slot tool — if available, appends the context.
+// If not available (wrong role, backend offline), silently skips.
+func AutoWeaveContext(ctx context.Context, tools builtin.ToolExecutor, prompt string) string {
+	keywords := extractKeywords(prompt)
+	if keywords == "" {
+		return prompt
 	}
 
-	// Query Lex for applicable rules
-	if lexCtx := queryLex(ctx, tools, prompt); lexCtx != "" {
-		sections = append(sections, lexCtx)
+	var sections []string
+	for _, q := range DefaultSlotQueries {
+		// Try to execute — the router will deny if the tool isn't
+		// available for the current role. That's fine, skip it.
+		input := q.BuildInput(keywords)
+		result, err := tools.Execute(ctx, q.ToolName, input)
+		if err != nil {
+			continue
+		}
+		if section := q.WrapResult(result); section != "" {
+			sections = append(sections, section)
+		}
 	}
 
 	if len(sections) == 0 {
@@ -39,64 +105,8 @@ func AutoWeaveContext(ctx context.Context, tools *builtin.Registry, prompt strin
 		strings.Join(sections, "\n\n"), prompt)
 }
 
-func queryScribe(ctx context.Context, tools *builtin.Registry, prompt string) string {
-	// Look for mcp__scribe__artifact tool
-	_, err := tools.Get("mcp__scribe__artifact")
-	if err != nil {
-		return ""
-	}
-
-	// Extract keywords from prompt for search
-	keywords := extractKeywords(prompt)
-	input, _ := json.Marshal(map[string]any{
-		"action": "list",
-		"query":  keywords,
-		"fields": []string{"id", "title", "status", "kind"},
-		"limit":  10,
-		"top":    10,
-	})
-
-	result, err := tools.Execute(ctx, "mcp__scribe__artifact", input)
-	if err != nil {
-		return ""
-	}
-
-	if result == "" || result == "(0 artifacts)" {
-		return ""
-	}
-
-	return fmt.Sprintf("<scribe-context>\n%s\n</scribe-context>", result)
-}
-
-func queryLex(ctx context.Context, tools *builtin.Registry, prompt string) string {
-	// Look for mcp__lex__lexicon tool
-	_, err := tools.Get("mcp__lex__lexicon")
-	if err != nil {
-		return ""
-	}
-
-	keywords := extractKeywords(prompt)
-	input, _ := json.Marshal(map[string]any{
-		"action":   "resolve",
-		"keywords": strings.Fields(keywords),
-		"budget":   2000,
-	})
-
-	result, err := tools.Execute(ctx, "mcp__lex__lexicon", input)
-	if err != nil {
-		return ""
-	}
-
-	if result == "" {
-		return ""
-	}
-
-	return fmt.Sprintf("<lex-context>\n%s\n</lex-context>", result)
-}
-
 // extractKeywords pulls meaningful words from a prompt for search queries.
 func extractKeywords(prompt string) string {
-	// Simple: take the first 5 non-stop words
 	stopWords := map[string]bool{
 		"the": true, "a": true, "an": true, "is": true, "are": true,
 		"was": true, "were": true, "be": true, "been": true, "being": true,

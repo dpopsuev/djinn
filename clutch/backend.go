@@ -13,7 +13,7 @@ import (
 // BackendConfig configures the backend process.
 type BackendConfig struct {
 	Driver       driver.ChatDriver
-	Tools        *builtin.Registry
+	Tools        builtin.ToolExecutor
 	Session      *session.Session
 	SystemPrompt string
 	MaxTurns     int

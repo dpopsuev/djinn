@@ -23,6 +23,7 @@ import (
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/sandbox"
 	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
 	djinnws "github.com/dpopsuev/djinn/workspace"
@@ -322,6 +323,11 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 	log.Info("tools registered", "builtin", 6, "mcp", len(mcpClient.MCPTools()), "total", len(registry.Names()))
 
+	// Create slot router — filters tools by role.
+	// The agent sees only tools belonging to the current role's slots.
+	staffCfg := staff.DefaultConfig()
+	slotRouter := staff.NewSlotRouter(staffCfg, registry, "gensec")
+
 	// Sandbox: if --sandbox is set, create an isolated environment.
 	// The backend runs inside the sandbox. The shell stays on the host.
 	// If declared but backend unavailable → fail fast (security violation).
@@ -425,6 +431,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 		Enforcer:      enforcer,
 		Token:         capToken,
 		HealthReports: healthReports,
+		Router:        slotRouter,
 		Version:       Version,
 		DebugTap:      debugTap,
 	})

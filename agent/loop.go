@@ -46,7 +46,7 @@ type EventHandler interface {
 // Config configures an agent loop execution.
 type Config struct {
 	Driver       driver.ChatDriver
-	Tools        *builtin.Registry
+	Tools        builtin.ToolExecutor
 	Session      *session.Session
 	SystemPrompt string
 	MaxTurns     int
