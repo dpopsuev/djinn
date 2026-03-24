@@ -14,6 +14,9 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 )
 
+// CommandFactory creates exec.Cmd — injectable for testing.
+type CommandFactory func(ctx context.Context, name string, args ...string) *exec.Cmd
+
 // CLIDriver wraps the Codex CLI as a ChatDriver.
 type CLIDriver struct {
 	model        string
@@ -21,16 +24,18 @@ type CLIDriver struct {
 	messages     []driver.Message
 	mu           sync.Mutex
 	log          *slog.Logger
+	cmdFactory   CommandFactory
 }
 
 type Option func(*CLIDriver)
 
 func WithModel(m string) Option        { return func(d *CLIDriver) { d.model = m } }
 func WithSystemPrompt(p string) Option { return func(d *CLIDriver) { d.systemPrompt = p } }
-func WithLogger(l *slog.Logger) Option { return func(d *CLIDriver) { d.log = l } }
+func WithLogger(l *slog.Logger) Option           { return func(d *CLIDriver) { d.log = l } }
+func WithCommandFactory(f CommandFactory) Option { return func(d *CLIDriver) { d.cmdFactory = f } }
 
 func New(cfg driver.DriverConfig, opts ...Option) *CLIDriver {
-	d := &CLIDriver{model: cfg.Model, log: slog.Default()}
+	d := &CLIDriver{model: cfg.Model, log: slog.Default(), cmdFactory: exec.CommandContext}
 	for _, o := range opts {
 		o(d)
 	}
@@ -79,7 +84,7 @@ func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 
 	d.log.Debug("codex", "args", args)
 
-	cmd := exec.CommandContext(ctx, "codex", args...)
+	cmd := d.cmdFactory(ctx, "codex", args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("stdout pipe: %w", err)

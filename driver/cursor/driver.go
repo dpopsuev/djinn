@@ -15,6 +15,9 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 )
 
+// CommandFactory creates exec.Cmd — injectable for testing.
+type CommandFactory func(ctx context.Context, name string, args ...string) *exec.Cmd
+
 // CLIDriver wraps the Cursor Agent CLI (`agent`) as a ChatDriver.
 type CLIDriver struct {
 	model        string
@@ -22,6 +25,7 @@ type CLIDriver struct {
 	messages     []driver.Message
 	mu           sync.Mutex
 	log          *slog.Logger
+	cmdFactory   CommandFactory // injectable for testing
 }
 
 // Option configures the CLI driver.
@@ -36,11 +40,15 @@ func WithSystemPrompt(p string) Option { return func(d *CLIDriver) { d.systemPro
 // WithLogger sets the logger.
 func WithLogger(l *slog.Logger) Option { return func(d *CLIDriver) { d.log = l } }
 
+// WithCommandFactory overrides the exec.Cmd factory (for testing).
+func WithCommandFactory(f CommandFactory) Option { return func(d *CLIDriver) { d.cmdFactory = f } }
+
 // New creates a new Cursor CLI driver.
 func New(cfg driver.DriverConfig, opts ...Option) *CLIDriver {
 	d := &CLIDriver{
-		model: cfg.Model,
-		log:   slog.Default(),
+		model:      cfg.Model,
+		log:        slog.Default(),
+		cmdFactory: exec.CommandContext,
 	}
 	for _, o := range opts {
 		o(d)
@@ -99,7 +107,7 @@ func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 
 	d.log.Debug("cursor agent", "args", args)
 
-	cmd := exec.CommandContext(ctx, "agent", args...)
+	cmd := d.cmdFactory(ctx, "agent", args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("stdout pipe: %w", err)
