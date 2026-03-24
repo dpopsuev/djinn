@@ -362,6 +362,16 @@ type apiContent struct {
 	IsError    bool            `json:"is_error,omitempty"`
 }
 
+// MarshalJSON ensures tool_use blocks always have input:{} not null.
+func (c apiContent) MarshalJSON() ([]byte, error) {
+	type raw apiContent // avoid recursion
+	r := raw(c)
+	if r.Type == "tool_use" && r.Input == nil {
+		r.Input = json.RawMessage(`{}`)
+	}
+	return json.Marshal(r)
+}
+
 type apiRequest struct {
 	Model             string       `json:"model,omitempty"`
 	MaxTokens         int          `json:"max_tokens"`

@@ -201,6 +201,52 @@ func TestRenderMarkdown_RawBufferApproach(t *testing.T) {
 	}
 }
 
+// TestOutputPanel_ViewNeverDimmed verifies DJN-BUG-11:
+// Proves WHY output panel must not be depth-dimmed: dimming viewport-padded
+// whitespace lines injects ANSI color prefixes that render as visible text
+// on terminals without 24-bit color support.
+func TestOutputPanel_ViewNeverDimmed(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	defer lipgloss.SetColorProfile(termenv.Ascii)
+
+	p := NewOutputPanel()
+	p.Append("Hello world")
+	p.Append("")
+	p.Append("")
+
+	view := p.View(80)
+	dimPrefix := "\x1b[38;2;112;112;112m"
+
+	// The raw output panel view should NOT contain dim prefixes
+	if strings.Contains(view, dimPrefix) {
+		t.Fatal("BUG-11: OutputPanel.View() itself contains dim prefix — panel is self-dimming")
+	}
+
+	// Wrapping with depth > 0 DOES add dim prefix — this is why View() must
+	// never go through RenderWithDepth. This documents the root cause.
+	dimmed := RenderWithDepth(view, 1)
+	if !strings.Contains(dimmed, dimPrefix) {
+		t.Skip("dimming not applied (color profile may strip it)")
+	}
+
+	// Verify: dimming empty lines creates the exact garbage the user reported
+	lines := strings.Split(dimmed, "\n")
+	garbageLines := 0
+	for _, line := range lines {
+		stripped := strings.TrimSpace(strings.ReplaceAll(line, dimPrefix, ""))
+		stripped = strings.ReplaceAll(stripped, "\x1b[0m", "")
+		if stripped == "" && strings.Contains(line, dimPrefix) {
+			garbageLines++
+		}
+	}
+	if garbageLines == 0 {
+		t.Fatal("expected depth-dimmed empty lines to have color prefix (documents the bug)")
+	}
+	// This test PASSES because it documents the bug mechanism,
+	// not because the bug is present in View(). The fix is in
+	// model.go: output panel skips RenderWithDepth.
+}
+
 // TestGlamourInsideBorder_TrueColor_NoVisibleANSI reproduces DJN-BUG-9
 // with forced TrueColor profile to match real terminal behavior.
 func TestGlamourInsideBorder_TrueColor_NoVisibleANSI(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -105,6 +106,55 @@ func (dt *DebugTap) LastN(n int) []DebugFrame {
 	result := make([]DebugFrame, n)
 	copy(result, dt.frames[len(dt.frames)-n:])
 	return result
+}
+
+// SearchFrames returns frames whose content matches the pattern.
+func (dt *DebugTap) SearchFrames(pattern string) []DebugFrame {
+	dt.mu.RLock()
+	defer dt.mu.RUnlock()
+
+	var results []DebugFrame
+	for _, f := range dt.frames {
+		if strings.Contains(f.Frame, pattern) {
+			results = append(results, f)
+		}
+	}
+	return results
+}
+
+// Transition records a state or role change between frames.
+type Transition struct {
+	FromIndex int
+	ToIndex   int
+	FromState string
+	ToState   string
+	FromRole  string
+	ToRole    string
+	Timestamp time.Time
+}
+
+// DetectTransitions returns state/role changes between consecutive frames.
+func (dt *DebugTap) DetectTransitions() []Transition {
+	dt.mu.RLock()
+	defer dt.mu.RUnlock()
+
+	var transitions []Transition
+	for i := 1; i < len(dt.frames); i++ {
+		prev := dt.frames[i-1]
+		curr := dt.frames[i]
+		if prev.State != curr.State || prev.Role != curr.Role {
+			transitions = append(transitions, Transition{
+				FromIndex: i - 1,
+				ToIndex:   i,
+				FromState: prev.State,
+				ToState:   curr.State,
+				FromRole:  prev.Role,
+				ToRole:    curr.Role,
+				Timestamp: curr.Timestamp,
+			})
+		}
+	}
+	return transitions
 }
 
 // Close closes the JSONL file if open.

@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -90,5 +91,71 @@ func TestValidate_ValidVertex(t *testing.T) {
 	msgs := []apiMessage{{Role: "user", Content: "hi"}}
 	if err := d.validateRequest(msgs); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidate_EmptyToolUseInput(t *testing.T) {
+	d := &APIDriver{
+		config: driver.DriverConfig{Model: "claude-sonnet-4-6"},
+		apiURL: "http://test",
+		apiKey: "key",
+		log:    djinnlog.Nop(),
+	}
+	// Message with tool_use content block that has nil input
+	msgs := []apiMessage{
+		{Role: "user", Content: "hi"},
+		{Role: "assistant", ContentBlocks: []apiContent{
+			{Type: "tool_use", ID: "call-1", Name: "Bash", Input: nil},
+		}},
+		{Role: "user", ContentBlocks: []apiContent{
+			{Type: "tool_result", ToolUseID: "call-1", Content: "output"},
+		}},
+	}
+
+	err := d.validateRequest(msgs)
+	if err == nil {
+		t.Fatal("BUG-12: should reject messages with nil tool_use.input")
+	}
+
+	var ve *driver.ValidationError
+	if !errors.As(err, &ve) {
+		t.Fatalf("expected ValidationError, got %T: %v", err, err)
+	}
+	if ve.Field != "tool_use.input" {
+		t.Fatalf("field = %q, want tool_use.input", ve.Field)
+	}
+}
+
+func TestAPIDriver_ToolUseInputNeverNil(t *testing.T) {
+	msg := apiMessage{
+		Role: "assistant",
+		ContentBlocks: []apiContent{
+			{Type: "tool_use", ID: "call-1", Name: "Read", Input: nil},
+		},
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatal(err)
+	}
+
+	content, ok := parsed["content"].([]any)
+	if !ok || len(content) == 0 {
+		t.Fatal("content should be an array")
+	}
+
+	block, ok := content[0].(map[string]any)
+	if !ok {
+		t.Fatal("content[0] should be an object")
+	}
+
+	input := block["input"]
+	if input == nil {
+		t.Fatal("BUG-12: tool_use.input serialized as null — Vertex will reject this")
 	}
 }

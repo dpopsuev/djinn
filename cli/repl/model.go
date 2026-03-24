@@ -341,12 +341,17 @@ func (m Model) View() string {
 	m.dashboard.SetMetrics(m.totalIn, m.totalOut, m.sess.History.Len())
 
 	var sb strings.Builder
-	sb.WriteString(tui.RenderWithDepth(m.outputPanel.View(m.width), depths[0]))
+	// Output panel: NEVER depth-dimmed. Dimming viewport-padded whitespace
+	// causes ANSI escape codes to show as visible text on terminals without
+	// 24-bit color support (DJN-BUG-11).
+	sb.WriteString(m.outputPanel.View(m.width))
 	sb.WriteString(m.separator(0))
+	// Input panel: bordered when focused, hidden when streaming.
 	if m.state == stateInput {
 		sb.WriteString(tui.RenderWithDepth(m.inputPanel.View(m.width), depths[1]))
 	}
 	sb.WriteString(m.separator(1))
+	// Dashboard: dimmed when unfocused.
 	sb.WriteString(tui.RenderWithDepth(m.dashboard.View(m.width), depths[2]))
 
 	result := sb.String()

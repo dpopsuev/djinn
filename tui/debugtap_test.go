@@ -126,6 +126,95 @@ func TestDebugTap_NilIsDisabled(t *testing.T) {
 	}
 }
 
+// --- Search & Analysis Tests ---
+
+func TestDebugFrames_SearchPattern(t *testing.T) {
+	dt, err := NewDebugTap(10, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dt.Capture("frame with [0m[38 garbage", "input", "gensec", 80, 24)
+	dt.Capture("clean frame hello world", "streaming", "executor", 80, 24)
+	dt.Capture("another [0m[38 bad frame", "input", "gensec", 80, 24)
+	dt.Capture("totally fine", "input", "gensec", 80, 24)
+
+	results := dt.SearchFrames("[0m[38")
+	if len(results) != 2 {
+		t.Fatalf("search results = %d, want 2", len(results))
+	}
+	if results[0].State != "input" || results[1].State != "input" {
+		t.Fatal("both matches should be input state")
+	}
+}
+
+func TestDebugFrames_SearchNoMatch(t *testing.T) {
+	dt, err := NewDebugTap(10, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dt.Capture("hello", "input", "", 80, 24)
+	results := dt.SearchFrames("nonexistent")
+	if len(results) != 0 {
+		t.Fatalf("expected 0 results, got %d", len(results))
+	}
+}
+
+func TestDebugTransitions_DetectsStateChanges(t *testing.T) {
+	dt, err := NewDebugTap(10, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dt.Capture("f0", "input", "gensec", 80, 24)
+	dt.Capture("f1", "streaming", "gensec", 80, 24) // state change
+	dt.Capture("f2", "streaming", "gensec", 80, 24) // no change
+	dt.Capture("f3", "input", "gensec", 80, 24)     // state change
+	dt.Capture("f4", "streaming", "executor", 80, 24) // state + role change
+	dt.Capture("f5", "approval", "executor", 80, 24)  // state change
+	dt.Capture("f6", "input", "gensec", 80, 24)       // state + role change
+
+	transitions := dt.DetectTransitions()
+	if len(transitions) != 5 {
+		t.Fatalf("transitions = %d, want 5", len(transitions))
+	}
+
+	// First transition: input → streaming
+	if transitions[0].FromState != "input" || transitions[0].ToState != "streaming" {
+		t.Fatalf("transition[0] = %s→%s", transitions[0].FromState, transitions[0].ToState)
+	}
+	if transitions[0].FromIndex != 0 || transitions[0].ToIndex != 1 {
+		t.Fatalf("transition[0] indices = %d→%d", transitions[0].FromIndex, transitions[0].ToIndex)
+	}
+
+	// Transition 3: streaming → approval (same role, different state)
+	if transitions[3].FromState != "streaming" || transitions[3].ToState != "approval" {
+		t.Fatalf("transition[3] = %s→%s", transitions[3].FromState, transitions[3].ToState)
+	}
+
+	// Transition 4: approval/executor → input/gensec (both change)
+	if transitions[4].FromRole != "executor" || transitions[4].ToRole != "gensec" {
+		t.Fatalf("transition[4] roles = %s→%s", transitions[4].FromRole, transitions[4].ToRole)
+	}
+}
+
+func TestDebugTransitions_NoChanges(t *testing.T) {
+	dt, err := NewDebugTap(10, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dt.Capture("f0", "input", "gensec", 80, 24)
+	dt.Capture("f1", "input", "gensec", 80, 24)
+	dt.Capture("f2", "input", "gensec", 80, 24)
+
+	transitions := dt.DetectTransitions()
+	if len(transitions) != 0 {
+		t.Fatalf("expected 0 transitions, got %d", len(transitions))
+	}
+}
+
 // --- HTTP Server Tests ---
 
 func TestDebugTap_HTTPServer_RequiresExplicitStart(t *testing.T) {

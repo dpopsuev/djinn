@@ -349,3 +349,31 @@ func TestTUI_DebugTap_NotStartedWithoutFlag(t *testing.T) {
 		t.Fatal("capture should work without server")
 	}
 }
+
+func TestTUI_StreamingFrame_NoEscapeLiterals(t *testing.T) {
+	// DJN-BUG-11: View() should never produce escape codes as visible text.
+	// Check for "[0m[38" without preceding \x1b — that's a broken escape.
+	m := testTUIModel(t, "agent")
+	m.SetState(repl.StateStreaming)
+	m.AppendConversation(tui.AssistStyle.Render(tui.LabelAssist) + ": ")
+
+	result := multiUpdate(t, *m,
+		tui.TextMsg("Hello world"),
+		tui.TickMsg(time.Now()),
+		tui.AgentDoneMsg{},
+	)
+
+	model := toModelPtr(result)
+	view := model.View()
+
+	// Scan for escape code text that isn't preceded by actual ESC byte
+	for i := 0; i < len(view)-5; i++ {
+		if view[i] == '[' && i+4 < len(view) && view[i+1] == '0' && view[i+2] == 'm' && view[i+3] == '[' && view[i+4] == '3' {
+			// Found "[0m[3" — check if preceded by ESC (\x1b)
+			if i == 0 || view[i-1] != '\x1b' {
+				t.Fatalf("BUG-11: found visible escape literal at position %d: %q",
+					i, view[max(0, i-5):min(len(view), i+20)])
+			}
+		}
+	}
+}
