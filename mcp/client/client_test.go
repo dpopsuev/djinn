@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/dpopsuev/djinn/djinnlog"
 )
@@ -476,5 +478,57 @@ func TestLoadMCPConfig_NoFiles(t *testing.T) {
 	configs := LoadMCPConfig(t.TempDir(), t.TempDir())
 	if len(configs) != 0 {
 		t.Fatalf("should be empty with no config files, got %d", len(configs))
+	}
+}
+
+func TestStdioTransport_SendTimesOut(t *testing.T) {
+	// DJN-BUG-4: stdioTransport.Send blocks forever on ReadBytes if
+	// the MCP server stops responding. The callOnce wrapper has a timeout
+	// via context, but the underlying goroutine with ReadBytes leaks.
+	//
+	// This test verifies that Send returns within a reasonable time
+	// when the server doesn't respond (simulated by a stalled pipe).
+
+	// Create a pipe where the reader side never writes back.
+	serverIn, clientOut, err := os.Pipe()  // client writes → server reads
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientIn, serverOut, err := os.Pipe()  // server writes → client reads (but server never writes)
+	_ = serverOut // server never writes — simulates stalled MCP server
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer serverIn.Close()
+	defer clientOut.Close()
+	defer clientIn.Close()
+
+	transport := &stdioTransport{
+		stdin:       clientOut,
+		stdout:      bufio.NewReaderSize(clientIn, 4096),
+		stdoutRaw:   clientIn,
+		readTimeout: 500 * time.Millisecond, // short timeout for test
+	}
+
+	// Send should block on ReadBytes — the goroutine in callOnce times out,
+	// but the underlying Send call does NOT. This test documents the leak.
+	done := make(chan error, 1)
+	go func() {
+		_, err := transport.Send(jsonRPCRequest{
+			JSONRPC: "2.0",
+			ID:      1,
+			Method:  "test/stall",
+		})
+		done <- err
+	}()
+
+	select {
+	case <-time.After(2 * time.Second):
+		t.Fatal("BUG-4: stdioTransport.Send blocked for >2s — ReadBytes has no timeout. Goroutine leaks.")
+	case err := <-done:
+		if err == nil {
+			t.Fatal("expected error from timed-out Send")
+		}
+		// Good: Send returned with an error (context-aware reader worked)
 	}
 }

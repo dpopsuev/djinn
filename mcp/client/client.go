@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -79,10 +80,17 @@ func (c *Client) ConnectStdio(ctx context.Context, name, command string, args []
 		return fmt.Errorf("start %s: %w", command, err)
 	}
 
+	// Try to get the raw *os.File for SetReadDeadline support (DJN-BUG-4).
+	var stdoutFile *os.File
+	if f, ok := stdout.(*os.File); ok {
+		stdoutFile = f
+	}
+
 	t := &stdioTransport{
-		cmd:    cmd,
-		stdin:  stdin,
-		stdout: bufio.NewReader(stdout),
+		cmd:       cmd,
+		stdin:     stdin,
+		stdout:    bufio.NewReader(stdout),
+		stdoutRaw: stdoutFile,
 	}
 
 	conn := &ServerConn{name: name, transport: t}
@@ -341,9 +349,11 @@ func (c *Client) Close() error {
 // --- stdio transport ---
 
 type stdioTransport struct {
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout *bufio.Reader
+	cmd         *exec.Cmd
+	stdin       io.WriteCloser
+	stdout      *bufio.Reader
+	stdoutRaw   *os.File      // raw pipe for SetReadDeadline
+	readTimeout time.Duration // per-read deadline (default: DefaultCallTimeout)
 }
 
 func (t *stdioTransport) Send(req jsonRPCRequest) (jsonRPCResponse, error) {
@@ -355,6 +365,16 @@ func (t *stdioTransport) Send(req jsonRPCRequest) (jsonRPCResponse, error) {
 
 	if _, err := t.stdin.Write(data); err != nil {
 		return jsonRPCResponse{}, fmt.Errorf("write: %w", err)
+	}
+
+	// Set read deadline to prevent blocking forever (DJN-BUG-4).
+	timeout := t.readTimeout
+	if timeout == 0 {
+		timeout = DefaultCallTimeout
+	}
+	if t.stdoutRaw != nil {
+		t.stdoutRaw.SetReadDeadline(time.Now().Add(timeout)) //nolint:errcheck
+		defer t.stdoutRaw.SetReadDeadline(time.Time{})       //nolint:errcheck
 	}
 
 	line, err := t.stdout.ReadBytes('\n')
