@@ -537,21 +537,16 @@ func TestModel_SubmitMsg_QueuedDuringStreaming(t *testing.T) {
 	// SubmitMsg during streaming → queued, not dropped.
 	m2, _ := m.Update(tui.SubmitMsg{Value: "queued prompt"})
 	model := asModel(t, m2)
-	if len(model.promptQueue) != 1 {
-		t.Fatalf("queue = %d, want 1", len(model.promptQueue))
+	if model.queuePanel.Len() != 1 {
+		t.Fatalf("queue = %d, want 1", model.queuePanel.Len())
 	}
-	if model.promptQueue[0] != "queued prompt" {
-		t.Fatalf("queued = %q", model.promptQueue[0])
+	if model.queuePanel.Items()[0] != "queued prompt" {
+		t.Fatalf("queued = %q", model.queuePanel.Items()[0])
 	}
-	// Should show [queued] in output.
-	found := false
-	for _, line := range model.outputPanel.Lines() {
-		if strings.Contains(line, "queued") {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatal("queued prompt should appear in output")
+	// Queue panel should show the item.
+	queueView := model.queuePanel.View(80)
+	if !strings.Contains(queueView, "queued prompt") {
+		t.Fatalf("queue view should show item: %q", queueView)
 	}
 }
 
@@ -572,14 +567,14 @@ func TestModel_SubmitMsg_ProcessedWhenInput(t *testing.T) {
 
 func TestModel_QueueDrainOnAgentDone(t *testing.T) {
 	m := testModel()
-	m.promptQueue = []string{"queued one"}
+	m.queuePanel.Update(tui.QueueAddMsg{Prompt: "queued one"})
 	m.state = stateStreaming
 
 	// AgentDoneMsg should drain queue and return a SubmitMsg cmd.
 	m2, cmd := m.Update(tui.AgentDoneMsg{Result: "done"})
 	model := asModel(t, m2)
-	if len(model.promptQueue) != 0 {
-		t.Fatalf("queue should be empty after drain, got %d", len(model.promptQueue))
+	if model.queuePanel.Len() != 0 {
+		t.Fatalf("queue should be empty after drain, got %d", model.queuePanel.Len())
 	}
 	if cmd == nil {
 		t.Fatal("should return cmd to process queued prompt")

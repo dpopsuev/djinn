@@ -66,7 +66,7 @@ type Model struct {
 	state        State
 	inputPanel   *tui.InputPanel
 	pendingTool  *driver.ToolCall
-	promptQueue  []string // queued prompts from type-ahead during streaming
+	queuePanel   *tui.QueuePanel // visible queue between output and input
 	lastUsage    *driver.Usage
 	totalIn      int      // cumulative input tokens
 	totalOut     int      // cumulative output tokens
@@ -152,6 +152,7 @@ func NewModel(cfg Config) Model {
 		),
 		activeToolIdx:  -1,
 		outputPanel:    tui.NewOutputPanel(),
+		queuePanel:     tui.NewQueuePanel(),
 		dashboard:      tui.NewDashboardPanel(),
 		initialPrompt:  cfg.InitialPrompt,
 		version:        cfg.Version,
@@ -217,8 +218,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tui.SubmitMsg:
 		// InputPanel emitted a submit. Queue during streaming, process during input.
 		if m.state == stateStreaming || m.state == stateToolApproval {
-			m.promptQueue = append(m.promptQueue, msg.Value)
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  [queued] " + msg.Value)})
+			m.queuePanel.Update(tui.QueueAddMsg{Prompt: msg.Value})
 			return m, nil
 		}
 		// Not streaming — submit directly.
@@ -344,9 +344,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.inputPanel.Update(tui.InputFocusMsg{})
 
 		// Drain prompt queue — auto-submit first queued prompt.
-		if len(m.promptQueue) > 0 {
-			next := m.promptQueue[0]
-			m.promptQueue = m.promptQueue[1:]
+		if m.queuePanel.Len() > 0 {
+			next := m.queuePanel.Items()[0]
+			m.queuePanel.Update(tui.QueueDrainMsg{})
 			return m, func() tea.Msg { return tui.SubmitMsg{Value: next} }
 		}
 
@@ -412,6 +412,11 @@ func (m Model) View() string {
 	var sb strings.Builder
 	// Output panel: bordered but NEVER foreground-dimmed (BUG-11).
 	sb.WriteString(tui.RenderBorderOnly(m.outputPanel.View(innerWidth), depths[0] == 0, m.width))
+	// Queue panel: visible only when non-empty, between output and input.
+	if queueView := m.queuePanel.View(innerWidth); queueView != "" {
+		sb.WriteByte('\n')
+		sb.WriteString(tui.RenderWithDepth(queueView, 1, m.width))
+	}
 	// Input panel: always visible, always bordered.
 	sb.WriteByte('\n')
 	sb.WriteString(tui.RenderWithDepth(m.inputPanel.View(innerWidth), depths[1], m.width))
