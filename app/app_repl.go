@@ -49,7 +49,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	wsLong := fs.String("workspace", "", "workspace name or manifest file")
 	noPersist := fs.Bool("no-persist", false, "don't save session to disk")
 	debugTapFile := fs.String("debug-tap", "", "capture TUI frames to JSONL file")
-	liveDebug := fs.Bool("live-debug", false, "start HTTP debug server for live TUI inspection")
+	liveDebug := fs.String("live-debug", "", "start HTTP debug server at addr (e.g. 127.0.0.1:9999, empty=random port)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -344,7 +344,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	// DebugTap: --debug-tap for JSONL capture, --live-debug for HTTP server.
 	// Both require explicit opt-in. Neither is on by default.
 	var debugTap *tui.DebugTap
-	if *debugTapFile != "" || *liveDebug {
+	if *debugTapFile != "" || *liveDebug != "" {
 		tapPath := ""
 		if *debugTapFile != "" {
 			tapPath = *debugTapFile
@@ -358,8 +358,8 @@ func RunREPL(args []string, stderr io.Writer) error {
 			if tapPath != "" {
 				fmt.Fprintf(stderr, "djinn: debug tap writing to %s\n", tapPath)
 			}
-			if *liveDebug {
-				ln, srvErr := debugTap.ServeHTTP()
+			if *liveDebug != "" {
+				ln, srvErr := debugTap.ServeHTTP(*liveDebug)
 				if srvErr != nil {
 					fmt.Fprintf(stderr, "djinn: debug server: %v\n", srvErr)
 				} else {

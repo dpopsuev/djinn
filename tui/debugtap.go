@@ -167,7 +167,11 @@ func (dt *DebugTap) Close() error {
 
 // ServeHTTP starts a debug HTTP server on a random port.
 // Returns the listener (caller can get the port from ln.Addr()).
-func (dt *DebugTap) ServeHTTP() (net.Listener, error) {
+// ServeHTTP starts a debug HTTP server. Pass "" for random port.
+func (dt *DebugTap) ServeHTTP(addr string) (net.Listener, error) {
+	if addr == "" {
+		addr = "127.0.0.1:0"
+	}
 	mux := http.NewServeMux()
 
 	// GET /debug/view — current frame (raw text)
@@ -207,7 +211,7 @@ func (dt *DebugTap) ServeHTTP() (net.Listener, error) {
 		json.NewEncoder(w).Encode(frames) //nolint:errcheck
 	})
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
 	}

@@ -238,7 +238,7 @@ func TestDebugTap_HTTPServer_ViewEndpoint(t *testing.T) {
 	}
 	defer dt.Close() //nolint:errcheck
 
-	ln, err := dt.ServeHTTP()
+	ln, err := dt.ServeHTTP("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +265,7 @@ func TestDebugTap_HTTPServer_StateEndpoint(t *testing.T) {
 	}
 	defer dt.Close() //nolint:errcheck
 
-	ln, err := dt.ServeHTTP()
+	ln, err := dt.ServeHTTP("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +297,7 @@ func TestDebugTap_HTTPServer_FramesEndpoint(t *testing.T) {
 	}
 	defer dt.Close() //nolint:errcheck
 
-	ln, err := dt.ServeHTTP()
+	ln, err := dt.ServeHTTP("")
 	if err != nil {
 		t.Fatal(err)
 	}
