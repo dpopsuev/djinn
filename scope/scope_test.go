@@ -107,6 +107,39 @@ func TestNavigator_ChildNames(t *testing.T) {
 	}
 }
 
+func TestNavigator_GenSecPersistsAcrossScopes(t *testing.T) {
+	nav := NewNavigator()
+	nav.AddEcosystem("aeon", []string{"/workspace/djinn"})
+
+	// GenSec is active at general scope.
+	if !nav.GenSec().Active {
+		t.Fatal("GenSec should be active at general")
+	}
+
+	// Dive into ecosystem — GenSec still active.
+	nav.Dive("aeon") //nolint:errcheck
+	if !nav.GenSec().Active {
+		t.Fatal("GenSec should persist after diving into ecosystem")
+	}
+
+	// Dive into system — GenSec still active.
+	nav.Dive("djinn") //nolint:errcheck
+	if !nav.GenSec().Active {
+		t.Fatal("GenSec should persist after diving into system")
+	}
+
+	// Climb back to root — GenSec still active.
+	nav.Root()
+	if !nav.GenSec().Active {
+		t.Fatal("GenSec should persist after returning to root")
+	}
+
+	// GenSec role is always "gensec".
+	if nav.GenSec().Role != "gensec" {
+		t.Fatalf("GenSec role = %q", nav.GenSec().Role)
+	}
+}
+
 func TestNavigator_SystemHasSingleRepo(t *testing.T) {
 	nav := NewNavigator()
 	nav.AddEcosystem("aeon", []string{"/workspace/djinn", "/workspace/misbah"})

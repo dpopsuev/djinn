@@ -55,18 +55,25 @@ func (s *Scope) Path() string {
 }
 
 // Navigator moves through the scope tree.
+// The General Secretary state persists across all scope changes.
 type Navigator struct {
 	root    *Scope
 	current *Scope
+	genSec  *GenSecState
 }
 
 // NewNavigator creates a navigator starting at the general scope.
+// The General Secretary is initialized and always active.
 func NewNavigator() *Navigator {
 	root := &Scope{
 		Level: General,
 		Name:  "general",
 	}
-	return &Navigator{root: root, current: root}
+	return &Navigator{
+		root:    root,
+		current: root,
+		genSec:  &GenSecState{Active: true, Role: "gensec"},
+	}
 }
 
 // AddEcosystem registers an ecosystem under the general scope.
@@ -134,6 +141,21 @@ func (n *Navigator) Climb() {
 // Root jumps to the general scope.
 func (n *Navigator) Root() {
 	n.current = n.root
+}
+
+// GenSecState holds the General Secretary's persistent state that
+// follows the human across scope changes. The GenSec is the global
+// Broker singleton — always running, always present.
+type GenSecState struct {
+	Active  bool   // always true once initialized
+	Role    string // always "gensec"
+	Mailbox []string // simplified briefing (full impl in staff.RoleMemory)
+}
+
+// GenSec returns the General Secretary state. It persists regardless
+// of which scope the navigator is at — the Secretary follows the human.
+func (n *Navigator) GenSec() *GenSecState {
+	return n.genSec
 }
 
 // ChildNames returns the names of children at the current scope.
