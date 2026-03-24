@@ -78,6 +78,8 @@ func Run(args []string, stderr io.Writer) error {
 		return RunLog(stderr)
 	case "doctor":
 		return RunDoctor(stderr)
+	case "backend":
+		return RunBackendCmd(args[1:], stderr)
 	case "debug":
 		return RunDebug(args[1:], stderr)
 	case "version", "--version", "-v":

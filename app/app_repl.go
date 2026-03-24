@@ -48,6 +48,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	wsFlag := fs.String("w", "", "workspace name or manifest file")
 	wsLong := fs.String("workspace", "", "workspace name or manifest file")
 	noPersist := fs.Bool("no-persist", false, "don't save session to disk")
+	socketPath := fs.String("socket", "", "Unix socket path for shell/backend split (enables hot-swap)")
 	debugTapFile := fs.String("debug-tap", "", "capture TUI frames to JSONL file")
 	liveDebug := fs.String("live-debug", "", "start HTTP debug server at addr (e.g. 127.0.0.1:9999, empty=random port)")
 	if err := fs.Parse(args); err != nil {
@@ -318,22 +319,46 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 	log.Info("tools registered", "builtin", 6, "mcp", len(mcpClient.MCPTools()), "total", len(registry.Names()))
 
-	// Start clutch backend in goroutine
-	transport := clutch.NewChannelTransport()
-	defer transport.Close()
-
-	go func() {
-		err := clutch.RunBackend(ctx, transport, clutch.BackendConfig{
-			Driver:       chatDriver,
-			Tools:        registry,
-			Session:      sess,
-			SystemPrompt: assembledPrompt,
-			MaxTurns:     *maxTurns,
-		})
-		if err != nil {
-			log.Error("backend exited", "error", err)
+	// Start clutch shell/backend transport.
+	// --socket: shell listens on Unix socket, backend connects separately (hot-swap).
+	// No --socket: in-process channel transport (current default, no hot-swap).
+	var transport clutch.Transport
+	if *socketPath != "" {
+		// Socket mode: shell listens, backend connects from another process.
+		listener, listenErr := clutch.Listen(*socketPath)
+		if listenErr != nil {
+			return fmt.Errorf("listen on %s: %w", *socketPath, listenErr)
 		}
-	}()
+		defer listener.Close()
+		fmt.Fprintf(stderr, "djinn: waiting for backend on %s\n", *socketPath)
+		fmt.Fprintf(stderr, "djinn: run: djinn backend --socket %s\n", *socketPath)
+
+		socketTransport, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return fmt.Errorf("accept backend: %w", acceptErr)
+		}
+		defer socketTransport.Close()
+		transport = socketTransport
+		fmt.Fprintf(stderr, "djinn: backend connected\n")
+	} else {
+		// In-process mode: channel transport, backend in goroutine.
+		channelTransport := clutch.NewChannelTransport()
+		defer channelTransport.Close()
+		transport = channelTransport
+
+		go func() {
+			backendErr := clutch.RunBackend(ctx, channelTransport, clutch.BackendConfig{
+				Driver:       chatDriver,
+				Tools:        registry,
+				Session:      sess,
+				SystemPrompt: assembledPrompt,
+				MaxTurns:     *maxTurns,
+			})
+			if backendErr != nil {
+				log.Error("backend exited", "error", backendErr)
+			}
+		}()
+	}
 
 	// DebugTap: --debug-tap for JSONL capture, --live-debug for HTTP server.
 	// Both require explicit opt-in. Neither is on by default.
