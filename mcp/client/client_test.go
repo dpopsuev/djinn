@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"log/slog"
+
 	"github.com/dpopsuev/djinn/djinnlog"
 )
 
@@ -453,6 +455,73 @@ func TestLoadMCPConfig_NoFiles(t *testing.T) {
 	configs := LoadMCPConfig(t.TempDir())
 	if len(configs) != 0 {
 		t.Fatalf("should be empty with no config files, got %d", len(configs))
+	}
+}
+
+func TestConnectHTTP_SessionHeader(t *testing.T) {
+	// Simulate a Streamable HTTP MCP server that returns Mcp-Session-Id.
+	var receivedSessionID string
+	callCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		receivedSessionID = r.Header.Get("Mcp-Session-Id")
+
+		var req jsonRPCRequest
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
+
+		// Set session ID on initialize response.
+		if req.Method == "initialize" {
+			w.Header().Set("Mcp-Session-Id", "test-session-42")
+		}
+
+		switch req.Method {
+		case "initialize":
+			fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%d,"result":{"protocolVersion":"2024-11-05","serverInfo":{"name":"test"},"capabilities":{}}}`, req.ID)
+		case "tools/list":
+			fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%d,"result":{"tools":[]}}`, req.ID)
+		default:
+			fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%d,"result":{}}`, req.ID)
+		}
+	}))
+	defer srv.Close()
+
+	client := New(slog.Default())
+	defer client.Close()
+
+	err := client.ConnectHTTP(context.Background(), "test-server", srv.URL+"/")
+	if err != nil {
+		t.Fatalf("ConnectHTTP: %v", err)
+	}
+
+	// tools/list should have sent the session ID.
+	if receivedSessionID != "test-session-42" {
+		t.Fatalf("session ID = %q, want test-session-42 (tools/list should include Mcp-Session-Id)", receivedSessionID)
+	}
+}
+
+func TestConnectHTTP_InitError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, `{"jsonrpc":"2.0","id":1,"error":{"code":-32600,"message":"bad request"}}`)
+	}))
+	defer srv.Close()
+
+	client := New(slog.Default())
+	defer client.Close()
+
+	err := client.ConnectHTTP(context.Background(), "bad-server", srv.URL+"/")
+	if err == nil {
+		t.Fatal("expected error on init failure")
+	}
+}
+
+func TestServerConfig_IsHTTP(t *testing.T) {
+	http := ServerConfig{URL: "http://localhost:8080/"}
+	stdio := ServerConfig{Command: "mcp-server"}
+	if !http.IsHTTP() {
+		t.Fatal("URL config should be HTTP")
+	}
+	if stdio.IsHTTP() {
+		t.Fatal("command config should not be HTTP")
 	}
 }
 

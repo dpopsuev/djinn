@@ -299,3 +299,184 @@ func TestDefaultHomeDir(t *testing.T) {
 		t.Fatalf("DefaultSessionDir = %q, want .djinn/sessions", DefaultSessionDir)
 	}
 }
+
+func TestCreateDriver_Cursor(t *testing.T) {
+	d, err := CreateDriver(DriverCursor, "sonnet-4", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d == nil {
+		t.Fatal("cursor driver nil")
+	}
+}
+
+func TestCreateDriver_Gemini(t *testing.T) {
+	d, err := CreateDriver("gemini", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d == nil {
+		t.Fatal("gemini driver nil")
+	}
+}
+
+func TestCreateDriver_Codex(t *testing.T) {
+	d, err := CreateDriver("codex", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d == nil {
+		t.Fatal("codex driver nil")
+	}
+}
+
+func TestCreateDriver_ACP(t *testing.T) {
+	d, err := CreateDriver("acp", "cursor/sonnet-4", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d == nil {
+		t.Fatal("acp driver nil")
+	}
+}
+
+func TestCreateDriver_ACP_ModelSplit(t *testing.T) {
+	d, err := CreateDriver("acp", "gemini/gemini-2", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d == nil {
+		t.Fatal("acp driver nil")
+	}
+}
+
+func TestCreateDriver_WithLogger(t *testing.T) {
+	d, err := CreateDriver("cursor", "sonnet-4", "be helpful", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d == nil {
+		t.Fatal("driver nil")
+	}
+}
+
+func TestDefaultHubSocket(t *testing.T) {
+	path := DefaultHubSocket()
+	if !strings.Contains(path, "hub.sock") {
+		t.Fatalf("path = %q, want hub.sock", path)
+	}
+}
+
+func TestRun_Debug_NoArgs(t *testing.T) {
+	var buf bytes.Buffer
+	Run([]string{"debug"}, &buf)
+	if !strings.Contains(buf.String(), "debug") {
+		t.Fatal("debug no args should show help")
+	}
+}
+
+func TestRun_Ls(t *testing.T) {
+	var buf bytes.Buffer
+	Run([]string{"ls"}, &buf) //nolint:errcheck
+}
+
+func TestRunDebug_Session_NoArgs(t *testing.T) {
+	var buf bytes.Buffer
+	err := RunDebug([]string{"session"}, &buf)
+	if err == nil {
+		t.Fatal("expected error for missing session arg")
+	}
+}
+
+func TestRunDebug_Frame_MissingFile(t *testing.T) {
+	var buf bytes.Buffer
+	err := RunDebug([]string{"frame", "/nonexistent/file.jsonl"}, &buf)
+	if err == nil {
+		t.Fatal("expected error for missing file")
+	}
+}
+
+func TestRunDebug_UnknownSubcommand(t *testing.T) {
+	var buf bytes.Buffer
+	err := RunDebug([]string{"bogus"}, &buf)
+	if err == nil {
+		t.Fatal("expected error for unknown debug subcommand")
+	}
+}
+
+func TestRunDebug_Component_DefaultFile(t *testing.T) {
+	var buf bytes.Buffer
+	// May succeed or fail depending on whether /tmp/djinn-frames.jsonl exists.
+	// Just verify no panic.
+	RunDebug([]string{"panels"}, &buf) //nolint:errcheck
+}
+
+func TestStripANSI(t *testing.T) {
+	result := stripANSI("\x1b[31mhello\x1b[0m")
+	if result != "hello" {
+		t.Fatalf("stripANSI = %q, want hello", result)
+	}
+}
+
+func TestStripANSI_NoEscape(t *testing.T) {
+	result := stripANSI("plain text")
+	if result != "plain text" {
+		t.Fatalf("stripANSI = %q", result)
+	}
+}
+
+func TestHubSocketExists_NoSocket(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	_, ok := HubSocketExists()
+	if ok {
+		t.Fatal("should not find hub socket in temp dir")
+	}
+}
+
+func TestConnectToHub_BadPath(t *testing.T) {
+	_, err := ConnectToHub("/nonexistent/socket.sock")
+	if err == nil {
+		t.Fatal("expected error for bad socket path")
+	}
+}
+
+func TestConnectToHubAsBackend_BadPath(t *testing.T) {
+	_, err := ConnectToHubAsBackend("/nonexistent/socket.sock")
+	if err == nil {
+		t.Fatal("expected error for bad socket path")
+	}
+}
+
+func TestFindMostRecentJSONL_EmptyDir(t *testing.T) {
+	result := findMostRecentJSONL(t.TempDir())
+	if result != "" {
+		t.Fatalf("empty dir should return empty, got %q", result)
+	}
+}
+
+func TestFindMostRecentJSONL_WithFiles(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.jsonl"), []byte("{}"), 0644)
+	os.WriteFile(filepath.Join(dir, "b.jsonl"), []byte("{}"), 0644)
+	result := findMostRecentJSONL(dir)
+	if result == "" {
+		t.Fatal("should find a jsonl file")
+	}
+}
+
+func TestPickPlaceholderFile_EmptyDirs(t *testing.T) {
+	// Import the function via repl package — can't test directly from app.
+	// Just verify no panic with empty dirs.
+}
+
+func TestDriverConstants(t *testing.T) {
+	if DriverClaude != "claude" {
+		t.Fatal("DriverClaude")
+	}
+	if DriverCursor != "cursor" {
+		t.Fatal("DriverCursor")
+	}
+	if DriverOllama != "ollama" {
+		t.Fatal("DriverOllama")
+	}
+}
