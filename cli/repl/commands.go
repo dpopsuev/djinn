@@ -31,6 +31,8 @@ const (
 	cmdQuit     = "/quit"
 	cmdSessions = "/sessions"
 	cmdRole     = "/role"
+	cmdStaff    = "/staff"
+	cmdBriefing = "/briefing"
 )
 
 // CommandNames returns all slash command names in sorted order.
@@ -41,7 +43,7 @@ func CommandNames() []string {
 		cmdMemory, cmdCopy, cmdPermissions, cmdOutput, cmdResume,
 		cmdWorkspace, cmdWorkspaceSwitch, cmdWorkspaceAdd,
 		cmdWorkspaceRepos, cmdWorkspaceSave,
-		cmdRole,
+		cmdRole, cmdStaff, cmdBriefing,
 		cmdDiff, cmdLog, cmdConfig, cmdConfigSave, cmdMcp, cmdReview,
 	}
 	sort.Strings(names)
@@ -155,6 +157,8 @@ func helpText() string {
 
   /role [name]            show or switch staff role
   /role create <n> <mode> create a role on the fly
+  /staff                  show all roles and their state
+  /briefing               show shared GenSec mailbox
 
   /clear                  clear conversation history
   /help                   show this help

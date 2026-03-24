@@ -317,10 +317,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = stateInput
 		m.inputPanel.FocusInput()
 
-		// Auto-transition: determine next role
+		// Auto-transition: determine next role.
+		// Executor gets a mechanical gate check before transitioning.
 		if m.currentRole == "executor" {
-			next := staff.NextRole(staff.SignalGatePassed)
-			m.switchRole(next)
+			gate := &staff.MakeCircuitGate{}
+			result, gateErr := gate.Check(m.ctx)
+			if gateErr != nil {
+				m.outputPanel.Append(tui.ErrorStyle.Render("gate error: " + gateErr.Error()))
+			}
+			if result.Passed {
+				m.outputPanel.Append(tui.ToolSuccessStyle.Render("  ✓ gate passed"))
+				next := staff.NextRole(staff.SignalGatePassed)
+				m.switchRole(next)
+			} else {
+				// Gate failed — stay in executor, inject diagnostics.
+				for _, d := range result.Diagnostics {
+					m.outputPanel.Append(tui.ErrorStyle.Render(
+						fmt.Sprintf("  ✗ %s: %s", d.Source, truncate(d.Message, 200))))
+				}
+				m.outputPanel.Append(tui.DimStyle.Render("  gate failed — fix and try again"))
+				// Don't transition — executor stays.
+			}
 		} else if m.currentRole != "gensec" {
 			m.switchRole("gensec")
 		} else {
@@ -426,6 +443,10 @@ func (m *Model) switchRole(roleName string) {
 	if newMode, err := agent.ParseMode(role.Mode); err == nil {
 		m.mode = newMode
 	}
+
+	// Update tool restrictions based on role's allowed slots.
+	// Empty slots = no tools. Executor gets all.
+	m.token.AllowedTools = role.Slots
 
 	m.dashboard.SetUIState(strings.ToUpper(roleName))
 	m.dashboard.SetIdentity(m.sess.Workspace, m.sess.Driver, m.sess.Model, m.mode.String())
@@ -546,6 +567,47 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 		} else {
 			m.switchRole(cmd.Args[0])
 			m.outputPanel.Append(fmt.Sprintf("switched to %s (manual override)", cmd.Args[0]))
+		}
+		m.outputPanel.Append("")
+		return m, nil
+	}
+
+	// Handle /staff — show all roles and their current state.
+	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/staff" {
+		var sb strings.Builder
+		sb.WriteString("Staff:\n")
+		names := make([]string, 0, len(m.roles))
+		for n := range m.roles {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			role := m.roles[name]
+			indicator := "  "
+			if name == m.currentRole {
+				indicator = "→ "
+			}
+			sb.WriteString(fmt.Sprintf("%s%s (mode: %s, slots: %d)\n",
+				indicator, name, role.Mode, len(role.Slots)))
+		}
+		m.outputPanel.Append(sb.String())
+		m.outputPanel.Append("")
+		return m, nil
+	}
+
+	// Handle /briefing — show shared GenSec mailbox channel.
+	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/briefing" {
+		entries := m.roleMemory.Briefing()
+		if len(entries) == 0 {
+			m.outputPanel.Append("briefing: (empty)")
+		} else {
+			var sb strings.Builder
+			sb.WriteString("Briefing:\n")
+			for _, e := range entries {
+				ts := e.Timestamp.Format("15:04:05")
+				sb.WriteString(fmt.Sprintf("  [%s] %s\n", ts, e.Content))
+			}
+			m.outputPanel.Append(sb.String())
 		}
 		m.outputPanel.Append("")
 		return m, nil
