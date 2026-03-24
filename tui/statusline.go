@@ -11,9 +11,10 @@ import (
 type HealthStatus int
 
 const (
-	StatusGreen  HealthStatus = iota
+	StatusGreen   HealthStatus = iota
 	StatusYellow
 	StatusRed
+	StatusOffline // server declared but not running — dimmed, not warning
 )
 
 // HealthReport is a single component's health.
@@ -129,6 +130,9 @@ func RenderHealth(reports []HealthReport) string {
 		case StatusRed:
 			allGreen = false
 			indicators = append(indicators, healthRed.Render("✗ "+r.Component))
+		case StatusOffline:
+			// Offline: dimmed, not alarming — server just isn't running.
+			indicators = append(indicators, fieldKeyStyle.Render("· "+r.Component))
 		}
 	}
 

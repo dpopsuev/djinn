@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/session"
@@ -10,20 +11,25 @@ import (
 // ReplayHistory sends session entries into a driver to restore context.
 // User entries with Blocks (e.g. tool_result) go through SendRich
 // to preserve structured content. Plain text goes through Send.
-func ReplayHistory(ctx context.Context, d driver.ChatDriver, sess *session.Session) {
+// Returns an error if any replay step fails — caller decides recovery.
+func ReplayHistory(ctx context.Context, d driver.ChatDriver, sess *session.Session) error {
 	for _, entry := range sess.Entries() {
 		switch entry.Role {
 		case driver.RoleUser:
+			var err error
 			if len(entry.Blocks) > 0 {
-				d.SendRich(ctx, driver.RichMessage{ //nolint:errcheck
+				err = d.SendRich(ctx, driver.RichMessage{
 					Role:   entry.Role,
 					Blocks: entry.Blocks,
 				})
 			} else {
-				d.Send(ctx, driver.Message{ //nolint:errcheck
+				err = d.Send(ctx, driver.Message{
 					Role:    entry.Role,
 					Content: entry.TextContent(),
 				})
+			}
+			if err != nil {
+				return fmt.Errorf("replay user entry: %w", err)
 			}
 		case driver.RoleAssistant:
 			d.AppendAssistant(driver.RichMessage{
@@ -33,4 +39,5 @@ func ReplayHistory(ctx context.Context, d driver.ChatDriver, sess *session.Sessi
 			})
 		}
 	}
+	return nil
 }

@@ -286,14 +286,13 @@ func TestModel_View_Welcome(t *testing.T) {
 
 func TestModel_View_StatusBar(t *testing.T) {
 	m := testModel()
-	// Assert model state, not rendered string (per tui-testing Lex rule)
 	if m.sess.Model != "test-model" {
 		t.Fatalf("model = %q", m.sess.Model)
 	}
-	if m.mode != agent.ModeAgent {
-		t.Fatalf("mode = %s", m.mode)
+	// Default role (gensec) overrides cfg.Mode to "plan"
+	if m.mode != agent.ModePlan {
+		t.Fatalf("mode = %s, want plan (from gensec role)", m.mode)
 	}
-	// View should render without error
 	view := m.View()
 	if view == "" {
 		t.Fatal("view should not be empty")
@@ -382,17 +381,18 @@ func TestModel_FlushStreamBuffer_Empty(t *testing.T) {
 func TestModel_NewModel_DefaultMode(t *testing.T) {
 	sess := session.New("test", "model", "/workspace")
 	m := NewModel(Config{Tools: builtin.NewRegistry(), Session: sess})
-	// Empty mode string defaults to agent
-	if m.mode != agent.ModeAgent {
-		t.Fatalf("default mode = %s, want agent", m.mode)
+	// Default role (gensec) overrides cfg.Mode — gensec is "plan"
+	if m.mode != agent.ModePlan {
+		t.Fatalf("default mode = %s, want plan (from gensec role)", m.mode)
 	}
 }
 
 func TestModel_NewModel_ParsesMode(t *testing.T) {
 	sess := session.New("test", "model", "/workspace")
 	m := NewModel(Config{Tools: builtin.NewRegistry(), Session: sess, Mode: "auto"})
-	if m.mode != agent.ModeAuto {
-		t.Fatalf("mode = %s, want auto", m.mode)
+	// cfg.Mode="auto" is overridden by default role (gensec) which is "plan"
+	if m.mode != agent.ModePlan {
+		t.Fatalf("mode = %s, want plan (gensec role overrides cfg.Mode)", m.mode)
 	}
 }
 

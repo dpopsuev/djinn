@@ -228,8 +228,13 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 	defer chatDriver.Stop(ctx) //nolint:errcheck // best-effort cleanup on exit
 
-	// Replay history into driver
-	ReplayHistory(ctx, chatDriver, sess)
+	// Replay history into driver. If replay fails (corrupt session),
+	// auto-recover by clearing history and starting fresh.
+	if err := ReplayHistory(ctx, chatDriver, sess); err != nil {
+		fmt.Fprintf(stderr, "djinn: session replay failed: %v\n", err)
+		fmt.Fprintf(stderr, "djinn: clearing history and starting fresh\n")
+		sess.History.Clear()
+	}
 
 	// Connect MCP servers
 	mcpClient := mcpclient.New(djinnlog.For(logResult.Logger, "mcp"))
@@ -259,11 +264,11 @@ func RunREPL(args []string, stderr io.Writer) error {
 			connectErr = mcpClient.ConnectStdio(ctx, name, cfg.Command, cfg.Args, cfg.Env)
 		}
 		if connectErr != nil {
-			log.Warn("MCP server failed", "server", name, "error", connectErr)
+			log.Warn("MCP server offline", "server", name, "error", connectErr)
 			mcpFailures = append(mcpFailures, tui.HealthReport{
 				Component: name,
-				Status:    tui.StatusYellow,
-				Message:   connectErr.Error(),
+				Status:    tui.StatusOffline,
+				Message:   fmt.Sprintf("start failed: %s", connectErr.Error()),
 			})
 		}
 	}

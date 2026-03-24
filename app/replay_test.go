@@ -33,7 +33,7 @@ func TestReplayHistory_ToolResultViaSendRich(t *testing.T) {
 	stub := &stubs.StubChatDriver{}
 	stub.Start(context.Background(), "") //nolint:errcheck
 
-	ReplayHistory(context.Background(), stub, sess)
+	ReplayHistory(context.Background(), stub, sess) //nolint:errcheck
 
 	// The tool_result entry MUST go through SendRich
 	if len(stub.SendRichLog) == 0 {
@@ -65,7 +65,7 @@ func TestReplayHistory_PlainUserViaSend(t *testing.T) {
 	stub := &stubs.StubChatDriver{}
 	stub.Start(context.Background(), "") //nolint:errcheck
 
-	ReplayHistory(context.Background(), stub, sess)
+	ReplayHistory(context.Background(), stub, sess) //nolint:errcheck
 
 	if len(stub.SendLog) != 1 {
 		t.Fatalf("plain user entry: SendLog = %d, want 1", len(stub.SendLog))

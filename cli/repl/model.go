@@ -146,11 +146,19 @@ func NewModel(cfg Config) Model {
 	m.dashboard.SetIdentity(cfg.Session.Workspace, cfg.Session.Driver, cfg.Session.Model, cfg.Mode)
 	m.dashboard.SetHealth(cfg.HealthReports)
 
-	// Staff: initialize roles and memory
+	// Staff: initialize roles and memory.
+	// The default role's mode overrides cfg.Mode — GenSec should be "plan"
+	// (no tools) regardless of what the CLI flag says.
 	staffCfg := staff.DefaultConfig()
 	m.roles = staffCfg.RoleMap()
 	m.roleMemory = staff.NewRoleMemory()
 	m.currentRole = "gensec"
+	if defaultRole, ok := m.roles["gensec"]; ok {
+		if newMode, err := agent.ParseMode(defaultRole.Mode); err == nil {
+			m.mode = newMode
+		}
+	}
+	m.dashboard.SetIdentity(cfg.Session.Workspace, cfg.Session.Driver, cfg.Session.Model, m.mode.String())
 	m.dashboard.SetUIState("GENSEC")
 
 	return m
@@ -411,6 +419,7 @@ func (m *Model) switchRole(roleName string) {
 	}
 
 	m.dashboard.SetUIState(strings.ToUpper(roleName))
+	m.dashboard.SetIdentity(m.sess.Workspace, m.sess.Driver, m.sess.Model, m.mode.String())
 	m.roleMemory.AppendBriefing(staff.Entry{
 		Content: fmt.Sprintf("→ switched to %s", roleName),
 	})
@@ -697,6 +706,9 @@ func (m *Model) SetTextInput(v string) { m.inputPanel.SetValue(v) }
 
 // SetState sets the model state (for testing).
 func (m *Model) SetState(s State) { m.state = s }
+
+// SetMode overrides the agent mode (for testing tool approval flows).
+func (m *Model) SetMode(mode agent.Mode) { m.mode = mode }
 
 // AppendConversation adds a line to conversation (for testing).
 func (m *Model) AppendConversation(line string) { m.outputPanel.Append(line) }

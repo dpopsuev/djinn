@@ -69,6 +69,7 @@ func TestTUI_TextBufferedAndFlushed(t *testing.T) {
 
 func TestTUI_ToolApprovalInAgentMode(t *testing.T) {
 	m := testTUIModel(t, "agent")
+	m.SetMode(agent.ModeAgent) // override gensec default (plan) for tool approval test
 	m.SetState(repl.StateStreaming)
 	m2, _ := m.Update(tui.ToolCallMsg{Call: driver.ToolCall{
 		ID: "c1", Name: "Bash", Input: json.RawMessage(`{}`),
@@ -204,6 +205,7 @@ func TestTUI_MultipleConversationTurns_NoPanic(t *testing.T) {
 func TestTUI_ToolApprovalCycle_NoPanic(t *testing.T) {
 	// Stream → tool call → approval → stream → done.
 	m := testTUIModel(t, "agent")
+	m.SetMode(agent.ModeAgent) // override gensec default for tool approval test
 	m.SetState(repl.StateStreaming)
 	m.AppendConversation(tui.AssistStyle.Render(tui.LabelAssist) + ": ")
 
@@ -375,5 +377,72 @@ func TestTUI_StreamingFrame_NoEscapeLiterals(t *testing.T) {
 					i, view[max(0, i-5):min(len(view), i+20)])
 			}
 		}
+	}
+}
+
+func TestTUI_InitialRoleModeApplied(t *testing.T) {
+	// BUG-21: NewModel sets dashboard with cfg.Mode ("agent") but the
+	// default role (gensec) should override to "plan". The initial mode
+	// must come from the role, not the CLI flag.
+	sess := session.New("mode-test", "test-model", "/workspace")
+	m := repl.NewModel(repl.Config{
+		Tools:   builtin.NewRegistry(),
+		Session: sess,
+		Mode:    "agent", // CLI says agent
+		Driver:  &stubs.StubChatDriver{},
+	})
+	m2, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	model := toModelPtr(m2)
+
+	view := model.View()
+	// Dashboard should show "plan" (from gensec role), NOT "agent" (from CLI)
+	if strings.Contains(view, "mode:agent") {
+		t.Fatal("BUG-21: initial mode should be 'plan' (from gensec role), not 'agent' (from CLI)")
+	}
+}
+
+func TestTUI_RoleSwitchUpdatesMode(t *testing.T) {
+	// BUG-21: switchRole updates m.mode but not the dashboard.
+	// After switching to executor, dashboard should show "agent" mode.
+	sess := session.New("mode-test", "test-model", "/workspace")
+	m := repl.NewModel(repl.Config{
+		Tools:   builtin.NewRegistry(),
+		Session: sess,
+		Mode:    "agent",
+		Driver:  &stubs.StubChatDriver{},
+	})
+	m2, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	model := toModelPtr(m2)
+
+	// Switch to executor
+	model.SetTextInput("/role executor")
+	m3 := multiUpdate(t, *model, tea.KeyMsg{Type: tea.KeyEnter})
+	model2 := toModelPtr(m3)
+
+	view := model2.View()
+	if !strings.Contains(view, "mode:agent") {
+		t.Fatal("BUG-21: after switching to executor, dashboard should show mode:agent")
+	}
+}
+
+func TestStaffDefaultConfig_GenSecModeDisablesTools(t *testing.T) {
+	// GenSec mode should be "plan" which disables tools.
+	mode, err := agent.ParseMode("plan")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode.ToolsEnabled() {
+		t.Fatal("GenSec mode 'plan' should disable tools")
+	}
+}
+
+func TestStaffDefaultConfig_ExecutorModeEnablesTools(t *testing.T) {
+	// Executor mode should be "agent" which enables tools.
+	mode, err := agent.ParseMode("agent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !mode.ToolsEnabled() {
+		t.Fatal("Executor mode 'agent' should enable tools")
 	}
 }
