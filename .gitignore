@@ -14,6 +14,9 @@ coverage.html
 *.swo
 *~
 
+# Worktrees (executor task isolation)
+.worktrees/
+
 # OS
 .DS_Store
 Thumbs.db
