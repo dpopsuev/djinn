@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -108,6 +109,9 @@ type Model struct {
 func NewModel(cfg Config) Model {
 	inputPanel := tui.NewInputPanel()
 	inputPanel.SetCompletions(CommandNames())
+	if placeholder := pickPlaceholderFile(cfg.Session.WorkDirs); placeholder != "" {
+		inputPanel.Update(tui.InputSetPlaceholderMsg{Text: fmt.Sprintf("Try \"explain %s\"", placeholder)})
+	}
 
 	mode, err := agent.ParseMode(cfg.Mode)
 	if err != nil {
@@ -498,8 +502,8 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Tab: try slash-command completion first, then cycle focus.
 	// Shift+Tab cycles backwards.
 	if msg.Type == tea.KeyTab && m.state == stateInput {
-		if m.inputPanel.TabComplete() {
-			return m, nil
+		if handled, cmd := m.inputPanel.TabComplete(); handled {
+			return m, cmd
 		}
 		m.focus.Cycle()
 		return m, nil
@@ -786,6 +790,22 @@ func (m Model) TextInputValue() string { return m.inputPanel.Value() }
 
 // AddInputHistory adds an entry to input history (for testing).
 func (m *Model) AddInputHistory(s string) { m.inputPanel.Update(tui.InputAddHistoryMsg{Value: s}) }
+
+// pickPlaceholderFile finds a Go file in the workspace dirs for the input placeholder.
+func pickPlaceholderFile(dirs []string) string {
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".go") && !strings.HasSuffix(e.Name(), "_test.go") {
+				return e.Name()
+			}
+		}
+	}
+	return ""
+}
 
 // Export state constants for acceptance tests.
 const (

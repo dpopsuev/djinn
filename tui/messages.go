@@ -67,6 +67,9 @@ type InputBlurMsg struct{}
 type InputAddHistoryMsg struct{ Value string }
 type InputSetCompletionsMsg struct{ Names []string }
 
+// InputSetPlaceholderMsg sets the input placeholder text.
+type InputSetPlaceholderMsg struct{ Text string }
+
 // SubmitMsg is emitted by InputPanel when the user presses Enter.
 type SubmitMsg struct{ Value string }
 

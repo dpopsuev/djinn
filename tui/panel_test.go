@@ -283,7 +283,7 @@ func TestInputPanel_TabComplete_Prefix(t *testing.T) {
 	p.SetCompletions([]string{"/clear", "/compact", "/config", "/config-save", "/help"})
 
 	p.SetValue("/co")
-	if !p.TabComplete() {
+	if handled, _ := p.TabComplete(); !handled {
 		t.Fatal("should handle /co prefix")
 	}
 	val := p.Value()
@@ -297,7 +297,7 @@ func TestInputPanel_TabComplete_NoSlash(t *testing.T) {
 	p.SetCompletions([]string{"/help"})
 
 	p.SetValue("hello")
-	if p.TabComplete() {
+	if handled, _ := p.TabComplete(); handled {
 		t.Fatal("should not handle non-slash input")
 	}
 }
@@ -310,7 +310,7 @@ func TestInputPanel_TabComplete_Cycle(t *testing.T) {
 	p.TabComplete()
 	first := p.Value()
 
-	p.TabComplete() // cycle
+	p.TabComplete()
 	second := p.Value()
 
 	if first == second {
@@ -318,16 +318,21 @@ func TestInputPanel_TabComplete_Cycle(t *testing.T) {
 	}
 }
 
-func TestInputPanel_TabComplete_ExactMatch(t *testing.T) {
+func TestInputPanel_TabComplete_ExactMatch_AutoExecutes(t *testing.T) {
 	p := NewInputPanel()
 	p.SetCompletions([]string{"/help", "/history"})
 
 	p.SetValue("/help")
-	if !p.TabComplete() {
+	handled, cmd := p.TabComplete()
+	if !handled {
 		t.Fatal("should handle exact match")
 	}
-	if p.Value() != "/help" {
-		t.Fatalf("exact match should complete to /help, got %q", p.Value())
+	// Single match "/help" — auto-executes, clears input.
+	if cmd == nil {
+		t.Fatal("single exact match should auto-execute")
+	}
+	if p.Value() != "" {
+		t.Fatalf("input should be cleared after auto-execute, got %q", p.Value())
 	}
 }
 
@@ -336,7 +341,7 @@ func TestInputPanel_TabComplete_NoMatch(t *testing.T) {
 	p.SetCompletions([]string{"/help", "/config"})
 
 	p.SetValue("/zzz")
-	if !p.TabComplete() {
+	if handled, _ := p.TabComplete(); !handled {
 		t.Fatal("should consume Tab even with no matches")
 	}
 	if p.Value() != "/zzz" {

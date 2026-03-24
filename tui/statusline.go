@@ -111,40 +111,42 @@ func RenderStatusLine(workspace, driverName, model, mode string, tokensIn, token
 }
 
 // RenderHealth renders health indicators with color coding.
+// Shows individual component names so you know exactly what's up/down.
 func RenderHealth(reports []HealthReport) string {
 	if len(reports) == 0 {
 		return ""
 	}
 
-	allGreen := true
-	greenCount := 0
 	indicators := make([]string, 0, len(reports))
-
 	for _, r := range reports {
 		switch r.Status {
 		case StatusGreen:
-			greenCount++
+			indicators = append(indicators, healthGreen.Render("✓"+r.Component))
 		case StatusYellow:
-			allGreen = false
-			indicators = append(indicators, healthYellow.Render("⚠ "+r.Component))
+			indicators = append(indicators, healthYellow.Render("⚠"+r.Component))
 		case StatusRed:
-			allGreen = false
-			indicators = append(indicators, healthRed.Render("✗ "+r.Component))
+			indicators = append(indicators, healthRed.Render("✗"+r.Component))
 		case StatusOffline:
-			// Offline: dimmed, not alarming — server just isn't running.
-			indicators = append(indicators, fieldKeyStyle.Render("· "+r.Component))
+			indicators = append(indicators, fieldKeyStyle.Render("·"+r.Component))
 		}
-	}
-
-	if allGreen {
-		if greenCount > 0 {
-			return healthGreen.Render(fmt.Sprintf("✓%d", greenCount))
-		}
-		return ""
-	}
-
-	if greenCount > 0 {
-		indicators = append(indicators, healthGreen.Render(fmt.Sprintf("✓%d", greenCount)))
 	}
 	return strings.Join(indicators, " ")
+}
+
+// RenderHealthCompact renders a compact health summary (count only).
+// Used for small terminal breakpoints.
+func RenderHealthCompact(reports []HealthReport) string {
+	if len(reports) == 0 {
+		return ""
+	}
+	green, total := 0, len(reports)
+	for _, r := range reports {
+		if r.Status == StatusGreen {
+			green++
+		}
+	}
+	if green == total {
+		return healthGreen.Render(fmt.Sprintf("✓%d", green))
+	}
+	return fmt.Sprintf("%d/%d", green, total)
 }

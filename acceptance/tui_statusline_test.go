@@ -80,9 +80,9 @@ func TestStatusLine_HealthAllGreen(t *testing.T) {
 	m2, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
 	model := toModelPtr(m2)
 	view := model.View()
-	// All green should show collapsed "✓ 2 mcp"
-	if !strings.Contains(view, "2") {
-		t.Fatalf("all green should show collapsed count: %s", view)
+	// All green should show individual component names.
+	if !strings.Contains(view, "scribe") || !strings.Contains(view, "locus") {
+		t.Fatalf("all green should show component names: %s", view)
 	}
 }
 

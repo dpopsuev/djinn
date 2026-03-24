@@ -145,6 +145,9 @@ func (p *InputPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 	case InputSetCompletionsMsg:
 		p.SetCompletions(msg.Names)
 		return p, nil
+	case InputSetPlaceholderMsg:
+		p.textarea.Placeholder = msg.Text
+		return p, nil
 	case ResizeMsg:
 		if msg.Width > 0 {
 			p.textarea.SetWidth(msg.Width)
@@ -198,14 +201,14 @@ func (p *InputPanel) SetCompletions(names []string) {
 	p.completions = names
 }
 
-// TabComplete attempts slash command completion. Returns true if it handled
-// the Tab press (input starts with /), false if Tab should cycle focus instead.
-func (p *InputPanel) TabComplete() bool {
+// TabComplete attempts slash command completion. Returns (handled, cmd).
+// If there's exactly one match, auto-executes it via SubmitMsg.
+func (p *InputPanel) TabComplete() (bool, tea.Cmd) {
 	val := p.textarea.Value()
 	if !strings.HasPrefix(val, "/") {
 		p.compPrefix = ""
 		p.lastCompletion = ""
-		return false
+		return false, nil
 	}
 
 	// Determine the prefix to match against.
@@ -219,14 +222,25 @@ func (p *InputPanel) TabComplete() bool {
 	}
 
 	if len(p.matches) == 0 {
-		return true // consumed Tab but no matches
+		return true, nil // consumed Tab but no matches
+	}
+
+	// Single match and first completion — auto-execute.
+	if len(p.matches) == 1 && p.lastCompletion == "" {
+		completed := p.matches[0]
+		p.textarea.Reset()
+		p.compPrefix = ""
+		p.lastCompletion = ""
+		return true, func() tea.Msg {
+			return SubmitMsg{Value: completed}
+		}
 	}
 
 	p.compIdx = (p.compIdx + 1) % len(p.matches)
 	completed := p.matches[p.compIdx]
 	p.textarea.SetValue(completed)
 	p.lastCompletion = completed
-	return true
+	return true, nil
 }
 
 func filterPrefix(names []string, prefix string) []string {

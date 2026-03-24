@@ -81,11 +81,54 @@ func TestInputPanel_CompletionsViaMessage(t *testing.T) {
 	p := NewInputPanel()
 	p.Update(InputSetCompletionsMsg{[]string{"/help", "/config", "/clear"}})
 	p.SetValue("/he")
-	if !p.TabComplete() {
+	handled, cmd := p.TabComplete()
+	if !handled {
 		t.Fatal("should handle /he prefix")
 	}
-	if p.Value() != "/help" {
-		t.Fatalf("completed = %q, want /help", p.Value())
+	// Single match "/help" — auto-executes via SubmitMsg.
+	if cmd == nil {
+		t.Fatal("single match should auto-execute")
+	}
+	msg := cmd()
+	submit, ok := msg.(SubmitMsg)
+	if !ok {
+		t.Fatalf("expected SubmitMsg, got %T", msg)
+	}
+	if submit.Value != "/help" {
+		t.Fatalf("submit = %q, want /help", submit.Value)
+	}
+}
+
+func TestInputPanel_TabComplete_SingleMatch_AutoExecute(t *testing.T) {
+	p := NewInputPanel()
+	p.Update(InputSetCompletionsMsg{[]string{"/help", "/config"}})
+	p.SetFocus(true)
+	p.Update(InputSetValueMsg{"/hel"})
+	handled, cmd := p.TabComplete()
+	if !handled {
+		t.Fatal("should handle /hel prefix")
+	}
+	if cmd == nil {
+		t.Fatal("single match should auto-execute via SubmitMsg")
+	}
+	msg := cmd()
+	submit, ok := msg.(SubmitMsg)
+	if !ok {
+		t.Fatalf("expected SubmitMsg, got %T", msg)
+	}
+	if submit.Value != "/help" {
+		t.Fatalf("submit = %q, want /help", submit.Value)
+	}
+}
+
+func TestInputPanel_TabComplete_MultiMatch_NoAutoExecute(t *testing.T) {
+	p := NewInputPanel()
+	p.Update(InputSetCompletionsMsg{[]string{"/config", "/config-save", "/clear"}})
+	p.SetFocus(true)
+	p.Update(InputSetValueMsg{"/config"})
+	_, cmd := p.TabComplete()
+	if cmd != nil {
+		t.Fatal("multiple matches should NOT auto-execute")
 	}
 }
 

@@ -51,9 +51,8 @@ func TestDashboard_HealthViaMessage(t *testing.T) {
 		{Component: "locus", Status: StatusGreen, Message: "3 tools"},
 	}})
 	view := d.View(120)
-	// Status line shows aggregated count, e.g. "mcp:✓2"
-	if !strings.Contains(view, "2") {
-		t.Fatalf("view should show health count: %q", view)
+	if !strings.Contains(view, "scribe") || !strings.Contains(view, "locus") {
+		t.Fatalf("view should show individual component names: %q", view)
 	}
 }
 
