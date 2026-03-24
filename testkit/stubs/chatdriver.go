@@ -51,6 +51,11 @@ func (d *StubChatDriver) AppendAssistant(msg driver.RichMessage) {
 	d.history = append(d.history, msg)
 }
 
+// HistoryLog returns all AppendAssistant calls for test assertions.
+func (d *StubChatDriver) HistoryLog() []driver.RichMessage {
+	return d.history
+}
+
 func (d *StubChatDriver) SetSystemPrompt(prompt string) {
 	d.systemPrompt = prompt
 }
