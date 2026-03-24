@@ -41,6 +41,69 @@ var defaultCommands = map[string]Command{
 	"history-prev": {Name: "history-prev", Description: "Previous input from history"},
 	"history-next": {Name: "history-next", Description: "Next input from history"},
 	"submit":       {Name: "submit", Description: "Submit current input"},
+	"focus-up":     {Name: "focus-up", Description: "Focus previous panel"},
+	"focus-down":   {Name: "focus-down", Description: "Focus next panel"},
+	"dive":         {Name: "dive", Description: "Enter child panel"},
+	"climb":        {Name: "climb", Description: "Return to parent panel"},
+}
+
+// Mode represents a vim-style editing mode.
+type Mode string
+
+const (
+	ModeInsert Mode = "insert"
+	ModeNormal Mode = "normal"
+)
+
+// ModeTable provides mode-aware keybinding lookup.
+type ModeTable struct {
+	mode     Mode
+	bindings map[Mode][]Binding
+	commands map[string]Command
+}
+
+// NewModeTable creates a table with default bindings for both modes.
+func NewModeTable() *ModeTable {
+	t := &ModeTable{
+		mode:     ModeInsert,
+		commands: defaultCommands,
+		bindings: map[Mode][]Binding{
+			ModeInsert: defaultBindings,
+			ModeNormal: {
+				{Key: "j", Command: "focus-down"},
+				{Key: "k", Command: "focus-up"},
+				{Key: "i", Command: "enter-insert"},
+				{Key: "enter", Command: "dive"},
+				{Key: "escape", Command: "climb"},
+				{Key: "q", Command: "quit"},
+			},
+		},
+	}
+	return t
+}
+
+// SetMode switches the active mode.
+func (t *ModeTable) SetMode(m Mode) { t.mode = m }
+
+// Mode returns the active mode.
+func (t *ModeTable) CurrentMode() Mode { return t.mode }
+
+// Lookup finds a command for the given key in the current mode.
+func (t *ModeTable) Lookup(key string) (Command, bool) {
+	for _, b := range t.bindings[t.mode] {
+		if b.Key == key {
+			cmd, ok := t.commands[b.Command]
+			return cmd, ok
+		}
+	}
+	return Command{}, false
+}
+
+// Bindings returns all bindings for the current mode.
+func (t *ModeTable) Bindings() []Binding {
+	out := make([]Binding, len(t.bindings[t.mode]))
+	copy(out, t.bindings[t.mode])
+	return out
 }
 
 func (t *stubTable) Lookup(key string) (Command, bool) {

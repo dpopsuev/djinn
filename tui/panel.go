@@ -30,7 +30,15 @@ type Panel interface {
 
 // FocusManager routes input to the active panel.
 // Tab cycles focus. Ctrl+W j/k moves focus up/down.
+// Dive/Climb navigate into/out of child panels.
 type FocusManager struct {
+	panels []Panel
+	active int
+	stack  []focusFrame // focus stack for dive/climb navigation
+}
+
+// focusFrame stores state for returning from a dive.
+type focusFrame struct {
 	panels []Panel
 	active int
 }
@@ -104,4 +112,40 @@ func (f *FocusManager) Panels() []Panel {
 // Count returns the number of panels.
 func (f *FocusManager) Count() int {
 	return len(f.panels)
+}
+
+// Dive enters the active panel's children. Pushes current state onto stack.
+func (f *FocusManager) Dive() bool {
+	if f.active >= len(f.panels) {
+		return false
+	}
+	children := f.panels[f.active].Children()
+	if len(children) == 0 {
+		return false
+	}
+	f.stack = append(f.stack, focusFrame{panels: f.panels, active: f.active})
+	f.panels[f.active].SetFocus(false)
+	f.panels = children
+	f.active = 0
+	f.panels[0].SetFocus(true)
+	return true
+}
+
+// Climb returns to the parent panel level. Pops the stack.
+func (f *FocusManager) Climb() bool {
+	if len(f.stack) == 0 {
+		return false
+	}
+	f.panels[f.active].SetFocus(false)
+	frame := f.stack[len(f.stack)-1]
+	f.stack = f.stack[:len(f.stack)-1]
+	f.panels = frame.panels
+	f.active = frame.active
+	f.panels[f.active].SetFocus(true)
+	return true
+}
+
+// Depth returns the current dive depth (0 = top level).
+func (f *FocusManager) Depth() int {
+	return len(f.stack)
 }

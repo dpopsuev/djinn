@@ -142,6 +142,47 @@ func TestInputPanel_ResizeViaMessage(t *testing.T) {
 	}
 }
 
+func TestInputPanel_PredictionFromHistory(t *testing.T) {
+	p := NewInputPanel()
+	p.Update(InputAddHistoryMsg{"hello world"})
+	p.Update(InputAddHistoryMsg{"help me"})
+	p.SetFocus(true)
+	p.Update(InputSetValueMsg{"hel"})
+	// Trigger prediction update by simulating a keystroke.
+	p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	// Prediction should match most recent history entry with prefix "hell"
+	// Actually "hell" matches "hello world"
+	pred := p.Prediction()
+	if pred != "hello world" {
+		t.Fatalf("prediction = %q, want 'hello world'", pred)
+	}
+}
+
+func TestInputPanel_PredictionEmpty(t *testing.T) {
+	p := NewInputPanel()
+	p.Update(InputAddHistoryMsg{"hello"})
+	p.SetFocus(true)
+	p.Update(InputSetValueMsg{"xyz"})
+	p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'z'}})
+	if p.Prediction() != "" {
+		t.Fatalf("no history match, prediction should be empty, got %q", p.Prediction())
+	}
+}
+
+func TestInputPanel_AcceptPrediction(t *testing.T) {
+	p := NewInputPanel()
+	p.Update(InputAddHistoryMsg{"hello world"})
+	p.SetFocus(true)
+	p.Update(InputSetValueMsg{"hel"})
+	p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	if !p.AcceptPrediction() {
+		t.Fatal("should accept prediction")
+	}
+	if p.Value() != "hello world" {
+		t.Fatalf("value = %q, want 'hello world'", p.Value())
+	}
+}
+
 func TestInputPanel_UnfocusedIgnoresKeys(t *testing.T) {
 	p := NewInputPanel()
 	p.Update(InputBlurMsg{})

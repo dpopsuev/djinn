@@ -23,6 +23,9 @@ type InputPanel struct {
 	compPrefix     string   // the prefix being completed
 	compIdx        int      // index into matches
 	lastCompletion string   // last completed value (for cycle detection)
+
+	// Predictive input — grey suggestion from history.
+	prediction string
 }
 
 const panelIDInput = "input"
@@ -177,7 +180,39 @@ func (p *InputPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	p.textarea, cmd = p.textarea.Update(msg)
+	// Update prediction after each keystroke.
+	p.updatePrediction()
 	return p, cmd
+}
+
+// updatePrediction searches history for a prefix match.
+func (p *InputPanel) updatePrediction() {
+	val := p.textarea.Value()
+	p.prediction = ""
+	if val == "" || strings.HasPrefix(val, "/") {
+		return
+	}
+	for i := len(p.history) - 1; i >= 0; i-- {
+		if strings.HasPrefix(p.history[i], val) && p.history[i] != val {
+			p.prediction = p.history[i]
+			return
+		}
+	}
+}
+
+// AcceptPrediction sets the input value to the current prediction.
+func (p *InputPanel) AcceptPrediction() bool {
+	if p.prediction == "" {
+		return false
+	}
+	p.textarea.SetValue(p.prediction)
+	p.prediction = ""
+	return true
+}
+
+// Prediction returns the current prediction text (for testing).
+func (p *InputPanel) Prediction() string {
+	return p.prediction
 }
 
 func (p *InputPanel) View(width int) string {
@@ -187,7 +222,18 @@ func (p *InputPanel) View(width int) string {
 	if width > 0 {
 		p.textarea.SetWidth(width)
 	}
-	return p.textarea.View()
+	view := p.textarea.View()
+	// Show prediction as dim suffix on the first line.
+	if p.prediction != "" {
+		val := p.textarea.Value()
+		if strings.HasPrefix(p.prediction, val) {
+			suffix := p.prediction[len(val):]
+			if suffix != "" {
+				view += DimStyle.Render(suffix)
+			}
+		}
+	}
+	return view
 }
 
 // SetVisible controls whether the input panel renders.

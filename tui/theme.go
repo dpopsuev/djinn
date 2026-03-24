@@ -29,6 +29,58 @@ var DefaultTheme = Theme{
 	FocusDim:  lipgloss.AdaptiveColor{Light: "#808080", Dark: "#505050"},
 }
 
+// ClaudeTheme — warm orange/amber tones inspired by Claude Code.
+var ClaudeTheme = Theme{
+	User:      lipgloss.AdaptiveColor{Light: "#d97706", Dark: "#f59e0b"},
+	Assistant: lipgloss.AdaptiveColor{Light: "#7c3aed", Dark: "#a78bfa"},
+	ToolName:  lipgloss.AdaptiveColor{Light: "#059669", Dark: "#34d399"},
+	ToolArg:   lipgloss.AdaptiveColor{Light: "#6b7280", Dark: "#9ca3af"},
+	Success:   lipgloss.AdaptiveColor{Light: "#059669", Dark: "#34d399"},
+	Error:     lipgloss.AdaptiveColor{Light: "#dc2626", Dark: "#f87171"},
+	Accent:    lipgloss.AdaptiveColor{Light: "#d97706", Dark: "#f59e0b"},
+	FocusDim:  lipgloss.AdaptiveColor{Light: "#9ca3af", Dark: "#6b7280"},
+}
+
+// GeminiTheme — cool blue tones inspired by Gemini CLI.
+var GeminiTheme = Theme{
+	User:      lipgloss.AdaptiveColor{Light: "#2563eb", Dark: "#60a5fa"},
+	Assistant: lipgloss.AdaptiveColor{Light: "#7c3aed", Dark: "#a78bfa"},
+	ToolName:  lipgloss.AdaptiveColor{Light: "#0891b2", Dark: "#22d3ee"},
+	ToolArg:   lipgloss.AdaptiveColor{Light: "#6b7280", Dark: "#9ca3af"},
+	Success:   lipgloss.AdaptiveColor{Light: "#16a34a", Dark: "#4ade80"},
+	Error:     lipgloss.AdaptiveColor{Light: "#dc2626", Dark: "#f87171"},
+	Accent:    lipgloss.AdaptiveColor{Light: "#2563eb", Dark: "#60a5fa"},
+	FocusDim:  lipgloss.AdaptiveColor{Light: "#94a3b8", Dark: "#64748b"},
+}
+
+// CodexTheme — green monochrome inspired by OpenAI Codex.
+var CodexTheme = Theme{
+	User:      lipgloss.AdaptiveColor{Light: "#16a34a", Dark: "#4ade80"},
+	Assistant: lipgloss.AdaptiveColor{Light: "#16a34a", Dark: "#86efac"},
+	ToolName:  lipgloss.AdaptiveColor{Light: "#059669", Dark: "#34d399"},
+	ToolArg:   lipgloss.AdaptiveColor{Light: "#6b7280", Dark: "#9ca3af"},
+	Success:   lipgloss.AdaptiveColor{Light: "#16a34a", Dark: "#4ade80"},
+	Error:     lipgloss.AdaptiveColor{Light: "#dc2626", Dark: "#f87171"},
+	Accent:    lipgloss.AdaptiveColor{Light: "#16a34a", Dark: "#4ade80"},
+	FocusDim:  lipgloss.AdaptiveColor{Light: "#6b7280", Dark: "#4b5563"},
+}
+
+// ThemeByName returns a theme by name. Returns DefaultTheme if not found.
+func ThemeByName(name string) Theme {
+	switch name {
+	case "claude":
+		return ClaudeTheme
+	case "gemini":
+		return GeminiTheme
+	case "codex":
+		return CodexTheme
+	case "djinn":
+		return DefaultTheme
+	default:
+		return DefaultTheme
+	}
+}
+
 // ActiveTheme is the currently active theme. Change this to swap palettes.
 var ActiveTheme = DefaultTheme
 
