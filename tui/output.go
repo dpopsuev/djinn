@@ -90,6 +90,11 @@ func (p *OutputPanel) AppendToLast(text string) {
 	}
 }
 
+// StreamBufString returns the current stream buffer content (for overlay preview).
+func (p *OutputPanel) StreamBufString() string {
+	return p.streamBuf.String()
+}
+
 // Clear removes all lines.
 func (p *OutputPanel) Clear() {
 	p.lines = nil

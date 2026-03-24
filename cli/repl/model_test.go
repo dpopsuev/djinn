@@ -63,8 +63,8 @@ func TestModel_TextMsg_Streaming(t *testing.T) {
 	m.state = stateStreaming
 	m2, _ := m.Update(tui.TextMsg("hello"))
 	model := asModel(t, m2)
-	if model.streamBuf.String() != "hello" {
-		t.Fatalf("streamBuf = %q", model.streamBuf.String())
+	if model.StreamBufString() != "hello" {
+		t.Fatalf("streamBuf = %q", model.StreamBufString())
 	}
 }
 
@@ -77,7 +77,7 @@ func TestModel_TextMsg_Chunked(t *testing.T) {
 	if model.chunkedBuf.String() != "hello" {
 		t.Fatalf("chunkedBuf = %q", model.chunkedBuf.String())
 	}
-	if model.streamBuf.Len() != 0 {
+	if model.StreamBufString() != "" {
 		t.Fatal("streamBuf should be empty in chunked mode")
 	}
 }
@@ -178,16 +178,17 @@ func TestModel_AgentDoneMsg_WithError(t *testing.T) {
 
 func TestModel_TickMsg_WhileStreaming(t *testing.T) {
 	m := testModel()
-	m.state = stateStreaming
-	m.streamBuf.WriteString("buffered text")
-	m.outputPanel.Append("assistant: ")
+	m.SetState(StateStreaming)
+	// Stream text via message (goes to OutputPanel's internal streamBuf)
+	m.Update(tui.TextMsg("buffered text"))
+	m.AppendConversation("assistant: ")
 
 	m2, cmd := m.Update(tui.TickMsg(time.Now()))
 	model := asModel(t, m2)
 	if cmd == nil {
 		t.Fatal("should return tick cmd while streaming")
 	}
-	if model.streamBuf.Len() != 0 {
+	if model.StreamBufString() != "" {
 		t.Fatal("buffer should be flushed")
 	}
 }
@@ -356,15 +357,17 @@ func TestTruncate(t *testing.T) {
 
 func TestModel_FlushStreamBuffer(t *testing.T) {
 	m := testModel()
-	m.outputPanel.Append("assistant: ")
-	m.streamBuf.WriteString("hello world")
-	m.flushStreamBuffer()
+	m.AppendConversation("assistant: ")
+	// Stream via TextMsg (OutputPanel handles it internally now)
+	m.Update(tui.TextMsg("hello world"))
+	// Flush via FlushStreamMsg
+	m.outputPanel.Update(tui.FlushStreamMsg{})
 	lines := m.outputPanel.Lines()
 	last := lines[len(lines)-1]
 	if !strings.Contains(last, "hello world") {
 		t.Fatalf("last line = %q", last)
 	}
-	if m.streamBuf.Len() != 0 {
+	if m.StreamBufString() != "" {
 		t.Fatal("buffer should be empty after flush")
 	}
 }
@@ -372,7 +375,7 @@ func TestModel_FlushStreamBuffer(t *testing.T) {
 func TestModel_FlushStreamBuffer_Empty(t *testing.T) {
 	m := testModel()
 	before := m.outputPanel.LineCount()
-	m.flushStreamBuffer()
+	m.outputPanel.Update(tui.FlushStreamMsg{})
 	if m.outputPanel.LineCount() != before {
 		t.Fatal("empty flush should not modify conversation")
 	}

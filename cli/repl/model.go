@@ -64,7 +64,6 @@ type Model struct {
 	// UI state
 	state       State
 	inputPanel  *tui.InputPanel
-	streamBuf   *strings.Builder
 	pendingTool *driver.ToolCall
 	lastUsage    *driver.Usage
 	totalIn      int      // cumulative input tokens
@@ -154,15 +153,14 @@ func NewModel(cfg Config) Model {
 		router:         cfg.Router,
 		worktreeMgr:    vcs.NewWorktreeManager(cfg.Session.WorkDir),
 		debugTap:       cfg.DebugTap,
-		streamBuf:      &strings.Builder{},
 		chunkedBuf:     &strings.Builder{},
 		rawStreamLine:  &strings.Builder{},
 	}
 
 	m.focus = tui.NewFocusManager(m.outputPanel, m.inputPanel, m.dashboard)
 	m.focus.FocusPanel(1) // Default focus on input — user can type immediately.
-	m.dashboard.SetIdentity(cfg.Session.Workspace, cfg.Session.Driver, cfg.Session.Model, cfg.Mode)
-	m.dashboard.SetHealth(cfg.HealthReports)
+	m.dashboard.Update(tui.DashboardIdentityMsg{Workspace: cfg.Session.Workspace, Driver: cfg.Session.Driver, Model: cfg.Session.Model, Mode: cfg.Mode})
+	m.dashboard.Update(tui.DashboardHealthMsg{Reports: cfg.HealthReports})
 
 	// Staff: initialize roles and memory.
 	// The default role's mode overrides cfg.Mode — GenSec should be "plan"
@@ -176,8 +174,8 @@ func NewModel(cfg Config) Model {
 			m.mode = newMode
 		}
 	}
-	m.dashboard.SetIdentity(cfg.Session.Workspace, cfg.Session.Driver, cfg.Session.Model, m.mode.String())
-	m.dashboard.SetUIState("GENSEC")
+	m.dashboard.Update(tui.DashboardIdentityMsg{Workspace: cfg.Session.Workspace, Driver: cfg.Session.Driver, Model: cfg.Session.Model, Mode: m.mode.String()})
+	m.dashboard.Update(tui.DashboardUIStateMsg{State: "GENSEC"})
 
 	return m
 }
@@ -197,15 +195,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.ready = true
 		tui.ReinitRenderer(msg.Width)
-		m.outputPanel.InitViewport(msg.Width, msg.Height-m.fixedHeight())
-		// Render MOTD once when viewport is first initialized
+		m.outputPanel.Update(tui.ResizeMsg{Width: msg.Width, Height: msg.Height - m.fixedHeight()})
 		if m.outputPanel.LineCount() == 0 {
-			m.outputPanel.Append(renderMOTD(m.sess, m.tools, m.version, m.currentRole))
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: renderMOTD(m.sess, m.tools, m.version, m.currentRole)})
 		}
-		// Auto-submit initial prompt if provided
 		if m.initialPrompt != "" {
-			m.inputPanel.SetValue(m.initialPrompt)
-			m.initialPrompt = "" // only once
+			m.inputPanel.Update(tui.InputSetValueMsg{Value: m.initialPrompt})
+			m.initialPrompt = ""
 			return m.handleSubmit()
 		}
 		return m, nil
@@ -222,47 +218,43 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tui.TextMsg:
-		m.spinnerActive = false // first token arrived, hide spinner
+		m.spinnerActive = false
 		if m.outputMode == outputChunked {
 			m.chunkedBuf.WriteString(string(msg))
 		} else {
-			m.streamBuf.WriteString(string(msg))
+			m.outputPanel.Update(msg) // OutputPanel handles TextMsg via streamBuf
 		}
 		return m, nil
 
 	case tui.ThinkingMsg:
-		m.outputPanel.Append(tui.DimStyle.Render(string(msg)))
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render(string(msg))})
 		return m, nil
 
 	case tui.ToolCallMsg:
-		// Create an EnvelopePanel for structured tool call rendering (BUG-32).
 		envID := fmt.Sprintf("tool-%d", m.outputPanel.LineCount())
 		env := tui.NewEnvelopePanel(envID, msg.Call.Name, string(msg.Call.Input))
-		m.outputPanel.Append(env.View(m.width))
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: env.View(m.width)})
 		m.activeToolIdx = m.outputPanel.LineCount() - 1
 		if m.envelopes == nil {
 			m.envelopes = make(map[int]*tui.EnvelopePanel)
 		}
 		m.envelopes[m.activeToolIdx] = env
 
-		// In agent mode (not auto), prompt for approval
 		if m.mode == agent.ModeAgent && !m.autoApprove {
 			m.state = stateToolApproval
-			m.dashboard.SetUIState("APPROVAL")
+			m.dashboard.Update(tui.DashboardUIStateMsg{State: "APPROVAL"})
 			m.pendingTool = &msg.Call
 		}
 		return m, nil
 
 	case tui.ToolResultMsg:
-		// Update the envelope with the result (auto-collapses).
 		if m.activeToolIdx >= 0 && m.activeToolIdx < m.outputPanel.LineCount() {
 			if env, ok := m.envelopes[m.activeToolIdx]; ok {
 				env.SetResult(msg.Output, msg.IsError)
-				m.outputPanel.SetLine(m.activeToolIdx, env.View(m.width))
+				m.outputPanel.Update(tui.OutputSetLineMsg{Index: m.activeToolIdx, Line: env.View(m.width)})
 			}
 			m.activeToolIdx = -1
 		} else {
-			// Orphan result — render inline.
 			var line string
 			if msg.IsError {
 				line = fmt.Sprintf("  %s %s",
@@ -273,7 +265,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					tui.ToolSuccessStyle.Render("✓ "+msg.Name),
 					tui.DimStyle.Render(truncate(msg.Output, 100)))
 			}
-			m.outputPanel.Append(line)
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: line})
 		}
 		return m, nil
 
@@ -287,12 +279,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tui.ErrorMsg:
 		m.lastError = msg.Error()
-		m.outputPanel.Append(tui.ErrorStyle.Render("error: " + msg.Error()))
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render("error: " + msg.Error())})
 		return m, nil
 
 	case tui.AgentDoneMsg:
 		m.rawStreamLine.Reset()
-		// Auto-save session after each turn
 		if m.store != nil {
 			if err := m.store.Save(m.sess); err != nil {
 				m.log.Warn("auto-save failed", "error", err)
@@ -300,74 +291,67 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Flush remaining buffers
 		if m.outputMode == outputChunked && m.chunkedBuf.Len() > 0 {
-			// Chunked mode: render full response now
 			if m.outputPanel.LineCount() > 0 {
 				last := m.outputPanel.LineCount() - 1
-				m.outputPanel.SetLine(last, m.outputPanel.Lines()[last]+m.chunkedBuf.String())
+				m.outputPanel.Update(tui.OutputSetLineMsg{Index: last, Line: m.outputPanel.Lines()[last] + m.chunkedBuf.String()})
 			}
 			m.chunkedBuf.Reset()
 		}
-		m.flushStreamBuffer()
-		// Render the completed response as markdown
+		m.outputPanel.Update(tui.FlushStreamMsg{})
+		// Render completed response as markdown
 		if m.outputPanel.LineCount() > 0 {
 			last := m.outputPanel.LineCount() - 1
 			raw := m.outputPanel.Lines()[last]
-			// Strip the assistant label prefix, render, re-add
 			prefix := tui.AssistStyle.Render(tui.LabelAssist) + ": "
 			if after, found := strings.CutPrefix(raw, prefix); found {
 				rendered := tui.RenderMarkdown(after)
-				m.outputPanel.SetLine(last, prefix+rendered)
+				m.outputPanel.Update(tui.OutputSetLineMsg{Index: last, Line: prefix + rendered})
 			}
 		}
 		if msg.Err != nil {
-			m.outputPanel.Append(tui.ErrorStyle.Render("error: " + msg.Err.Error()))
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render("error: " + msg.Err.Error())})
 		}
 		if m.lastUsage != nil {
-			m.outputPanel.Append(tui.StatusStyle.Render(fmt.Sprintf("[tokens: %d in, %d out]",
-				m.lastUsage.InputTokens, m.lastUsage.OutputTokens)))
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.StatusStyle.Render(fmt.Sprintf("[tokens: %d in, %d out]",
+				m.lastUsage.InputTokens, m.lastUsage.OutputTokens))})
 		}
-		m.outputPanel.Append("") // blank line
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
 		m.state = stateInput
-		m.focus.FocusPanel(1) // Return focus to input panel.
-		m.inputPanel.FocusInput()
+		m.focus.FocusPanel(1)
+		m.inputPanel.Update(tui.InputFocusMsg{})
 
-		// Auto-transition: determine next role.
-		// Executor gets a mechanical gate check before transitioning.
+		// Auto-transition: executor gate check.
 		if m.currentRole == "executor" {
 			gate := &staff.MakeCircuitGate{}
-			// Run gate in the executor's working directory.
-			// If a worktree is active, run in the worktree. Otherwise main repo.
 			gateDir := m.sess.WorkDir
 			if m.activeWorktree != "" {
 				gateDir = m.activeWorktree
 			}
 			result, gateErr := gate.Check(m.ctx, gateDir)
 			if gateErr != nil {
-				m.outputPanel.Append(tui.ErrorStyle.Render("gate error: " + gateErr.Error()))
+				m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render("gate error: " + gateErr.Error())})
 			}
 			if result.Passed {
-				m.outputPanel.Append(tui.ToolSuccessStyle.Render("  ✓ gate passed"))
+				m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ToolSuccessStyle.Render("  ✓ gate passed")})
 				next := staff.NextRole(staff.SignalGatePassed)
 				m.switchRole(next)
 			} else {
-				// Gate failed — stay in executor, inject diagnostics.
 				for _, d := range result.Diagnostics {
-					m.outputPanel.Append(tui.ErrorStyle.Render(
-						fmt.Sprintf("  ✗ %s: %s", d.Source, truncate(d.Message, 200))))
+					m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render(
+						fmt.Sprintf("  ✗ %s: %s", d.Source, truncate(d.Message, 200)))})
 				}
-				m.outputPanel.Append(tui.DimStyle.Render("  gate failed — fix and try again"))
-				// Don't transition — executor stays.
+				m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  gate failed — fix and try again")})
 			}
 		} else if m.currentRole != "gensec" {
 			m.switchRole("gensec")
 		} else {
-			m.dashboard.SetUIState("GENSEC")
+			m.dashboard.Update(tui.DashboardUIStateMsg{State: "GENSEC"})
 		}
 		return m, nil
 
 	case tui.TickMsg:
 		if m.state == stateStreaming {
-			m.flushStreamBuffer()
+			m.outputPanel.Update(tui.FlushStreamMsg{})
 			return m, tickCmd()
 		}
 		return m, nil
@@ -391,9 +375,9 @@ func (m Model) View() string {
 	innerWidth := m.width - 2
 
 	// Set ephemeral overlay (spinner, streaming text, approval prompt)
-	m.outputPanel.SetOverlay(m.overlayContent())
-	m.outputPanel.InitViewport(innerWidth, m.height-m.fixedHeight())
-	m.dashboard.SetMetrics(m.totalIn, m.totalOut, m.sess.History.Len())
+	m.outputPanel.Update(tui.OutputSetOverlayMsg{Text: m.overlayContent()})
+	m.outputPanel.Update(tui.ResizeMsg{Width: innerWidth, Height: m.height - m.fixedHeight()})
+	m.dashboard.Update(tui.DashboardMetricsMsg{TokensIn: m.totalIn, TokensOut: m.totalOut, Turns: m.sess.History.Len()})
 
 	var sb strings.Builder
 	// Output panel: bordered but NEVER foreground-dimmed (BUG-11).
@@ -434,8 +418,8 @@ func (m Model) overlayContent() string {
 	switch {
 	case m.state == stateStreaming && m.spinnerActive:
 		return "  " + m.spin.View() + " thinking..."
-	case m.state == stateStreaming && m.streamBuf.Len() > 0:
-		return m.streamBuf.String()
+	case m.state == stateStreaming && m.outputPanel.StreamBufString() != "":
+		return m.outputPanel.StreamBufString()
 	case m.state == stateToolApproval && m.pendingTool != nil:
 		return tui.ToolNameStyle.Render(fmt.Sprintf("  approve %s? [y/n] ", m.pendingTool.Name))
 	default:
@@ -471,13 +455,13 @@ func (m *Model) switchRole(roleName string) {
 		m.router.SetRole(roleName)
 	}
 
-	m.dashboard.SetUIState(strings.ToUpper(roleName))
-	m.dashboard.SetIdentity(m.sess.Workspace, m.sess.Driver, m.sess.Model, m.mode.String())
+	m.dashboard.Update(tui.DashboardUIStateMsg{State: strings.ToUpper(roleName)})
+	m.dashboard.Update(tui.DashboardIdentityMsg{Workspace: m.sess.Workspace, Driver: m.sess.Driver, Model: m.sess.Model, Mode: m.mode.String()})
 	m.roleMemory.AppendBriefing(staff.Entry{
 		Content: fmt.Sprintf("→ switched to %s", roleName),
 	})
-	m.outputPanel.Append(tui.DimStyle.Render(
-		fmt.Sprintf("  → %s", roleName)))
+	m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render(
+		fmt.Sprintf("  → %s", roleName))})
 }
 
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -536,7 +520,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if msg.Alt && msg.Type == tea.KeyRunes && len(msg.Runes) == 1 && (msg.Runes[0] == 'm' || msg.Runes[0] == 'M') {
 			m.mode = m.mode.Next()
 			m.sess.Mode = m.mode.String()
-			m.outputPanel.Append(tui.DimStyle.Render(fmt.Sprintf("  mode: %s", m.mode)))
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render(fmt.Sprintf("  mode: %s", m.mode))})
 			return m, nil
 		}
 
@@ -560,17 +544,14 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 	input := strings.TrimSpace(m.inputPanel.Value())
-	m.inputPanel.Reset()
+	m.inputPanel.Update(tui.InputResetMsg{})
 
 	if input == "" {
 		return m, nil
 	}
 
-	// Record in input history
-	m.inputPanel.AddHistory(input)
-
-	// Add user input to conversation
-	m.outputPanel.Append(tui.UserStyle.Render(tui.LabelUser) + input)
+	m.inputPanel.Update(tui.InputAddHistoryMsg{Value: input})
+	m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.UserStyle.Render(tui.LabelUser) + input})
 
 	// Handle /role before the general command dispatcher (needs Model access)
 	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/role" {
@@ -580,23 +561,22 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 				names = append(names, n)
 			}
 			sort.Strings(names)
-			m.outputPanel.Append(fmt.Sprintf("current role: %s\navailable: %s",
-				m.currentRole, strings.Join(names, ", ")))
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: fmt.Sprintf("current role: %s\navailable: %s",
+				m.currentRole, strings.Join(names, ", "))})
 		} else if cmd.Args[0] == "create" && len(cmd.Args) >= 3 {
-			// /role create <name> <mode> — create a role on the fly
 			name, mode := cmd.Args[1], cmd.Args[2]
 			m.roles[name] = staff.Role{
 				Name:   name,
 				Prompt: fmt.Sprintf("You are %s. The operator created this role on the fly.", name),
 				Mode:   mode,
-				Slots:  []string{}, // empty until configured
+				Slots:  []string{},
 			}
-			m.outputPanel.Append(fmt.Sprintf("created role %q (mode: %s, slots: none — use /role slots %s to configure)", name, mode, name))
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: fmt.Sprintf("created role %q (mode: %s, slots: none — use /role slots %s to configure)", name, mode, name)})
 		} else {
 			m.switchRole(cmd.Args[0])
-			m.outputPanel.Append(fmt.Sprintf("switched to %s (manual override)", cmd.Args[0]))
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: fmt.Sprintf("switched to %s (manual override)", cmd.Args[0])})
 		}
-		m.outputPanel.Append("")
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
 		return m, nil
 	}
 
@@ -618,34 +598,34 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 			sb.WriteString(fmt.Sprintf("%s%s (mode: %s, slots: %d)\n",
 				indicator, name, role.Mode, len(role.Slots)))
 		}
-		m.outputPanel.Append(sb.String())
-		m.outputPanel.Append("")
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: sb.String()})
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
 		return m, nil
 	}
 
-	// Handle /briefing — show shared GenSec mailbox channel.
+	// Handle /briefing
 	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/briefing" {
 		entries := m.roleMemory.Briefing()
 		if len(entries) == 0 {
-			m.outputPanel.Append("briefing: (empty)")
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: "briefing: (empty)"})
 		} else {
 			var sb strings.Builder
 			sb.WriteString("Briefing:\n")
 			for _, e := range entries {
 				ts := e.Timestamp.Format("15:04:05")
-				sb.WriteString(fmt.Sprintf("  [%s] %s\n", ts, e.Content))
+				fmt.Fprintf(&sb, "  [%s] %s\n", ts, e.Content)
 			}
-			m.outputPanel.Append(sb.String())
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: sb.String()})
 		}
-		m.outputPanel.Append("")
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
 		return m, nil
 	}
 
-	// Check for slash command
+	// Slash command dispatch
 	if cmd, ok := ParseCommand(input); ok {
 		result := ExecuteCommand(cmd, m.sess)
 		if result.Output != "" {
-			m.outputPanel.Append(result.Output)
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: result.Output})
 		}
 		if result.ModeChange != "" {
 			if newMode, err := agent.ParseMode(result.ModeChange); err == nil {
@@ -656,19 +636,18 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		}
-		m.outputPanel.Append("") // blank line
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
 		return m, nil
 	}
 
 	// Start agent loop
 	m.state = stateStreaming
-	m.dashboard.SetUIState("STREAMING")
-	m.streamBuf.Reset()
+	m.dashboard.Update(tui.DashboardUIStateMsg{State: "STREAMING"})
 	m.lastUsage = nil
 	m.lastError = ""
 	m.spinnerActive = true
-	m.outputPanel.Append(tui.AssistStyle.Render(tui.LabelAssist) + ": ")
-	m.inputPanel.BlurInput()
+	m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.AssistStyle.Render(tui.LabelAssist) + ": "})
+	m.inputPanel.Update(tui.InputBlurMsg{})
 
 	return m, tea.Batch(
 		m.runAgent(input),
@@ -681,12 +660,12 @@ func (m *Model) handleApproval(key string) (tea.Model, tea.Cmd) {
 	approved := key == "y" || key == "Y"
 	m.pendingTool = nil
 	m.state = stateStreaming
-	m.dashboard.SetUIState("STREAMING")
+	m.dashboard.Update(tui.DashboardUIStateMsg{State: "STREAMING"})
 
 	if approved {
-		m.outputPanel.Append(tui.DimStyle.Render("  approved"))
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  approved")})
 	} else {
-		m.outputPanel.Append(tui.ErrorStyle.Render("  denied"))
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render("  denied")})
 	}
 
 	// Send decision to agent goroutine via channel
@@ -741,21 +720,6 @@ func approvalForMode(mode agent.Mode, ch chan bool) agent.ApprovalFunc {
 	}
 }
 
-func (m *Model) flushStreamBuffer() {
-	if m.streamBuf.Len() == 0 {
-		return
-	}
-	text := m.streamBuf.String()
-	m.streamBuf.Reset()
-
-	// Accumulate raw text for completion-time markdown render.
-	m.rawStreamLine.WriteString(text)
-
-	// Display raw text during streaming — glamour renders on completion only.
-	// Glamour's width-padding ANSI codes look like garbage inside lipgloss borders.
-	m.outputPanel.AppendToLast(text)
-}
-
 // Test accessors — exported for acceptance tests.
 
 // renderMOTD builds the welcome banner with logo and workspace info
@@ -797,7 +761,7 @@ func renderMOTD(sess *session.Session, tools *builtin.Registry, version, current
 }
 
 // SetTextInput sets the text input value (for testing).
-func (m *Model) SetTextInput(v string) { m.inputPanel.SetValue(v) }
+func (m *Model) SetTextInput(v string) { m.inputPanel.Update(tui.InputSetValueMsg{Value: v}) }
 
 // SetState sets the model state (for testing).
 func (m *Model) SetState(s State) { m.state = s }
@@ -806,13 +770,13 @@ func (m *Model) SetState(s State) { m.state = s }
 func (m *Model) SetMode(mode agent.Mode) { m.mode = mode }
 
 // AppendConversation adds a line to conversation (for testing).
-func (m *Model) AppendConversation(line string) { m.outputPanel.Append(line) }
+func (m *Model) AppendConversation(line string) { m.outputPanel.Update(tui.OutputAppendMsg{Line: line}) }
 
 // ConversationLen returns the number of conversation lines (for testing).
 func (m *Model) ConversationLen() int { return m.outputPanel.LineCount() }
 
 // StreamBufString returns the stream buffer contents (for testing).
-func (m Model) StreamBufString() string { return m.streamBuf.String() }
+func (m Model) StreamBufString() string { return m.outputPanel.StreamBufString() }
 
 // CurrentState returns the current state (for testing).
 func (m Model) CurrentState() State { return m.state }
@@ -821,7 +785,7 @@ func (m Model) CurrentState() State { return m.state }
 func (m Model) TextInputValue() string { return m.inputPanel.Value() }
 
 // AddInputHistory adds an entry to input history (for testing).
-func (m *Model) AddInputHistory(s string) { m.inputPanel.AddHistory(s) }
+func (m *Model) AddInputHistory(s string) { m.inputPanel.Update(tui.InputAddHistoryMsg{Value: s}) }
 
 // Export state constants for acceptance tests.
 const (
