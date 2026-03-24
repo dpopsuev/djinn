@@ -90,6 +90,9 @@ func (s *Store) Load(nameOrID string) (*Session, error) {
 		sess.History = NewHistory(0)
 	}
 
+	// Sanitize: repair corrupt entries, auto-compact oversized sessions (DJN-BUG-14).
+	Sanitize(&sess)
+
 	return &sess, nil
 }
 

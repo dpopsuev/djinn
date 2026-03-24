@@ -1,8 +1,13 @@
 package session
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/dpopsuev/djinn/driver"
 )
 
 func TestStore_SaveAndLoad(t *testing.T) {
@@ -144,5 +149,121 @@ func TestStore_Overwrite(t *testing.T) {
 	loaded, _ := store.Load("overwrite")
 	if loaded.History.Len() != 2 {
 		t.Fatalf("after overwrite, turns = %d, want 2", loaded.History.Len())
+	}
+}
+
+func TestStore_Load_SanitizesNilToolUseInput(t *testing.T) {
+	// DJN-BUG-14: sessions with nil tool_use.input should be repaired on load.
+	dir := t.TempDir()
+
+	// Write raw JSON with null tool_use input directly to simulate corrupt file.
+	rawJSON := `{
+		"id": "corrupt",
+		"name": "corrupt",
+		"model": "test",
+		"work_dir": "/workspace",
+		"created_at": "2026-01-01T00:00:00Z",
+		"updated_at": "2026-01-01T00:00:00Z",
+		"history": [
+			{"role": "user", "content": "hello"},
+			{"role": "assistant", "blocks": [
+				{"type": "tool_use", "tool_call": {"id": "c1", "name": "Bash", "input": null}}
+			]},
+			{"role": "user", "blocks": [
+				{"type": "tool_result", "tool_result": {"tool_call_id": "c1", "output": "ok"}}
+			]}
+		]
+	}`
+	os.WriteFile(filepath.Join(dir, "corrupt.json"), []byte(rawJSON), 0600) //nolint:errcheck
+
+	store, _ := NewStore(dir)
+	loaded, err := store.Load("corrupt")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	for _, entry := range loaded.Entries() {
+		for _, block := range entry.Blocks {
+			if block.Type == driver.BlockToolUse && block.ToolCall != nil {
+				input := block.ToolCall.Input
+				if input == nil || string(input) == "null" {
+					t.Fatal("BUG-14: tool_use.input is nil or 'null' after load — should be repaired to {}")
+				}
+				var parsed any
+				if err := json.Unmarshal(input, &parsed); err != nil {
+					t.Fatalf("BUG-14: repaired input is not valid JSON: %v", err)
+				}
+			}
+		}
+	}
+}
+
+func TestStore_Load_SanitizesLargeSession(t *testing.T) {
+	// DJN-BUG-14: oversized sessions should be compacted on load.
+	dir := t.TempDir()
+	store, _ := NewStore(dir)
+
+	sess := New("big", "test", "/workspace")
+	sess.Name = "big"
+	for i := range 300 {
+		role := "user"
+		if i%2 == 1 {
+			role = "assistant"
+		}
+		sess.Append(Entry{Role: role, Content: "message " + string(rune('0'+i%10))})
+	}
+
+	store.Save(sess) //nolint:errcheck
+
+	loaded, err := store.Load("big")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// Session with 300 entries should be compacted to a reasonable size
+	if loaded.History.Len() > 250 {
+		t.Fatalf("BUG-14: session with 300 entries not compacted on load, got %d", loaded.History.Len())
+	}
+}
+
+func TestImport_NilToolUseInputDefaultsToEmptyObject(t *testing.T) {
+	// DJN-BUG-15: session file with null tool_use.input should be
+	// repaired through the sanitize-on-load path (defense in depth).
+	dir := t.TempDir()
+
+	rawJSON := `{
+		"id": "imported-test",
+		"name": "imported-test",
+		"model": "test",
+		"work_dir": "/workspace",
+		"created_at": "2026-01-01T00:00:00Z",
+		"updated_at": "2026-01-01T00:00:00Z",
+		"history": [
+			{"role": "user", "content": "hello"},
+			{"role": "assistant", "blocks": [
+				{"type": "tool_use", "tool_call": {"id": "c1", "name": "Read", "input": null}}
+			]},
+			{"role": "user", "blocks": [
+				{"type": "tool_result", "tool_result": {"tool_call_id": "c1", "output": "ok"}}
+			]}
+		]
+	}`
+	os.WriteFile(filepath.Join(dir, "imported-test.json"), []byte(rawJSON), 0600) //nolint:errcheck
+
+	store, _ := NewStore(dir)
+	loaded, err := store.Load("imported-test")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	for _, entry := range loaded.Entries() {
+		for _, block := range entry.Blocks {
+			if block.Type == driver.BlockToolUse && block.ToolCall != nil {
+				input := block.ToolCall.Input
+				if input == nil || string(input) == "null" {
+					t.Fatal("BUG-15: null tool_use.input not repaired on load")
+				}
+			}
+		}
 	}
 }

@@ -54,6 +54,11 @@ func (h *History) Clear() {
 	h.entries = nil
 }
 
+// SetEntries replaces all entries (used by Sanitize).
+func (h *History) SetEntries(entries []Entry) {
+	h.entries = entries
+}
+
 // MarshalJSON serializes the history as a JSON array of entries.
 func (h *History) MarshalJSON() ([]byte, error) {
 	return json.Marshal(h.entries)
