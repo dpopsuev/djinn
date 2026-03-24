@@ -498,68 +498,58 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Tab: try slash-command completion first, then cycle focus.
-	// Shift+Tab cycles backwards.
-	if msg.Type == tea.KeyTab && m.state == stateInput {
+	// Tab: try slash-command completion first, then cycle focus (any state).
+	if msg.Type == tea.KeyTab {
 		if handled, cmd := m.inputPanel.TabComplete(); handled {
 			return m, cmd
 		}
 		m.focus.Cycle()
 		return m, nil
 	}
-	if msg.Type == tea.KeyShiftTab && m.state == stateInput {
+	if msg.Type == tea.KeyShiftTab {
 		m.focus.FocusUp()
 		return m, nil
 	}
 
-	// During streaming: allow scroll and Escape to cancel.
-	if m.state == stateStreaming {
-		switch msg.Type {
-		case tea.KeyEscape:
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  (cancelled)")})
-			m.outputPanel.Update(tui.FlushStreamMsg{})
-			m.state = stateInput
-			m.focus.FocusPanel(1)
-			m.inputPanel.Update(tui.InputFocusMsg{})
-			m.dashboard.Update(tui.DashboardUIStateMsg{State: "INSERT"})
-			return m, nil
-		case tea.KeyPgUp, tea.KeyPgDown, tea.KeyUp, tea.KeyDown:
-			_, cmd := m.outputPanel.Update(msg)
-			return m, cmd
-		}
+	// During streaming: Escape cancels the agent.
+	if m.state == stateStreaming && msg.Type == tea.KeyEscape {
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  (cancelled)")})
+		m.outputPanel.Update(tui.FlushStreamMsg{})
+		m.state = stateInput
+		m.focus.FocusPanel(1)
+		m.inputPanel.Update(tui.InputFocusMsg{})
+		m.dashboard.Update(tui.DashboardUIStateMsg{State: "INSERT"})
+		return m, nil
 	}
 
-	// Forward PgUp/PgDn to output panel for scrolling
+	// Forward PgUp/PgDn to output panel for scrolling (any state).
 	if msg.Type == tea.KeyPgUp || msg.Type == tea.KeyPgDown {
 		_, cmd := m.outputPanel.Update(msg)
 		return m, cmd
 	}
 
-	if m.state == stateInput {
-		// Alt+M cycles mode: ask → plan → agent → auto → ask
-		if msg.Alt && msg.Type == tea.KeyRunes && len(msg.Runes) == 1 && (msg.Runes[0] == 'm' || msg.Runes[0] == 'M') {
-			m.mode = m.mode.Next()
-			m.sess.Mode = m.mode.String()
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render(fmt.Sprintf("  mode: %s", m.mode))})
-			return m, nil
-		}
-
-		// Input history navigation
-		switch msg.Type {
-		case tea.KeyUp:
-			m.inputPanel.HistoryUp()
-			return m, nil
-		case tea.KeyDown:
-			m.inputPanel.HistoryDown()
-			return m, nil
-		}
-
-		var cmd tea.Cmd
-		_, cmd = m.inputPanel.Update(msg)
-		return m, cmd
+	// Alt+M cycles mode (any state — works during streaming too).
+	if msg.Alt && msg.Type == tea.KeyRunes && len(msg.Runes) == 1 && (msg.Runes[0] == 'm' || msg.Runes[0] == 'M') {
+		m.mode = m.mode.Next()
+		m.sess.Mode = m.mode.String()
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render(fmt.Sprintf("  mode: %s", m.mode))})
+		return m, nil
 	}
 
-	return m, nil
+	// Input history navigation.
+	switch msg.Type {
+	case tea.KeyUp:
+		m.inputPanel.HistoryUp()
+		return m, nil
+	case tea.KeyDown:
+		m.inputPanel.HistoryDown()
+		return m, nil
+	}
+
+	// Forward all other keys to input panel (type-ahead during streaming).
+	var cmd tea.Cmd
+	_, cmd = m.inputPanel.Update(msg)
+	return m, cmd
 }
 
 func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
