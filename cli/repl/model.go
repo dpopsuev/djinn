@@ -130,7 +130,11 @@ func NewModel(cfg Config) Model {
 		inputPanel:   inputPanel,
 		handler:       agent.NilHandler{},
 		healthReports:  cfg.HealthReports,
-		spin:           spinner.New(spinner.WithSpinner(spinner.Dot)),
+		spin:           spinner.New(spinner.WithSpinner(spinner.Spinner{
+			// Burning flame — Djinn's signature spinner.
+			Frames: []string{"🕯", "🔥", "🔥", "🔥", "🕯", "🔥", "🔥", "🔥"},
+			FPS:    200 * time.Millisecond,
+		})),
 		activeToolIdx:  -1,
 		outputPanel:    tui.NewOutputPanel(),
 		dashboard:      tui.NewDashboardPanel(),
