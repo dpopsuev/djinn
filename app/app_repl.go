@@ -20,6 +20,7 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	codexdriver "github.com/dpopsuev/djinn/driver/codex"
+	acpdriver "github.com/dpopsuev/djinn/driver/acp"
 	cursordriver "github.com/dpopsuev/djinn/driver/cursor"
 	geminidriver "github.com/dpopsuev/djinn/driver/gemini"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
@@ -502,9 +503,28 @@ func CreateDriver(driverName, model, systemPrompt string, log ...*slog.Logger) (
 			opts = append(opts, codexdriver.WithSystemPrompt(systemPrompt))
 		}
 		return codexdriver.New(driver.DriverConfig{Model: model}, opts...), nil
+	case "acp":
+		// ACP universal driver — agent name from model field or config.
+		agentName := model
+		if agentName == "" {
+			agentName = "cursor" // default ACP agent
+		}
+		// Check if model contains agent/model split: "cursor/sonnet-4"
+		if parts := strings.SplitN(agentName, "/", 2); len(parts) == 2 {
+			agentName = parts[0]
+			model = parts[1]
+		}
+		opts := []acpdriver.Option{}
+		if driverLog != nil {
+			opts = append(opts, acpdriver.WithLogger(driverLog))
+		}
+		if model != agentName {
+			opts = append(opts, acpdriver.WithModel(model))
+		}
+		return acpdriver.New(agentName, opts...)
 	case DriverOllama:
 		return nil, fmt.Errorf("%w: %s", ErrDriverNotImpl, driverName)
 	default:
-		return nil, fmt.Errorf("%w: %q (supported: cursor, claude, gemini, codex)", ErrUnknownDriver, driverName)
+		return nil, fmt.Errorf("%w: %q (supported: acp, cursor, claude, gemini, codex)", ErrUnknownDriver, driverName)
 	}
 }

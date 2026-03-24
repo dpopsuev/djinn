@@ -1,6 +1,6 @@
 driver:
-  name: cursor
-  model: sonnet-4
+  name: acp
+  model: cursor/sonnet-4
 mode: agent
 session:
   max_turns: 30
