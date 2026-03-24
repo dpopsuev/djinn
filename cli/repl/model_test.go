@@ -528,5 +528,72 @@ func TestModel_AltM_DuringStreaming(t *testing.T) {
 	}
 }
 
+// --- BUG-47: Message queue during streaming ---
+
+func TestModel_SubmitMsg_QueuedDuringStreaming(t *testing.T) {
+	m := testModel()
+	m.SetState(StateStreaming)
+
+	// SubmitMsg during streaming → queued, not dropped.
+	m2, _ := m.Update(tui.SubmitMsg{Value: "queued prompt"})
+	model := asModel(t, m2)
+	if len(model.promptQueue) != 1 {
+		t.Fatalf("queue = %d, want 1", len(model.promptQueue))
+	}
+	if model.promptQueue[0] != "queued prompt" {
+		t.Fatalf("queued = %q", model.promptQueue[0])
+	}
+	// Should show [queued] in output.
+	found := false
+	for _, line := range model.outputPanel.Lines() {
+		if strings.Contains(line, "queued") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("queued prompt should appear in output")
+	}
+}
+
+func TestModel_SubmitMsg_ProcessedWhenInput(t *testing.T) {
+	m := testModel()
+	m.SetState(StateInput)
+
+	// SubmitMsg during input → processed immediately (starts agent).
+	m2, cmd := m.Update(tui.SubmitMsg{Value: "direct prompt"})
+	model := asModel(t, m2)
+	if model.state != stateStreaming {
+		t.Fatalf("state = %d, want streaming", model.state)
+	}
+	if cmd == nil {
+		t.Fatal("should return agent cmd")
+	}
+}
+
+func TestModel_QueueDrainOnAgentDone(t *testing.T) {
+	m := testModel()
+	m.promptQueue = []string{"queued one"}
+	m.state = stateStreaming
+
+	// AgentDoneMsg should drain queue and return a SubmitMsg cmd.
+	m2, cmd := m.Update(tui.AgentDoneMsg{Result: "done"})
+	model := asModel(t, m2)
+	if len(model.promptQueue) != 0 {
+		t.Fatalf("queue should be empty after drain, got %d", len(model.promptQueue))
+	}
+	if cmd == nil {
+		t.Fatal("should return cmd to process queued prompt")
+	}
+	// Execute the cmd — should produce SubmitMsg.
+	msg := cmd()
+	submit, ok := msg.(tui.SubmitMsg)
+	if !ok {
+		t.Fatalf("expected SubmitMsg, got %T", msg)
+	}
+	if submit.Value != "queued one" {
+		t.Fatalf("submit = %q, want 'queued one'", submit.Value)
+	}
+}
+
 // Ensure unused import suppression
 var _ = fmt.Sprint

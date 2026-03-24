@@ -63,9 +63,10 @@ type Model struct {
 	ctx          context.Context
 
 	// UI state
-	state       State
-	inputPanel  *tui.InputPanel
-	pendingTool *driver.ToolCall
+	state        State
+	inputPanel   *tui.InputPanel
+	pendingTool  *driver.ToolCall
+	promptQueue  []string // queued prompts from type-ahead during streaming
 	lastUsage    *driver.Usage
 	totalIn      int      // cumulative input tokens
 	totalOut     int      // cumulative output tokens
@@ -213,6 +214,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 
+	case tui.SubmitMsg:
+		// InputPanel emitted a submit. Queue during streaming, process during input.
+		if m.state == stateStreaming || m.state == stateToolApproval {
+			m.promptQueue = append(m.promptQueue, msg.Value)
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  [queued] " + msg.Value)})
+			return m, nil
+		}
+		// Not streaming — submit directly.
+		m.inputPanel.Update(tui.InputAddHistoryMsg{Value: msg.Value})
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.UserStyle.Render(tui.LabelUser) + msg.Value})
+		m.state = stateStreaming
+		m.dashboard.Update(tui.DashboardUIStateMsg{State: "STREAMING"})
+		m.lastUsage = nil
+		m.lastError = ""
+		m.spinnerActive = true
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.AssistStyle.Render(tui.LabelAssist) + ": "})
+		return m, tea.Batch(m.runAgent(msg.Value), m.spin.Tick, tickCmd())
+
 	case spinner.TickMsg:
 		if m.spinnerActive {
 			var cmd tea.Cmd
@@ -323,6 +342,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = stateInput
 		m.focus.FocusPanel(1)
 		m.inputPanel.Update(tui.InputFocusMsg{})
+
+		// Drain prompt queue — auto-submit first queued prompt.
+		if len(m.promptQueue) > 0 {
+			next := m.promptQueue[0]
+			m.promptQueue = m.promptQueue[1:]
+			return m, func() tea.Msg { return tui.SubmitMsg{Value: next} }
+		}
 
 		// Auto-transition: executor gate check.
 		if m.currentRole == "executor" {
