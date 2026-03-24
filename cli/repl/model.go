@@ -657,7 +657,7 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 	m.lastError = ""
 	m.spinnerActive = true
 	m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.AssistStyle.Render(tui.LabelAssist) + ": "})
-	m.inputPanel.Update(tui.InputBlurMsg{})
+	// Input stays focused during streaming — enables type-ahead (BUG-44).
 
 	return m, tea.Batch(
 		m.runAgent(input),
