@@ -226,6 +226,57 @@ func TestStore_Load_SanitizesLargeSession(t *testing.T) {
 	}
 }
 
+func TestStore_Load_SanitizesOrphanedToolUse(t *testing.T) {
+	// DJN-BUG-16: tool_use without matching tool_result in next message.
+	// Vertex requires strict pairing. Sanitize should inject synthetic results.
+	dir := t.TempDir()
+
+	rawJSON := `{
+		"id": "orphan",
+		"name": "orphan",
+		"model": "test",
+		"work_dir": "/workspace",
+		"created_at": "2026-01-01T00:00:00Z",
+		"updated_at": "2026-01-01T00:00:00Z",
+		"history": [
+			{"role": "user", "content": "hello"},
+			{"role": "assistant", "blocks": [
+				{"type": "text", "text": "Let me check."},
+				{"type": "tool_use", "tool_call": {"id": "orphan-1", "name": "Bash", "input": "{}"}}
+			]},
+			{"role": "user", "content": "what happened?"}
+		]
+	}`
+	os.WriteFile(filepath.Join(dir, "orphan.json"), []byte(rawJSON), 0600) //nolint:errcheck
+
+	store, _ := NewStore(dir)
+	loaded, err := store.Load("orphan")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// After sanitize, there should be a synthetic tool_result between
+	// the assistant message (with tool_use) and the user message.
+	entries := loaded.Entries()
+	foundResult := false
+	for _, entry := range entries {
+		for _, block := range entry.Blocks {
+			if block.Type == driver.BlockToolResult && block.ToolResult != nil {
+				if block.ToolResult.ToolCallID == "orphan-1" {
+					foundResult = true
+					if !block.ToolResult.IsError {
+						t.Fatal("synthetic tool_result should be marked as error")
+					}
+				}
+			}
+		}
+	}
+
+	if !foundResult {
+		t.Fatal("BUG-16: orphaned tool_use 'orphan-1' has no matching tool_result after sanitize")
+	}
+}
+
 func TestImport_NilToolUseInputDefaultsToEmptyObject(t *testing.T) {
 	// DJN-BUG-15: session file with null tool_use.input should be
 	// repaired through the sanitize-on-load path (defense in depth).
