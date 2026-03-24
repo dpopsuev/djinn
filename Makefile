@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags "-X github.com/dpopsuev/djinn/app.Version=$(VERSION)"
 
-.PHONY: build install test test-accept lint vet circuit coverage clean doctor preflight smoke-claude smoke-vertex smoke-all
+.PHONY: build install test test-accept lint vet circuit coverage clean doctor preflight smoke-claude smoke-vertex smoke-gemini smoke-codex smoke-cursor smoke-agents smoke-all
 
 build:
 	go build $(LDFLAGS) ./cmd/djinn/
@@ -30,7 +30,19 @@ smoke-claude:
 smoke-vertex:
 	go test ./driver/claude/ -tags=e2e -run TestSmoke_Vertex -race -v -timeout=120s
 
-smoke-all: smoke-claude smoke-vertex
+smoke-gemini:
+	go test ./driver/gemini/ -tags=e2e -run TestSmoke_Gemini -race -v -timeout=60s
+
+smoke-codex:
+	go test ./driver/codex/ -tags=e2e -run TestSmoke_Codex -race -v -timeout=60s
+
+smoke-cursor:
+	go test ./driver/cursor/ -tags=e2e -run TestSmoke_Cursor -race -v -timeout=60s
+
+smoke-agents:
+	go test ./acceptance/ -tags=e2e -run TestSmoke -race -v -timeout=120s
+
+smoke-all: smoke-claude smoke-vertex smoke-gemini smoke-codex smoke-cursor
 
 preflight: lint vet test install
 	djinn doctor
