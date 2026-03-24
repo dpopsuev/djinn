@@ -19,6 +19,9 @@ import (
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
+	codexdriver "github.com/dpopsuev/djinn/driver/codex"
+	cursordriver "github.com/dpopsuev/djinn/driver/cursor"
+	geminidriver "github.com/dpopsuev/djinn/driver/gemini"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/sandbox"
@@ -57,7 +60,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	// Load config files — djinn.yaml is the primary config source.
 	cfgRegistry := djinnconfig.NewRegistry()
 	modeConf := &djinnconfig.ModeConfig{Mode: "agent"}
-	driverConf := &djinnconfig.DriverConfigurable{Name: DriverClaude}
+	driverConf := &djinnconfig.DriverConfigurable{} // no default — djinn.yaml must specify
 	sessConf := &djinnconfig.SessionConfigurable{MaxTurns: 20}
 	sandboxConf := &djinnconfig.SandboxConfigurable{Level: "namespace"}
 	debugConf := &djinnconfig.DebugConfigurable{}
@@ -96,16 +99,9 @@ func RunREPL(args []string, stderr io.Writer) error {
 		}
 	}
 
-	// Resolve model default per driver
-	if driverConf.Model == "" {
-		switch driverConf.Name {
-		case DriverClaude:
-			driverConf.Model = DefaultModel
-		case DriverOllama:
-			driverConf.Model = "qwen2.5-coder:14b"
-		default:
-			driverConf.Model = DefaultModel
-		}
+	// If no driver configured after loading config, fail fast.
+	if driverConf.Name == "" {
+		return fmt.Errorf("no driver configured — create a djinn.yaml with driver.name (supported: cursor, claude, gemini, codex)")
 	}
 
 	store, err := session.NewStore(SessionDir())
@@ -479,9 +475,36 @@ func CreateDriver(driverName, model, systemPrompt string, log ...*slog.Logger) (
 			opts = append(opts, claudedriver.WithAPISystemPrompt(systemPrompt))
 		}
 		return claudedriver.NewAPIDriver(driver.DriverConfig{Model: model}, opts...)
+	case DriverCursor:
+		opts := []cursordriver.Option{}
+		if driverLog != nil {
+			opts = append(opts, cursordriver.WithLogger(driverLog))
+		}
+		if systemPrompt != "" {
+			opts = append(opts, cursordriver.WithSystemPrompt(systemPrompt))
+		}
+		return cursordriver.New(driver.DriverConfig{Model: model}, opts...), nil
+	case "gemini":
+		opts := []geminidriver.Option{}
+		if driverLog != nil {
+			opts = append(opts, geminidriver.WithLogger(driverLog))
+		}
+		if systemPrompt != "" {
+			opts = append(opts, geminidriver.WithSystemPrompt(systemPrompt))
+		}
+		return geminidriver.New(driver.DriverConfig{Model: model}, opts...), nil
+	case "codex":
+		opts := []codexdriver.Option{}
+		if driverLog != nil {
+			opts = append(opts, codexdriver.WithLogger(driverLog))
+		}
+		if systemPrompt != "" {
+			opts = append(opts, codexdriver.WithSystemPrompt(systemPrompt))
+		}
+		return codexdriver.New(driver.DriverConfig{Model: model}, opts...), nil
 	case DriverOllama:
-		return nil, fmt.Errorf("%w: %s (use --driver claude)", ErrDriverNotImpl, driverName)
+		return nil, fmt.Errorf("%w: %s", ErrDriverNotImpl, driverName)
 	default:
-		return nil, fmt.Errorf("%w: %q (supported: claude, ollama)", ErrUnknownDriver, driverName)
+		return nil, fmt.Errorf("%w: %q (supported: cursor, claude, gemini, codex)", ErrUnknownDriver, driverName)
 	}
 }

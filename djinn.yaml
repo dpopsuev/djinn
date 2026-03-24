@@ -1,6 +1,6 @@
 driver:
-  name: claude
-  model: claude-opus-4-6
+  name: cursor
+  model: sonnet-4
 mode: agent
 session:
   max_turns: 30

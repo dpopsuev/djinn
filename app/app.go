@@ -21,7 +21,7 @@ var Version = "0.1.0"
 const (
 	DefaultHomeDir    = ".djinn"
 	DefaultSessionDir = ".djinn/sessions"
-	DefaultModel      = "claude-sonnet-4-6"
+	DefaultModel      = "" // no default — djinn.yaml must specify
 	PollInterval      = 50 * time.Millisecond
 )
 
@@ -29,6 +29,7 @@ const (
 const (
 	DriverClaude = "claude"
 	DriverOllama = "ollama"
+	DriverCursor = "cursor"
 )
 
 // HomeDir returns the Djinn home directory.
