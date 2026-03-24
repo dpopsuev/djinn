@@ -228,19 +228,8 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 	defer chatDriver.Stop(ctx) //nolint:errcheck // best-effort cleanup on exit
 
-	// Replay history
-	for _, entry := range sess.Entries() {
-		switch entry.Role {
-		case driver.RoleUser:
-			chatDriver.Send(ctx, driver.Message{Role: entry.Role, Content: entry.TextContent()}) //nolint:errcheck // best-effort history replay
-		case driver.RoleAssistant:
-			chatDriver.AppendAssistant(driver.RichMessage{
-				Role:    entry.Role,
-				Content: entry.TextContent(),
-				Blocks:  entry.Blocks,
-			})
-		}
-	}
+	// Replay history into driver
+	ReplayHistory(ctx, chatDriver, sess)
 
 	// Connect MCP servers
 	mcpClient := mcpclient.New(djinnlog.For(logResult.Logger, "mcp"))

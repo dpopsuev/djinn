@@ -13,6 +13,8 @@ type StubChatDriver struct {
 	systemPrompt string
 	messages     []driver.Message
 	history      []driver.RichMessage
+	SendLog      []driver.Message     // records all Send calls
+	SendRichLog  []driver.RichMessage // records all SendRich calls
 }
 
 // NewStubChatDriver creates a ChatDriver that returns canned responses.
@@ -23,9 +25,15 @@ func NewStubChatDriver(responses ...driver.Message) *StubChatDriver {
 func (d *StubChatDriver) Start(_ context.Context, _ driver.SandboxHandle) error { return nil }
 func (d *StubChatDriver) Stop(_ context.Context) error                          { return nil }
 
-func (d *StubChatDriver) Send(_ context.Context, _ driver.Message) error { return nil }
+func (d *StubChatDriver) Send(_ context.Context, msg driver.Message) error {
+	d.SendLog = append(d.SendLog, msg)
+	return nil
+}
 
-func (d *StubChatDriver) SendRich(_ context.Context, _ driver.RichMessage) error { return nil }
+func (d *StubChatDriver) SendRich(_ context.Context, msg driver.RichMessage) error {
+	d.SendRichLog = append(d.SendRichLog, msg)
+	return nil
+}
 
 func (d *StubChatDriver) Chat(_ context.Context) (<-chan driver.StreamEvent, error) {
 	ch := make(chan driver.StreamEvent, 10)
