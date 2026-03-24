@@ -40,14 +40,26 @@ var (
 )
 
 // Djinn logo — Red Hat fedora rendered from rh_logo.svg in block characters.
+// The negative space on lines 5-6 is the ribbon (hat band).
 const DjinnLogo = `         ████  █████
         ███████████████
        █████████████████
  █████    ███████████████
-█████████  ██████████████████
-  █████████████  ██████████████
+█████████    ███████████ ████
+  ██████████            ███████
       ████████████████████████
             ████████████████`
+
+// FlameFrames — multi-line teardrop flame with hollow center.
+// Only the tip dances; the base stays stable. Block chars match the fedora logo.
+var FlameFrames = []string{
+	"  ▖\n ▐ ▌\n  █",
+	"  ▗\n ▐ ▌\n  █",
+	" ▗▖\n ▐ ▌\n  █",
+	"  ▘\n ▐ ▌\n  █",
+	"  ▝\n ▐ ▌\n  █",
+	" ▝▘\n ▐ ▌\n  █",
+}
 
 // Label constants.
 const (

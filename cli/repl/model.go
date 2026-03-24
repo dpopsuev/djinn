@@ -130,11 +130,13 @@ func NewModel(cfg Config) Model {
 		inputPanel:   inputPanel,
 		handler:       agent.NilHandler{},
 		healthReports:  cfg.HealthReports,
-		spin:           spinner.New(spinner.WithSpinner(spinner.Spinner{
-			// Burning flame — Djinn's signature spinner.
-			Frames: []string{"🕯", "🔥", "🔥", "🔥", "🕯", "🔥", "🔥", "🔥"},
-			FPS:    200 * time.Millisecond,
-		})),
+		spin: spinner.New(
+			spinner.WithSpinner(spinner.Spinner{
+				Frames: tui.FlameFrames,
+				FPS:    150 * time.Millisecond,
+			}),
+			spinner.WithStyle(tui.LogoStyle),
+		),
 		activeToolIdx:  -1,
 		outputPanel:    tui.NewOutputPanel(),
 		dashboard:      tui.NewDashboardPanel(),
@@ -387,7 +389,10 @@ func (m Model) View() string {
 func (m Model) overlayContent() string {
 	switch {
 	case m.state == stateStreaming && m.spinnerActive:
-		return "  " + m.spin.View() + " thinking..."
+		// Multi-line flame animation — dancing tip, stable base.
+		frameIdx := int(time.Now().UnixMilli()/150) % len(tui.FlameFrames)
+		flame := tui.LogoStyle.Render(tui.FlameFrames[frameIdx])
+		return flame + "  thinking..."
 	case m.state == stateStreaming && m.streamBuf.Len() > 0:
 		return m.streamBuf.String()
 	case m.state == stateToolApproval && m.pendingTool != nil:
