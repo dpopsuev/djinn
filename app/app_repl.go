@@ -219,22 +219,9 @@ func RunREPL(args []string, stderr io.Writer) error {
 	mcpClient := mcpclient.New(djinnlog.For(logResult.Logger, "mcp"))
 	defer mcpClient.Close()
 
-	// Convert workspace MCP defs to client config
-	var wsMCPConfig map[string]mcpclient.ServerConfig
-	if len(ws.MCP) > 0 {
-		wsMCPConfig = make(map[string]mcpclient.ServerConfig, len(ws.MCP))
-		for name, def := range ws.MCP {
-			wsMCPConfig[name] = mcpclient.ServerConfig{
-				URL:     def.URL,
-				Command: def.Command,
-				Args:    def.Args,
-				Env:     def.Env,
-			}
-		}
-	}
-
+	// MCP config from djinn.yaml ONLY — Djinn owns MCP, agents get a mirror.
 	var mcpFailures []tui.HealthReport
-	mcpConfigs := mcpclient.LoadMCPConfig(Getwd(), filepath.Join(HomeDir()), wsMCPConfig)
+	mcpConfigs := mcpclient.LoadMCPConfig(Getwd())
 	for name, cfg := range mcpConfigs {
 		var connectErr error
 		if cfg.IsHTTP() {
@@ -243,10 +230,15 @@ func RunREPL(args []string, stderr io.Writer) error {
 			connectErr = mcpClient.ConnectStdio(ctx, name, cfg.Command, cfg.Args, cfg.Env)
 		}
 		if connectErr != nil {
+			// Distinguish: connection refused = offline, init error = degraded.
+			status := tui.StatusOffline
+			if strings.Contains(connectErr.Error(), "initialize") || strings.Contains(connectErr.Error(), "tools/list") {
+				status = tui.StatusYellow // server running but init failed
+			}
 			log.Warn("MCP server offline", "server", name, "error", connectErr)
 			mcpFailures = append(mcpFailures, tui.HealthReport{
 				Component: name,
-				Status:    tui.StatusOffline,
+				Status:    status,
 				Message:   fmt.Sprintf("start failed: %s", connectErr.Error()),
 			})
 		}

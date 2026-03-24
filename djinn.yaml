@@ -14,3 +14,6 @@ debug:
   tap_file: /tmp/djinn-frames.jsonl
   live_debug: "127.0.0.1:9999"
   verbose: false
+mcp:
+  scribe:
+    url: "http://localhost:8080/"

@@ -206,7 +206,7 @@ mcp:
     args: ["serve"]
 `), 0644)
 
-	configs := LoadMCPConfig(dir, t.TempDir())
+	configs := LoadMCPConfig(dir)
 	if len(configs) < 2 {
 		t.Fatalf("configs = %d, want >= 2", len(configs))
 	}
@@ -218,43 +218,19 @@ mcp:
 	}
 }
 
-func TestLoadMCPConfig_CursorMCP(t *testing.T) {
+func TestLoadMCPConfig_NoCursorFallback(t *testing.T) {
+	// Djinn should NOT read from ~/.cursor/mcp.json.
 	home := t.TempDir()
 	cursorDir := filepath.Join(home, ".cursor")
 	os.MkdirAll(cursorDir, 0755)
 	os.WriteFile(filepath.Join(cursorDir, "mcp.json"), []byte(`{
-		"mcpServers": {
-			"scribe": {"url": "http://localhost:8080/"},
-			"limes": {"url": "http://localhost:8083/"}
-		}
+		"mcpServers": {"leaked": {"url": "http://cursor:8080/"}}
 	}`), 0644)
 
 	t.Setenv("HOME", home)
-	configs := LoadMCPConfig(t.TempDir(), t.TempDir())
-	if _, ok := configs["scribe"]; !ok {
-		t.Fatal("scribe not found from cursor config")
-	}
-}
-
-func TestLoadMCPConfig_DjinnOverridesCursor(t *testing.T) {
-	home := t.TempDir()
-	cursorDir := filepath.Join(home, ".cursor")
-	os.MkdirAll(cursorDir, 0755)
-	os.WriteFile(filepath.Join(cursorDir, "mcp.json"), []byte(`{
-		"mcpServers": {"scribe": {"url": "http://cursor:8080/"}}
-	}`), 0644)
-
-	workDir := t.TempDir()
-	os.WriteFile(filepath.Join(workDir, "djinn.yaml"), []byte(`
-mcp:
-  scribe:
-    url: "http://djinn:9090/"
-`), 0644)
-
-	t.Setenv("HOME", home)
-	configs := LoadMCPConfig(workDir, t.TempDir())
-	if configs["scribe"].URL != "http://djinn:9090/" {
-		t.Fatalf("scribe URL = %q, want djinn override", configs["scribe"].URL)
+	configs := LoadMCPConfig(t.TempDir()) // no djinn.yaml in temp dir
+	if _, ok := configs["leaked"]; ok {
+		t.Fatal("Djinn should NOT read from ~/.cursor/mcp.json")
 	}
 }
 
@@ -474,8 +450,7 @@ func TestExtractSSEData(t *testing.T) {
 }
 
 func TestLoadMCPConfig_NoFiles(t *testing.T) {
-	t.Setenv("HOME", t.TempDir()) // prevent reading real ~/.cursor/mcp.json
-	configs := LoadMCPConfig(t.TempDir(), t.TempDir())
+	configs := LoadMCPConfig(t.TempDir())
 	if len(configs) != 0 {
 		t.Fatalf("should be empty with no config files, got %d", len(configs))
 	}
