@@ -449,6 +449,12 @@ type sseEvent struct {
 	Data  string
 }
 
+// streamResponse parses the Claude SSE stream and emits typed events.
+//
+// Tool input accumulation: Claude streams tool_use input as multiple
+// input_json_delta events. We buffer these per content-block index and
+// emit the complete EventToolUse only when content_block_stop arrives.
+// This ensures ToolCall.Input is always a complete JSON object, never nil.
 func (d *APIDriver) streamResponse(body io.ReadCloser, ch chan<- driver.StreamEvent) {
 	defer close(ch)
 	defer body.Close()
@@ -456,13 +462,16 @@ func (d *APIDriver) streamResponse(body io.ReadCloser, ch chan<- driver.StreamEv
 	scanner := bufio.NewScanner(body)
 	var currentEvent sseEvent
 
+	// Per content-block-index accumulators for streamed tool input JSON.
+	toolInputBufs := make(map[int]*strings.Builder)
+	toolCalls := make(map[int]*driver.ToolCall)
+
 	for scanner.Scan() {
 		line := scanner.Text()
 
 		if line == "" {
-			// Empty line = end of event
 			if currentEvent.Data != "" {
-				d.processSSEEvent(currentEvent, ch)
+				d.processSSEEventWithInput(currentEvent, ch, toolInputBufs, toolCalls)
 			}
 			currentEvent = sseEvent{}
 			continue
@@ -510,7 +519,7 @@ type sseMessageDelta struct {
 	Usage *driver.Usage `json:"usage,omitempty"`
 }
 
-func (d *APIDriver) processSSEEvent(evt sseEvent, ch chan<- driver.StreamEvent) {
+func (d *APIDriver) processSSEEventWithInput(evt sseEvent, ch chan<- driver.StreamEvent, toolInputBufs map[int]*strings.Builder, toolCalls map[int]*driver.ToolCall) {
 	switch evt.Event {
 	case "content_block_start":
 		var block sseContentBlockStart
@@ -518,13 +527,13 @@ func (d *APIDriver) processSSEEvent(evt sseEvent, ch chan<- driver.StreamEvent) 
 			return
 		}
 		if block.ContentBlock.Type == "tool_use" {
-			ch <- driver.StreamEvent{
-				Type: driver.EventToolUse,
-				ToolCall: &driver.ToolCall{
-					ID:   block.ContentBlock.ID,
-					Name: block.ContentBlock.Name,
-				},
+			tc := &driver.ToolCall{
+				ID:   block.ContentBlock.ID,
+				Name: block.ContentBlock.Name,
 			}
+			toolCalls[block.Index] = tc
+			toolInputBufs[block.Index] = &strings.Builder{}
+			// Don't emit EventToolUse yet — wait for input accumulation.
 		}
 
 	case "content_block_delta":
@@ -538,8 +547,32 @@ func (d *APIDriver) processSSEEvent(evt sseEvent, ch chan<- driver.StreamEvent) 
 		case "thinking_delta":
 			ch <- driver.StreamEvent{Type: driver.EventThinking, Thinking: delta.Delta.Thinking}
 		case "input_json_delta":
-			// Accumulate tool input JSON — handled by caller
-			ch <- driver.StreamEvent{Type: driver.EventText, Text: ""} // keep-alive
+			// Accumulate tool input JSON chunks (DJN-BUG-19).
+			if buf, ok := toolInputBufs[delta.Index]; ok {
+				buf.WriteString(delta.Delta.PartialJSON)
+			}
+		}
+
+	case "content_block_stop":
+		// Emit tool_use with accumulated input when the block ends.
+		var stopBlock struct {
+			Index int `json:"index"`
+		}
+		if json.Unmarshal([]byte(evt.Data), &stopBlock) != nil {
+			return
+		}
+		if tc, ok := toolCalls[stopBlock.Index]; ok {
+			if buf, ok := toolInputBufs[stopBlock.Index]; ok && buf.Len() > 0 {
+				tc.Input = json.RawMessage(buf.String())
+			} else {
+				tc.Input = json.RawMessage(`{}`)
+			}
+			ch <- driver.StreamEvent{
+				Type:     driver.EventToolUse,
+				ToolCall: tc,
+			}
+			delete(toolCalls, stopBlock.Index)
+			delete(toolInputBufs, stopBlock.Index)
 		}
 
 	case "message_delta":

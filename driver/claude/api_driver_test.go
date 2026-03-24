@@ -218,6 +218,38 @@ func TestAPIDriver_APIError(t *testing.T) {
 	}
 }
 
+func TestAPIDriver_ToolUseInputAccumulated(t *testing.T) {
+	// DJN-BUG-19: SSE parser must accumulate input_json_delta chunks
+	// into the ToolCall.Input field. Previously Input was always nil.
+	d := newTestAPIDriver(t, sseResponse(toolUseSSE))
+
+	d.Send(context.Background(), driver.Message{Role: driver.RoleUser, Content: "read main.go"})
+
+	events, err := d.Chat(context.Background())
+	if err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+
+	var toolCalls []driver.ToolCall
+	for evt := range events {
+		if evt.Type == driver.EventToolUse && evt.ToolCall != nil {
+			toolCalls = append(toolCalls, *evt.ToolCall)
+		}
+	}
+
+	if len(toolCalls) != 1 {
+		t.Fatalf("tool calls = %d, want 1", len(toolCalls))
+	}
+
+	tc := toolCalls[0]
+	if tc.Input == nil {
+		t.Fatal("BUG-19: ToolCall.Input is nil — input_json_delta not accumulated")
+	}
+	if string(tc.Input) == "null" || string(tc.Input) == "" {
+		t.Fatalf("BUG-19: ToolCall.Input = %q — should contain accumulated JSON", string(tc.Input))
+	}
+}
+
 func TestAPIDriver_NotStarted(t *testing.T) {
 	d := &APIDriver{}
 	err := d.Send(context.Background(), driver.Message{})
