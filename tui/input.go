@@ -35,8 +35,11 @@ func NewInputPanel() *InputPanel {
 	ta.Prompt = UserStyle.Render(LabelUser)
 	ta.Placeholder = `Try "explain this codebase"`
 	ta.ShowLineNumbers = false
-	ta.SetHeight(1)
+	ta.SetHeight(3)
 	ta.CharLimit = 0
+	// Style user input text in green (BUG-30).
+	ta.FocusedStyle.Text = UserStyle
+	ta.BlurredStyle.Text = DimStyle
 	ta.Focus()
 
 	return &InputPanel{
@@ -121,6 +124,51 @@ func (p *InputPanel) SetFocus(f bool) {
 }
 
 func (p *InputPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
+	switch msg := msg.(type) {
+	case InputSetValueMsg:
+		p.textarea.SetValue(msg.Value)
+		return p, nil
+	case InputResetMsg:
+		p.textarea.Reset()
+		return p, nil
+	case InputFocusMsg:
+		p.focused = true
+		p.textarea.Focus()
+		return p, nil
+	case InputBlurMsg:
+		p.focused = false
+		p.textarea.Blur()
+		return p, nil
+	case InputAddHistoryMsg:
+		p.AddHistory(msg.Value)
+		return p, nil
+	case InputSetCompletionsMsg:
+		p.SetCompletions(msg.Names)
+		return p, nil
+	case ResizeMsg:
+		if msg.Width > 0 {
+			p.textarea.SetWidth(msg.Width)
+		}
+		if msg.Height > 0 {
+			p.textarea.SetHeight(msg.Height)
+		}
+		return p, nil
+	case tea.KeyMsg:
+		if !p.focused {
+			return p, nil
+		}
+		// Enter emits SubmitMsg
+		if msg.Type == tea.KeyEnter && !msg.Alt {
+			val := strings.TrimSpace(p.textarea.Value())
+			if val != "" {
+				p.textarea.Reset()
+				return p, func() tea.Msg {
+					return SubmitMsg{Value: val}
+				}
+			}
+			return p, nil
+		}
+	}
 	if !p.focused {
 		return p, nil
 	}
@@ -132,6 +180,9 @@ func (p *InputPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 func (p *InputPanel) View(width int) string {
 	if !p.visible {
 		return ""
+	}
+	if width > 0 {
+		p.textarea.SetWidth(width)
 	}
 	return p.textarea.View()
 }

@@ -224,7 +224,7 @@ func TestOutputPanel_ViewNeverDimmed(t *testing.T) {
 
 	// Wrapping with depth > 0 DOES add dim prefix — this is why View() must
 	// never go through RenderWithDepth. This documents the root cause.
-	dimmed := RenderWithDepth(view, 1)
+	dimmed := RenderWithDepth(view, 1, 80)
 	if !strings.Contains(dimmed, dimPrefix) {
 		t.Skip("dimming not applied (color profile may strip it)")
 	}
@@ -259,7 +259,7 @@ func TestGlamourInsideBorder_TrueColor_NoVisibleANSI(t *testing.T) {
 		t.Fatal("glamour should produce output")
 	}
 
-	bordered := RenderWithDepth(rendered, 0)
+	bordered := RenderWithDepth(rendered, 0, 80)
 
 	// Check for visible ANSI escape code literals
 	if strings.Contains(bordered, "[0m[38") {
@@ -283,7 +283,7 @@ func TestGlamourInsideBorder_NoVisibleANSI(t *testing.T) {
 	}
 
 	// Wrap in a lipgloss rounded border (same as RenderWithDepth depth=0)
-	bordered := RenderWithDepth(rendered, 0)
+	bordered := RenderWithDepth(rendered, 0, 80)
 
 	// The bordered output should NOT contain visible ANSI escape literals.
 	if strings.Contains(bordered, "[0m[38") {

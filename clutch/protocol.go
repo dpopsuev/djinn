@@ -74,5 +74,13 @@ type Transport interface {
 	Close() error
 }
 
+// Hub registration — clients identify their role when connecting to the hub.
+const HubRegister = "register"
+
+// RegisterMsg is the first message a client sends to the hub.
+type RegisterMsg struct {
+	Role string `json:"role"` // "shell" or "backend"
+}
+
 // ensure json is importable for future socket transport
 var _ = json.Marshal

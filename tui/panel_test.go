@@ -214,7 +214,7 @@ func TestFocusDepths_FirstFocused(t *testing.T) {
 }
 
 func TestRenderWithDepth_Focused(t *testing.T) {
-	result := RenderWithDepth("hello", 0)
+	result := RenderWithDepth("hello", 0, 80)
 	if result == "hello" {
 		t.Fatal("depth 0 should wrap content in border (not return unchanged)")
 	}
@@ -223,23 +223,49 @@ func TestRenderWithDepth_Focused(t *testing.T) {
 	}
 }
 
-func TestRenderWithDepth_Unfocused_DiffersFromFocused(t *testing.T) {
+func TestRenderWithDepth_Unfocused_HasBorder(t *testing.T) {
 	// Force color output — lipgloss emits nothing without a TTY
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	defer lipgloss.SetColorProfile(termenv.Ascii)
 
-	focused := RenderWithDepth("hello", 0)
-	dim1 := RenderWithDepth("hello", 1)
-	dim2 := RenderWithDepth("hello", 2)
+	focused := RenderWithDepth("hello", 0, 80)
+	unfocused := RenderWithDepth("hello", 1, 80)
 
-	if dim1 == "" || dim2 == "" {
-		t.Fatal("dimmed output should not be empty")
+	// Both should have borders (contain rounded border chars)
+	if !strings.Contains(focused, "hello") || !strings.Contains(unfocused, "hello") {
+		t.Fatal("both should contain content")
 	}
-	if dim1 == focused {
-		t.Fatal("depth 1 MUST differ from depth 0 — dimming has no visible effect")
+	// Unfocused should differ from focused (different border color)
+	if unfocused == focused {
+		t.Fatal("unfocused MUST differ from focused — border color should change")
 	}
-	if dim2 == focused {
-		t.Fatal("depth 2 MUST differ from depth 0")
+	// Unfocused should NOT equal raw content (it has a border)
+	if unfocused == "hello" {
+		t.Fatal("unfocused should have a border, not return raw content")
+	}
+}
+
+func TestRenderBorderOnly(t *testing.T) {
+	focused := RenderBorderOnly("hello", true, 80)
+	unfocused := RenderBorderOnly("hello", false, 80)
+
+	if !strings.Contains(focused, "hello") || !strings.Contains(unfocused, "hello") {
+		t.Fatal("both should contain content")
+	}
+	if focused == "hello" || unfocused == "hello" {
+		t.Fatal("both should have borders")
+	}
+}
+
+func TestRenderWithDepth_HeightStable(t *testing.T) {
+	// BUG-28: focus switch must NOT change height.
+	focused := RenderWithDepth("line1\nline2", 0, 80)
+	unfocused := RenderWithDepth("line1\nline2", 1, 80)
+
+	focusedLines := strings.Count(focused, "\n")
+	unfocusedLines := strings.Count(unfocused, "\n")
+	if focusedLines != unfocusedLines {
+		t.Fatalf("height changed on focus: focused=%d unfocused=%d lines", focusedLines, unfocusedLines)
 	}
 }
 

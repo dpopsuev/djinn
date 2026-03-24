@@ -60,6 +60,21 @@ func (p *DashboardPanel) SetUIState(state string) {
 }
 
 func (p *DashboardPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
+	switch msg := msg.(type) {
+	case DashboardIdentityMsg:
+		p.workspace = msg.Workspace
+		p.driver = msg.Driver
+		p.model = msg.Model
+		p.mode = msg.Mode
+	case DashboardMetricsMsg:
+		p.tokensIn = msg.TokensIn
+		p.tokensOut = msg.TokensOut
+		p.turns = msg.Turns
+	case DashboardHealthMsg:
+		p.health = msg.Reports
+	case DashboardUIStateMsg:
+		p.uiState = msg.State
+	}
 	return p, nil
 }
 

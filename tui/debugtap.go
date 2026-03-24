@@ -12,14 +12,25 @@ import (
 	"time"
 )
 
-// DebugFrame is a single captured TUI render.
+// DebugFrame is a single captured TUI render with component breakdown.
 type DebugFrame struct {
-	Timestamp time.Time `json:"timestamp"`
-	Frame     string    `json:"frame"`
-	Width     int       `json:"width"`
-	Height    int       `json:"height"`
-	State     string    `json:"state"`
-	Role      string    `json:"role"`
+	Timestamp  time.Time       `json:"timestamp"`
+	Frame      string          `json:"frame"`
+	Width      int             `json:"width"`
+	Height     int             `json:"height"`
+	State      string          `json:"state"`
+	Role       string          `json:"role"`
+	Components *DebugComponents `json:"components,omitempty"`
+}
+
+// DebugComponents captures individual panel state for component-level inspection.
+type DebugComponents struct {
+	Transcript []string `json:"transcript,omitempty"` // output panel lines
+	Overlay    string   `json:"overlay,omitempty"`    // ephemeral overlay text
+	InputValue string   `json:"input_value,omitempty"`
+	InputFocus bool     `json:"input_focus"`
+	FocusedIdx int      `json:"focused_idx"`
+	Dashboard  string   `json:"dashboard,omitempty"` // rendered dashboard line
 }
 
 // DebugTap captures TUI frames to a ring buffer and optionally a JSONL file.
@@ -55,8 +66,8 @@ func NewDebugTap(capacity int, path string) (*DebugTap, error) {
 	return dt, nil
 }
 
-// Capture records a rendered frame.
-func (dt *DebugTap) Capture(frame, state, role string, width, height int) {
+// Capture records a rendered frame with optional component breakdown.
+func (dt *DebugTap) Capture(frame, state, role string, width, height int, components ...*DebugComponents) {
 	dt.mu.Lock()
 	defer dt.mu.Unlock()
 
@@ -67,6 +78,9 @@ func (dt *DebugTap) Capture(frame, state, role string, width, height int) {
 		Height:    height,
 		State:     state,
 		Role:      role,
+	}
+	if len(components) > 0 {
+		df.Components = components[0]
 	}
 
 	// Ring buffer

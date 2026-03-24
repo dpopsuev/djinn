@@ -78,6 +78,8 @@ func Run(args []string, stderr io.Writer) error {
 		return RunLog(stderr)
 	case "doctor":
 		return RunDoctor(stderr)
+	case "hub":
+		return RunHub(args[1:], stderr)
 	case "backend":
 		return RunBackendCmd(args[1:], stderr)
 	case "debug":
@@ -99,33 +101,36 @@ func PrintUsage(w io.Writer) {
 
 Usage:
   djinn [prompt]                      interactive REPL (default)
-  djinn repl [flags] [prompt]         interactive REPL
   djinn run <prompt> [flags]          headless one-shot
-  djinn import claude <file> -s <name> import Claude Code session
   djinn ls                            list sessions
   djinn attach <name>                 resume session
   djinn kill <name>                   delete session
-  djinn workspace list                list saved workspaces
-  djinn workspace create <name>       create a workspace
+  djinn import claude <file> -s <name> import Claude Code session
   djinn config dump                   dump runtime config as YAML
-  djinn log                           show recent log entries
   djinn doctor                        health check
+  djinn hub                           start GenSec daemon (hot-swap relay)
+  djinn backend --socket <path>       headless backend (connects to hub)
   djinn version                       version info
 
-Flags (repl/run):
-  --driver <claude|ollama>            LLM backend (default: claude)
-  -m, --model <model>                 model name
-  -s, --session <name>                named session
-  -c, --continue                      resume most recent session
-  --max-turns <n>                     max agent turns (default: 20)
-  --auto-approve                      auto-approve all tool calls
+Essential flags:
+  -m <model>                          model name
+  -s <name>                           named session
+  -c                                  resume most recent session
+  -e <ecosystem>                      scope (e.g. aeon, aeon/djinn)
+  --config <file>                     config file (default: djinn.yaml)
+  --socket <path>                     Unix socket for hot-swap
+
+Override flags (prefer djinn.yaml):
+  --driver <claude|ollama>            LLM backend
+  --mode <ask|plan|agent|auto>        agent mode
   --system <prompt>                   system prompt
-  --system-file <path>                load system prompt from file
-  --mode <ask|plan|agent|auto>        agent mode (default: agent)
-  --config <file>                     load config from YAML file
-  -w, --workspace <name|file>          workspace name or manifest file
-  --verbose                           show log output on terminal
-  --no-persist                        don't save session to disk
+  --system-file <path>                system prompt from file
+  --verbose                           show log output
+
+Config (djinn.yaml):
+  driver.name, driver.model, mode, session.max_turns,
+  session.auto_approve, session.no_persist, sandbox.backend,
+  sandbox.level, debug.tap_file, debug.live_debug, debug.verbose
 `)
 }
 

@@ -36,6 +36,12 @@ func newSocketTransport(conn net.Conn) *SocketTransport {
 	}
 }
 
+// WrapConn wraps an established net.Conn as a SocketTransport.
+// Used by the hub to wrap connections after reading the registration message.
+func WrapConn(conn net.Conn) *SocketTransport {
+	return newSocketTransport(conn)
+}
+
 // Connect dials a Unix socket (backend → shell).
 func Connect(socketPath string) (*SocketTransport, error) {
 	conn, err := net.Dial("unix", socketPath)

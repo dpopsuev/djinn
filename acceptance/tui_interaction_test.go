@@ -257,7 +257,7 @@ func TestTUI_RoleSwitch_NoPanic(t *testing.T) {
 		Mode:    "agent",
 		Driver:  &stubs.StubChatDriver{},
 	})
-	m2, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m2, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	mp := toModelPtr(m2)
 
 	mp.SetTextInput("/role executor")
@@ -268,7 +268,7 @@ func TestTUI_RoleSwitch_NoPanic(t *testing.T) {
 	model := toModelPtr(result)
 	view := model.View()
 	if !strings.Contains(strings.ToUpper(view), "EXECUTOR") {
-		t.Fatal("dashboard should show EXECUTOR after role switch")
+		t.Fatalf("dashboard should show EXECUTOR after role switch, view:\n%s", view)
 	}
 }
 

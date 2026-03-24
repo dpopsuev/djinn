@@ -93,6 +93,65 @@ func (c *SessionConfigurable) Apply(v any) error {
 	return nil
 }
 
+// SandboxConfigurable implements Configurable for sandbox settings.
+type SandboxConfigurable struct {
+	Backend string // misbah, bubblewrap, podman, etc.
+	Level   string // none, namespace, container, kata
+}
+
+func (c *SandboxConfigurable) ConfigKey() string { return "sandbox" }
+func (c *SandboxConfigurable) Snapshot() any {
+	return map[string]string{
+		"backend": c.Backend,
+		"level":   c.Level,
+	}
+}
+func (c *SandboxConfigurable) Apply(v any) error {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return fmt.Errorf("sandbox: expected map, got %T", v)
+	}
+	if b, ok := m["backend"].(string); ok {
+		c.Backend = b
+	}
+	if l, ok := m["level"].(string); ok {
+		c.Level = l
+	}
+	return nil
+}
+
+// DebugConfigurable implements Configurable for debug settings.
+type DebugConfigurable struct {
+	TapFile   string // JSONL capture file path
+	LiveDebug string // HTTP debug server address
+	Verbose   bool   // show log output on terminal
+}
+
+func (c *DebugConfigurable) ConfigKey() string { return "debug" }
+func (c *DebugConfigurable) Snapshot() any {
+	return map[string]any{
+		"tap_file":   c.TapFile,
+		"live_debug": c.LiveDebug,
+		"verbose":    c.Verbose,
+	}
+}
+func (c *DebugConfigurable) Apply(v any) error {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return fmt.Errorf("debug: expected map, got %T", v)
+	}
+	if tf, ok := m["tap_file"].(string); ok {
+		c.TapFile = tf
+	}
+	if ld, ok := m["live_debug"].(string); ok {
+		c.LiveDebug = ld
+	}
+	if vb, ok := m["verbose"].(bool); ok {
+		c.Verbose = vb
+	}
+	return nil
+}
+
 // ToolsConfigurable implements Configurable for tool settings.
 type ToolsConfigurable struct {
 	Enabled []string

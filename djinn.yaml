@@ -1,0 +1,16 @@
+driver:
+  name: claude
+  model: claude-opus-4-6
+mode: agent
+session:
+  max_turns: 30
+  auto_approve: false
+  output_mode: streaming
+  no_persist: false
+sandbox:
+  backend: ""
+  level: namespace
+debug:
+  tap_file: /tmp/djinn-frames.jsonl
+  live_debug: "127.0.0.1:9999"
+  verbose: false

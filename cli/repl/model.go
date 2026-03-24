@@ -79,6 +79,7 @@ type Model struct {
 	spin           spinner.Model
 	spinnerActive  bool
 	activeToolIdx  int  // conversation index of active tool spinner (-1 = none)
+	envelopes      map[int]*tui.EnvelopePanel // tool envelopes keyed by output line index
 	outputPanel    *tui.OutputPanel
 	dashboard      *tui.DashboardPanel
 	focus          *tui.FocusManager
@@ -159,6 +160,7 @@ func NewModel(cfg Config) Model {
 	}
 
 	m.focus = tui.NewFocusManager(m.outputPanel, m.inputPanel, m.dashboard)
+	m.focus.FocusPanel(1) // Default focus on input — user can type immediately.
 	m.dashboard.SetIdentity(cfg.Session.Workspace, cfg.Session.Driver, cfg.Session.Model, cfg.Mode)
 	m.dashboard.SetHealth(cfg.HealthReports)
 
@@ -198,7 +200,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.outputPanel.InitViewport(msg.Width, msg.Height-m.fixedHeight())
 		// Render MOTD once when viewport is first initialized
 		if m.outputPanel.LineCount() == 0 {
-			m.outputPanel.Append(renderMOTD(m.sess, m.tools, m.version, m.currentRole, msg.Width))
+			m.outputPanel.Append(renderMOTD(m.sess, m.tools, m.version, m.currentRole))
 		}
 		// Auto-submit initial prompt if provided
 		if m.initialPrompt != "" {
@@ -233,12 +235,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tui.ToolCallMsg:
-		line := fmt.Sprintf("  %s %s %s",
-			m.spin.View(),
-			tui.ToolNameStyle.Render(msg.Call.Name),
-			tui.ToolArgStyle.Render(truncate(string(msg.Call.Input), 80)))
-		m.outputPanel.Append(line)
+		// Create an EnvelopePanel for structured tool call rendering (BUG-32).
+		envID := fmt.Sprintf("tool-%d", m.outputPanel.LineCount())
+		env := tui.NewEnvelopePanel(envID, msg.Call.Name, string(msg.Call.Input))
+		m.outputPanel.Append(env.View(m.width))
 		m.activeToolIdx = m.outputPanel.LineCount() - 1
+		if m.envelopes == nil {
+			m.envelopes = make(map[int]*tui.EnvelopePanel)
+		}
+		m.envelopes[m.activeToolIdx] = env
 
 		// In agent mode (not auto), prompt for approval
 		if m.mode == agent.ModeAgent && !m.autoApprove {
@@ -249,27 +254,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tui.ToolResultMsg:
-		var line string
-		if msg.IsError {
-			line = fmt.Sprintf("  %s %s",
-				tui.ErrorStyle.Render(msg.Name),
-				tui.DimStyle.Render(truncate(msg.Output, 100)))
+		// Update the envelope with the result (auto-collapses).
+		if m.activeToolIdx >= 0 && m.activeToolIdx < m.outputPanel.LineCount() {
+			if env, ok := m.envelopes[m.activeToolIdx]; ok {
+				env.SetResult(msg.Output, msg.IsError)
+				m.outputPanel.SetLine(m.activeToolIdx, env.View(m.width))
+			}
+			m.activeToolIdx = -1
 		} else {
-			lines := strings.Count(msg.Output, "\n")
-			if lines > 3 {
-				line = fmt.Sprintf("  %s (%d lines)",
-					tui.ToolSuccessStyle.Render("✓ "+msg.Name), lines)
+			// Orphan result — render inline.
+			var line string
+			if msg.IsError {
+				line = fmt.Sprintf("  %s %s",
+					tui.ErrorStyle.Render("✗ "+msg.Name),
+					tui.DimStyle.Render(truncate(msg.Output, 100)))
 			} else {
 				line = fmt.Sprintf("  %s %s",
 					tui.ToolSuccessStyle.Render("✓ "+msg.Name),
 					tui.DimStyle.Render(truncate(msg.Output, 100)))
 			}
-		}
-		// Replace spinner line with result if we have an active tool
-		if m.activeToolIdx >= 0 && m.activeToolIdx < m.outputPanel.LineCount() {
-			m.outputPanel.SetLine(m.activeToolIdx, line)
-			m.activeToolIdx = -1
-		} else {
 			m.outputPanel.Append(line)
 		}
 		return m, nil
@@ -325,6 +328,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.outputPanel.Append("") // blank line
 		m.state = stateInput
+		m.focus.FocusPanel(1) // Return focus to input panel.
 		m.inputPanel.FocusInput()
 
 		// Auto-transition: determine next role.
@@ -382,24 +386,24 @@ func (m Model) View() string {
 
 	depths := tui.FocusDepths(m.focus.Count(), m.focus.ActiveIndex())
 
+	// All panels always bordered (no height jump on focus change — BUG-27, BUG-28).
+	// Border width: 2 left/right chars. Border height: 2 top/bottom lines.
+	innerWidth := m.width - 2
+
 	// Set ephemeral overlay (spinner, streaming text, approval prompt)
 	m.outputPanel.SetOverlay(m.overlayContent())
-	m.outputPanel.InitViewport(m.width, m.height-m.fixedHeight())
+	m.outputPanel.InitViewport(innerWidth, m.height-m.fixedHeight())
 	m.dashboard.SetMetrics(m.totalIn, m.totalOut, m.sess.History.Len())
 
 	var sb strings.Builder
-	// Output panel: NEVER depth-dimmed. Dimming viewport-padded whitespace
-	// causes ANSI escape codes to show as visible text on terminals without
-	// 24-bit color support (DJN-BUG-11).
-	sb.WriteString(m.outputPanel.View(m.width))
-	sb.WriteString(m.separator(0))
-	// Input panel: bordered when focused, hidden when streaming.
-	if m.state == stateInput {
-		sb.WriteString(tui.RenderWithDepth(m.inputPanel.View(m.width), depths[1]))
-	}
-	sb.WriteString(m.separator(1))
-	// Dashboard: dimmed when unfocused.
-	sb.WriteString(tui.RenderWithDepth(m.dashboard.View(m.width), depths[2]))
+	// Output panel: bordered but NEVER foreground-dimmed (BUG-11).
+	sb.WriteString(tui.RenderBorderOnly(m.outputPanel.View(innerWidth), depths[0] == 0, m.width))
+	// Input panel: always visible, always bordered.
+	sb.WriteByte('\n')
+	sb.WriteString(tui.RenderWithDepth(m.inputPanel.View(innerWidth), depths[1], m.width))
+	// Dashboard: always bordered.
+	sb.WriteByte('\n')
+	sb.WriteString(tui.RenderWithDepth(m.dashboard.View(innerWidth), depths[2], m.width))
 
 	result := sb.String()
 
@@ -412,7 +416,14 @@ func (m Model) View() string {
 		case stateToolApproval:
 			stateStr = "approval"
 		}
-		m.debugTap.Capture(result, stateStr, m.currentRole, m.width, m.height)
+		m.debugTap.Capture(result, stateStr, m.currentRole, m.width, m.height, &tui.DebugComponents{
+			Transcript: m.outputPanel.Lines(),
+			Overlay:    m.overlayContent(),
+			InputValue: m.inputPanel.Value(),
+			InputFocus: m.inputPanel.Focused(),
+			FocusedIdx: m.focus.ActiveIndex(),
+			Dashboard:  m.dashboard.View(innerWidth),
+		})
 	}
 
 	return result
@@ -432,14 +443,11 @@ func (m Model) overlayContent() string {
 	}
 }
 
-// separator renders a thin line between panels.
-func (m Model) separator(_ int) string {
-	return "\n"
-}
-
 // fixedHeight returns the number of lines consumed by non-output panels.
+// All panels have borders (2 lines each for top/bottom).
 func (m Model) fixedHeight() int {
-	return 5 // input(1) + dashboard(1) + separators(2) + padding(1)
+	// output border: 2, input: 3 content + 2 border, dashboard: 1 content + 2 border
+	return 2 + 5 + 3 // output border + input bordered + dashboard bordered
 }
 
 // switchRole transitions to a new staff role — swaps prompt, mode, and narrates.
@@ -503,12 +511,17 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Tab: try slash-command completion first, then cycle focus
+	// Tab: try slash-command completion first, then cycle focus.
+	// Shift+Tab cycles backwards.
 	if msg.Type == tea.KeyTab && m.state == stateInput {
 		if m.inputPanel.TabComplete() {
 			return m, nil
 		}
 		m.focus.Cycle()
+		return m, nil
+	}
+	if msg.Type == tea.KeyShiftTab && m.state == stateInput {
+		m.focus.FocusUp()
 		return m, nil
 	}
 
@@ -747,7 +760,7 @@ func (m *Model) flushStreamBuffer() {
 
 // renderMOTD builds the welcome banner with logo and workspace info
 // inside a lipgloss rounded border box.
-func renderMOTD(sess *session.Session, tools *builtin.Registry, version, currentRole string, width int) string {
+func renderMOTD(sess *session.Session, tools *builtin.Registry, version, currentRole string) string {
 	logo := tui.LogoStyle.Render(tui.DjinnLogo)
 
 	wsName := sess.Workspace
@@ -777,20 +790,10 @@ func renderMOTD(sess *session.Session, tools *builtin.Registry, version, current
 
 	inner := lipgloss.JoinHorizontal(lipgloss.Top, logo+"   ", info.String())
 
-	// Bordered box with version in top border.
-	boxWidth := width - 2
-	if boxWidth < 40 {
-		boxWidth = 40
-	}
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(tui.RedHatRed).
-		Padding(1, 2).
-		Width(boxWidth)
+	// No inner border — the panel border is the visual container.
+	title := tui.AssistStyle.Render("Djinn v" + version)
 
-	title := tui.AssistStyle.Render(" Djinn v" + version + " ")
-
-	return box.Render(title + "\n\n" + inner)
+	return title + "\n\n" + inner
 }
 
 // SetTextInput sets the text input value (for testing).

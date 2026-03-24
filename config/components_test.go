@@ -123,3 +123,52 @@ func TestToolsConfigurable_FromYAMLTypes(t *testing.T) {
 		t.Fatalf("enabled = %v", c.Enabled)
 	}
 }
+
+func TestSandboxConfigurable_Roundtrip(t *testing.T) {
+	c := &SandboxConfigurable{Backend: "misbah", Level: "container"}
+	if c.ConfigKey() != "sandbox" {
+		t.Fatalf("key = %q", c.ConfigKey())
+	}
+
+	c2 := &SandboxConfigurable{}
+	if err := c2.Apply(map[string]any{"backend": "podman", "level": "kata"}); err != nil {
+		t.Fatal(err)
+	}
+	if c2.Backend != "podman" || c2.Level != "kata" {
+		t.Fatalf("sandbox = %s/%s", c2.Backend, c2.Level)
+	}
+}
+
+func TestDebugConfigurable_Roundtrip(t *testing.T) {
+	c := &DebugConfigurable{TapFile: "/tmp/tap.jsonl", LiveDebug: "127.0.0.1:9999", Verbose: true}
+	if c.ConfigKey() != "debug" {
+		t.Fatalf("key = %q", c.ConfigKey())
+	}
+
+	c2 := &DebugConfigurable{}
+	if err := c2.Apply(c.Snapshot()); err != nil {
+		t.Fatal(err)
+	}
+	if c2.TapFile != "/tmp/tap.jsonl" {
+		t.Fatalf("tap_file = %q", c2.TapFile)
+	}
+	if c2.LiveDebug != "127.0.0.1:9999" {
+		t.Fatalf("live_debug = %q", c2.LiveDebug)
+	}
+	if !c2.Verbose {
+		t.Fatal("verbose should be true")
+	}
+}
+
+func TestDebugConfigurable_PartialApply(t *testing.T) {
+	c := &DebugConfigurable{}
+	if err := c.Apply(map[string]any{"verbose": true}); err != nil {
+		t.Fatal(err)
+	}
+	if !c.Verbose {
+		t.Fatal("verbose should be true")
+	}
+	if c.TapFile != "" {
+		t.Fatal("tap_file should remain empty")
+	}
+}

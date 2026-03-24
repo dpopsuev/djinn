@@ -47,3 +47,35 @@ type AgentDoneMsg struct {
 
 // TickMsg triggers a render cycle for smooth streaming.
 type TickMsg time.Time
+
+// --- Panel messages: each panel receives state via messages, not method calls. ---
+
+// OutputPanel messages.
+type OutputAppendMsg struct{ Line string }
+type OutputSetLineMsg struct{ Index int; Line string }
+type OutputAppendLastMsg struct{ Text string }
+type OutputClearMsg struct{}
+type OutputSetOverlayMsg struct{ Text string }
+type OutputCommitMsg struct{} // move pending lines to committed (two-zone)
+type FlushStreamMsg struct{}  // flush stream buffer to last line
+
+// InputPanel messages.
+type InputSetValueMsg struct{ Value string }
+type InputResetMsg struct{}
+type InputFocusMsg struct{}
+type InputBlurMsg struct{}
+type InputAddHistoryMsg struct{ Value string }
+type InputSetCompletionsMsg struct{ Names []string }
+
+// SubmitMsg is emitted by InputPanel when the user presses Enter.
+type SubmitMsg struct{ Value string }
+
+// DashboardPanel messages.
+type DashboardIdentityMsg struct{ Workspace, Driver, Model, Mode string }
+type DashboardMetricsMsg struct{ TokensIn, TokensOut, Turns int }
+type DashboardHealthMsg struct{ Reports []HealthReport }
+type DashboardUIStateMsg struct{ State string }
+
+// Layout messages.
+type ResizeMsg struct{ Width, Height int }
+type FocusPanelMsg struct{ Index int }

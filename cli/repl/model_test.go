@@ -269,8 +269,8 @@ func TestModel_HandleApproval_N(t *testing.T) {
 
 func TestModel_View_Welcome(t *testing.T) {
 	m := testModel()
-	// Trigger WindowSizeMsg to initialize viewport and render MOTD
-	m2, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	// Use a tall terminal so MOTD fits inside viewport with borders
+	m2, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 40})
 	model := asModel(t, m2)
 	view := model.View()
 	// Structural: welcome view should contain the logo (non-empty)

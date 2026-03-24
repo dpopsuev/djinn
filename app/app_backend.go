@@ -55,13 +55,21 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 	log := djinnlog.For(logResult.Logger, "backend")
 	log.Info("starting backend", "socket", *socketPath)
 
-	// Connect to shell via Unix socket.
-	transport, err := clutch.Connect(*socketPath)
+	// Connect to hub (or legacy shell) via Unix socket.
+	// Try hub registration first — if hub is listening, register as backend.
+	// Falls back to direct connect for legacy shell mode.
+	transport, err := ConnectToHubAsBackend(*socketPath)
 	if err != nil {
-		return fmt.Errorf("connect to shell: %w", err)
+		// Fallback: direct connect (legacy shell mode).
+		transport, err = clutch.Connect(*socketPath)
+		if err != nil {
+			return fmt.Errorf("connect to socket: %w", err)
+		}
+		log.Info("connected to shell (direct)")
+	} else {
+		log.Info("connected to hub as backend")
 	}
 	defer transport.Close()
-	log.Info("connected to shell")
 
 	// Resolve model.
 	modelName := *model

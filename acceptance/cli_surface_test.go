@@ -25,18 +25,18 @@ func TestCLI_Help(t *testing.T) {
 	app.Run([]string{"--help"}, &buf)
 	out := buf.String()
 
-	for _, flag := range []string{"--driver", "--model", "--mode", "--workspace", "--config", "--verbose"} {
+	for _, flag := range []string{"--driver", "-m", "--mode", "-e", "--config", "--verbose"} {
 		if !strings.Contains(out, flag) {
 			t.Fatalf("help missing %s", flag)
 		}
 	}
 }
 
-func TestCLI_HelpContainsWorkspace(t *testing.T) {
+func TestCLI_HelpContainsEcosystem(t *testing.T) {
 	var buf bytes.Buffer
 	app.Run([]string{"--help"}, &buf)
-	if !strings.Contains(buf.String(), "--workspace") {
-		t.Fatal("help should mention --workspace")
+	if !strings.Contains(buf.String(), "-e") {
+		t.Fatal("help should mention -e (ecosystem scope)")
 	}
 }
 

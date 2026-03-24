@@ -30,74 +30,59 @@ import (
 )
 
 // RunREPL starts the interactive REPL.
+// Essential flags: -m (model), -s (session), -c (continue), -e (ecosystem),
+// --config, --socket. Everything else lives in djinn.yaml.
 func RunREPL(args []string, stderr io.Writer) error {
 	fs := flag.NewFlagSet("repl", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	driverName := fs.String("driver", DriverClaude, "LLM backend: claude, ollama")
-	model := fs.String("model", "", "model name")
-	modelShort := fs.String("m", "", "model name (short)")
-	sessionName := fs.String("session", "", "named session")
-	sessionShort := fs.String("s", "", "named session (short)")
-	cont := fs.Bool("continue", false, "resume most recent session")
-	contShort := fs.Bool("c", false, "resume most recent (short)")
-	maxTurns := fs.Int("max-turns", 20, "max agent turns per prompt")
-	autoApprove := fs.Bool("auto-approve", false, "auto-approve all tool calls")
-	mode := fs.String("mode", "agent", "agent mode: ask, plan, agent, auto")
-	configFile := fs.String("config", "", "load config from YAML file")
-	systemPrompt := fs.String("system", "", "system prompt")
-	systemFile := fs.String("system-file", "", "load system prompt from file")
-	verbose := fs.Bool("verbose", false, "show log output on terminal")
-	wsFlag := fs.String("w", "", "workspace name or manifest file")
-	wsLong := fs.String("workspace", "", "workspace name or manifest file")
-	noPersist := fs.Bool("no-persist", false, "don't save session to disk")
-	socketPath := fs.String("socket", "", "Unix socket path for shell/backend split (enables hot-swap)")
-	sandboxBackend := fs.String("sandbox", "", "sandbox backend: misbah, bubblewrap, podman")
-	sandboxLevel := fs.String("sandbox-level", "namespace", "sandbox isolation level: none, namespace, container, kata")
-	debugTapFile := fs.String("debug-tap", "", "capture TUI frames to JSONL file")
-	liveDebug := fs.String("live-debug", "", "start HTTP debug server at addr (e.g. 127.0.0.1:9999, empty=random port)")
+
+	// Essential CLI flags — these are the only ones you need regularly.
+	model := fs.String("m", "", "model name (overrides config)")
+	sessionName := fs.String("s", "", "named session")
+	cont := fs.Bool("c", false, "resume most recent session")
+	ecoFlag := fs.String("e", "", "ecosystem or system scope (e.g. aeon, aeon/djinn)")
+	configFile := fs.String("config", "", "config file path (default: djinn.yaml)")
+	socketPath := fs.String("socket", "", "Unix socket for hot-swap")
+
+	// Override flags — rarely needed, prefer djinn.yaml.
+	driverName := fs.String("driver", "", "LLM backend (config: driver.name)")
+	mode := fs.String("mode", "", "agent mode (config: mode)")
+	systemPrompt := fs.String("system", "", "system prompt text")
+	systemFile := fs.String("system-file", "", "system prompt from file")
+	verbose := fs.Bool("verbose", false, "show log output (config: debug.verbose)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	// Resolve short flags
-	if *modelShort != "" && *model == "" {
-		*model = *modelShort
-	}
-	if *sessionShort != "" && *sessionName == "" {
-		*sessionName = *sessionShort
-	}
-	if *contShort {
-		*cont = true
-	}
-
-	// Load config files
+	// Load config files — djinn.yaml is the primary config source.
 	cfgRegistry := djinnconfig.NewRegistry()
-	modeConf := &djinnconfig.ModeConfig{Mode: *mode}
-	driverConf := &djinnconfig.DriverConfigurable{Name: *driverName, Model: *model}
-	sessConf := &djinnconfig.SessionConfigurable{MaxTurns: *maxTurns, AutoApprove: *autoApprove}
+	modeConf := &djinnconfig.ModeConfig{Mode: "agent"}
+	driverConf := &djinnconfig.DriverConfigurable{Name: DriverClaude}
+	sessConf := &djinnconfig.SessionConfigurable{MaxTurns: 20}
+	sandboxConf := &djinnconfig.SandboxConfigurable{Level: "namespace"}
+	debugConf := &djinnconfig.DebugConfigurable{}
 	cfgRegistry.Register(modeConf)
 	cfgRegistry.Register(driverConf)
 	cfgRegistry.Register(sessConf)
+	cfgRegistry.Register(sandboxConf)
+	cfgRegistry.Register(debugConf)
 
 	if err := djinnconfig.LoadAll(cfgRegistry, Getwd(), *configFile); err != nil {
 		fmt.Fprintf(stderr, "djinn: config: %v\n", err)
 	}
 
-	// Apply config file values (CLI flags override)
-	if *mode == "agent" && modeConf.Mode != "agent" {
-		*mode = modeConf.Mode
+	// CLI flags override config values.
+	if *mode != "" {
+		modeConf.Mode = *mode
 	}
-	if *model == "" && driverConf.Model != "" {
-		*model = driverConf.Model
+	if *model != "" {
+		driverConf.Model = *model
 	}
-	if *driverName == DriverClaude && driverConf.Name != DriverClaude {
-		*driverName = driverConf.Name
+	if *driverName != "" {
+		driverConf.Name = *driverName
 	}
-	if *maxTurns == 20 && sessConf.MaxTurns != 20 {
-		*maxTurns = sessConf.MaxTurns
-	}
-	if !*autoApprove && sessConf.AutoApprove {
-		*autoApprove = sessConf.AutoApprove
+	if *verbose {
+		debugConf.Verbose = true
 	}
 
 	// Load system prompt from file
@@ -112,14 +97,14 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 
 	// Resolve model default per driver
-	if *model == "" {
-		switch *driverName {
+	if driverConf.Model == "" {
+		switch driverConf.Name {
 		case DriverClaude:
-			*model = DefaultModel
+			driverConf.Model = DefaultModel
 		case DriverOllama:
-			*model = "qwen2.5-coder:14b"
+			driverConf.Model = "qwen2.5-coder:14b"
 		default:
-			*model = DefaultModel
+			driverConf.Model = DefaultModel
 		}
 	}
 
@@ -139,29 +124,23 @@ func RunREPL(args []string, stderr io.Writer) error {
 	} else if *sessionName != "" {
 		sess, err = store.Load(*sessionName)
 		if err != nil {
-			sess = session.New(*sessionName, *model, Getwd())
+			sess = session.New(*sessionName, driverConf.Model, Getwd())
 			sess.Name = *sessionName
-			sess.Driver = *driverName
+			sess.Driver = driverConf.Name
 		} else {
 			fmt.Fprintf(stderr, "djinn: resumed session %q (%d turns)\n", sess.Name, sess.History.Len())
 		}
 	} else {
 		id := fmt.Sprintf("djinn-%d", time.Now().Unix())
-		sess = session.New(id, *model, Getwd())
-		sess.Driver = *driverName
+		sess = session.New(id, driverConf.Model, Getwd())
+		sess.Driver = driverConf.Name
 	}
 
-	if *model != "" {
-		sess.Model = *model
-	}
-	sess.Driver = *driverName
+	sess.Model = driverConf.Model
+	sess.Driver = driverConf.Name
 
-	// Load workspace
-	wsName := *wsFlag
-	if wsName == "" {
-		wsName = *wsLong
-	}
-
+	// Load workspace/ecosystem
+	wsName := *ecoFlag
 	var ws *djinnws.Workspace
 	if wsName != "" {
 		var wsErr error
@@ -174,31 +153,29 @@ func RunREPL(args []string, stderr io.Writer) error {
 		ws, _ = djinnws.Load(sess.Workspace)
 	}
 	if ws == nil {
-		// No workspace specified — empty workspace, no repos, no context.
-		// CWD is NOT a workspace. Repos come from the manifest.
 		ws = &djinnws.Workspace{}
 	}
 
 	// Workspace config overrides
-	if ws.Driver != "" && *driverName == DriverClaude {
-		*driverName = ws.Driver
+	if ws.Driver != "" && driverConf.Name == DriverClaude {
+		driverConf.Name = ws.Driver
 	}
-	if ws.Model != "" && *model == "" {
-		*model = ws.Model
+	if ws.Model != "" && driverConf.Model == DefaultModel {
+		driverConf.Model = ws.Model
 	}
-	if ws.Mode != "" && *mode == "agent" {
-		*mode = ws.Mode
+	if ws.Mode != "" && modeConf.Mode == "agent" {
+		modeConf.Mode = ws.Mode
 	}
 	sess.WorkDirs = ws.Paths()
 
 	// Setup logging
 	logResult := djinnlog.Setup(djinnlog.Options{
-		Verbose: *verbose,
-		TUI:     true, // Bubbletea owns the terminal — no stderr output
+		Verbose: debugConf.Verbose,
+		TUI:     true,
 		LogFile: filepath.Join(HomeDir(), "djinn.log"),
 	})
 	log := djinnlog.For(logResult.Logger, "app")
-	log.Info("session starting", "driver", *driverName, "model", *model, "mode", *mode)
+	log.Info("session starting", "driver", driverConf.Name, "model", driverConf.Model, "mode", modeConf.Mode)
 
 	// Auto-import Claude session for new empty sessions
 	if sess.History.Len() == 0 && ws.PrimaryPath() != "" {
@@ -220,7 +197,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	projectCtx := djinnctx.LoadProjectContext(sess.WorkDirs...)
 	assembledPrompt := djinnctx.BuildSystemPrompt(projectCtx, *systemPrompt)
 
-	chatDriver, err := CreateDriver(*driverName, sess.Model, assembledPrompt, logResult.Logger)
+	chatDriver, err := CreateDriver(driverConf.Name, sess.Model, assembledPrompt, logResult.Logger)
 	if err != nil {
 		return err
 	}
@@ -328,83 +305,98 @@ func RunREPL(args []string, stderr io.Writer) error {
 	staffCfg := staff.DefaultConfig()
 	slotRouter := staff.NewSlotRouter(staffCfg, registry, "gensec")
 
-	// Sandbox: if --sandbox is set, create an isolated environment.
-	// The backend runs inside the sandbox. The shell stays on the host.
-	// If declared but backend unavailable → fail fast (security violation).
-	if *sandboxBackend != "" {
-		sb, sbErr := sandbox.Get(*sandboxBackend)
+	// Sandbox: if configured, create an isolated environment.
+	if sandboxConf.Backend != "" {
+		sb, sbErr := sandbox.Get(sandboxConf.Backend)
 		if sbErr != nil {
-			return fmt.Errorf("sandbox %q: %w (available: %v)", *sandboxBackend, sbErr, sandbox.Available())
+			return fmt.Errorf("sandbox %q: %w (available: %v)", sandboxConf.Backend, sbErr, sandbox.Available())
 		}
 		repos := sess.AllWorkDirs()
-		handle, createErr := sb.Create(ctx, *sandboxLevel, repos)
+		handle, createErr := sb.Create(ctx, sandboxConf.Level, repos)
 		if createErr != nil {
 			return fmt.Errorf("create sandbox: %w", createErr)
 		}
 		defer sb.Destroy(ctx, handle) //nolint:errcheck
-		log.Info("sandbox created", "backend", *sandboxBackend, "level", *sandboxLevel, "handle", handle)
+		log.Info("sandbox created", "backend", sandboxConf.Backend, "level", sandboxConf.Level, "handle", handle)
 	}
 
 	// Start clutch shell/backend transport.
-	// --socket: shell listens on Unix socket, backend connects separately (hot-swap).
-	// No --socket: in-process channel transport (current default, no hot-swap).
+	// Priority: --socket flag → auto-detect hub → in-process channel.
 	var transport clutch.Transport
-	if *socketPath != "" {
-		// Socket mode: shell listens, backend connects from another process.
-		listener, listenErr := clutch.Listen(*socketPath)
-		if listenErr != nil {
-			return fmt.Errorf("listen on %s: %w", *socketPath, listenErr)
-		}
-		defer listener.Close()
-		fmt.Fprintf(stderr, "djinn: waiting for backend on %s\n", *socketPath)
-		fmt.Fprintf(stderr, "djinn: run: djinn backend --socket %s\n", *socketPath)
+	var useInProcess bool
 
-		socketTransport, acceptErr := listener.Accept()
-		if acceptErr != nil {
-			return fmt.Errorf("accept backend: %w", acceptErr)
+	// backendCfg is shared across hub and in-process modes.
+	backendCfg := clutch.BackendConfig{
+		Driver:       chatDriver,
+		Tools:        registry,
+		Session:      sess,
+		SystemPrompt: assembledPrompt,
+		MaxTurns:     sessConf.MaxTurns,
+	}
+
+	hubSocket := *socketPath
+	if hubSocket == "" {
+		if detected, ok := HubSocketExists(); ok {
+			hubSocket = detected
 		}
-		defer socketTransport.Close()
-		transport = socketTransport
-		fmt.Fprintf(stderr, "djinn: backend connected\n")
+	}
+
+	if hubSocket != "" {
+		// Hub mode: connect as shell, auto-spawn backend goroutine via hub.
+		hubTransport, hubErr := ConnectToHub(hubSocket)
+		if hubErr != nil {
+			log.Warn("hub connect failed, falling back to in-process", "error", hubErr)
+			useInProcess = true
+		} else {
+			defer hubTransport.Close()
+			transport = hubTransport
+			fmt.Fprintf(stderr, "djinn: connected to hub at %s\n", hubSocket)
+
+			// Auto-spawn backend as goroutine connecting to the SAME hub.
+			go func() {
+				beTransport, beErr := ConnectToHubAsBackend(hubSocket)
+				if beErr != nil {
+					log.Error("backend connect to hub failed", "error", beErr)
+					return
+				}
+				defer beTransport.Close()
+				backendErr := clutch.RunBackend(ctx, beTransport, backendCfg)
+				if backendErr != nil {
+					log.Error("backend exited", "error", backendErr)
+				}
+			}()
+		}
 	} else {
-		// In-process mode: channel transport, backend in goroutine.
+		useInProcess = true
+	}
+
+	if useInProcess {
 		channelTransport := clutch.NewChannelTransport()
 		defer channelTransport.Close()
 		transport = channelTransport
 
 		go func() {
-			backendErr := clutch.RunBackend(ctx, channelTransport, clutch.BackendConfig{
-				Driver:       chatDriver,
-				Tools:        registry,
-				Session:      sess,
-				SystemPrompt: assembledPrompt,
-				MaxTurns:     *maxTurns,
-			})
+			backendErr := clutch.RunBackend(ctx, channelTransport, backendCfg)
 			if backendErr != nil {
 				log.Error("backend exited", "error", backendErr)
 			}
 		}()
 	}
 
-	// DebugTap: --debug-tap for JSONL capture, --live-debug for HTTP server.
-	// Both require explicit opt-in. Neither is on by default.
+	// DebugTap: configured via debug.tap_file and debug.live_debug in djinn.yaml.
 	var debugTap *tui.DebugTap
-	if *debugTapFile != "" || *liveDebug != "" {
-		tapPath := ""
-		if *debugTapFile != "" {
-			tapPath = *debugTapFile
-		}
+	if debugConf.TapFile != "" || debugConf.LiveDebug != "" {
 		var tapErr error
-		debugTap, tapErr = tui.NewDebugTap(100, tapPath)
+		debugTap, tapErr = tui.NewDebugTap(100, debugConf.TapFile)
 		if tapErr != nil {
 			fmt.Fprintf(stderr, "djinn: debug tap: %v\n", tapErr)
 		} else {
 			defer debugTap.Close() //nolint:errcheck
-			if tapPath != "" {
-				fmt.Fprintf(stderr, "djinn: debug tap writing to %s\n", tapPath)
+			if debugConf.TapFile != "" {
+				fmt.Fprintf(stderr, "djinn: debug tap writing to %s\n", debugConf.TapFile)
 			}
-			if *liveDebug != "" {
-				ln, srvErr := debugTap.ServeHTTP(*liveDebug)
+			if debugConf.LiveDebug != "" {
+				ln, srvErr := debugTap.ServeHTTP(debugConf.LiveDebug)
 				if srvErr != nil {
 					fmt.Fprintf(stderr, "djinn: debug server: %v\n", srvErr)
 				} else {
@@ -419,9 +411,9 @@ func RunREPL(args []string, stderr io.Writer) error {
 		Tools:         registry,
 		Session:       sess,
 		SystemPrompt:  assembledPrompt,
-		MaxTurns:      *maxTurns,
-		AutoApprove:   *autoApprove,
-		Mode:          *mode,
+		MaxTurns:      sessConf.MaxTurns,
+		AutoApprove:   sessConf.AutoApprove,
+		Mode:          modeConf.Mode,
 		Log:           logResult.Logger,
 		Ring:          logResult.Ring,
 		Store:         store,
@@ -436,7 +428,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 		DebugTap:      debugTap,
 	})
 
-	if !*noPersist {
+	if !sessConf.NoPersist {
 		if saveErr := store.Save(sess); saveErr != nil {
 			fmt.Fprintf(stderr, "djinn: save session: %v\n", saveErr)
 		}
