@@ -138,16 +138,23 @@ func (c *Client) initializeServer(conn *ServerConn) error {
 	}
 
 	// Send initialized notification — must complete before tools/list.
-	// Some servers don't respond to notifications — continue anyway.
 	_ = conn.sendNotification("notifications/initialized", nil)
 
-	// List tools
+	// List tools — retry once if server isn't ready yet (race with initialization).
 	toolsResp, err := conn.send("tools/list", nil)
 	if err != nil {
 		return fmt.Errorf("tools/list: %w", err)
 	}
 	if toolsResp.Error != nil {
-		return toolsResp.Error
+		// Server may not be ready — wait and retry once.
+		time.Sleep(200 * time.Millisecond)
+		toolsResp, err = conn.send("tools/list", nil)
+		if err != nil {
+			return fmt.Errorf("tools/list retry: %w", err)
+		}
+		if toolsResp.Error != nil {
+			return toolsResp.Error
+		}
 	}
 
 	var result toolsListResult

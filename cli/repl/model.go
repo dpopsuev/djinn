@@ -25,8 +25,8 @@ import (
 	"github.com/dpopsuev/djinn/vcs"
 )
 
-// Frame rate for smooth streaming (60fps).
-const tickInterval = 16 * time.Millisecond
+// Frame rate for streaming — 20fps is smooth enough for text, reduces jitter.
+const tickInterval = 50 * time.Millisecond
 
 // State represents the REPL state machine.
 type State int
@@ -432,10 +432,9 @@ func (m Model) overlayContent() string {
 }
 
 // fixedHeight returns the number of lines consumed by non-output panels.
-// All panels have borders (2 lines each for top/bottom).
+// Uses responsive layout breakpoints.
 func (m Model) fixedHeight() int {
-	// output border: 2, input: 3 content + 2 border, dashboard: 1 content + 2 border
-	return 2 + 5 + 3 // output border + input bordered + dashboard bordered
+	return tui.ComputeLayout(m.width, m.height).FixedHeight()
 }
 
 // switchRole transitions to a new staff role — swaps prompt, mode, and narrates.
@@ -511,6 +510,23 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if msg.Type == tea.KeyShiftTab && m.state == stateInput {
 		m.focus.FocusUp()
 		return m, nil
+	}
+
+	// During streaming: allow scroll and Escape to cancel.
+	if m.state == stateStreaming {
+		switch msg.Type {
+		case tea.KeyEscape:
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  (cancelled)")})
+			m.outputPanel.Update(tui.FlushStreamMsg{})
+			m.state = stateInput
+			m.focus.FocusPanel(1)
+			m.inputPanel.Update(tui.InputFocusMsg{})
+			m.dashboard.Update(tui.DashboardUIStateMsg{State: "INSERT"})
+			return m, nil
+		case tea.KeyPgUp, tea.KeyPgDown, tea.KeyUp, tea.KeyDown:
+			_, cmd := m.outputPanel.Update(msg)
+			return m, cmd
+		}
 	}
 
 	// Forward PgUp/PgDn to output panel for scrolling

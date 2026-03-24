@@ -35,7 +35,7 @@ var _ Panel = (*InputPanel)(nil)
 // NewInputPanel creates the input panel.
 func NewInputPanel() *InputPanel {
 	ta := textarea.New()
-	ta.Prompt = UserStyle.Render(LabelUser)
+	ta.Prompt = "" // No per-line prompt — chevron prepended in View() on first line only.
 	ta.Placeholder = `Try "explain this codebase"`
 	ta.ShowLineNumbers = false
 	ta.SetHeight(3)
@@ -219,11 +219,14 @@ func (p *InputPanel) View(width int) string {
 	if !p.visible {
 		return ""
 	}
+	promptPrefix := UserStyle.Render(LabelUser)
 	if width > 0 {
-		p.textarea.SetWidth(width)
+		// Account for chevron width in textarea.
+		p.textarea.SetWidth(width - len([]rune(LabelUser)))
 	}
-	view := p.textarea.View()
-	// Show prediction as dim suffix on the first line.
+	view := promptPrefix + p.textarea.View()
+
+	// Show prediction as dim suffix.
 	if p.prediction != "" {
 		val := p.textarea.Value()
 		if strings.HasPrefix(p.prediction, val) {
@@ -233,6 +236,16 @@ func (p *InputPanel) View(width int) string {
 			}
 		}
 	}
+
+	// Show slash command hints when typing /.
+	val := p.textarea.Value()
+	if strings.HasPrefix(val, "/") && len(p.completions) > 0 {
+		matches := filterPrefix(p.completions, val)
+		if len(matches) > 0 && !(len(matches) == 1 && matches[0] == val) {
+			view += "\n" + DimStyle.Render(strings.Join(matches, "  "))
+		}
+	}
+
 	return view
 }
 
