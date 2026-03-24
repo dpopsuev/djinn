@@ -140,7 +140,7 @@ func NewModel(cfg Config) Model {
 		healthReports:  cfg.HealthReports,
 		spin: spinner.New(
 			spinner.WithSpinner(spinner.Spinner{
-				Frames: tui.FlameFrames,
+				Frames: tui.SpinnerFrames,
 				FPS:    150 * time.Millisecond,
 			}),
 			spinner.WithStyle(tui.LogoStyle),
@@ -422,10 +422,7 @@ func (m Model) View() string {
 func (m Model) overlayContent() string {
 	switch {
 	case m.state == stateStreaming && m.spinnerActive:
-		// Multi-line flame animation — dancing tip, stable base.
-		frameIdx := int(time.Now().UnixMilli()/150) % len(tui.FlameFrames)
-		flame := tui.LogoStyle.Render(tui.FlameFrames[frameIdx])
-		return flame + "  thinking..."
+		return "  " + m.spin.View() + " thinking..."
 	case m.state == stateStreaming && m.streamBuf.Len() > 0:
 		return m.streamBuf.String()
 	case m.state == stateToolApproval && m.pendingTool != nil:

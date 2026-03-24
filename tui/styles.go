@@ -50,15 +50,16 @@ const DjinnLogo = `         ████  █████
       ████████████████████████
             ████████████████`
 
-// FlameFrames — multi-line teardrop flame with hollow center.
-// Only the tip dances; the base stays stable. Block chars match the fedora logo.
-var FlameFrames = []string{
-	"  ▖\n ▐ ▌\n  █",
-	"  ▗\n ▐ ▌\n  █",
-	" ▗▖\n ▐ ▌\n  █",
-	"  ▘\n ▐ ▌\n  █",
-	"  ▝\n ▐ ▌\n  █",
-	" ▝▘\n ▐ ▌\n  █",
+// SpinnerFrames — triangle and diamond cycle, filled and hollow.
+var SpinnerFrames = []string{
+	"◆",
+	"◇",
+	"▲",
+	"△",
+	"◆",
+	"◇",
+	"▼",
+	"▽",
 }
 
 // Label constants.
