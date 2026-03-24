@@ -3,6 +3,7 @@ package acp
 import (
 	"context"
 	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/dpopsuev/djinn/driver"
@@ -148,6 +149,84 @@ func TestACPDriver_AppendAssistant(t *testing.T) {
 	d.AppendAssistant(driver.RichMessage{Role: "assistant", Content: "hi"})
 	if len(d.messages) != 1 {
 		t.Fatalf("messages = %d", len(d.messages))
+	}
+}
+
+// mockACPServerBadSession simulates an ACP agent that rejects session/new.
+const mockACPServerBadSession = `#!/bin/bash
+while IFS= read -r line; do
+  method=$(echo "$line" | grep -o '"method":"[^"]*"' | cut -d'"' -f4)
+  id=$(echo "$line" | grep -o '"id":[0-9]*' | cut -d: -f2)
+  case "$method" in
+    initialize)
+      echo '{"jsonrpc":"2.0","id":'$id',"result":{"protocolVersion":1,"agentInfo":{"name":"mock","version":"0.1.0"}}}'
+      ;;
+    session/new)
+      echo '{"jsonrpc":"2.0","id":'$id',"error":{"code":-32603,"message":"mcpServers required"}}'
+      ;;
+  esac
+done
+`
+
+func TestACPDriver_SessionNewError(t *testing.T) {
+	d, _ := New("cursor", WithCommandFactory(
+		func(ctx context.Context, name string, args ...string) *exec.Cmd {
+			return exec.CommandContext(ctx, "bash", "-c", mockACPServerBadSession)
+		},
+	))
+
+	err := d.Start(context.Background(), "")
+	if err == nil {
+		t.Fatal("expected session/new error")
+	}
+	if !strings.Contains(err.Error(), "mcpServers") {
+		t.Fatalf("error = %q, should mention mcpServers", err)
+	}
+}
+
+func TestACPDriver_AgentCrashDuringChat(t *testing.T) {
+	// Agent exits immediately after session/new — Chat should get error event.
+	crashServer := `#!/bin/bash
+while IFS= read -r line; do
+  method=$(echo "$line" | grep -o '"method":"[^"]*"' | cut -d'"' -f4)
+  id=$(echo "$line" | grep -o '"id":[0-9]*' | cut -d: -f2)
+  case "$method" in
+    initialize)
+      echo '{"jsonrpc":"2.0","id":'$id',"result":{"protocolVersion":1,"agentInfo":{"name":"mock","version":"0.1.0"}}}'
+      ;;
+    session/new)
+      echo '{"jsonrpc":"2.0","id":'$id',"result":{"sessionId":"crash-session"}}'
+      ;;
+    session/prompt)
+      exit 1
+      ;;
+  esac
+done
+`
+	d, _ := New("cursor", WithCommandFactory(
+		func(ctx context.Context, name string, args ...string) *exec.Cmd {
+			return exec.CommandContext(ctx, "bash", "-c", crashServer)
+		},
+	))
+
+	if err := d.Start(context.Background(), ""); err != nil {
+		t.Fatal(err)
+	}
+
+	d.Send(context.Background(), driver.Message{Role: "user", Content: "test"})
+	ch, err := d.Chat(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var gotError bool
+	for evt := range ch {
+		if evt.Type == driver.EventError {
+			gotError = true
+		}
+	}
+	if !gotError {
+		t.Fatal("should get error event when agent crashes")
 	}
 }
 

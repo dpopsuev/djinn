@@ -54,7 +54,8 @@ type agentInfo struct {
 // --- Session ---
 
 type newSessionParams struct {
-	CWD string `json:"cwd"`
+	CWD        string `json:"cwd"`
+	MCPServers []any  `json:"mcpServers"` // required by ACP spec, empty array if none
 }
 
 type newSessionResult struct {

@@ -119,8 +119,10 @@ func (d *ACPDriver) Start(ctx context.Context, _ driver.SandboxHandle) error {
 
 	// Create session.
 	cwd, _ := os.Getwd()
-	sessResp, err := d.call("session/new", newSessionParams{CWD: cwd})
+	d.log.Debug("ACP session/new", "cwd", cwd)
+	sessResp, err := d.call("session/new", newSessionParams{CWD: cwd, MCPServers: []any{}})
 	if err != nil {
+		d.log.Error("ACP session/new failed", "error", err)
 		d.cmd.Process.Kill() //nolint:errcheck
 		return fmt.Errorf("ACP session/new: %w", err)
 	}
@@ -275,6 +277,7 @@ func (d *ACPDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 func (d *ACPDriver) call(method string, params any) (*json.RawMessage, error) {
 	id := int(d.nextID.Add(1))
 
+	d.log.Debug("ACP call", "method", method, "id", id)
 	if err := d.stdin.Encode(jsonRPCRequest{
 		JSONRPC: "2.0",
 		ID:      id,
@@ -290,16 +293,20 @@ func (d *ACPDriver) call(method string, params any) (*json.RawMessage, error) {
 		if line == "" {
 			continue
 		}
+		d.log.Debug("ACP recv", "method", method, "line_len", len(line))
 
 		var resp jsonRPCResponse
 		if err := json.Unmarshal([]byte(line), &resp); err != nil {
+			d.log.Warn("ACP parse error", "method", method, "error", err)
 			continue
 		}
 
 		if resp.ID == id {
 			if resp.Error != nil {
+				d.log.Error("ACP error response", "method", method, "code", resp.Error.Code, "message", resp.Error.Message)
 				return nil, fmt.Errorf("%s error: %s", method, resp.Error.Message)
 			}
+			d.log.Debug("ACP result", "method", method, "id", id)
 			return resp.Result, nil
 		}
 	}
