@@ -77,12 +77,14 @@ func TestSetSystemPrompt(t *testing.T) {
 }
 
 func TestChat_StreamJSON(t *testing.T) {
-	// Mock: echo outputs stream-json lines to stdout.
 	d := New(driver.DriverConfig{Model: "test"}, WithCommandFactory(
 		func(ctx context.Context, name string, args ...string) *exec.Cmd {
-			return exec.CommandContext(ctx, "echo", `{"type":"text_delta","content":"hello"}
-{"type":"text_delta","content":" world"}
-{"type":"done","input_tokens":10,"output_tokens":5}`)
+			// Use bash -c with echo to get proper newlines.
+			script := `echo '{"type":"system","subtype":"init","model":"test"}'
+echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"hello"}]}}'
+echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"hello world"}]}}'
+echo '{"type":"result","subtype":"success","usage":{"inputTokens":10,"outputTokens":5}}'`
+			return exec.CommandContext(ctx, "bash", "-c", script)
 		},
 	))
 	d.Send(context.Background(), driver.Message{Role: "user", Content: "test"})
@@ -94,15 +96,14 @@ func TestChat_StreamJSON(t *testing.T) {
 
 	var texts []string
 	var gotDone bool
+	var usage *driver.Usage
 	for evt := range ch {
 		switch evt.Type {
 		case driver.EventText:
 			texts = append(texts, evt.Text)
 		case driver.EventDone:
 			gotDone = true
-			if evt.Usage != nil && evt.Usage.InputTokens == 10 {
-				t.Logf("usage: in=%d out=%d", evt.Usage.InputTokens, evt.Usage.OutputTokens)
-			}
+			usage = evt.Usage
 		}
 	}
 
@@ -112,17 +113,23 @@ func TestChat_StreamJSON(t *testing.T) {
 	if len(texts) == 0 {
 		t.Fatal("no text events received")
 	}
-	joined := ""
-	for _, s := range texts {
-		joined += s
+	// First delta = "hello", second delta = " world" (cumulative diff)
+	if texts[0] != "hello" {
+		t.Fatalf("first delta = %q, want 'hello'", texts[0])
 	}
-	if joined != "hello world" {
-		t.Fatalf("text = %q, want 'hello world'", joined)
+	if texts[1] != " world" {
+		t.Fatalf("second delta = %q, want ' world'", texts[1])
+	}
+	if usage == nil {
+		t.Logf("texts received: %v, gotDone: %v", texts, gotDone)
+		t.Fatalf("usage is nil — result event may not have parsed correctly")
+	}
+	if usage.InputTokens != 10 || usage.OutputTokens != 5 {
+		t.Fatalf("usage = %+v, want in=10 out=5", usage)
 	}
 }
 
 func TestChat_PlainTextFallback(t *testing.T) {
-	// Mock: command outputs plain text (not JSON).
 	d := New(driver.DriverConfig{}, WithCommandFactory(
 		func(ctx context.Context, name string, args ...string) *exec.Cmd {
 			return exec.CommandContext(ctx, "echo", "plain response")
@@ -149,14 +156,16 @@ func TestChat_PlainTextFallback(t *testing.T) {
 func TestChat_AppendsAssistantHistory(t *testing.T) {
 	d := New(driver.DriverConfig{}, WithCommandFactory(
 		func(ctx context.Context, name string, args ...string) *exec.Cmd {
-			return exec.CommandContext(ctx, "echo", `{"type":"text_delta","content":"response"}`)
+			script := `echo '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"response"}]}}'
+echo '{"type":"result","subtype":"success"}'`
+			return exec.CommandContext(ctx, "bash", "-c", script)
 		},
 	))
 	d.Send(context.Background(), driver.Message{Role: "user", Content: "test"})
 
 	ch, _ := d.Chat(context.Background())
 	for range ch {
-	} // drain
+	}
 
 	if len(d.messages) != 2 {
 		t.Fatalf("messages = %d, want 2 (user + assistant)", len(d.messages))

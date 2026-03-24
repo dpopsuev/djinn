@@ -99,7 +99,7 @@ func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 	lastMsg := d.messages[len(d.messages)-1]
 	d.mu.Unlock()
 
-	args := []string{"-p", "--output-format", "stream-json", "--stream-partial-output"}
+	args := []string{"-p", "--output-format", "stream-json", "--stream-partial-output", "--trust"}
 	if d.model != "" {
 		args = append(args, "--model", d.model)
 	}
@@ -127,6 +127,8 @@ func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 		scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 
 		var fullText strings.Builder
+		var lastText string
+		var doneSent bool
 
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -136,28 +138,44 @@ func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 
 			var evt streamJSONEvent
 			if err := json.Unmarshal([]byte(line), &evt); err != nil {
-				// Non-JSON line — treat as plain text.
 				ch <- driver.StreamEvent{Type: driver.EventText, Text: line}
 				fullText.WriteString(line)
 				continue
 			}
 
 			switch evt.Type {
-			case "text_delta", "content":
-				ch <- driver.StreamEvent{Type: driver.EventText, Text: evt.Content}
-				fullText.WriteString(evt.Content)
-			case "thinking":
-				ch <- driver.StreamEvent{Type: driver.EventThinking, Thinking: evt.Content}
-			case "done", "result":
-				ch <- driver.StreamEvent{
-					Type: driver.EventDone,
-					Usage: &driver.Usage{
-						InputTokens:  evt.InputTokens,
-						OutputTokens: evt.OutputTokens,
-					},
+			case "assistant":
+				if evt.Message != nil {
+					for _, block := range evt.Message.Content {
+						if block.Type == "text" && block.Text != lastText {
+							// Cursor sends cumulative text — emit only the delta.
+							delta := block.Text
+							if strings.HasPrefix(block.Text, lastText) {
+								delta = block.Text[len(lastText):]
+							}
+							if delta != "" {
+								ch <- driver.StreamEvent{Type: driver.EventText, Text: delta}
+								fullText.Reset()
+								fullText.WriteString(block.Text)
+								lastText = block.Text
+							}
+						}
+					}
 				}
+			case "result":
+				var usage *driver.Usage
+				if evt.Usage != nil {
+					usage = &driver.Usage{
+						InputTokens:  evt.Usage.InputTokens,
+						OutputTokens: evt.Usage.OutputTokens,
+					}
+				}
+				ch <- driver.StreamEvent{Type: driver.EventDone, Usage: usage}
+				doneSent = true
 			case "error":
-				ch <- driver.StreamEvent{Type: driver.EventError, Error: evt.Content}
+				ch <- driver.StreamEvent{Type: driver.EventError, Error: evt.Result}
+			case "system", "user":
+				// Ignore init/echo events.
 			}
 		}
 
@@ -171,8 +189,9 @@ func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 			d.mu.Unlock()
 		}
 
-		// If no done event was sent, send one now.
-		ch <- driver.StreamEvent{Type: driver.EventDone}
+		if !doneSent {
+			ch <- driver.StreamEvent{Type: driver.EventDone}
+		}
 	}()
 
 	return ch, nil
@@ -180,8 +199,19 @@ func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 
 // streamJSONEvent is the Cursor Agent CLI stream-json format.
 type streamJSONEvent struct {
-	Type         string `json:"type"`
-	Content      string `json:"content,omitempty"`
-	InputTokens  int    `json:"input_tokens,omitempty"`
-	OutputTokens int    `json:"output_tokens,omitempty"`
+	Type    string `json:"type"`
+	Subtype string `json:"subtype,omitempty"`
+	Message *struct {
+		Role    string `json:"role"`
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+	} `json:"message,omitempty"`
+	Result  string `json:"result,omitempty"`
+	IsError bool   `json:"is_error,omitempty"`
+	Usage   *struct {
+		InputTokens  int `json:"inputTokens"`
+		OutputTokens int `json:"outputTokens"`
+	} `json:"usage,omitempty"`
 }
