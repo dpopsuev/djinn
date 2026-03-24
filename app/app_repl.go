@@ -21,6 +21,7 @@ import (
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
 	"github.com/dpopsuev/djinn/policy"
+	"github.com/dpopsuev/djinn/sandbox"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
@@ -49,6 +50,8 @@ func RunREPL(args []string, stderr io.Writer) error {
 	wsLong := fs.String("workspace", "", "workspace name or manifest file")
 	noPersist := fs.Bool("no-persist", false, "don't save session to disk")
 	socketPath := fs.String("socket", "", "Unix socket path for shell/backend split (enables hot-swap)")
+	sandboxBackend := fs.String("sandbox", "", "sandbox backend: misbah, bubblewrap, podman")
+	sandboxLevel := fs.String("sandbox-level", "namespace", "sandbox isolation level: none, namespace, container, kata")
 	debugTapFile := fs.String("debug-tap", "", "capture TUI frames to JSONL file")
 	liveDebug := fs.String("live-debug", "", "start HTTP debug server at addr (e.g. 127.0.0.1:9999, empty=random port)")
 	if err := fs.Parse(args); err != nil {
@@ -318,6 +321,23 @@ func RunREPL(args []string, stderr io.Writer) error {
 		registry.Register(tool)
 	}
 	log.Info("tools registered", "builtin", 6, "mcp", len(mcpClient.MCPTools()), "total", len(registry.Names()))
+
+	// Sandbox: if --sandbox is set, create an isolated environment.
+	// The backend runs inside the sandbox. The shell stays on the host.
+	// If declared but backend unavailable → fail fast (security violation).
+	if *sandboxBackend != "" {
+		sb, sbErr := sandbox.Get(*sandboxBackend)
+		if sbErr != nil {
+			return fmt.Errorf("sandbox %q: %w (available: %v)", *sandboxBackend, sbErr, sandbox.Available())
+		}
+		repos := sess.AllWorkDirs()
+		handle, createErr := sb.Create(ctx, *sandboxLevel, repos)
+		if createErr != nil {
+			return fmt.Errorf("create sandbox: %w", createErr)
+		}
+		defer sb.Destroy(ctx, handle) //nolint:errcheck
+		log.Info("sandbox created", "backend", *sandboxBackend, "level", *sandboxLevel, "handle", handle)
+	}
 
 	// Start clutch shell/backend transport.
 	// --socket: shell listens on Unix socket, backend connects separately (hot-swap).
