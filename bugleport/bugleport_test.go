@@ -707,7 +707,7 @@ func TestAgentPool_ForkCount(t *testing.T) {
 	id, err := pool.Fork(ctx, "executor", bugleport.LaunchConfig{
 		Role:  "executor",
 		Model: "test-model",
-	})
+	}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
