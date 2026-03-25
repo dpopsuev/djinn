@@ -64,7 +64,7 @@ var SpinnerFrames = []string{
 
 // Label variables (var not const — configurable via ApplyGlyphs).
 var (
-	LabelUser   = "❯ "
+	LabelUser   = "> "
 	LabelAssist = "djinn"
 )
 

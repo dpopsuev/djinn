@@ -26,7 +26,7 @@ func DefaultGlyphs() Glyphs {
 		ToolCall:    "λ",
 		ToolSuccess: "✓",
 		ToolError:   "✗",
-		UserPrompt:  "❯ ",
+		UserPrompt:  "> ",
 		AssistLabel: "",
 		ListCursor:  "▸",
 		Sandboxed:   "[>]",
