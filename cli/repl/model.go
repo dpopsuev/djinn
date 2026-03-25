@@ -115,6 +115,10 @@ type Model struct {
 	roleMemory   *staff.RoleMemory
 	roles        map[string]staff.Role
 	staffCfg     *staff.StaffConfig
+
+	// Multi-agent monitoring
+	agentsPanel    *tui.AgentsPanel
+	agentOutputs   map[string]*tui.OutputPanel // per-agent output buffers
 }
 
 // NewModel creates a new REPL model.
@@ -174,6 +178,8 @@ func NewModel(cfg Config) Model {
 		debugTap:       cfg.DebugTap,
 		chunkedBuf:     &strings.Builder{},
 		rawStreamLine:  &strings.Builder{},
+		agentsPanel:    tui.NewAgentsPanel(),
+		agentOutputs:   make(map[string]*tui.OutputPanel),
 	}
 
 	// Use driver's context window for the monitor if available.
@@ -194,6 +200,7 @@ func NewModel(cfg Config) Model {
 	m.layout.Register(tui.PanelSlot{Panel: m.outputPanel, Weight: 1, MinHeight: 3, Border: tui.BorderOnly, Focusable: true})
 	m.layout.Register(tui.PanelSlot{Panel: m.thinkingPanel, Visible: func() bool { return m.thinkingPanel.Active() }, Border: tui.BorderNone})
 	m.layout.Register(tui.PanelSlot{Panel: m.queuePanel, Visible: func() bool { return m.queuePanel.Len() > 0 }, Border: tui.BorderFocusDepth, Focusable: true})
+	m.layout.Register(tui.PanelSlot{Panel: m.agentsPanel, Visible: func() bool { return m.agentsPanel.Count() > 1 }, Weight: 1, MinHeight: 3, Border: tui.BorderFocusDepth, Focusable: true})
 	m.layout.Register(tui.PanelSlot{Panel: m.inputPanel, Border: tui.BorderFocusDepth, Focusable: true})
 	m.layout.Register(tui.PanelSlot{Panel: m.commandsPanel, Visible: func() bool { return m.commandsPanel.Active() }, Border: tui.BorderNone})
 	m.layout.Register(tui.PanelSlot{Panel: m.dashboard, Border: tui.BorderFocusDepth, Focusable: true})
@@ -418,6 +425,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case tui.AgentStatusMsg:
+		m.agentsPanel.Update(msg)
+		return m, nil
+
+	case tui.AgentOutputMsg:
+		// Route to per-agent output buffer.
+		panel, ok := m.agentOutputs[msg.AgentID]
+		if !ok {
+			panel = tui.NewOutputPanel()
+			m.agentOutputs[msg.AgentID] = panel
+		}
+		panel.Update(tui.OutputAppendMsg{Line: msg.Text})
+		// Also forward to the agent's panel inside the roster.
+		m.agentsPanel.Update(msg)
+		return m, nil
+
+	case tui.AgentThinkingMsg:
+		m.agentsPanel.Update(tui.AgentOutputMsg{AgentID: msg.AgentID, Text: tui.DimStyle.Render(msg.Text)})
+		return m, nil
+
 	case tui.TickMsg:
 		if m.state == stateStreaming {
 			m.outputPanel.Update(tui.FlushStreamMsg{})
@@ -439,7 +466,7 @@ func (m Model) View() string {
 
 	// Update panel state before render.
 	m.outputPanel.Update(tui.OutputSetOverlayMsg{Text: m.overlayContent()})
-	m.dashboard.Update(tui.DashboardMetricsMsg{TokensIn: m.totalIn, TokensOut: m.totalOut, Turns: m.sess.History.Len()})
+	m.dashboard.Update(tui.DashboardMetricsMsg{TokensIn: m.totalIn, TokensOut: m.totalOut, Turns: m.sess.History.Len(), AgentCount: m.agentsPanel.Count(), ActiveRole: m.currentRole})
 
 	// LayoutEngine handles: visibility, heights, borders, focus sync.
 	m.layout.Resize(m.width, m.height)

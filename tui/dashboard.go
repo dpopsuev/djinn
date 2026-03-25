@@ -15,11 +15,13 @@ type DashboardPanel struct {
 	driver    string
 	model     string
 	mode      string
-	tokensIn  int
-	tokensOut int
-	turns     int
-	health    []HealthReport
-	uiState   string // "INSERT", "STREAMING", "APPROVAL"
+	tokensIn    int
+	tokensOut   int
+	turns       int
+	agentCount  int
+	activeRole  string
+	health      []HealthReport
+	uiState     string // "INSERT", "STREAMING", "APPROVAL"
 }
 
 const panelIDDashboard = "dashboard"
@@ -70,6 +72,8 @@ func (p *DashboardPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 		p.tokensIn = msg.TokensIn
 		p.tokensOut = msg.TokensOut
 		p.turns = msg.Turns
+		p.agentCount = msg.AgentCount
+		p.activeRole = msg.ActiveRole
 	case DashboardHealthMsg:
 		p.health = msg.Reports
 	case DashboardUIStateMsg:
@@ -100,6 +104,12 @@ func (p *DashboardPanel) View(width int) string {
 	// Right: status fields.
 	statusLine := RenderStatusLine(p.workspace, p.driver, p.model, p.mode,
 		p.tokensIn, p.tokensOut, p.turns, p.health)
+
+	// Multi-agent: prepend agent count to status line.
+	if p.agentCount > 1 {
+		agentInfo := StatusStyle.Render(fmt.Sprintf("agents:%d active:%s | ", p.agentCount, p.activeRole))
+		statusLine = agentInfo + statusLine
+	}
 
 	// Compose: indicator left, status right, fill middle with spaces.
 	gap := width - lipgloss.Width(indicator) - lipgloss.Width(statusLine)
