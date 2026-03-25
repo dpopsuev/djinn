@@ -16,15 +16,15 @@ var (
 	ErrDeniedBash   = errors.New("access denied: command references protected path")
 )
 
-// DefaultEnforcer checks file paths and tool permissions.
-type DefaultEnforcer struct{}
+// DefaultToolPolicyEnforcer checks file paths and tool permissions.
+type DefaultToolPolicyEnforcer struct{}
 
-// NewDefaultEnforcer creates the standard enforcer.
-func NewDefaultEnforcer() *DefaultEnforcer {
-	return &DefaultEnforcer{}
+// NewDefaultToolPolicyEnforcer creates the standard enforcer.
+func NewDefaultToolPolicyEnforcer() *DefaultToolPolicyEnforcer {
+	return &DefaultToolPolicyEnforcer{}
 }
 
-func (e *DefaultEnforcer) Check(token CapabilityToken, tool string, input json.RawMessage) error {
+func (e *DefaultToolPolicyEnforcer) Check(token CapabilityToken, tool string, input json.RawMessage) error {
 	// Check tool whitelist
 	if len(token.AllowedTools) > 0 {
 		allowed := false
@@ -50,7 +50,7 @@ func (e *DefaultEnforcer) Check(token CapabilityToken, tool string, input json.R
 	return nil
 }
 
-func (e *DefaultEnforcer) checkFilePath(token CapabilityToken, tool string, input json.RawMessage) error {
+func (e *DefaultToolPolicyEnforcer) checkFilePath(token CapabilityToken, tool string, input json.RawMessage) error {
 	var params struct {
 		Path    string `json:"path"`
 		FilePath string `json:"file_path"`
@@ -103,7 +103,7 @@ func (e *DefaultEnforcer) checkFilePath(token CapabilityToken, tool string, inpu
 	return nil
 }
 
-func (e *DefaultEnforcer) checkBash(token CapabilityToken, input json.RawMessage) error {
+func (e *DefaultToolPolicyEnforcer) checkBash(token CapabilityToken, input json.RawMessage) error {
 	var params struct {
 		Command string `json:"command"`
 	}
@@ -164,13 +164,13 @@ func resolvePath(path string) (string, error) {
 	return resolved, nil
 }
 
-// NopEnforcer allows everything. Used when no policy is configured.
-type NopEnforcer struct{}
+// NopToolPolicyEnforcer allows everything. Used when no policy is configured.
+type NopToolPolicyEnforcer struct{}
 
-func (NopEnforcer) Check(_ CapabilityToken, _ string, _ json.RawMessage) error { return nil }
+func (NopToolPolicyEnforcer) Check(_ CapabilityToken, _ string, _ json.RawMessage) error { return nil }
 
 // Ensure interface compliance.
 var (
-	_ Enforcer = (*DefaultEnforcer)(nil)
-	_ Enforcer = NopEnforcer{}
+	_ ToolPolicyEnforcer = (*DefaultToolPolicyEnforcer)(nil)
+	_ ToolPolicyEnforcer = NopToolPolicyEnforcer{}
 )

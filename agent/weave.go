@@ -1,12 +1,12 @@
-// weave.go — auto-weave planning context from available slots.
+// weave.go — auto-weave planning context from available tool capabilities.
 //
 // When the agent is in plan mode, AutoWeaveContext enriches the user
-// prompt with context from whatever slots are available. It queries
-// slots by NAME (WorkTracker, RuleResolver), never by backend MCP
-// tool names. The slot router resolves which backend to call.
+// prompt with context from whatever capabilities are available. It queries
+// capabilities by NAME (WorkTracking, RuleResolution), never by backend MCP
+// tool names. ToolClearance resolves which backend to call.
 //
 // The weave function doesn't know about Scribe, Lex, or any specific
-// MCP server. It knows about slot capabilities.
+// MCP server. It knows about tool capabilities.
 package agent
 
 import (
@@ -18,10 +18,10 @@ import (
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
-// SlotQuery defines a planning context query against a slot.
+// CapabilityQuery defines a planning context query against a tool capability.
 // Each query specifies which tool to call and how to format the result.
-type SlotQuery struct {
-	// ToolName is the raw tool name the slot exposes (resolved by router).
+type CapabilityQuery struct {
+	// ToolName is the raw tool name the capability exposes (resolved by ToolClearance).
 	// The weave function tries each tool — if unavailable, skips.
 	ToolName string
 	// BuildInput creates the tool input from the prompt keywords.
@@ -30,12 +30,12 @@ type SlotQuery struct {
 	WrapResult func(result string) string
 }
 
-// DefaultSlotQueries returns the planning context queries.
-// These use raw tool names that the slot router maps to backends.
+// DefaultCapabilityQueries returns the planning context queries.
+// These use raw tool names that ToolClearance maps to backends.
 // If the tool isn't available for the current role, it's silently skipped.
-var DefaultSlotQueries = []SlotQuery{
+var DefaultCapabilityQueries = []CapabilityQuery{
 	{
-		// WorkTracker slot — search for related work items.
+		// WorkTracking capability — search for related work items.
 		ToolName: "artifact",
 		BuildInput: func(keywords string) json.RawMessage {
 			input, _ := json.Marshal(map[string]any{
@@ -55,7 +55,7 @@ var DefaultSlotQueries = []SlotQuery{
 		},
 	},
 	{
-		// RuleResolver slot — resolve applicable rules.
+		// RuleResolution capability — resolve applicable rules.
 		ToolName: "lexicon",
 		BuildInput: func(keywords string) json.RawMessage {
 			input, _ := json.Marshal(map[string]any{
@@ -75,7 +75,7 @@ var DefaultSlotQueries = []SlotQuery{
 }
 
 // AutoWeaveContext enriches a user prompt with context from available
-// slots. Queries each slot tool — if available, appends the context.
+// capabilities. Queries each capability's tool — if available, appends the context.
 // If not available (wrong role, backend offline), silently skips.
 func AutoWeaveContext(ctx context.Context, tools builtin.ToolExecutor, prompt string) string {
 	keywords := extractKeywords(prompt)
@@ -84,8 +84,8 @@ func AutoWeaveContext(ctx context.Context, tools builtin.ToolExecutor, prompt st
 	}
 
 	var sections []string
-	for _, q := range DefaultSlotQueries {
-		// Try to execute — the router will deny if the tool isn't
+	for _, q := range DefaultCapabilityQueries {
+		// Try to execute — ToolClearance will deny if the tool isn't
 		// available for the current role. That's fine, skip it.
 		input := q.BuildInput(keywords)
 		result, err := tools.Execute(ctx, q.ToolName, input)

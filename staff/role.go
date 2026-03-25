@@ -1,6 +1,6 @@
 // Package staff implements the Djinn staffing model — role definitions,
 // deterministic scheduler, and per-role memory isolation.
-// Everything is YAML-driven. No hardcoded roles or slots.
+// Everything is YAML-driven. No hardcoded roles or tool capabilities.
 package staff
 
 import (
@@ -14,25 +14,27 @@ import (
 
 // Role defines a staff role. Loaded from YAML, not hardcoded.
 type Role struct {
-	Name   string   `yaml:"name"`
-	Prompt string   `yaml:"prompt"` // path to prompt file OR inline text
-	Mode   string   `yaml:"mode"`   // ask, plan, agent, auto
-	Slots  []string `yaml:"slots"`  // explicit whitelist — empty means NO slots
-	Model  string   `yaml:"model,omitempty"` // preferred model (empty = default)
+	Name              string   `yaml:"name"`
+	Prompt            string   `yaml:"prompt"`              // path to prompt file OR inline text
+	Mode              string   `yaml:"mode"`                // ask, plan, agent, auto
+	ToolCapabilities  []string `yaml:"tool_capabilities"`   // explicit whitelist — empty means NO capabilities
+	Model             string   `yaml:"model,omitempty"`     // preferred model (empty = default)
 }
 
-// Slot defines a Spine slot — a named capability backed by an MCP server or built-in.
-type Slot struct {
+// ToolCapability defines a named capability backed by an MCP server or built-in.
+// Part of the ToolArsenal — the full collection of tools issued to agents.
+type ToolCapability struct {
 	Name        string   `yaml:"name"`
 	Description string   `yaml:"description,omitempty"`
 	Backend     string   `yaml:"backend"`              // MCP server name or "builtin"
 	Tools       []string `yaml:"tools,omitempty"`       // which tools from that backend
 }
 
-// StaffConfig is the top-level YAML config for roles and slots.
+// StaffConfig is the top-level YAML config for roles and tool capabilities.
 type StaffConfig struct {
-	Roles []Role `yaml:"roles"`
-	Slots []Slot `yaml:"slots"`
+	Roles            []Role                 `yaml:"roles"`
+	ToolCapabilities []ToolCapability       `yaml:"tool_capabilities"`
+	ToolCategories   map[string][]string    `yaml:"tool_categories,omitempty"`
 }
 
 // LoadConfig reads a staff config from a YAML file.
@@ -62,10 +64,10 @@ func (c *StaffConfig) RoleMap() map[string]Role {
 	return m
 }
 
-// SlotMap converts a StaffConfig's slots to a map keyed by name.
-func (c *StaffConfig) SlotMap() map[string]Slot {
-	m := make(map[string]Slot, len(c.Slots))
-	for _, s := range c.Slots {
+// ToolCapabilityMap converts a StaffConfig's tool capabilities to a map keyed by name.
+func (c *StaffConfig) ToolCapabilityMap() map[string]ToolCapability {
+	m := make(map[string]ToolCapability, len(c.ToolCapabilities))
+	for _, s := range c.ToolCapabilities {
 		m[s.Name] = s
 	}
 	return m
@@ -109,28 +111,38 @@ func DefaultConfig() *StaffConfig {
 	return &StaffConfig{
 		Roles: []Role{
 			{Name: "gensec", Prompt: defaultPrompt("gensec"), Mode: "plan",
-				Slots: []string{"WorkTracker", "IssueTracker", "SignalBus", "MemoryRecall"}},
+				ToolCapabilities: []string{"WorkTracking", "IssueTracking", "SignalBroadcasting", "MemoryRecall"}},
 			{Name: "auditor", Prompt: defaultPrompt("auditor"), Mode: "plan",
-				Slots: []string{"WorkTracker", "RuleResolver", "MemoryRecall"}},
+				ToolCapabilities: []string{"WorkTracking", "RuleResolution", "MemoryRecall"}},
 			{Name: "scheduler", Prompt: defaultPrompt("scheduler"), Mode: "plan",
-				Slots: []string{"WorkTracker", "ArchExplorer", "MemoryRecall"}},
+				ToolCapabilities: []string{"WorkTracking", "ArchitectureAnalysis", "MemoryRecall"}},
 			{Name: "executor", Prompt: defaultPrompt("executor"), Mode: "agent",
-				Slots: []string{"WorkTracker", "CodeEditor", "Shell", "FileSearch", "QualityGate", "MemoryRecall", "WebSearch"}},
+				ToolCapabilities: []string{"WorkTracking", "FileEditing", "ShellExecution", "FileSearching", "QualityGating", "MemoryRecall", "WebSearching"}},
 			{Name: "inspector", Prompt: defaultPrompt("inspector"), Mode: "plan",
-				Slots: []string{"CodeEditor", "QualityGate", "ArchExplorer", "RuleResolver", "MemoryRecall"}},
+				ToolCapabilities: []string{"FileEditing", "QualityGating", "ArchitectureAnalysis", "RuleResolution", "MemoryRecall"}},
 		},
-		Slots: []Slot{
-			{Name: "WorkTracker", Description: "Create, list, update work artifacts", Backend: "scribe", Tools: []string{"artifact", "graph", "admin"}},
-			{Name: "IssueTracker", Description: "Issue management across platforms", Backend: "emcee", Tools: []string{"emcee", "emcee_manage"}},
-			{Name: "RuleResolver", Description: "Resolve coding rules and conventions", Backend: "lex", Tools: []string{"lexicon"}},
-			{Name: "ArchExplorer", Description: "Architecture analysis and coupling", Backend: "locus", Tools: []string{"codograph", "analysis"}},
-			{Name: "CodeEditor", Description: "Read, write, edit source files", Backend: "builtin", Tools: []string{"Read", "Write", "Edit"}},
-			{Name: "Shell", Description: "Execute shell commands", Backend: "builtin", Tools: []string{"Bash"}},
-			{Name: "FileSearch", Description: "Find files and search content", Backend: "builtin", Tools: []string{"Glob", "Grep"}},
-			{Name: "QualityGate", Description: "CI health and quality checks", Backend: "limes", Tools: []string{"run", "status", "results"}},
-			{Name: "SignalBus", Description: "Emit and receive pipeline signals", Backend: "builtin"},
+		ToolCapabilities: []ToolCapability{
+			{Name: "WorkTracking", Description: "Create, list, update work artifacts and dependency graphs", Backend: "scribe", Tools: []string{"artifact", "graph", "admin"}},
+			{Name: "IssueTracking", Description: "Issue management across platforms", Backend: "emcee", Tools: []string{"emcee", "emcee_manage"}},
+			{Name: "RuleResolution", Description: "Resolve coding rules and conventions", Backend: "lex", Tools: []string{"lexicon"}},
+			{Name: "ArchitectureAnalysis", Description: "Architecture analysis, coupling, and dependency graphs", Backend: "locus", Tools: []string{"codograph", "analysis"}},
+			{Name: "FileEditing", Description: "Read, write, and edit source files in the workspace", Backend: "builtin", Tools: []string{"Read", "Write", "Edit"}},
+			{Name: "ShellExecution", Description: "Execute shell commands", Backend: "builtin", Tools: []string{"Bash"}},
+			{Name: "FileSearching", Description: "Find files by pattern and search content by regex", Backend: "builtin", Tools: []string{"Glob", "Grep"}},
+			{Name: "QualityGating", Description: "CI health, test results, and quality checks", Backend: "limes", Tools: []string{"run", "status", "results"}},
+			{Name: "SignalBroadcasting", Description: "Emit and receive pipeline signals", Backend: "builtin"},
 			{Name: "MemoryRecall", Description: "Search and retrieve conversation history", Backend: "builtin"},
-			{Name: "WebSearch", Description: "Web search and page retrieval", Backend: "gundog"},
+			{Name: "WebSearching", Description: "Web search and page retrieval", Backend: "gundog"},
+		},
+		ToolCategories: map[string][]string{
+			"plan":    {"WorkTracking", "IssueTracking", "RuleResolution", "MemoryRecall"},
+			"code":    {"ArchitectureAnalysis", "FileEditing", "FileSearching", "WebSearching"},
+			"build":   {"ShellExecution"},
+			"test":    {"QualityGating"},
+			"release": {},
+			"deploy":  {},
+			"operate": {},
+			"monitor": {"SignalBroadcasting"},
 		},
 	}
 }

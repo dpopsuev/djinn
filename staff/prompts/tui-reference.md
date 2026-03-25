@@ -89,7 +89,7 @@ djinn: Hello! What do you need?
 | Theme system | none | TOML config | JSON settings | staff.yaml |
 | Debug console | --debug | debug subcommand | F12 | --debug-tap + --live-debug ✓ |
 | Session resume | --continue | resume/fork | --resume | -c / -s ✓ |
-| MCP support | built-in | experimental | extensions | spine slots |
+| MCP support | built-in | experimental | extensions | tool capabilities |
 | Sandbox | none (hooks) | read-only/write/full | --sandbox | misbah (future) |
 | Screen reader | none | none | --screen-reader | none |
 | Role system | none | none | none | staff roles ✓ (unique) |

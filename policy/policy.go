@@ -1,9 +1,9 @@
-// Package policy implements Agent Call Mediation — the PolicyEnforcer
+// Package policy implements Agent Call Mediation — the ToolPolicyEnforcer
 // gates every agent call from Agent Space to User Space.
 //
 // Agent Space (untrusted LLM) → agent call → User Space (Djinn runtime)
 //
-// The Enforcer checks capability tokens before tool execution.
+// The ToolPolicyEnforcer checks capability tokens before tool execution.
 // Denied calls return errors to the agent, not crashes.
 package policy
 
@@ -18,8 +18,8 @@ type CapabilityToken struct {
 	Tier          string   // eco, mod, sys — privilege level
 }
 
-// Enforcer gates every agent call. Returns nil if allowed,
+// ToolPolicyEnforcer gates every agent call. Returns nil if allowed,
 // error with reason if denied.
-type Enforcer interface {
+type ToolPolicyEnforcer interface {
 	Check(token CapabilityToken, tool string, input json.RawMessage) error
 }

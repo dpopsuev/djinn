@@ -25,7 +25,7 @@ type Tool interface {
 }
 
 // ToolExecutor is the interface for tool dispatch — both Registry and
-// SlotRouter satisfy it. The agent loop programs against this interface
+// ToolClearance satisfy it. The agent loop programs against this interface
 // so it doesn't care whether tools are filtered by role or not.
 type ToolExecutor interface {
 	Execute(ctx context.Context, name string, input json.RawMessage) (string, error)

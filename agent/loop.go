@@ -54,7 +54,7 @@ type Config struct {
 	Mode         Mode // agent mode for auto-weave
 	ContextLimit int  // max tokens before auto-compact (0 = 200K default)
 	Approve      ApprovalFunc
-	Enforcer     policy.Enforcer        // agent call mediation (nil = NopEnforcer)
+	Enforcer     policy.ToolPolicyEnforcer // agent call mediation (nil = NopToolPolicyEnforcer)
 	Token        policy.CapabilityToken // immutable capability token
 	Handler      EventHandler
 	Log          *slog.Logger

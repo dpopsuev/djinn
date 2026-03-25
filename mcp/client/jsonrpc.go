@@ -1,6 +1,6 @@
 // Package client implements an MCP host that connects to MCP servers
 // via stdio or HTTP, lists their tools, and routes tool calls.
-// This is the Spine's plumbing — shared infrastructure for slot adapters.
+// This is the ToolArsenal's plumbing — shared infrastructure for capability adapters.
 package client
 
 import (

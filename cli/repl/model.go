@@ -58,7 +58,7 @@ type Model struct {
 	mode         agent.Mode
 	approvalCh   chan bool // bridges approval from UI to agent goroutine
 	store        *session.Store // auto-save after each turn
-	enforcer     policy.Enforcer
+	enforcer     policy.ToolPolicyEnforcer
 	token        policy.CapabilityToken
 	log          *slog.Logger
 	ctx          context.Context
@@ -95,7 +95,7 @@ type Model struct {
 	rawStreamLine  *strings.Builder // raw unrendered text for incremental markdown (pointer: Builder can't be copied)
 
 	// Tool routing
-	router       *staff.SlotRouter // slot-filtered tool dispatch (nil = raw registry)
+	router       *staff.ToolClearance // capability-filtered tool dispatch (nil = raw registry)
 
 	// Worktree isolation for executor tasks
 	worktreeMgr  *vcs.WorktreeManager
@@ -489,8 +489,8 @@ func (m *Model) switchRole(roleName string) {
 		m.mode = newMode
 	}
 
-	// Update tool restrictions based on role's allowed slots.
-	m.token.AllowedTools = role.Slots
+	// Update tool restrictions based on role's allowed capabilities.
+	m.token.AllowedTools = role.ToolCapabilities
 	if m.router != nil {
 		m.router.SetRole(roleName)
 	}
@@ -641,9 +641,9 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 				Name:   name,
 				Prompt: fmt.Sprintf("You are %s. The operator created this role on the fly.", name),
 				Mode:   mode,
-				Slots:  []string{},
+				ToolCapabilities: []string{},
 			}
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: fmt.Sprintf("created role %q (mode: %s, slots: none — use /role slots %s to configure)", name, mode, name)})
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: fmt.Sprintf("created role %q (mode: %s, capabilities: none — use /role capabilities %s to configure)", name, mode, name)})
 		} else {
 			m.switchRole(cmd.Args[0])
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: fmt.Sprintf("switched to %s (manual override)", cmd.Args[0])})
@@ -668,7 +668,7 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 				indicator = "→ "
 			}
 			sb.WriteString(fmt.Sprintf("%s%s (mode: %s, slots: %d)\n",
-				indicator, name, role.Mode, len(role.Slots)))
+				indicator, name, role.Mode, len(role.ToolCapabilities)))
 		}
 		m.outputPanel.Update(tui.OutputAppendMsg{Line: sb.String()})
 		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})

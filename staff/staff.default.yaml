@@ -1,42 +1,43 @@
-# Djinn Staff Configuration — Default Roles and Slots
+# Djinn Staff Configuration — Default Roles and Tool Capabilities
 #
 # Customize by copying to ~/.config/djinn/staff.yaml
 # or placing in your ecosystem directory.
 #
-# Roles define WHO does work (prompt, mode, slot surface).
-# Slots define WHAT capabilities exist (backend, tools).
-# The agent sees only slot names — never raw tools or MCP servers.
+# Roles define WHO does work (prompt, mode, capability surface).
+# Tool capabilities define WHAT capabilities exist (backend, tools).
+# Tool categories map capabilities to DevOps Infinity Loop stages.
+# The agent sees only capability names — never raw tools or MCP servers.
 
 roles:
   - name: gensec
     prompt: |
       You are the General Secretary — second in command to the Head of Staff.
-      Listen to the operator, capture needs as NED-* artifacts via WorkTracker.
+      Listen to the operator, capture needs as NED-* artifacts via WorkTracking.
       Triage incoming needs. Narrate pipeline activity. Surface blockers.
       Relay directives from the operator to any role.
       You do NOT write code. You capture, triage, and coordinate.
     mode: plan
-    slots: [WorkTracker, IssueTracker, SignalBus, MemoryRecall]
+    tool_capabilities: [WorkTracking, IssueTracking, SignalBroadcasting, MemoryRecall]
 
   - name: auditor
     prompt: |
       You are the Auditor — the adversarial quality gate for artifacts.
       Review every artifact before it matures. Find gaps, challenge assumptions.
-      Check against rules via RuleResolver.
+      Check against rules via RuleResolution.
       Stamp (approve) or return (reject with specific feedback).
       You do NOT write code.
     mode: plan
-    slots: [WorkTracker, RuleResolver, MemoryRecall]
+    tool_capabilities: [WorkTracking, RuleResolution, MemoryRecall]
 
   - name: scheduler
     prompt: |
       You are the Scheduler — the work planner.
-      Read approved specs from WorkTracker. Use topo_sort for dependency order.
-      Use ArchExplorer for coupling analysis. Construct task batches.
+      Read approved specs from WorkTracking. Use topo_sort for dependency order.
+      Use ArchitectureAnalysis for coupling analysis. Construct task batches.
       Create TSK-* artifacts with clear goals and dependency edges.
       You do NOT write code.
     mode: plan
-    slots: [WorkTracker, ArchExplorer, MemoryRecall]
+    tool_capabilities: [WorkTracking, ArchitectureAnalysis, MemoryRecall]
 
   - name: executor
     prompt: |
@@ -46,61 +47,71 @@ roles:
       The mechanical gate will verify automatically — don't skip it.
       Follow the flywheel: build before test, test before commit.
     mode: agent
-    slots: [WorkTracker, CodeEditor, Shell, FileSearch, QualityGate, MemoryRecall, WebSearch]
+    tool_capabilities: [WorkTracking, FileEditing, ShellExecution, FileSearching, QualityGating, MemoryRecall, WebSearching]
 
   - name: inspector
     prompt: |
       You are the Inspector — the quality reviewer.
       Review implementation against spec and architecture.
-      Check via ArchExplorer for violations, coupling, drift.
-      Check via QualityGate for test results and coverage.
+      Check via ArchitectureAnalysis for violations, coupling, drift.
+      Check via QualityGating for test results and coverage.
       Approve or reject with specific, actionable feedback.
       You do NOT write code.
     mode: plan
-    slots: [CodeEditor, QualityGate, ArchExplorer, RuleResolver, MemoryRecall]
+    tool_capabilities: [FileEditing, QualityGating, ArchitectureAnalysis, RuleResolution, MemoryRecall]
 
-slots:
-  - name: WorkTracker
-    description: Create, list, update work artifacts
+tool_categories:
+  plan:     [WorkTracking, IssueTracking, RuleResolution, MemoryRecall]
+  code:     [ArchitectureAnalysis, FileEditing, FileSearching, WebSearching]
+  build:    [ShellExecution]
+  test:     [QualityGating]
+  release:  []
+  deploy:   []
+  operate:  []
+  monitor:  [SignalBroadcasting]
+
+tool_capabilities:
+  - name: WorkTracking
+    description: Create, list, update work artifacts and dependency graphs
     backend: scribe
     tools: [artifact, graph, admin]
 
-  - name: IssueTracker
+  - name: IssueTracking
     description: Issue management across platforms
     backend: emcee
     tools: [emcee, emcee_manage]
 
-  - name: RuleResolver
+  - name: RuleResolution
     description: Resolve coding rules and conventions
     backend: lex
     tools: [lexicon]
 
-  - name: ArchExplorer
-    description: Architecture analysis and coupling
+  - name: ArchitectureAnalysis
+    description: Architecture analysis, coupling, and dependency graphs
     backend: locus
     tools: [codograph, analysis]
 
-  - name: CodeEditor
-    description: Read, write, edit source files
+  - name: FileEditing
+    description: Read, write, and edit source files in the workspace
     backend: builtin
     tools: [Read, Write, Edit]
 
-  - name: Shell
+  - name: ShellExecution
     description: Execute shell commands
     backend: builtin
     tools: [Bash]
 
-  - name: FileSearch
-    description: Find files and search content
+  - name: FileSearching
+    description: Find files by pattern and search content by regex
     backend: builtin
     tools: [Glob, Grep]
 
-  - name: QualityGate
-    description: CI health and quality checks
+  - name: QualityGating
+    description: CI health, test results, and quality checks
     backend: limes
     tools: [run, status, results]
 
-  - name: SignalBus
+  - name: SignalBroadcasting
     description: Emit and receive pipeline signals
     backend: builtin
 
@@ -108,6 +119,6 @@ slots:
     description: Search and retrieve conversation history
     backend: builtin
 
-  - name: WebSearch
+  - name: WebSearching
     description: Web search and page retrieval
     backend: gundog

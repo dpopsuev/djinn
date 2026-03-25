@@ -277,8 +277,8 @@ func RunREPL(args []string, stderr io.Writer) error {
 		sess.WorkDirs = evt.New.Paths()
 	})
 
-	// PolicyEnforcer — agent call mediation
-	enforcer := policy.NewDefaultEnforcer()
+	// ToolPolicyEnforcer — agent call mediation
+	enforcer := policy.NewDefaultToolPolicyEnforcer()
 	capToken := ws.ToCapabilityToken()
 	log.Info("policy enforcer active", "writable", len(capToken.WritablePaths), "denied", len(capToken.DeniedPaths))
 
@@ -289,10 +289,10 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 	log.Info("tools registered", "builtin", 6, "mcp", len(mcpClient.MCPTools()), "total", len(registry.Names()))
 
-	// Create slot router — filters tools by role.
-	// The agent sees only tools belonging to the current role's slots.
+	// Create tool clearance — filters tools by role.
+	// The agent sees only tools belonging to the current role's capabilities.
 	staffCfg := staff.DefaultConfig()
-	slotRouter := staff.NewSlotRouter(staffCfg, registry, "gensec")
+	slotRouter := staff.NewToolClearance(staffCfg, registry, "gensec")
 
 	// Sandbox: if configured, create an isolated environment.
 	if sandboxConf.Backend != "" {

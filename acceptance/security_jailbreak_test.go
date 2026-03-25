@@ -12,7 +12,7 @@
 //   - Read always allowed (even outside workspace)
 //   - Tool whitelist enforcement
 //   - Capability token from workspace
-//   - NopEnforcer allows everything
+//   - NopToolPolicyEnforcer allows everything
 package acceptance
 
 import (
@@ -26,8 +26,8 @@ import (
 	"github.com/dpopsuev/djinn/workspace"
 )
 
-func enforcer() *policy.DefaultEnforcer {
-	return policy.NewDefaultEnforcer()
+func enforcer() *policy.DefaultToolPolicyEnforcer {
+	return policy.NewDefaultToolPolicyEnforcer()
 }
 
 func TestSecurity_WriteConfigDenied(t *testing.T) {
@@ -232,11 +232,11 @@ func TestSecurity_CapabilityTokenDeniesConfig(t *testing.T) {
 	}
 }
 
-func TestSecurity_NopEnforcerAllowsEverything(t *testing.T) {
-	e := policy.NopEnforcer{}
+func TestSecurity_NopToolPolicyEnforcerAllowsEverything(t *testing.T) {
+	e := policy.NopToolPolicyEnforcer{}
 	token := policy.CapabilityToken{DeniedPaths: []string{"/protected"}}
 	input, _ := json.Marshal(map[string]string{"path": "/protected/secret"})
 	if err := e.Check(token, "Write", input); err != nil {
-		t.Fatal("NopEnforcer should allow everything")
+		t.Fatal("NopToolPolicyEnforcer should allow everything")
 	}
 }

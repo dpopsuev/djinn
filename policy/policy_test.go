@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-func TestDefaultEnforcer_AllowedWrite(t *testing.T) {
-	e := NewDefaultEnforcer()
+func TestDefaultToolPolicyEnforcer_AllowedWrite(t *testing.T) {
+	e := NewDefaultToolPolicyEnforcer()
 	token := CapabilityToken{
 		WritablePaths: []string{"/home/user/project"},
 	}
@@ -19,8 +19,8 @@ func TestDefaultEnforcer_AllowedWrite(t *testing.T) {
 	}
 }
 
-func TestDefaultEnforcer_DeniedPath(t *testing.T) {
-	e := NewDefaultEnforcer()
+func TestDefaultToolPolicyEnforcer_DeniedPath(t *testing.T) {
+	e := NewDefaultToolPolicyEnforcer()
 	home, _ := os.UserHomeDir()
 	token := CapabilityToken{
 		DeniedPaths: []string{filepath.Join(home, ".config", "djinn")},
@@ -35,8 +35,8 @@ func TestDefaultEnforcer_DeniedPath(t *testing.T) {
 	}
 }
 
-func TestDefaultEnforcer_DeniedEdit(t *testing.T) {
-	e := NewDefaultEnforcer()
+func TestDefaultToolPolicyEnforcer_DeniedEdit(t *testing.T) {
+	e := NewDefaultToolPolicyEnforcer()
 	home, _ := os.UserHomeDir()
 	token := CapabilityToken{
 		DeniedPaths: []string{filepath.Join(home, ".config", "djinn")},
@@ -48,8 +48,8 @@ func TestDefaultEnforcer_DeniedEdit(t *testing.T) {
 	}
 }
 
-func TestDefaultEnforcer_SymlinkBypass(t *testing.T) {
-	e := NewDefaultEnforcer()
+func TestDefaultToolPolicyEnforcer_SymlinkBypass(t *testing.T) {
+	e := NewDefaultToolPolicyEnforcer()
 
 	// Create a real config dir and a symlink to it
 	dir := t.TempDir()
@@ -72,8 +72,8 @@ func TestDefaultEnforcer_SymlinkBypass(t *testing.T) {
 	}
 }
 
-func TestDefaultEnforcer_PathTraversal(t *testing.T) {
-	e := NewDefaultEnforcer()
+func TestDefaultToolPolicyEnforcer_PathTraversal(t *testing.T) {
+	e := NewDefaultToolPolicyEnforcer()
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "config")
 	os.MkdirAll(configDir, 0755)
@@ -91,8 +91,8 @@ func TestDefaultEnforcer_PathTraversal(t *testing.T) {
 	}
 }
 
-func TestDefaultEnforcer_BashDenied(t *testing.T) {
-	e := NewDefaultEnforcer()
+func TestDefaultToolPolicyEnforcer_BashDenied(t *testing.T) {
+	e := NewDefaultToolPolicyEnforcer()
 	home, _ := os.UserHomeDir()
 	configDir := filepath.Join(home, ".config", "djinn")
 	token := CapabilityToken{
@@ -109,8 +109,8 @@ func TestDefaultEnforcer_BashDenied(t *testing.T) {
 	}
 }
 
-func TestDefaultEnforcer_BashAllowed(t *testing.T) {
-	e := NewDefaultEnforcer()
+func TestDefaultToolPolicyEnforcer_BashAllowed(t *testing.T) {
+	e := NewDefaultToolPolicyEnforcer()
 	token := CapabilityToken{
 		DeniedPaths: []string{"/protected"},
 	}
@@ -120,8 +120,8 @@ func TestDefaultEnforcer_BashAllowed(t *testing.T) {
 	}
 }
 
-func TestDefaultEnforcer_WriteOutsideWorkspace(t *testing.T) {
-	e := NewDefaultEnforcer()
+func TestDefaultToolPolicyEnforcer_WriteOutsideWorkspace(t *testing.T) {
+	e := NewDefaultToolPolicyEnforcer()
 	token := CapabilityToken{
 		WritablePaths: []string{"/home/user/project"},
 	}
@@ -132,8 +132,8 @@ func TestDefaultEnforcer_WriteOutsideWorkspace(t *testing.T) {
 	}
 }
 
-func TestDefaultEnforcer_ReadAlwaysAllowed(t *testing.T) {
-	e := NewDefaultEnforcer()
+func TestDefaultToolPolicyEnforcer_ReadAlwaysAllowed(t *testing.T) {
+	e := NewDefaultToolPolicyEnforcer()
 	token := CapabilityToken{
 		WritablePaths: []string{"/home/user/project"},
 	}
@@ -144,8 +144,8 @@ func TestDefaultEnforcer_ReadAlwaysAllowed(t *testing.T) {
 	}
 }
 
-func TestDefaultEnforcer_ToolWhitelist(t *testing.T) {
-	e := NewDefaultEnforcer()
+func TestDefaultToolPolicyEnforcer_ToolWhitelist(t *testing.T) {
+	e := NewDefaultToolPolicyEnforcer()
 	token := CapabilityToken{
 		AllowedTools: []string{"Read", "Grep"},
 	}
@@ -161,19 +161,19 @@ func TestDefaultEnforcer_ToolWhitelist(t *testing.T) {
 	}
 }
 
-func TestDefaultEnforcer_EmptyWhitelistAllowsAll(t *testing.T) {
-	e := NewDefaultEnforcer()
+func TestDefaultToolPolicyEnforcer_EmptyWhitelistAllowsAll(t *testing.T) {
+	e := NewDefaultToolPolicyEnforcer()
 	token := CapabilityToken{}
 	if err := e.Check(token, "Bash", nil); err != nil {
 		t.Fatalf("empty whitelist should allow all: %v", err)
 	}
 }
 
-func TestNopEnforcer_AllowsEverything(t *testing.T) {
-	e := NopEnforcer{}
+func TestNopToolPolicyEnforcer_AllowsEverything(t *testing.T) {
+	e := NopToolPolicyEnforcer{}
 	token := CapabilityToken{DeniedPaths: []string{"/protected"}}
 	input, _ := json.Marshal(map[string]string{"path": "/protected/secret"})
 	if err := e.Check(token, "Write", input); err != nil {
-		t.Fatalf("NopEnforcer should allow everything: %v", err)
+		t.Fatalf("NopToolPolicyEnforcer should allow everything: %v", err)
 	}
 }
