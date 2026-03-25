@@ -547,6 +547,17 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Dive/Climb: Enter on non-input panel = Dive, Escape when dived = Climb.
+	if msg.Type == tea.KeyEnter && m.focus.Active() != nil && m.focus.Active().ID() != "input" {
+		if m.focus.Dive() {
+			return m, nil
+		}
+	}
+	if msg.Type == tea.KeyEscape && m.focus.Depth() > 0 {
+		m.focus.Climb()
+		return m, nil
+	}
+
 	// Forward PgUp/PgDn to output panel for scrolling (any state).
 	if msg.Type == tea.KeyPgUp || msg.Type == tea.KeyPgDown {
 		_, cmd := m.outputPanel.Update(msg)
