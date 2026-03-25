@@ -82,8 +82,11 @@ type Model struct {
 	activeToolIdx  int  // conversation index of active tool spinner (-1 = none)
 	envelopes      map[int]*tui.EnvelopePanel // tool envelopes keyed by output line index
 	outputPanel    *tui.OutputPanel
+	thinkingPanel  *tui.ThinkingPanel
+	commandsPanel  *tui.CommandsPanel
 	dashboard      *tui.DashboardPanel
 	focus          *tui.FocusManager
+	layout         *tui.LayoutEngine
 	ready          bool
 	quitting       bool
 	initialPrompt  string // auto-submit on first render
@@ -152,7 +155,9 @@ func NewModel(cfg Config) Model {
 		),
 		activeToolIdx:  -1,
 		outputPanel:    tui.NewOutputPanel(),
+		thinkingPanel:  tui.NewThinkingPanel(),
 		queuePanel:     tui.NewQueuePanel(),
+		commandsPanel:  tui.NewCommandsPanel(CommandNames()),
 		dashboard:      tui.NewDashboardPanel(),
 		initialPrompt:  cfg.InitialPrompt,
 		version:        cfg.Version,
@@ -165,6 +170,15 @@ func NewModel(cfg Config) Model {
 
 	m.focus = tui.NewFocusManager(m.outputPanel, m.inputPanel, m.dashboard)
 	m.focus.FocusPanel(1) // Default focus on input — user can type immediately.
+
+	// LayoutEngine — declarative panel composition (SPC-52).
+	m.layout = tui.NewLayoutEngine(m.focus)
+	m.layout.Register(tui.PanelSlot{Panel: m.outputPanel, Weight: 1, MinHeight: 3, Border: tui.BorderOnly, Focusable: true})
+	m.layout.Register(tui.PanelSlot{Panel: m.thinkingPanel, Visible: func() bool { return m.thinkingPanel.Active() }, Border: tui.BorderNone})
+	m.layout.Register(tui.PanelSlot{Panel: m.queuePanel, Visible: func() bool { return m.queuePanel.Len() > 0 }, Border: tui.BorderFocusDepth, Focusable: true})
+	m.layout.Register(tui.PanelSlot{Panel: m.inputPanel, Border: tui.BorderFocusDepth, Focusable: true})
+	m.layout.Register(tui.PanelSlot{Panel: m.commandsPanel, Visible: func() bool { return m.commandsPanel.Active() }, Border: tui.BorderNone})
+	m.layout.Register(tui.PanelSlot{Panel: m.dashboard, Border: tui.BorderFocusDepth, Focusable: true})
 	m.dashboard.Update(tui.DashboardIdentityMsg{Workspace: cfg.Session.Workspace, Driver: cfg.Session.Driver, Model: cfg.Session.Model, Mode: cfg.Mode})
 	m.dashboard.Update(tui.DashboardHealthMsg{Reports: cfg.HealthReports})
 
@@ -201,7 +215,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.ready = true
 		tui.ReinitRenderer(msg.Width)
-		m.outputPanel.Update(tui.ResizeMsg{Width: msg.Width, Height: msg.Height - m.fixedHeight()})
+		// LayoutEngine handles panel resize in Render().
 		if m.outputPanel.LineCount() == 0 {
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: renderMOTD(m.sess, m.tools, m.version, m.currentRole)})
 		}
@@ -398,40 +412,15 @@ func (m Model) View() string {
 		return "goodbye.\n"
 	}
 
-	// Rebuild focus list — QueuePanel included only when non-empty (BUG-48).
-	panels := []tui.Panel{m.outputPanel}
-	if m.queuePanel.Len() > 0 {
-		panels = append(panels, m.queuePanel)
-	}
-	panels = append(panels, m.inputPanel, m.dashboard)
-	m.focus.SetPanels(panels)
-
-	depths := tui.FocusDepths(m.focus.Count(), m.focus.ActiveIndex())
-	innerWidth := m.width - 2
-
-	// Set ephemeral overlay (spinner, streaming text, approval prompt)
+	// Update panel state before render.
 	m.outputPanel.Update(tui.OutputSetOverlayMsg{Text: m.overlayContent()})
-	m.outputPanel.Update(tui.ResizeMsg{Width: innerWidth, Height: m.height - m.fixedHeight()})
 	m.dashboard.Update(tui.DashboardMetricsMsg{TokensIn: m.totalIn, TokensOut: m.totalOut, Turns: m.sess.History.Len()})
 
-	var sb strings.Builder
-	// Output panel: bordered but NEVER foreground-dimmed (BUG-11).
-	sb.WriteString(tui.RenderBorderOnly(m.outputPanel.View(innerWidth), depths[0] == 0, m.width))
-	// Queue panel: visible only when non-empty, between output and input.
-	if queueView := m.queuePanel.View(innerWidth); queueView != "" {
-		sb.WriteByte('\n')
-		sb.WriteString(tui.RenderWithDepth(queueView, 1, m.width))
-	}
-	// Input panel: always visible, always bordered.
-	sb.WriteByte('\n')
-	sb.WriteString(tui.RenderWithDepth(m.inputPanel.View(innerWidth), depths[1], m.width))
-	// Dashboard: always bordered.
-	sb.WriteByte('\n')
-	sb.WriteString(tui.RenderWithDepth(m.dashboard.View(innerWidth), depths[2], m.width))
+	// LayoutEngine handles: visibility, heights, borders, focus sync.
+	m.layout.Resize(m.width, m.height)
+	result := m.layout.Render()
 
-	result := sb.String()
-
-	// DebugTap: capture every rendered frame
+	// DebugTap: capture every rendered frame.
 	if m.debugTap != nil {
 		stateStr := "input"
 		switch m.state {
@@ -440,6 +429,7 @@ func (m Model) View() string {
 		case stateToolApproval:
 			stateStr = "approval"
 		}
+		innerWidth := m.width - 2
 		m.debugTap.Capture(result, stateStr, m.currentRole, m.width, m.height, &tui.DebugComponents{
 			Transcript: m.outputPanel.Lines(),
 			Overlay:    m.overlayContent(),
@@ -467,11 +457,7 @@ func (m Model) overlayContent() string {
 	}
 }
 
-// fixedHeight returns the number of lines consumed by non-output panels.
-// Uses responsive layout breakpoints.
-func (m Model) fixedHeight() int {
-	return tui.ComputeLayout(m.width, m.height).FixedHeight()
-}
+
 
 // switchRole transitions to a new staff role — swaps prompt, mode, and narrates.
 func (m *Model) switchRole(roleName string) {

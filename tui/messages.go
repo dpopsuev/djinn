@@ -59,6 +59,13 @@ type OutputSetOverlayMsg struct{ Text string }
 type OutputCommitMsg struct{} // move pending lines to committed (two-zone)
 type FlushStreamMsg struct{}  // flush stream buffer to last line
 
+// ThinkingPanel messages.
+type ThinkingClearMsg struct{}
+
+// CommandsPanel messages.
+type CommandsShowMsg struct{ Filter string }
+type CommandsHideMsg struct{}
+
 // InputPanel messages.
 type InputSetValueMsg struct{ Value string }
 type InputResetMsg struct{}
