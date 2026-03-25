@@ -43,4 +43,5 @@ type ChatDriver interface {
 	Chat(ctx context.Context) (<-chan StreamEvent, error)
 	AppendAssistant(msg RichMessage)
 	SetSystemPrompt(prompt string) // update prompt at runtime (workspace switch)
+	ContextWindow() int            // returns model's context window in tokens (0 = unknown)
 }

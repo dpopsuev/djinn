@@ -611,6 +611,7 @@ func (d *mockChatDriver) AppendAssistant(_ driver.RichMessage) {}
 func (d *mockChatDriver) SetSystemPrompt(prompt string) {
 	d.systemPrompt = prompt
 }
+func (d *mockChatDriver) ContextWindow() int { return 200_000 }
 
 // testModelWithDriver creates a Model with a mock ChatDriver attached.
 func testModelWithDriver() (Model, *mockChatDriver) {

@@ -114,6 +114,7 @@ type Model struct {
 	currentRole  string
 	roleMemory   *staff.RoleMemory
 	roles        map[string]staff.Role
+	staffCfg     *staff.StaffConfig
 }
 
 // NewModel creates a new REPL model.
@@ -173,8 +174,16 @@ func NewModel(cfg Config) Model {
 		debugTap:       cfg.DebugTap,
 		chunkedBuf:     &strings.Builder{},
 		rawStreamLine:  &strings.Builder{},
-		monitor:        session.NewContextMonitor(),
 	}
+
+	// Use driver's context window for the monitor if available.
+	maxTokens := session.DefaultMaxTokens
+	if m.chatDriver != nil {
+		if cw := m.chatDriver.ContextWindow(); cw > 0 {
+			maxTokens = cw
+		}
+	}
+	m.monitor = session.NewContextMonitor(session.WithMaxTokens(maxTokens))
 
 	m.keys = keybind.NewModeTable()
 	m.focus = tui.NewFocusManager(m.outputPanel, m.inputPanel, m.dashboard)
@@ -195,6 +204,7 @@ func NewModel(cfg Config) Model {
 	// The default role's mode overrides cfg.Mode — GenSec should be "plan"
 	// (no tools) regardless of what the CLI flag says.
 	staffCfg := staff.DefaultConfig()
+	m.staffCfg = staffCfg
 	m.roles = staffCfg.RoleMap()
 	m.roleMemory = staff.NewRoleMemory()
 	m.currentRole = "gensec"
@@ -489,8 +499,8 @@ func (m *Model) switchRole(roleName string) {
 		m.mode = newMode
 	}
 
-	// Update tool restrictions based on role's allowed capabilities.
-	m.token.AllowedTools = role.ToolCapabilities
+	// Update tool restrictions: resolve capability names to actual tool names.
+	m.token.AllowedTools = m.staffCfg.ResolveToolNames(role.ToolCapabilities)
 	if m.router != nil {
 		m.router.SetRole(roleName)
 	}

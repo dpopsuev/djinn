@@ -82,9 +82,34 @@ type SubmitMsg struct{ Value string }
 
 // DashboardPanel messages.
 type DashboardIdentityMsg struct{ Workspace, Driver, Model, Mode string }
-type DashboardMetricsMsg struct{ TokensIn, TokensOut, Turns int }
+type DashboardMetricsMsg struct {
+	TokensIn   int
+	TokensOut  int
+	Turns      int
+	AgentCount int    // 0 = single agent (legacy)
+	ActiveRole string // which agent is currently focused
+}
 type DashboardHealthMsg struct{ Reports []HealthReport }
 type DashboardUIStateMsg struct{ State string }
+
+// AgentsPanel messages — multi-agent monitoring.
+type AgentStatusMsg struct {
+	AgentID   string
+	Role      string
+	State     string // "idle", "streaming", "tool-wait", "done", "error"
+	TokensIn  int
+	TokensOut int
+}
+
+type AgentOutputMsg struct {
+	AgentID string
+	Text    string
+}
+
+type AgentThinkingMsg struct {
+	AgentID string
+	Text    string
+}
 
 // Layout messages.
 type ResizeMsg struct{ Width, Height int }

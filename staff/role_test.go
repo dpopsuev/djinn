@@ -3,6 +3,7 @@ package staff
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -153,5 +154,136 @@ roles:
 	r := cfg.RoleMap()["test"]
 	if r.Prompt != "nonexistent-file.md" {
 		t.Fatalf("prompt fallback = %q", r.Prompt)
+	}
+}
+
+func TestResolveToolNames(t *testing.T) {
+	cfg := DefaultConfig()
+	tools := cfg.ResolveToolNames([]string{"FileEditing", "ShellExecution"})
+
+	want := map[string]bool{"Read": true, "Write": true, "Edit": true, "Bash": true}
+	got := map[string]bool{}
+	for _, t := range tools {
+		got[t] = true
+	}
+	for name := range want {
+		if !got[name] {
+			t.Errorf("missing tool %q", name)
+		}
+	}
+}
+
+func TestResolveToolNames_IncludesMCPPrefix(t *testing.T) {
+	cfg := DefaultConfig()
+	tools := cfg.ResolveToolNames([]string{"WorkTracking"})
+
+	got := map[string]bool{}
+	for _, t := range tools {
+		got[t] = true
+	}
+	if !got["artifact"] {
+		t.Error("missing raw tool name 'artifact'")
+	}
+	if !got["mcp__scribe__artifact"] {
+		t.Error("missing MCP-prefixed 'mcp__scribe__artifact'")
+	}
+}
+
+func TestResolveToolNames_UnknownCapability(t *testing.T) {
+	cfg := DefaultConfig()
+	tools := cfg.ResolveToolNames([]string{"NonExistent"})
+	if len(tools) != 0 {
+		t.Fatalf("unknown capability should resolve to 0 tools, got %d", len(tools))
+	}
+}
+
+func TestValidate_DefaultConfigPasses(t *testing.T) {
+	cfg := DefaultConfig()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("default config should validate: %v", err)
+	}
+}
+
+func TestValidate_UnknownCapabilityInRole(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.Roles = append(cfg.Roles, Role{
+		Name:             "broken",
+		ToolCapabilities: []string{"FakeCapability"},
+	})
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("should fail on unknown capability")
+	}
+	if !strings.Contains(err.Error(), "FakeCapability") {
+		t.Fatalf("error should mention FakeCapability: %v", err)
+	}
+}
+
+func TestValidate_UnknownCapabilityInCategory(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.ToolCategories["test"] = []string{"GhostCapability"}
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("should fail on unknown capability in category")
+	}
+}
+
+func TestMergeConfig_OverlayReplacesRole(t *testing.T) {
+	base := DefaultConfig()
+	overlay := &StaffConfig{
+		Roles: []Role{
+			{Name: "executor", Mode: "plan", ToolCapabilities: []string{"WorkTracking"}},
+		},
+	}
+	merged := MergeConfig(base, overlay)
+
+	exec := merged.RoleMap()["executor"]
+	if exec.Mode != "plan" {
+		t.Fatalf("executor mode = %q, want plan (overlay)", exec.Mode)
+	}
+	if len(exec.ToolCapabilities) != 1 || exec.ToolCapabilities[0] != "WorkTracking" {
+		t.Fatalf("executor capabilities = %v, want [WorkTracking]", exec.ToolCapabilities)
+	}
+
+	// Other roles should be preserved from base.
+	if _, ok := merged.RoleMap()["gensec"]; !ok {
+		t.Fatal("gensec should be preserved from base")
+	}
+}
+
+func TestMergeConfig_OverlayAddsRole(t *testing.T) {
+	base := DefaultConfig()
+	overlay := &StaffConfig{
+		Roles: []Role{
+			{Name: "newrole", Mode: "agent", ToolCapabilities: []string{"FileEditing"}},
+		},
+	}
+	merged := MergeConfig(base, overlay)
+	if _, ok := merged.RoleMap()["newrole"]; !ok {
+		t.Fatal("new role should be added")
+	}
+}
+
+func TestMergeConfig_OverlayReplacesCapability(t *testing.T) {
+	base := DefaultConfig()
+	overlay := &StaffConfig{
+		ToolCapabilities: []ToolCapability{
+			{Name: "FileEditing", Backend: "custom", Tools: []string{"CustomEdit"}},
+		},
+	}
+	merged := MergeConfig(base, overlay)
+	cap := merged.ToolCapabilityMap()["FileEditing"]
+	if cap.Backend != "custom" {
+		t.Fatalf("FileEditing backend = %q, want custom", cap.Backend)
+	}
+}
+
+func TestLoadConfigChain_NoFiles(t *testing.T) {
+	cfg := LoadConfigChain("/nonexistent/a.yaml", "/nonexistent/b.yaml")
+	if cfg == nil {
+		t.Fatal("should return defaults when no files exist")
+	}
+	if len(cfg.Roles) != 5 {
+		t.Fatalf("should have 5 default roles, got %d", len(cfg.Roles))
 	}
 }

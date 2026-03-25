@@ -33,6 +33,7 @@ func (d *mockChatDriver) Chat(_ context.Context) (<-chan driver.StreamEvent, err
 }
 func (d *mockChatDriver) AppendAssistant(_ driver.RichMessage)   {}
 func (d *mockChatDriver) SetSystemPrompt(_ string)               {}
+func (d *mockChatDriver) ContextWindow() int                     { return 200_000 }
 
 func newTestRelay(maxTokens int) (*RelayManager, *mockChatDriver, *mockChatDriver) {
 	monitor := NewContextMonitor(

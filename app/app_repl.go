@@ -282,9 +282,16 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 	log.Info("tools registered", "builtin", 6, "mcp", len(mcpClient.MCPTools()), "total", len(registry.Names()))
 
-	// Create tool clearance — filters tools by role.
-	// The agent sees only tools belonging to the current role's capabilities.
-	staffCfg := staff.DefaultConfig()
+	// Load staff config: built-in defaults → user config → workspace config.
+	staffCfg := staff.LoadConfigChain(
+		filepath.Join(HomeDir(), "staff.yaml"),
+		filepath.Join(ws.PrimaryPath(), "staff.yaml"),
+	)
+	if err := staffCfg.Validate(); err != nil {
+		return fmt.Errorf("staff config: %w", err)
+	}
+
+	// Create tool clearance — filters tools by role's capabilities.
 	slotRouter := staff.NewToolClearance(staffCfg, registry, "gensec")
 
 	// Sandbox: if configured, create an isolated environment.

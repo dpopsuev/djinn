@@ -321,6 +321,19 @@ func (d *APIDriver) providerName() string {
 	return "claude-direct"
 }
 
+// ContextWindow returns the model's context window in tokens.
+// Opus models have 1M context; all others default to 200K.
+func (d *APIDriver) ContextWindow() int {
+	model := d.resolveModel()
+	if strings.Contains(model, "opus") {
+		return 1_000_000
+	}
+	if strings.Contains(model, "haiku") {
+		return 200_000
+	}
+	return 200_000
+}
+
 func (d *APIDriver) resolveModel() string {
 	if d.config.Model != "" {
 		return d.config.Model

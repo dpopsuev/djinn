@@ -68,6 +68,9 @@ func (d *CLIDriver) SetSystemPrompt(prompt string) {
 	d.systemPrompt = prompt
 }
 
+// ContextWindow returns the model's context window in tokens.
+func (d *CLIDriver) ContextWindow() int { return 200_000 }
+
 func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error) {
 	d.mu.Lock()
 	if len(d.messages) == 0 {

@@ -169,6 +169,9 @@ func (d *ACPDriver) SetSystemPrompt(_ string) {
 	// ACP agents manage their own system prompt.
 }
 
+// ContextWindow returns the model's context window in tokens.
+func (d *ACPDriver) ContextWindow() int { return 200_000 }
+
 // Chat sends a prompt and streams ACP session/update events.
 func (d *ACPDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error) {
 	d.mu.Lock()

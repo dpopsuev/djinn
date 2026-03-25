@@ -22,7 +22,7 @@ func TestDashboard_IdentityViaMessage(t *testing.T) {
 func TestDashboard_MetricsViaMessage(t *testing.T) {
 	d := NewDashboardPanel()
 	d.Update(DashboardIdentityMsg{"ws", "drv", "mdl", "mode"})
-	d.Update(DashboardMetricsMsg{100, 50, 3})
+	d.Update(DashboardMetricsMsg{TokensIn: 100, TokensOut: 50, Turns: 3})
 	view := d.View(120)
 	if !strings.Contains(view, "100") || !strings.Contains(view, "50") {
 		t.Fatalf("view missing metrics: %q", view)

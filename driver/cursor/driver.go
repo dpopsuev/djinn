@@ -88,6 +88,9 @@ func (d *CLIDriver) SetSystemPrompt(prompt string) {
 	d.systemPrompt = prompt
 }
 
+// ContextWindow returns the model's context window in tokens.
+func (d *CLIDriver) ContextWindow() int { return 200_000 }
+
 // Chat runs `agent -p --output-format stream-json` with the last user message
 // and streams events back via the channel.
 func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error) {

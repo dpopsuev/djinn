@@ -83,6 +83,112 @@ func (c *StaffConfig) RoleNames() []string {
 	return names
 }
 
+// ResolveToolNames converts capability names to the actual tool names they expose.
+// Used to build CapabilityToken.AllowedTools from a role's capability list.
+func (c *StaffConfig) ResolveToolNames(capNames []string) []string {
+	capMap := c.ToolCapabilityMap()
+	var tools []string
+	for _, name := range capNames {
+		if cap, ok := capMap[name]; ok {
+			for _, toolName := range cap.Tools {
+				tools = append(tools, toolName)
+				// Also include MCP-prefixed form.
+				if cap.Backend != "" && cap.Backend != "builtin" {
+					tools = append(tools, fmt.Sprintf("mcp__%s__%s", cap.Backend, toolName))
+				}
+			}
+		}
+	}
+	return tools
+}
+
+// Validate checks that all role capability references and category references
+// point to real capabilities. Returns an error on the first violation.
+func (c *StaffConfig) Validate() error {
+	capMap := c.ToolCapabilityMap()
+	for _, role := range c.Roles {
+		for _, capName := range role.ToolCapabilities {
+			if _, ok := capMap[capName]; !ok {
+				return fmt.Errorf("role %q references unknown capability %q", role.Name, capName)
+			}
+		}
+	}
+	for stage, caps := range c.ToolCategories {
+		for _, capName := range caps {
+			if _, ok := capMap[capName]; !ok {
+				return fmt.Errorf("category %q references unknown capability %q", stage, capName)
+			}
+		}
+	}
+	return nil
+}
+
+// MergeConfig overlays one StaffConfig onto a base. Overlay roles replace
+// base roles by name. Overlay capabilities replace by name. Categories merge.
+func MergeConfig(base, overlay *StaffConfig) *StaffConfig {
+	result := &StaffConfig{
+		Roles:            make([]Role, len(base.Roles)),
+		ToolCapabilities: make([]ToolCapability, len(base.ToolCapabilities)),
+		ToolCategories:   make(map[string][]string),
+	}
+	copy(result.Roles, base.Roles)
+	copy(result.ToolCapabilities, base.ToolCapabilities)
+	for k, v := range base.ToolCategories {
+		result.ToolCategories[k] = v
+	}
+
+	// Overlay roles replace by name.
+	for _, or := range overlay.Roles {
+		found := false
+		for i, br := range result.Roles {
+			if br.Name == or.Name {
+				result.Roles[i] = or
+				found = true
+				break
+			}
+		}
+		if !found {
+			result.Roles = append(result.Roles, or)
+		}
+	}
+
+	// Overlay capabilities replace by name.
+	for _, oc := range overlay.ToolCapabilities {
+		found := false
+		for i, bc := range result.ToolCapabilities {
+			if bc.Name == oc.Name {
+				result.ToolCapabilities[i] = oc
+				found = true
+				break
+			}
+		}
+		if !found {
+			result.ToolCapabilities = append(result.ToolCapabilities, oc)
+		}
+	}
+
+	// Overlay categories merge.
+	for k, v := range overlay.ToolCategories {
+		result.ToolCategories[k] = v
+	}
+
+	return result
+}
+
+// LoadConfigChain loads the built-in defaults and merges overlays from
+// each path that exists. Later paths take priority.
+func LoadConfigChain(paths ...string) *StaffConfig {
+	base := DefaultConfig()
+	for _, path := range paths {
+		overlay, err := LoadConfig(path)
+		if err != nil {
+			continue
+		}
+		base = MergeConfig(base, overlay)
+	}
+	return base
+}
+
 // resolvePrompt loads a prompt from file if it looks like a path, otherwise returns as-is.
 func resolvePrompt(baseDir, prompt string) string {
 	if prompt == "" {

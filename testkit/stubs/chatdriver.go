@@ -60,5 +60,8 @@ func (d *StubChatDriver) SetSystemPrompt(prompt string) {
 	d.systemPrompt = prompt
 }
 
+// ContextWindow returns the model's context window in tokens.
+func (d *StubChatDriver) ContextWindow() int { return 200_000 }
+
 // Ensure StubChatDriver satisfies driver.ChatDriver.
 var _ driver.ChatDriver = (*StubChatDriver)(nil)
