@@ -3,7 +3,6 @@
 package tui
 
 import (
-	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -118,7 +117,7 @@ func (p *ListPanel) View(width int) string {
 		}
 		prefix := "  "
 		if i == p.cursor {
-			prefix = fmt.Sprintf("%s ", GlyphToolCall) // ▸ or configurable
+			prefix = ActiveGlyphs.ListCursor + " "
 		}
 		sb.WriteString(prefix + p.items[i].View(width-2))
 	}

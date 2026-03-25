@@ -33,18 +33,31 @@ var defaultBindings = []Binding{
 	{Key: "up", Command: "history-prev"},
 	{Key: "down", Command: "history-next"},
 	{Key: "enter", Command: "submit"},
+	{Key: "tab", Command: "complete"},
+	{Key: "shift+tab", Command: "focus-next"},
+	{Key: "pgup", Command: "scroll-up"},
+	{Key: "pgdown", Command: "scroll-down"},
+	{Key: "escape", Command: "back"},
+	{Key: "alt+enter", Command: "newline"},
 }
 
 var defaultCommands = map[string]Command{
 	"quit":         {Name: "quit", Description: "Exit the REPL"},
-	"cycle-mode":   {Name: "cycle-mode", Description: "Cycle agent mode (ask → plan → agent → auto)"},
+	"cycle-mode":   {Name: "cycle-mode", Description: "Cycle agent mode"},
 	"history-prev": {Name: "history-prev", Description: "Previous input from history"},
 	"history-next": {Name: "history-next", Description: "Next input from history"},
 	"submit":       {Name: "submit", Description: "Submit current input"},
+	"complete":     {Name: "complete", Description: "Tab-complete slash command or accept prediction"},
+	"focus-next":   {Name: "focus-next", Description: "Focus next panel"},
+	"focus-prev":   {Name: "focus-prev", Description: "Focus previous panel"},
 	"focus-up":     {Name: "focus-up", Description: "Focus previous panel"},
 	"focus-down":   {Name: "focus-down", Description: "Focus next panel"},
 	"dive":         {Name: "dive", Description: "Enter child panel"},
 	"climb":        {Name: "climb", Description: "Return to parent panel"},
+	"back":         {Name: "back", Description: "Go back: cancel, climb, or dismiss"},
+	"scroll-up":    {Name: "scroll-up", Description: "Scroll output up"},
+	"scroll-down":  {Name: "scroll-down", Description: "Scroll output down"},
+	"newline":      {Name: "newline", Description: "Insert newline in input"},
 }
 
 // Mode represents a vim-style editing mode.

@@ -16,6 +16,7 @@ import (
 
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/keybind"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
@@ -100,6 +101,9 @@ type Model struct {
 	worktreeMgr  *vcs.WorktreeManager
 	activeWorktree string // current worktree path (empty = main repo)
 
+	// Keybindings
+	keys         *keybind.ModeTable
+
 	// Debug
 	debugTap     *tui.DebugTap
 
@@ -168,6 +172,7 @@ func NewModel(cfg Config) Model {
 		rawStreamLine:  &strings.Builder{},
 	}
 
+	m.keys = keybind.NewModeTable()
 	m.focus = tui.NewFocusManager(m.outputPanel, m.inputPanel, m.dashboard)
 	m.focus.FocusPanel(1) // Default focus on input — user can type immediately.
 
@@ -490,27 +495,8 @@ func (m *Model) switchRole(roleName string) {
 }
 
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.Type {
-	case tea.KeyCtrlC:
-		m.quitting = true
-		return m, tea.Quit
-
-	case tea.KeyEnter:
-		if m.state == stateToolApproval {
-			return m.handleApproval(msg.String())
-		}
-		if m.state == stateInput {
-			if msg.Alt {
-				var cmd tea.Cmd
-				_, cmd = m.inputPanel.Update(msg)
-				return m, cmd
-			}
-			return m.handleSubmit()
-		}
-	}
-
+	// Tool approval intercept — y/n before any command lookup.
 	if m.state == stateToolApproval {
-		// Single key approval
 		switch msg.String() {
 		case "y", "Y":
 			return m.handleApproval("y")
@@ -520,72 +506,102 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Tab: completion only (BUG-45). Focus cycling via Shift+Tab.
-	if msg.Type == tea.KeyTab {
-		if handled, cmd := m.inputPanel.TabComplete(); handled {
-			return m, cmd
-		}
-		// If input has prediction, accept it.
-		if m.inputPanel.AcceptPrediction() {
+	// Command lookup via keybind.ModeTable (SPC-51).
+	cmd, ok := m.keys.Lookup(msg.String())
+	if ok {
+		switch cmd.Name {
+		case "quit":
+			m.quitting = true
+			return m, tea.Quit
+
+		case "submit":
+			if m.state == stateInput {
+				if msg.Alt {
+					var c tea.Cmd
+					_, c = m.inputPanel.Update(msg)
+					return m, c
+				}
+				return m.handleSubmit()
+			}
+			// Enter on non-input panel = Dive.
+			if m.focus.Active() != nil && m.focus.Active().ID() != "input" {
+				if m.focus.Dive() {
+					return m, nil
+				}
+			}
+
+		case "complete":
+			if handled, c := m.inputPanel.TabComplete(); handled {
+				return m, c
+			}
+			if m.inputPanel.AcceptPrediction() {
+				return m, nil
+			}
+			return m, nil
+
+		case "focus-next":
+			m.focus.Cycle()
+			return m, nil
+
+		case "focus-prev":
+			m.focus.FocusUp()
+			return m, nil
+
+		case "back":
+			// Esc = universal back: climb > cancel streaming > dismiss.
+			if m.focus.Depth() > 0 {
+				m.focus.Climb()
+				return m, nil
+			}
+			if m.state == stateStreaming {
+				m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  " + tui.ActiveGlyphs.Cancelled)})
+				m.outputPanel.Update(tui.FlushStreamMsg{})
+				m.state = stateInput
+				m.focus.FocusPanel(1)
+				m.inputPanel.Update(tui.InputFocusMsg{})
+				m.dashboard.Update(tui.DashboardUIStateMsg{State: "INSERT"})
+				return m, nil
+			}
+
+		case "scroll-up", "scroll-down":
+			_, c := m.outputPanel.Update(msg)
+			return m, c
+
+		case "cycle-mode":
+			m.mode = m.mode.Next()
+			m.sess.Mode = m.mode.String()
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render(fmt.Sprintf("  mode: %s", m.mode))})
+			return m, nil
+
+		case "history-prev":
+			m.inputPanel.HistoryUp()
+			return m, nil
+
+		case "history-next":
+			m.inputPanel.HistoryDown()
+			return m, nil
+
+		case "newline":
+			var c tea.Cmd
+			_, c = m.inputPanel.Update(msg)
+			return m, c
+
+		case "dive":
+			if m.focus.Active() != nil && m.focus.Active().ID() != "input" {
+				m.focus.Dive()
+			}
+			return m, nil
+
+		case "climb":
+			m.focus.Climb()
 			return m, nil
 		}
-		return m, nil // no focus cycling on Tab
-	}
-	if msg.Type == tea.KeyShiftTab {
-		m.focus.Cycle()
-		return m, nil
 	}
 
-	// During streaming: Escape cancels the agent.
-	if m.state == stateStreaming && msg.Type == tea.KeyEscape {
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  (cancelled)")})
-		m.outputPanel.Update(tui.FlushStreamMsg{})
-		m.state = stateInput
-		m.focus.FocusPanel(1)
-		m.inputPanel.Update(tui.InputFocusMsg{})
-		m.dashboard.Update(tui.DashboardUIStateMsg{State: "INSERT"})
-		return m, nil
-	}
-
-	// Dive/Climb: Enter on non-input panel = Dive, Escape when dived = Climb.
-	if msg.Type == tea.KeyEnter && m.focus.Active() != nil && m.focus.Active().ID() != "input" {
-		if m.focus.Dive() {
-			return m, nil
-		}
-	}
-	if msg.Type == tea.KeyEscape && m.focus.Depth() > 0 {
-		m.focus.Climb()
-		return m, nil
-	}
-
-	// Forward PgUp/PgDn to output panel for scrolling (any state).
-	if msg.Type == tea.KeyPgUp || msg.Type == tea.KeyPgDown {
-		_, cmd := m.outputPanel.Update(msg)
-		return m, cmd
-	}
-
-	// Alt+M cycles mode (any state — works during streaming too).
-	if msg.Alt && msg.Type == tea.KeyRunes && len(msg.Runes) == 1 && (msg.Runes[0] == 'm' || msg.Runes[0] == 'M') {
-		m.mode = m.mode.Next()
-		m.sess.Mode = m.mode.String()
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render(fmt.Sprintf("  mode: %s", m.mode))})
-		return m, nil
-	}
-
-	// Input history navigation.
-	switch msg.Type {
-	case tea.KeyUp:
-		m.inputPanel.HistoryUp()
-		return m, nil
-	case tea.KeyDown:
-		m.inputPanel.HistoryDown()
-		return m, nil
-	}
-
-	// Forward all other keys to input panel (type-ahead during streaming).
-	var cmd tea.Cmd
-	_, cmd = m.inputPanel.Update(msg)
-	return m, cmd
+	// Unbound keys → forward to input panel (type-ahead).
+	var c tea.Cmd
+	_, c = m.inputPanel.Update(msg)
+	return m, c
 }
 
 func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
@@ -709,9 +725,9 @@ func (m *Model) handleApproval(key string) (tea.Model, tea.Cmd) {
 	m.dashboard.Update(tui.DashboardUIStateMsg{State: "STREAMING"})
 
 	if approved {
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  approved")})
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  " + tui.ActiveGlyphs.Approved)})
 	} else {
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render("  denied")})
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render("  " + tui.ActiveGlyphs.Denied)})
 	}
 
 	// Send decision to agent goroutine via channel
