@@ -174,6 +174,101 @@ func (s *Store) Delete(nameOrID string) error {
 	return nil
 }
 
+// Archive moves a session to the archive/ subdirectory.
+// Archived sessions are excluded from List() but can be retrieved.
+func (s *Store) Archive(sess *Session) error {
+	archiveDir := filepath.Join(s.dir, "archive")
+	if err := os.MkdirAll(archiveDir, sessionDirPerm); err != nil {
+		return fmt.Errorf("create archive dir: %w", err)
+	}
+
+	data, err := json.MarshalIndent(sess, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal session: %w", err)
+	}
+
+	name := sess.Name
+	if name == "" {
+		name = sess.ID
+	}
+	path := filepath.Join(archiveDir, name+sessionFileExt)
+	if err := os.WriteFile(path, data, sessionFilePerm); err != nil {
+		return fmt.Errorf("write archive: %w", err)
+	}
+
+	// Remove from active directory.
+	activePath := s.sessionPath(sess)
+	os.Remove(activePath) //nolint:errcheck
+
+	return nil
+}
+
+// ListArchived returns summaries of all archived sessions.
+func (s *Store) ListArchived() ([]SessionSummary, error) {
+	archiveDir := filepath.Join(s.dir, "archive")
+	entries, err := os.ReadDir(archiveDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read archive dir: %w", err)
+	}
+
+	var summaries []SessionSummary
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), sessionFileExt) {
+			continue
+		}
+
+		nameOrID := strings.TrimSuffix(e.Name(), sessionFileExt)
+		sess, err := s.LoadArchived(nameOrID)
+		if err != nil {
+			continue
+		}
+
+		summaries = append(summaries, SessionSummary{
+			ID:        sess.ID,
+			Name:      sess.Name,
+			Driver:    sess.Driver,
+			Model:     sess.Model,
+			WorkDir:   sess.WorkDir,
+			Turns:     sess.History.Len(),
+			Tokens:    sess.TotalTokens(),
+			CreatedAt: sess.CreatedAt,
+			UpdatedAt: sess.UpdatedAt,
+		})
+	}
+
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].UpdatedAt.After(summaries[j].UpdatedAt)
+	})
+
+	return summaries, nil
+}
+
+// LoadArchived reads a session from the archive directory.
+func (s *Store) LoadArchived(nameOrID string) (*Session, error) {
+	path := filepath.Join(s.dir, "archive", nameOrID+sessionFileExt)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("%w: %s", ErrSessionNotFound, nameOrID)
+		}
+		return nil, fmt.Errorf("read archived session: %w", err)
+	}
+
+	var sess Session
+	if err := json.Unmarshal(data, &sess); err != nil {
+		return nil, fmt.Errorf("unmarshal archived session %s: %w", nameOrID, err)
+	}
+
+	if sess.History == nil {
+		sess.History = NewHistory(0)
+	}
+
+	return &sess, nil
+}
+
 func (s *Store) sessionPath(sess *Session) string {
 	name := sess.Name
 	if name == "" {

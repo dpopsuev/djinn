@@ -2,6 +2,7 @@ package session
 
 import (
 	"strings"
+	"time"
 
 	"github.com/dpopsuev/djinn/driver"
 )
@@ -49,4 +50,58 @@ func Compact(sess *Session, keepRecent int) (int, int) {
 	}
 
 	return before, sess.History.Len()
+}
+
+// SeedSession creates a new session pre-loaded with a compacted summary
+// from an old session plus its most recent entries. Used by the relay
+// to bootstrap a fresh context window.
+func SeedSession(newID string, old *Session, summary string, keepRecent int) *Session {
+	now := time.Now()
+	s := &Session{
+		ID:        newID,
+		Name:      old.Name,
+		Driver:    old.Driver,
+		Model:     old.Model,
+		Mode:      old.Mode,
+		WorkDir:   old.WorkDir,
+		WorkDirs:  old.WorkDirs,
+		Workspace: old.Workspace,
+		CreatedAt: now,
+		UpdatedAt: now,
+		History:   NewHistory(0),
+	}
+
+	// Inject summary as system context.
+	if summary != "" {
+		s.Append(Entry{
+			Role:    driver.RoleUser,
+			Content: "[Session context]\n" + summary,
+		})
+	}
+
+	// Copy recent entries verbatim.
+	entries := old.Entries()
+	if keepRecent > 0 && len(entries) > keepRecent {
+		entries = entries[len(entries)-keepRecent:]
+	}
+	for _, e := range entries {
+		s.Append(e)
+	}
+
+	return s
+}
+
+// ExtractSummaryText builds a plain-text conversation excerpt from old entries
+// suitable for feeding into an LLM summarizer. Falls back to truncated
+// first-lines when the full text would exceed maxChars.
+func ExtractSummaryText(entries []Entry, maxChars int) string {
+	var sb strings.Builder
+	for _, e := range entries {
+		line := e.Role + ": " + e.TextContent() + "\n"
+		if sb.Len()+len(line) > maxChars {
+			break
+		}
+		sb.WriteString(line)
+	}
+	return sb.String()
 }

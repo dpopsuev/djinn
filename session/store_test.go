@@ -326,6 +326,81 @@ func TestStore_Load_SanitizesNullStringInput(t *testing.T) {
 	}
 }
 
+func TestStore_Archive(t *testing.T) {
+	store, _ := NewStore(t.TempDir())
+
+	sess := New("s1", "claude-4", "/workspace")
+	sess.Name = "archiveme"
+	sess.Append(Entry{Role: "user", Content: "hello"})
+	store.Save(sess)
+
+	if err := store.Archive(sess); err != nil {
+		t.Fatalf("Archive: %v", err)
+	}
+
+	// Should no longer appear in active list.
+	list, _ := store.List()
+	for _, s := range list {
+		if s.Name == "archiveme" {
+			t.Fatal("archived session should not appear in List()")
+		}
+	}
+
+	// Should appear in archived list.
+	archived, err := store.ListArchived()
+	if err != nil {
+		t.Fatalf("ListArchived: %v", err)
+	}
+	if len(archived) != 1 {
+		t.Fatalf("ListArchived = %d, want 1", len(archived))
+	}
+	if archived[0].Name != "archiveme" {
+		t.Fatalf("archived name = %q", archived[0].Name)
+	}
+}
+
+func TestStore_LoadArchived(t *testing.T) {
+	store, _ := NewStore(t.TempDir())
+
+	sess := New("s1", "model", "/work")
+	sess.Name = "loadme"
+	sess.Append(Entry{Role: "user", Content: "context"})
+	store.Save(sess)
+	store.Archive(sess)
+
+	loaded, err := store.LoadArchived("loadme")
+	if err != nil {
+		t.Fatalf("LoadArchived: %v", err)
+	}
+	if loaded.ID != "s1" {
+		t.Errorf("ID = %q, want s1", loaded.ID)
+	}
+	if loaded.History.Len() != 1 {
+		t.Errorf("History.Len = %d, want 1", loaded.History.Len())
+	}
+}
+
+func TestStore_ListArchived_empty(t *testing.T) {
+	store, _ := NewStore(t.TempDir())
+
+	archived, err := store.ListArchived()
+	if err != nil {
+		t.Fatalf("ListArchived: %v", err)
+	}
+	if len(archived) != 0 {
+		t.Fatalf("ListArchived = %d, want 0", len(archived))
+	}
+}
+
+func TestStore_LoadArchived_notFound(t *testing.T) {
+	store, _ := NewStore(t.TempDir())
+
+	_, err := store.LoadArchived("ghost")
+	if !errors.Is(err, ErrSessionNotFound) {
+		t.Fatalf("err = %v, want ErrSessionNotFound", err)
+	}
+}
+
 func TestImport_NilToolUseInputDefaultsToEmptyObject(t *testing.T) {
 	// DJN-BUG-15: session file with null tool_use.input should be
 	// repaired through the sanitize-on-load path (defense in depth).

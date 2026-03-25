@@ -104,6 +104,9 @@ type Model struct {
 	// Keybindings
 	keys         *keybind.ModeTable
 
+	// Context relay
+	monitor      *session.ContextMonitor
+
 	// Debug
 	debugTap     *tui.DebugTap
 
@@ -170,6 +173,7 @@ func NewModel(cfg Config) Model {
 		debugTap:       cfg.DebugTap,
 		chunkedBuf:     &strings.Builder{},
 		rawStreamLine:  &strings.Builder{},
+		monitor:        session.NewContextMonitor(),
 	}
 
 	m.keys = keybind.NewModeTable()
@@ -316,6 +320,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Usage != nil {
 			m.totalIn += msg.Usage.InputTokens
 			m.totalOut += msg.Usage.OutputTokens
+			m.monitor.Record(msg.Usage.InputTokens, msg.Usage.OutputTokens)
 		}
 		return m, nil
 
@@ -361,6 +366,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = stateInput
 		m.focus.FocusPanel(1)
 		m.inputPanel.Update(tui.InputFocusMsg{})
+
+		// Context relay: log approaching thresholds.
+		if u := m.monitor.Usage(); u > 0.5 {
+			m.log.Info("context usage", "pct", fmt.Sprintf("%.0f%%", u*100), "state", m.monitor.State())
+		}
 
 		// Drain prompt queue — auto-submit first queued prompt.
 		if m.queuePanel.Len() > 0 {
