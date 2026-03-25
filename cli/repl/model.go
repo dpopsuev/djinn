@@ -281,11 +281,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var line string
 			if msg.IsError {
 				line = fmt.Sprintf("  %s %s",
-					tui.ErrorStyle.Render("✗ "+msg.Name),
+					tui.ErrorStyle.Render(tui.GlyphToolError+" "+msg.Name),
 					tui.DimStyle.Render(truncate(msg.Output, 100)))
 			} else {
 				line = fmt.Sprintf("  %s %s",
-					tui.ToolSuccessStyle.Render("✓ "+msg.Name),
+					tui.ToolSuccessStyle.Render(tui.GlyphToolSuccess+" "+msg.Name),
 					tui.DimStyle.Render(truncate(msg.Output, 100)))
 			}
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: line})
@@ -398,10 +398,15 @@ func (m Model) View() string {
 		return "goodbye.\n"
 	}
 
-	depths := tui.FocusDepths(m.focus.Count(), m.focus.ActiveIndex())
+	// Rebuild focus list — QueuePanel included only when non-empty (BUG-48).
+	panels := []tui.Panel{m.outputPanel}
+	if m.queuePanel.Len() > 0 {
+		panels = append(panels, m.queuePanel)
+	}
+	panels = append(panels, m.inputPanel, m.dashboard)
+	m.focus.SetPanels(panels)
 
-	// All panels always bordered (no height jump on focus change — BUG-27, BUG-28).
-	// Border width: 2 left/right chars. Border height: 2 top/bottom lines.
+	depths := tui.FocusDepths(m.focus.Count(), m.focus.ActiveIndex())
 	innerWidth := m.width - 2
 
 	// Set ephemeral overlay (spinner, streaming text, approval prompt)
@@ -529,16 +534,19 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Tab: try slash-command completion first, then cycle focus (any state).
+	// Tab: completion only (BUG-45). Focus cycling via Shift+Tab.
 	if msg.Type == tea.KeyTab {
 		if handled, cmd := m.inputPanel.TabComplete(); handled {
 			return m, cmd
 		}
-		m.focus.Cycle()
-		return m, nil
+		// If input has prediction, accept it.
+		if m.inputPanel.AcceptPrediction() {
+			return m, nil
+		}
+		return m, nil // no focus cycling on Tab
 	}
 	if msg.Type == tea.KeyShiftTab {
-		m.focus.FocusUp()
+		m.focus.Cycle()
 		return m, nil
 	}
 

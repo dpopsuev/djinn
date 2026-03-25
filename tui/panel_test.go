@@ -393,6 +393,33 @@ func TestOutputPanel_AppendToLast(t *testing.T) {
 	}
 }
 
+func TestFocusManager_SetPanels_PreservesID(t *testing.T) {
+	p1 := NewOutputPanel()
+	p2 := NewDashboardPanel()
+	p3 := NewInputPanel()
+	fm := NewFocusManager(p1, p2, p3)
+	fm.FocusPanel(1) // focus dashboard
+
+	// Replace with new list that includes dashboard.
+	fm.SetPanels([]Panel{p1, p3, p2}) // dashboard moved to end
+	if fm.Active().ID() != "dashboard" {
+		t.Fatalf("focus should preserve dashboard, got %s", fm.Active().ID())
+	}
+}
+
+func TestFocusManager_SetPanels_FallsBack(t *testing.T) {
+	p1 := NewOutputPanel()
+	p2 := NewDashboardPanel()
+	fm := NewFocusManager(p1, p2)
+	fm.FocusPanel(1) // focus dashboard
+
+	// Replace with list that doesn't include dashboard.
+	fm.SetPanels([]Panel{p1})
+	if fm.Active().ID() != "output" {
+		t.Fatalf("should fall back to first panel, got %s", fm.Active().ID())
+	}
+}
+
 func TestBasePanel_Defaults(t *testing.T) {
 	b := NewBasePanel("test", 5)
 	if b.ID() != "test" {

@@ -104,6 +104,27 @@ func (f *FocusManager) FocusPanel(idx int) {
 	f.panels[f.active].SetFocus(true)
 }
 
+// SetPanels replaces the panel list, preserving focus by panel ID.
+// Called by LayoutEngine when visible panels change.
+func (f *FocusManager) SetPanels(panels []Panel) {
+	currentID := ""
+	if f.active < len(f.panels) {
+		currentID = f.panels[f.active].ID()
+		f.panels[f.active].SetFocus(false)
+	}
+	f.panels = panels
+	f.active = 0
+	for i, p := range panels {
+		if p.ID() == currentID {
+			f.active = i
+			break
+		}
+	}
+	if len(panels) > 0 {
+		panels[f.active].SetFocus(true)
+	}
+}
+
 // Panels returns all managed panels.
 func (f *FocusManager) Panels() []Panel {
 	return f.panels

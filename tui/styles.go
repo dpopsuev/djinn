@@ -62,8 +62,15 @@ var SpinnerFrames = []string{
 	"▽",
 }
 
-// Label constants.
-const (
+// Label variables (var not const — configurable via ApplyGlyphs).
+var (
 	LabelUser   = "❯ "
 	LabelAssist = "djinn"
+)
+
+// Glyph variables for tool call indicators.
+var (
+	GlyphToolCall    = "λ"
+	GlyphToolSuccess = "✓"
+	GlyphToolError   = "✗"
 )

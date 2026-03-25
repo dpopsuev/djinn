@@ -28,6 +28,32 @@ func TestEnvelope_ErrorResult(t *testing.T) {
 	}
 }
 
+func TestEnvelope_ExpandedShowsLambda(t *testing.T) {
+	e := NewEnvelopePanel("e", "Read", "test.go")
+	view := e.View(80)
+	if !strings.Contains(view, GlyphToolCall) {
+		t.Fatalf("expanded should show λ: %q", view)
+	}
+}
+
+func TestEnvelope_SuccessShowsCheckmark(t *testing.T) {
+	e := NewEnvelopePanel("e", "Read", "test.go")
+	e.SetResult("ok", false)
+	view := e.View(80)
+	if !strings.Contains(view, GlyphToolSuccess) {
+		t.Fatalf("success should show ✓: %q", view)
+	}
+}
+
+func TestEnvelope_ErrorShowsCross(t *testing.T) {
+	e := NewEnvelopePanel("e", "Bash", "ls")
+	e.SetResult("denied", true)
+	view := e.View(80)
+	if !strings.Contains(view, GlyphToolError) {
+		t.Fatalf("error should show ✗: %q", view)
+	}
+}
+
 func TestEnvelope_ExpandedBeforeResult(t *testing.T) {
 	e := NewEnvelopePanel("e3", "Write", `{"path":"foo.go"}`)
 	if e.Collapsed() {

@@ -58,17 +58,18 @@ func (p *EnvelopePanel) summaryView() string {
 	lines := strings.Count(p.output, "\n") + 1
 	if p.isError {
 		return fmt.Sprintf("  %s %s",
-			ErrorStyle.Render("✗ "+p.toolName),
+			ErrorStyle.Render(GlyphToolError+" "+p.toolName),
 			DimStyle.Render(fmt.Sprintf("(error, %d lines)", lines)))
 	}
 	return fmt.Sprintf("  %s %s",
-		ToolSuccessStyle.Render("✓ "+p.toolName),
+		ToolSuccessStyle.Render(GlyphToolSuccess+" "+p.toolName),
 		DimStyle.Render(fmt.Sprintf("(%d lines)", lines)))
 }
 
 func (p *EnvelopePanel) expandedView(width int) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("  %s %s\n",
+	sb.WriteString(fmt.Sprintf("  %s %s %s\n",
+		ToolNameStyle.Render(GlyphToolCall),
 		ToolNameStyle.Render(p.toolName),
 		ToolArgStyle.Render(p.args)))
 	if p.output != "" {
