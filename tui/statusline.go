@@ -31,7 +31,7 @@ type HealthReporter interface {
 
 // Status line field keys.
 const (
-	fieldWorkspace = "ws"
+	fieldWorkspace = "scope"
 	fieldModel     = "model"
 	fieldMode      = "mode"
 	fieldTokens    = "tok"
@@ -41,7 +41,7 @@ const (
 
 // Status line display constants.
 const (
-	labelEphemeral = "(ephemeral)"
+	labelEphemeral = "general"
 	driverClaude   = "claude"
 )
 

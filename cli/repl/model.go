@@ -248,7 +248,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.lastUsage = nil
 		m.lastError = ""
 		m.spinnerActive = true
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.AssistStyle.Render(tui.LabelAssist) + ": "})
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
 		return m, tea.Batch(m.runAgent(msg.Value), m.spin.Tick, tickCmd())
 
 	case spinner.TickMsg:
@@ -344,7 +344,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.outputPanel.LineCount() > 0 {
 			last := m.outputPanel.LineCount() - 1
 			raw := m.outputPanel.Lines()[last]
-			prefix := tui.AssistStyle.Render(tui.LabelAssist) + ": "
+			prefix := ""
 			if after, found := strings.CutPrefix(raw, prefix); found {
 				rendered := tui.RenderMarkdown(after)
 				m.outputPanel.Update(tui.OutputSetLineMsg{Index: last, Line: prefix + rendered})
@@ -708,7 +708,7 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 	m.lastUsage = nil
 	m.lastError = ""
 	m.spinnerActive = true
-	m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.AssistStyle.Render(tui.LabelAssist) + ": "})
+	m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
 	// Input stays focused during streaming — enables type-ahead (BUG-44).
 
 	return m, tea.Batch(

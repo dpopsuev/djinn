@@ -132,7 +132,7 @@ func TestStatusLine_EphemeralWorkspace(t *testing.T) {
 	m2, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
 	model := toModelPtr(m2)
 	view := model.View()
-	if !strings.Contains(view, "ephemeral") {
-		t.Fatalf("should show (ephemeral) for unnamed workspace: %s", view)
+	if !strings.Contains(view, "general") {
+		t.Fatalf("should show 'general' for default scope: %s", view)
 	}
 }
