@@ -863,10 +863,14 @@ func renderMOTD(sess *session.Session, tools *builtin.Registry, version, current
 
 	inner := lipgloss.JoinHorizontal(lipgloss.Top, logo+"   ", info.String())
 
-	// No inner border — the panel border is the visual container.
-	title := tui.AssistStyle.Render("Djinn v" + version)
+	// Inner border around the MOTD — rounded, dim, sits inside the output panel border.
+	motdBorder := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.AdaptiveColor{Light: "#999", Dark: "#555"}).
+		Padding(0, 1)
 
-	return title + "\n\n" + inner
+	title := tui.AssistStyle.Render("Djinn v" + version)
+	return title + "\n" + motdBorder.Render(inner)
 }
 
 // SetTextInput sets the text input value (for testing).
