@@ -110,6 +110,81 @@ func TestMountOptionsForTier(t *testing.T) {
 	}
 }
 
+func TestSandboxPort_BuildSpec_SysTier(t *testing.T) {
+	s := &SandboxPort{workspace: "/workspace"}
+	spec := s.buildSpec("djinn-sys-1", tier.Scope{Level: tier.Sys, Name: "sys"})
+	wsMount := spec.Mounts[0]
+	hasRO := false
+	for _, opt := range wsMount.Options {
+		if opt == "ro" {
+			hasRO = true
+		}
+	}
+	if !hasRO {
+		t.Fatalf("Sys tier should have ro mount, got %v", wsMount.Options)
+	}
+}
+
+func TestSandboxPort_BuildSpec_ComTier(t *testing.T) {
+	s := &SandboxPort{workspace: "/workspace"}
+	spec := s.buildSpec("djinn-com-1", tier.Scope{Level: tier.Com, Name: "com"})
+	wsMount := spec.Mounts[0]
+	hasRW := false
+	for _, opt := range wsMount.Options {
+		if opt == "rw" {
+			hasRW = true
+		}
+	}
+	if !hasRW {
+		t.Fatalf("Com tier should have rw mount, got %v", wsMount.Options)
+	}
+}
+
+func TestSandboxPort_BuildSpec_EmptyName(t *testing.T) {
+	s := &SandboxPort{workspace: "/workspace"}
+	spec := s.buildSpec("djinn-empty-1", tier.Scope{Level: tier.Eco})
+	if spec.TierConfig != nil {
+		t.Fatal("empty scope name should not set TierConfig")
+	}
+}
+
+func TestSandboxPort_BuildSpec_TmpfsMount(t *testing.T) {
+	s := &SandboxPort{workspace: "/workspace"}
+	spec := s.buildSpec("djinn-tmp-1", tier.Scope{Level: tier.Mod, Name: "test"})
+	if len(spec.Mounts) < 2 {
+		t.Fatal("should have at least 2 mounts")
+	}
+	tmpMount := spec.Mounts[1]
+	if tmpMount.Destination != "/tmp" {
+		t.Fatalf("second mount dest = %q, want /tmp", tmpMount.Destination)
+	}
+	if tmpMount.Type != mountTypeTmpfs {
+		t.Fatalf("second mount type = %q, want tmpfs", tmpMount.Type)
+	}
+}
+
+func TestSandboxPort_New(t *testing.T) {
+	s := New("/tmp/test.sock", "/workspace")
+	if s == nil {
+		t.Fatal("New returned nil")
+	}
+	s.Close()
+}
+
+func TestMountOptionsForTier_Default(t *testing.T) {
+	// Unknown tier level should default to ro
+	opts := mountOptionsForTier(99)
+	hasRO := false
+	for _, opt := range opts {
+		if opt == "ro" {
+			hasRO = true
+		}
+	}
+	if !hasRO {
+		t.Fatalf("unknown tier should default to ro, got %v", opts)
+	}
+}
+
 // Integration test — only runs if Misbah daemon socket exists.
 func TestSandboxPort_Integration(t *testing.T) {
 	socketPath := os.Getenv("MISBAH_DAEMON_SOCKET")

@@ -1,6 +1,7 @@
 package repl
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/agent"
@@ -587,6 +589,535 @@ func TestModel_QueueDrainOnAgentDone(t *testing.T) {
 	}
 	if submit.Value != "queued one" {
 		t.Fatalf("submit = %q, want 'queued one'", submit.Value)
+	}
+}
+
+// --- mockChatDriver for switchRole tests ---
+
+type mockChatDriver struct {
+	systemPrompt string
+}
+
+func (d *mockChatDriver) Start(_ context.Context, _ driver.SandboxHandle) error   { return nil }
+func (d *mockChatDriver) Stop(_ context.Context) error                             { return nil }
+func (d *mockChatDriver) Send(_ context.Context, _ driver.Message) error           { return nil }
+func (d *mockChatDriver) SendRich(_ context.Context, _ driver.RichMessage) error   { return nil }
+func (d *mockChatDriver) Chat(_ context.Context) (<-chan driver.StreamEvent, error) {
+	ch := make(chan driver.StreamEvent)
+	close(ch)
+	return ch, nil
+}
+func (d *mockChatDriver) AppendAssistant(_ driver.RichMessage) {}
+func (d *mockChatDriver) SetSystemPrompt(prompt string) {
+	d.systemPrompt = prompt
+}
+
+// testModelWithDriver creates a Model with a mock ChatDriver attached.
+func testModelWithDriver() (Model, *mockChatDriver) {
+	drv := &mockChatDriver{}
+	sess := session.New("test", "test-model", "/workspace")
+	m := NewModel(Config{
+		Driver:  drv,
+		Tools:   builtin.NewRegistry(),
+		Session: sess,
+		Mode:    "agent",
+	})
+	m.chatDriver = drv // ensure the mock is wired
+	m.ready = true
+	m.width = 80
+	m.height = 24
+	return m, drv
+}
+
+// --- switchRole tests ---
+
+func TestModel_SwitchRole_UpdatesCurrentRole(t *testing.T) {
+	m, drv := testModelWithDriver()
+	m.switchRole("executor")
+	if m.currentRole != "executor" {
+		t.Fatalf("currentRole = %q, want executor", m.currentRole)
+	}
+	if drv.systemPrompt == "" {
+		t.Fatal("SetSystemPrompt should have been called")
+	}
+	if m.mode != agent.ModeAgent {
+		t.Fatalf("mode = %s, want agent (executor role mode)", m.mode)
+	}
+}
+
+func TestModel_SwitchRole_InvalidRole(t *testing.T) {
+	m, _ := testModelWithDriver()
+	before := m.currentRole
+	m.switchRole("nonexistent-role")
+	if m.currentRole != before {
+		t.Fatal("invalid role should not change currentRole")
+	}
+}
+
+func TestModel_SwitchRole_UpdatesDashboard(t *testing.T) {
+	m, _ := testModelWithDriver()
+	before := m.outputPanel.LineCount()
+	m.switchRole("auditor")
+	// Should append a narration line
+	if m.outputPanel.LineCount() <= before {
+		t.Fatal("switchRole should append narration to output")
+	}
+}
+
+func TestModel_SwitchRole_UpdatesToolCapabilities(t *testing.T) {
+	m, _ := testModelWithDriver()
+	m.switchRole("executor")
+	if len(m.token.AllowedTools) == 0 {
+		t.Fatal("executor role should have tool capabilities")
+	}
+}
+
+// --- handleSubmit: /role command tests ---
+
+func TestModel_HandleSubmit_RoleShow(t *testing.T) {
+	m, _ := testModelWithDriver()
+	m.SetTextInput("/role")
+	m2, _ := m.handleSubmit()
+	model := asModel(t, m2)
+	found := false
+	for _, line := range model.outputPanel.Lines() {
+		if strings.Contains(line, "current role:") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("/role should show current role")
+	}
+}
+
+func TestModel_HandleSubmit_RoleSwitch(t *testing.T) {
+	m, drv := testModelWithDriver()
+	m.SetTextInput("/role executor")
+	m2, _ := m.handleSubmit()
+	model := asModel(t, m2)
+	if model.currentRole != "executor" {
+		t.Fatalf("currentRole = %q, want executor", model.currentRole)
+	}
+	if drv.systemPrompt == "" {
+		t.Fatal("SetSystemPrompt should have been called")
+	}
+}
+
+func TestModel_HandleSubmit_RoleCreate(t *testing.T) {
+	m, _ := testModelWithDriver()
+	m.SetTextInput("/role create mybot agent")
+	m2, _ := m.handleSubmit()
+	model := asModel(t, m2)
+	if _, ok := model.roles["mybot"]; !ok {
+		t.Fatal("custom role should be created")
+	}
+	found := false
+	for _, line := range model.outputPanel.Lines() {
+		if strings.Contains(line, "created role") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("should narrate creation")
+	}
+}
+
+// --- handleSubmit: /staff command ---
+
+func TestModel_HandleSubmit_Staff(t *testing.T) {
+	m, _ := testModelWithDriver()
+	m.SetTextInput("/staff")
+	m2, _ := m.handleSubmit()
+	model := asModel(t, m2)
+	found := false
+	for _, line := range model.outputPanel.Lines() {
+		if strings.Contains(line, "Staff:") || strings.Contains(line, "gensec") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("/staff should list roles")
+	}
+}
+
+// --- handleSubmit: /briefing command ---
+
+func TestModel_HandleSubmit_Briefing_Empty(t *testing.T) {
+	m := testModel()
+	m.SetTextInput("/briefing")
+	m2, _ := m.handleSubmit()
+	model := asModel(t, m2)
+	found := false
+	for _, line := range model.outputPanel.Lines() {
+		if strings.Contains(line, "empty") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("/briefing should show empty message")
+	}
+}
+
+func TestModel_HandleSubmit_Briefing_WithEntries(t *testing.T) {
+	m, _ := testModelWithDriver()
+	// switchRole appends a briefing entry
+	m.switchRole("executor")
+	m.SetTextInput("/briefing")
+	m2, _ := m.handleSubmit()
+	model := asModel(t, m2)
+	found := false
+	for _, line := range model.outputPanel.Lines() {
+		if strings.Contains(line, "Briefing:") || strings.Contains(line, "switched to executor") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("/briefing should show entries after switchRole")
+	}
+}
+
+// --- Init ---
+
+func TestModel_Init(t *testing.T) {
+	m := testModel()
+	cmd := m.Init()
+	if cmd == nil {
+		t.Fatal("Init should return a batch cmd (blink + window title)")
+	}
+}
+
+// --- approvalForMode ---
+
+func TestApprovalForMode_Auto(t *testing.T) {
+	fn := approvalForMode(agent.ModeAuto, nil)
+	if !fn(driver.ToolCall{Name: "Bash"}) {
+		t.Fatal("auto mode should auto-approve")
+	}
+}
+
+func TestApprovalForMode_Ask(t *testing.T) {
+	fn := approvalForMode(agent.ModeAsk, nil)
+	if fn(driver.ToolCall{Name: "Bash"}) {
+		t.Fatal("ask mode should deny all")
+	}
+}
+
+func TestApprovalForMode_Plan(t *testing.T) {
+	fn := approvalForMode(agent.ModePlan, nil)
+	if fn(driver.ToolCall{Name: "Bash"}) {
+		t.Fatal("plan mode should deny all")
+	}
+}
+
+func TestApprovalForMode_Agent(t *testing.T) {
+	ch := make(chan bool, 1)
+	ch <- true
+	fn := approvalForMode(agent.ModeAgent, ch)
+	if !fn(driver.ToolCall{Name: "Bash"}) {
+		t.Fatal("agent mode should return channel value")
+	}
+}
+
+// --- Accessor tests (cover trivial 0% functions) ---
+
+func TestModel_CurrentState(t *testing.T) {
+	m := testModel()
+	if m.CurrentState() != StateInput {
+		t.Fatalf("state = %d, want input", m.CurrentState())
+	}
+}
+
+func TestModel_SetMode(t *testing.T) {
+	m := testModel()
+	m.SetMode(agent.ModeAuto)
+	if m.mode != agent.ModeAuto {
+		t.Fatalf("mode = %s, want auto", m.mode)
+	}
+}
+
+func TestModel_ConversationLen(t *testing.T) {
+	m := testModel()
+	before := m.ConversationLen()
+	m.AppendConversation("test line")
+	if m.ConversationLen() != before+1 {
+		t.Fatal("ConversationLen should increase after append")
+	}
+}
+
+// --- overlayContent tests ---
+
+func TestModel_OverlayContent_Streaming_Spinner(t *testing.T) {
+	m := testModel()
+	m.state = stateStreaming
+	m.spinnerActive = true
+	overlay := m.overlayContent()
+	if !strings.Contains(overlay, "thinking") {
+		t.Fatalf("overlay = %q, should contain 'thinking'", overlay)
+	}
+}
+
+func TestModel_OverlayContent_ToolApproval(t *testing.T) {
+	m := testModel()
+	m.state = stateToolApproval
+	m.pendingTool = &driver.ToolCall{Name: "Bash"}
+	overlay := m.overlayContent()
+	if !strings.Contains(overlay, "approve") {
+		t.Fatalf("overlay = %q, should contain 'approve'", overlay)
+	}
+}
+
+func TestModel_OverlayContent_Default(t *testing.T) {
+	m := testModel()
+	m.state = stateInput
+	overlay := m.overlayContent()
+	if overlay != "" {
+		t.Fatalf("overlay = %q, want empty for input state", overlay)
+	}
+}
+
+// --- ErrorMsg handling ---
+
+func TestModel_ErrorMsg(t *testing.T) {
+	m := testModel()
+	before := m.outputPanel.LineCount()
+	m2, _ := m.Update(tui.ErrorMsg{Err: errors.New("boom")})
+	model := asModel(t, m2)
+	if model.lastError != "boom" {
+		t.Fatalf("lastError = %q, want boom", model.lastError)
+	}
+	if model.outputPanel.LineCount() <= before {
+		t.Fatal("ErrorMsg should append to output")
+	}
+}
+
+// --- DoneMsg with nil usage ---
+
+func TestModel_DoneMsg_NilUsage(t *testing.T) {
+	m := testModel()
+	m2, _ := m.Update(tui.DoneMsg{Usage: nil})
+	model := asModel(t, m2)
+	if model.totalIn != 0 || model.totalOut != 0 {
+		t.Fatal("nil usage should not change token counts")
+	}
+}
+
+// --- AgentDoneMsg with usage ---
+
+func TestModel_AgentDoneMsg_WithUsage(t *testing.T) {
+	m := testModel()
+	m.state = stateStreaming
+	m.lastUsage = &driver.Usage{InputTokens: 200, OutputTokens: 100}
+	m2, _ := m.Update(tui.AgentDoneMsg{Result: "done"})
+	model := asModel(t, m2)
+	// Should include token summary in output
+	found := false
+	for _, line := range model.outputPanel.Lines() {
+		if strings.Contains(line, "200") && strings.Contains(line, "100") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("AgentDoneMsg should render usage summary")
+	}
+}
+
+// --- View: quitting and not-ready states ---
+
+func TestModel_View_Quitting(t *testing.T) {
+	m := testModel()
+	m.quitting = true
+	view := m.View()
+	if !strings.Contains(view, "goodbye") {
+		t.Fatalf("view = %q, want goodbye", view)
+	}
+}
+
+func TestModel_View_NotReady(t *testing.T) {
+	m := testModel()
+	m.ready = false
+	view := m.View()
+	if !strings.Contains(view, "initializing") {
+		t.Fatalf("view = %q, want initializing", view)
+	}
+}
+
+// --- handleKey: Esc during streaming ---
+
+func TestModel_HandleKey_Esc_DuringStreaming(t *testing.T) {
+	m := testModel()
+	m.state = stateStreaming
+	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model := asModel(t, m2)
+	// Esc during streaming is "back" (climb focus stack), not cancel.
+	// State stays streaming — Esc doesn't abort the agent.
+	if model.state != stateStreaming {
+		t.Fatalf("state = %d, want streaming (Esc is back, not cancel)", model.state)
+	}
+}
+
+// --- handleKey: tool approval ignores non-y/n keys ---
+
+func TestModel_HandleKey_Approval_OtherKey(t *testing.T) {
+	m := testModel()
+	m.state = stateToolApproval
+	m.pendingTool = &driver.ToolCall{Name: "Bash"}
+	m2, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	model := asModel(t, m2)
+	// State should remain tool approval — 'x' is not y/n
+	if model.state != stateToolApproval {
+		t.Fatalf("state = %d, want stateToolApproval (x is not y/n)", model.state)
+	}
+}
+
+// --- handleKey: scroll keys forwarded ---
+
+func TestModel_HandleKey_ScrollUp(t *testing.T) {
+	m := testModel()
+	// Add several lines to make scrollable
+	for i := 0; i < 50; i++ {
+		m.AppendConversation(fmt.Sprintf("line %d", i))
+	}
+	// pgup should not crash
+	_, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyPgUp})
+	_ = cmd // just verifying no panic
+}
+
+func TestModel_HandleKey_ScrollDown(t *testing.T) {
+	m := testModel()
+	for i := 0; i < 50; i++ {
+		m.AppendConversation(fmt.Sprintf("line %d", i))
+	}
+	_, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyPgDown})
+	_ = cmd
+}
+
+// --- handleKey: cycle mode with Alt+M ---
+
+func TestModel_HandleKey_CycleMode(t *testing.T) {
+	m := testModel()
+	// Start at plan (from gensec default)
+	if m.mode != agent.ModePlan {
+		t.Fatalf("initial mode = %s", m.mode)
+	}
+	m2, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}, Alt: true})
+	model := asModel(t, m2)
+	if model.mode == agent.ModePlan {
+		t.Fatal("mode should have cycled")
+	}
+}
+
+// --- pickPlaceholderFile ---
+
+func TestPickPlaceholderFile_EmptyDirs(t *testing.T) {
+	result := pickPlaceholderFile(nil)
+	if result != "" {
+		t.Fatalf("got %q, want empty", result)
+	}
+}
+
+func TestPickPlaceholderFile_NonexistentDir(t *testing.T) {
+	result := pickPlaceholderFile([]string{"/nonexistent/path/xyz"})
+	if result != "" {
+		t.Fatalf("got %q, want empty", result)
+	}
+}
+
+func TestPickPlaceholderFile_FindsGoFile(t *testing.T) {
+	// The test workspace itself has Go files
+	result := pickPlaceholderFile([]string{"."})
+	// The repl package directory has .go files
+	if result == "" {
+		// Fall back — might not find one in CWD, that's OK
+		return
+	}
+	if !strings.HasSuffix(result, ".go") {
+		t.Fatalf("got %q, want a .go file", result)
+	}
+	if strings.HasSuffix(result, "_test.go") {
+		t.Fatalf("got %q, should exclude test files", result)
+	}
+}
+
+// --- SubmitMsg during tool approval queues ---
+
+func TestModel_SubmitMsg_QueuedDuringToolApproval(t *testing.T) {
+	m := testModel()
+	m.state = stateToolApproval
+	m2, _ := m.Update(tui.SubmitMsg{Value: "queued during approval"})
+	model := asModel(t, m2)
+	if model.queuePanel.Len() != 1 {
+		t.Fatalf("queue = %d, want 1", model.queuePanel.Len())
+	}
+}
+
+// --- WindowSizeMsg with initial prompt auto-submits ---
+
+func TestModel_WindowSizeMsg_InitialPrompt(t *testing.T) {
+	m := testModel()
+	m.ready = false
+	m.initialPrompt = "hello world"
+	m2, cmd := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	model := asModel(t, m2)
+	// Initial prompt should have been consumed
+	if model.initialPrompt != "" {
+		t.Fatal("initialPrompt should be cleared after auto-submit")
+	}
+	// Should start streaming (handleSubmit triggers agent run)
+	if model.state != stateStreaming {
+		t.Fatalf("state = %d, want streaming (initial prompt auto-submits)", model.state)
+	}
+	if cmd == nil {
+		t.Fatal("should return cmd from handleSubmit")
+	}
+}
+
+// --- handleKey: Enter on non-input focused panel attempts dive ---
+
+func TestModel_HandleKey_Enter_OnOutputPanel(t *testing.T) {
+	m := testModel()
+	m.focus.FocusPanel(0) // focus on output panel
+	m2, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	_ = asModel(t, m2) // no panic
+}
+
+// --- Unknown message type ---
+
+func TestModel_Update_UnknownMsg(t *testing.T) {
+	m := testModel()
+	type customMsg struct{}
+	m2, cmd := m.Update(customMsg{})
+	model := asModel(t, m2)
+	if cmd != nil {
+		t.Fatal("unknown msg should return nil cmd")
+	}
+	if model.state != stateInput {
+		t.Fatal("state should be unchanged")
+	}
+}
+
+// --- AgentDoneMsg for non-gensec role transitions back to gensec ---
+
+func TestModel_AgentDoneMsg_NonGensecRole_TransitionsBack(t *testing.T) {
+	m, _ := testModelWithDriver()
+	m.state = stateStreaming
+	m.currentRole = "auditor"
+	m2, _ := m.Update(tui.AgentDoneMsg{Result: "done"})
+	model := asModel(t, m2)
+	if model.currentRole != "gensec" {
+		t.Fatalf("currentRole = %q, want gensec (non-gensec roles auto-return)", model.currentRole)
+	}
+}
+
+// --- SpinnerTickMsg ignored when not active ---
+
+func TestModel_SpinnerTickMsg_Inactive(t *testing.T) {
+	m := testModel()
+	m.spinnerActive = false
+	// spinner.TickMsg — use the spinner's own Update to get a proper TickMsg
+	m2, cmd := m.Update(spinner.TickMsg{ID: m.spin.ID(), Time: time.Now()})
+	_ = asModel(t, m2)
+	if cmd != nil {
+		t.Fatal("spinner tick should return nil when inactive")
 	}
 }
 
