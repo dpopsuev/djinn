@@ -26,6 +26,9 @@ type InputPanel struct {
 
 	// Predictive input — grey suggestion from history.
 	prediction string
+
+	// Sandbox state — changes prompt from > to [>].
+	sandboxed bool
 }
 
 const panelIDInput = "input"
@@ -151,6 +154,9 @@ func (p *InputPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 	case InputSetPlaceholderMsg:
 		p.textarea.Placeholder = msg.Text
 		return p, nil
+	case SandboxStateMsg:
+		p.sandboxed = msg.Sandboxed
+		return p, nil
 	case ResizeMsg:
 		if msg.Width > 0 {
 			p.textarea.SetWidth(msg.Width)
@@ -219,10 +225,14 @@ func (p *InputPanel) View(width int) string {
 	if !p.visible {
 		return ""
 	}
-	promptPrefix := UserStyle.Render(LabelUser)
+	prompt := LabelUser
+	if p.sandboxed {
+		prompt = ActiveGlyphs.Sandboxed + " "
+	}
+	promptPrefix := UserStyle.Render(prompt)
 	if width > 0 {
-		// Account for chevron width in textarea.
-		p.textarea.SetWidth(width - len([]rune(LabelUser)))
+		// Account for prompt width in textarea.
+		p.textarea.SetWidth(width - len([]rune(prompt)))
 	}
 	view := promptPrefix + p.textarea.View()
 

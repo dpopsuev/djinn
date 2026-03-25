@@ -119,6 +119,12 @@ type Model struct {
 	// Multi-agent monitoring
 	agentsPanel    *tui.AgentsPanel
 	agentOutputs   map[string]*tui.OutputPanel // per-agent output buffers
+
+	// Sandbox
+	sandboxHandle  string
+	sandboxExec    func(ctx context.Context, cmd []string) (string, string, error)
+	sandboxBackend string
+	sandboxLevel   string
 }
 
 // NewModel creates a new REPL model.
@@ -180,6 +186,10 @@ func NewModel(cfg Config) Model {
 		rawStreamLine:  &strings.Builder{},
 		agentsPanel:    tui.NewAgentsPanel(),
 		agentOutputs:   make(map[string]*tui.OutputPanel),
+		sandboxHandle:  cfg.SandboxHandle,
+		sandboxExec:    cfg.SandboxExec,
+		sandboxBackend: cfg.SandboxBackend,
+		sandboxLevel:   cfg.SandboxLevel,
 	}
 
 	// Use driver's context window for the monitor if available.
@@ -532,6 +542,10 @@ func (m *Model) switchRole(roleName string) {
 		m.router.SetRole(roleName)
 	}
 
+	// Update sandbox indicator: everyone sandboxed except GenSec.
+	isSandboxed := m.sandboxHandle != "" && roleName != "gensec"
+	m.inputPanel.Update(tui.SandboxStateMsg{Sandboxed: isSandboxed})
+
 	m.dashboard.Update(tui.DashboardUIStateMsg{State: strings.ToUpper(roleName)})
 	m.dashboard.Update(tui.DashboardIdentityMsg{Workspace: m.sess.Workspace, Driver: m.sess.Driver, Model: m.sess.Model, Mode: m.mode.String()})
 	m.roleMemory.AppendBriefing(staff.Entry{
@@ -712,6 +726,21 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Handle /jailbreak — toggle sandbox for GenSec only.
+	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/jailbreak" {
+		if m.currentRole != "gensec" {
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render("jailbreak: only GenSec (root agent) can toggle sandbox")})
+		} else if m.sandboxHandle == "" {
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("jailbreak: no sandbox configured")})
+		} else {
+			// Toggle: if currently sandboxed (shouldn't be for gensec), unsandbox. If not, sandbox.
+			// GenSec starts unsandboxed. /jailbreak re-sandboxes GenSec (testing/lockdown).
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  GenSec is the root agent — always unsandboxed. Other roles are sandboxed by default.")})
+		}
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
+		return m, nil
+	}
+
 	// Handle /briefing
 	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/briefing" {
 		entries := m.roleMemory.Briefing()
@@ -796,7 +825,7 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 		if m.router != nil {
 			tools = m.router
 		}
-		result, err := agent.Run(m.ctx, agent.Config{
+		cfg := agent.Config{
 			Driver:       m.chatDriver,
 			Tools:        tools,
 			Session:      m.sess,
@@ -809,7 +838,18 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 			Token:        m.token,
 			Handler:      globalHandler,
 			Log:          agentLog,
-		}, prompt)
+		}
+
+		// Sandbox: everyone sandboxed except GenSec.
+		// GenSec is the root agent — it can jailbreak by design.
+		if m.sandboxHandle != "" && m.currentRole != "gensec" {
+			cfg.SandboxHandle = m.sandboxHandle
+			cfg.SandboxExec = m.sandboxExec
+			cfg.SandboxWorkDir = m.sess.WorkDir
+			cfg.SandboxMount = "/workspace"
+		}
+
+		result, err := agent.Run(m.ctx, cfg, prompt)
 		return tui.AgentDoneMsg{Result: result, Err: err}
 	}
 }

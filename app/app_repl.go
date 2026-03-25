@@ -295,6 +295,9 @@ func RunREPL(args []string, stderr io.Writer) error {
 	slotRouter := staff.NewToolClearance(staffCfg, registry, "gensec")
 
 	// Sandbox: if configured, create an isolated environment.
+	// Sandbox: all agents run sandboxed by default. Only GenSec can jailbreak.
+	var sandboxHandle string
+	var sandboxExecFn func(ctx context.Context, cmd []string) (string, string, error)
 	if sandboxConf.Backend != "" {
 		sb, sbErr := sandbox.Get(sandboxConf.Backend)
 		if sbErr != nil {
@@ -306,7 +309,12 @@ func RunREPL(args []string, stderr io.Writer) error {
 			return fmt.Errorf("create sandbox: %w", createErr)
 		}
 		defer sb.Destroy(ctx, handle) //nolint:errcheck
-		log.Info("sandbox created", "backend", sandboxConf.Backend, "level", sandboxConf.Level, "handle", handle)
+		sandboxHandle = string(handle)
+		sandboxExecFn = func(ctx context.Context, cmd []string) (string, string, error) {
+			result, err := sb.Exec(ctx, handle, cmd, 120)
+			return result.Stdout, result.Stderr, err
+		}
+		log.Info("sandbox active", "backend", sandboxConf.Backend, "level", sandboxConf.Level, "handle", handle)
 	}
 
 	// Start clutch shell/backend transport.
@@ -412,9 +420,13 @@ func RunREPL(args []string, stderr io.Writer) error {
 		Enforcer:      enforcer,
 		Token:         capToken,
 		HealthReports: healthReports,
-		Router:        slotRouter,
-		Version:       Version,
-		DebugTap:      debugTap,
+		Router:         slotRouter,
+		Version:        Version,
+		DebugTap:       debugTap,
+		SandboxHandle:  sandboxHandle,
+		SandboxExec:    sandboxExecFn,
+		SandboxBackend: sandboxConf.Backend,
+		SandboxLevel:   sandboxConf.Level,
 	})
 
 	if !sessConf.NoPersist {

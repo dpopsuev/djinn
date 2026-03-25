@@ -83,6 +83,10 @@ func (r *RemoteSandbox) Destroy(ctx context.Context, handle sandbox.Handle) erro
 	return r.provider.DestroyVM(ctx, VMID(handle))
 }
 
+func (r *RemoteSandbox) Exec(_ context.Context, _ sandbox.Handle, _ []string, _ int64) (sandbox.ExecResult, error) {
+	return sandbox.ExecResult{}, fmt.Errorf("remote exec not implemented")
+}
+
 func (r *RemoteSandbox) Name() string {
 	return "remote-" + r.provider.Name()
 }

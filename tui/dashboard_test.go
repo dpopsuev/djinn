@@ -9,7 +9,7 @@ import (
 
 func TestDashboard_IdentityViaMessage(t *testing.T) {
 	d := NewDashboardPanel()
-	d.Update(DashboardIdentityMsg{"aeon", "claude", "opus", "agent"})
+	d.Update(DashboardIdentityMsg{Workspace: "aeon", Driver: "claude", Model: "opus", Mode: "agent"})
 	view := d.View(120)
 	if !strings.Contains(view, "aeon") {
 		t.Fatalf("view missing workspace: %q", view)
@@ -21,7 +21,7 @@ func TestDashboard_IdentityViaMessage(t *testing.T) {
 
 func TestDashboard_MetricsViaMessage(t *testing.T) {
 	d := NewDashboardPanel()
-	d.Update(DashboardIdentityMsg{"ws", "drv", "mdl", "mode"})
+	d.Update(DashboardIdentityMsg{Workspace: "ws", Driver: "drv", Model: "mdl", Mode: "mode"})
 	d.Update(DashboardMetricsMsg{TokensIn: 100, TokensOut: 50, Turns: 3})
 	view := d.View(120)
 	if !strings.Contains(view, "100") || !strings.Contains(view, "50") {

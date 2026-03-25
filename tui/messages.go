@@ -81,7 +81,14 @@ type InputSetPlaceholderMsg struct{ Text string }
 type SubmitMsg struct{ Value string }
 
 // DashboardPanel messages.
-type DashboardIdentityMsg struct{ Workspace, Driver, Model, Mode string }
+type DashboardIdentityMsg struct {
+	Workspace      string
+	Driver         string
+	Model          string
+	Mode           string
+	SandboxBackend string // "misbah", "" etc.
+	SandboxLevel   string // "namespace", "container", ""
+}
 type DashboardMetricsMsg struct {
 	TokensIn   int
 	TokensOut  int
@@ -109,6 +116,11 @@ type AgentOutputMsg struct {
 type AgentThinkingMsg struct {
 	AgentID string
 	Text    string
+}
+
+// Sandbox messages.
+type SandboxStateMsg struct {
+	Sandboxed bool // true = [>], false = >
 }
 
 // Layout messages.

@@ -38,6 +38,12 @@ type Config struct {
 	HealthReports []tui.HealthReport   // initial health from startup
 	Version       string              // app version for MOTD (set via ldflags)
 	DebugTap      *tui.DebugTap       // nil = disabled; captures rendered frames
+
+	// Sandbox: when set, all agents except GenSec run inside the sandbox.
+	SandboxHandle  string
+	SandboxExec    func(ctx context.Context, cmd []string) (stdout, stderr string, err error)
+	SandboxBackend string // for dashboard display
+	SandboxLevel   string // for dashboard display
 }
 
 // Run starts the interactive REPL. Blocks until /exit or ctrl-C.

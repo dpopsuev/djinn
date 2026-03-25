@@ -15,7 +15,10 @@ func (m *mockSandbox) Create(_ context.Context, _ string, _ []string) (Handle, e
 	return Handle("mock-123"), nil
 }
 func (m *mockSandbox) Destroy(_ context.Context, _ Handle) error { return nil }
-func (m *mockSandbox) Name() string                              { return m.name }
+func (m *mockSandbox) Exec(_ context.Context, _ Handle, cmd []string, _ int64) (ExecResult, error) {
+	return ExecResult{Stdout: "mock output"}, nil
+}
+func (m *mockSandbox) Name() string { return m.name }
 
 func TestRegisterAndGet(t *testing.T) {
 	// Clean up global state after test.

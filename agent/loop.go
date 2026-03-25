@@ -58,6 +58,12 @@ type Config struct {
 	Token        policy.CapabilityToken // immutable capability token
 	Handler      EventHandler
 	Log          *slog.Logger
+
+	// Sandbox: when set, Bash routes through SandboxExec and file paths are translated.
+	SandboxHandle  string // empty = unsandboxed
+	SandboxExec    func(ctx context.Context, cmd []string) (stdout, stderr string, err error)
+	SandboxWorkDir string // host workspace path for path translation (e.g. /home/user/project)
+	SandboxMount   string // jail mount point (e.g. /workspace)
 }
 
 // Run executes the agentic ReAct loop: send → receive → tool calls → repeat.

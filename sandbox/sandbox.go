@@ -13,10 +13,18 @@ import (
 // Handle identifies a running sandbox instance.
 type Handle string
 
+// ExecResult holds the output of a command executed inside a sandbox.
+type ExecResult struct {
+	ExitCode int32
+	Stdout   string
+	Stderr   string
+}
+
 // Sandbox is the Strategy interface for execution isolation.
 type Sandbox interface {
 	Create(ctx context.Context, level string, repos []string) (Handle, error)
 	Destroy(ctx context.Context, handle Handle) error
+	Exec(ctx context.Context, handle Handle, cmd []string, timeout int64) (ExecResult, error)
 	Name() string
 }
 
