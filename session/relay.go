@@ -75,10 +75,21 @@ func (r *RelayManager) CheckAndRelay(ctx context.Context) (*Session, driver.Chat
 			if err := r.spawnBackground(ctx); err != nil {
 				r.log.Warn("relay: background spawn failed, falling back to compact", "error", err)
 				r.monitor.SetState(MonitorIdle)
-				// Fallback: in-place compact.
 				before, after := Compact(r.activeSession, DefaultKeepRecent)
 				r.log.Info("relay: fallback compact", "before", before, "after", after)
 			}
+		}
+
+	case MonitorSpawning:
+		// Record() pre-emptively transitioned idle→spawning when it detected
+		// the 80% threshold. CheckAndRelay is the actor that performs the spawn.
+		r.log.Info("relay: spawning background session (deferred)",
+			"usage", fmt.Sprintf("%.0f%%", r.monitor.Usage()*100))
+		if err := r.spawnBackground(ctx); err != nil {
+			r.log.Warn("relay: background spawn failed, falling back to compact", "error", err)
+			r.monitor.SetState(MonitorIdle)
+			before, after := Compact(r.activeSession, DefaultKeepRecent)
+			r.log.Info("relay: fallback compact", "before", before, "after", after)
 		}
 
 	case MonitorReady:
@@ -87,8 +98,15 @@ func (r *RelayManager) CheckAndRelay(ctx context.Context) (*Session, driver.Chat
 				"usage", fmt.Sprintf("%.0f%%", r.monitor.Usage()*100))
 			if err := r.executeSwap(ctx); err != nil {
 				r.log.Warn("relay: swap failed", "error", err)
-				// Stay in ready state, try again next turn.
 			}
+		}
+
+	case MonitorSwapping:
+		// Record() pre-emptively transitioned ready→swapping. Execute now.
+		r.log.Info("relay: executing swap (deferred)",
+			"usage", fmt.Sprintf("%.0f%%", r.monitor.Usage()*100))
+		if err := r.executeSwap(ctx); err != nil {
+			r.log.Warn("relay: swap failed", "error", err)
 		}
 	}
 
@@ -182,7 +200,7 @@ func (r *RelayManager) executeSwap(ctx context.Context) error {
 
 	// Archive the old session if store is available.
 	if r.store != nil {
-		if err := r.store.Save(oldSession); err != nil {
+		if err := r.store.Archive(oldSession); err != nil {
 			r.log.Warn("relay: archive old session failed", "error", err)
 		}
 	}
