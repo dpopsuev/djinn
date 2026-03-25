@@ -93,9 +93,26 @@ func RunREPL(args []string, stderr io.Writer) error {
 		}
 	}
 
-	// If no driver configured after loading config, fail fast.
+	// If no driver configured, auto-detect from installed CLIs.
 	if driverConf.Name == "" {
-		return fmt.Errorf("no driver configured — create a djinn.yaml with driver.name (supported: cursor, claude, gemini, codex)")
+		detected := ScanArsenal()
+		if len(detected) > 0 {
+			best := detected[0]
+			driverConf.Name = best.ACPName()
+			driverConf.Model = best.DefaultModel()
+			fmt.Fprintf(stderr, "djinn: auto-detected %s", best.Name)
+			if best.Binary != "" {
+				fmt.Fprintf(stderr, " (%s)", best.Binary)
+			}
+			fmt.Fprintln(stderr)
+
+			// Generate djinn.yaml for future runs.
+			if err := GenerateConfig(Getwd(), best); err == nil {
+				fmt.Fprintf(stderr, "djinn: created djinn.yaml — edit to customize\n")
+			}
+		} else {
+			return fmt.Errorf("%s", FriendlyNoDriverError())
+		}
 	}
 
 	store, err := session.NewStore(SessionDir())

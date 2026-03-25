@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
@@ -24,6 +23,7 @@ import (
 	msbsandbox "github.com/dpopsuev/djinn/sandbox/misbah"
 	"github.com/dpopsuev/djinn/session"
 	sigsvc "github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tier"
 	"github.com/dpopsuev/djinn/tools/builtin"
@@ -177,23 +177,42 @@ func RunDoctor(w io.Writer) error {
 	fmt.Fprintln(w, "djinn doctor")
 	fmt.Fprintln(w, "  version: "+Version)
 
+	// Arsenal scan — detect installed agent CLIs.
 	fmt.Fprintln(w, "\n  drivers:")
-	if os.Getenv("ANTHROPIC_API_KEY") != "" {
-		fmt.Fprintln(w, "    claude: ANTHROPIC_API_KEY set ✓")
-	} else if project := os.Getenv("ANTHROPIC_VERTEX_PROJECT_ID"); project != "" {
-		if out, err := exec.Command("gcloud", "auth", "print-access-token").Output(); err == nil && len(out) > 0 {
-			fmt.Fprintf(w, "    claude: Vertex AI (%s) — gcloud auth ✓\n", project)
-		} else {
-			fmt.Fprintf(w, "    claude: Vertex AI (%s) — gcloud auth FAILED (run: gcloud auth login)\n", project)
+	detected := ScanArsenal()
+	if len(detected) > 0 {
+		for _, d := range detected {
+			version := ""
+			if d.Version != "" {
+				version = " (" + d.Version + ")"
+			}
+			if d.Source == "api-key" {
+				fmt.Fprintf(w, "    ✓ %s  API key set\n", d.Name)
+			} else {
+				fmt.Fprintf(w, "    ✓ %s  %s%s\n", d.Name, d.Binary, version)
+			}
 		}
 	} else {
-		fmt.Fprintln(w, "    claude: NOT CONFIGURED")
+		fmt.Fprintln(w, "    ✗ no agent CLIs found on PATH")
+		fmt.Fprintln(w, "    hint: install cursor, claude, gemini, codex, or ollama")
 	}
 
-	if out, err := exec.Command("curl", "-s", "http://localhost:11434/api/tags").Output(); err == nil && len(out) > 0 {
-		fmt.Fprintln(w, "    ollama: running ✓")
+	// Config validation.
+	fmt.Fprintln(w, "\n  config:")
+	cfgPaths := djinnconfig.Discover(Getwd())
+	if len(cfgPaths) > 0 {
+		for _, p := range cfgPaths {
+			fmt.Fprintf(w, "    ✓ %s\n", p)
+		}
+		staffCfg := staff.LoadConfigChain()
+		if err := staffCfg.Validate(); err != nil {
+			fmt.Fprintf(w, "    ✗ staff config invalid: %v\n", err)
+		} else {
+			fmt.Fprintf(w, "    ✓ staff config valid (%d roles, %d capabilities)\n", len(staffCfg.Roles), len(staffCfg.ToolCapabilities))
+		}
 	} else {
-		fmt.Fprintln(w, "    ollama: not running")
+		fmt.Fprintln(w, "    ✗ no djinn.yaml found")
+		fmt.Fprintln(w, "    hint: run djinn to auto-generate one")
 	}
 
 	fmt.Fprintln(w, "\n  context:")
