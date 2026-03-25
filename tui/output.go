@@ -139,6 +139,13 @@ func (p *OutputPanel) View(width int) string {
 		content += "\n" + p.overlay
 	}
 	if p.vpReady {
+		// Pad content with empty lines so it anchors to bottom of viewport.
+		// Like a chat app — new messages at bottom, conversation grows upward.
+		contentLines := strings.Count(content, "\n") + 1
+		if contentLines < p.vp.Height {
+			padding := strings.Repeat("\n", p.vp.Height-contentLines)
+			content = padding + content
+		}
 		// Only update viewport content when dirty — avoids flicker (BUG-25).
 		if p.dirty || content != p.lastContent {
 			p.vp.SetContent(content)
