@@ -3,7 +3,11 @@
 // renders borders, composes final view. model.go View() becomes one call.
 package tui
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 // BorderMode controls panel border rendering.
 type BorderMode int
@@ -21,7 +25,9 @@ type PanelSlot struct {
 	Weight    int         // 0 = fixed height (uses Panel.Height()), >0 = flex
 	MinHeight int         // minimum height for flex panels
 	Border    BorderMode
-	Focusable bool // included in focus cycling
+	Focusable bool     // included in focus cycling
+	Direction SplitDir // DirVertical (default, 0) or DirHorizontal (1)
+	Group     string   // panels with same non-empty Group render side-by-side
 }
 
 // LayoutEngine computes panel positions and renders the final view.
@@ -120,6 +126,88 @@ func (e *LayoutEngine) ComputeHeights() map[string]int {
 	return heights
 }
 
+// visibleSlot pairs a PanelSlot with its focus index (or -1 if not focusable).
+type visibleSlot struct {
+	PanelSlot
+	focusIdx int
+}
+
+// slotGroup is a run of consecutive visible slots that share the same Group.
+type slotGroup struct {
+	group string
+	slots []visibleSlot
+}
+
+// renderHorizontalGroup renders a set of horizontal slots side-by-side.
+// Width is distributed proportionally by Weight (same logic as ComputeHeights).
+func (e *LayoutEngine) renderHorizontalGroup(slots []visibleSlot, totalWidth, height int, depths []int) string {
+	n := len(slots)
+	if n == 0 {
+		return ""
+	}
+
+	// Distribute width proportionally by Weight.
+	totalWeight := 0
+	for _, s := range slots {
+		w := s.Weight
+		if w <= 0 {
+			w = 1
+		}
+		totalWeight += w
+	}
+
+	widths := make([]int, n)
+	allocated := 0
+	for i, s := range slots {
+		w := s.Weight
+		if w <= 0 {
+			w = 1
+		}
+		if i == n-1 {
+			widths[i] = totalWidth - allocated // last panel gets remainder
+		} else {
+			widths[i] = totalWidth * w / totalWeight
+		}
+		allocated += widths[i]
+	}
+
+	// Render each panel with its allocated width and the group height.
+	var rendered []string
+	for i, vs := range slots {
+		panelWidth := widths[i]
+		innerW := panelWidth - 2
+		if innerW < 4 {
+			innerW = 4
+		}
+
+		// Resize flex panels.
+		if vs.Weight > 0 {
+			vs.Panel.Update(ResizeMsg{Width: innerW, Height: height})
+		}
+
+		content := vs.Panel.View(innerW)
+
+		switch vs.Border {
+		case BorderFocusDepth:
+			depth := 1
+			if vs.Focusable && vs.focusIdx >= 0 && vs.focusIdx < len(depths) {
+				depth = depths[vs.focusIdx]
+			}
+			rendered = append(rendered, RenderWithDepth(content, depth, panelWidth))
+		case BorderOnly:
+			focused := false
+			if vs.Focusable && vs.focusIdx >= 0 && vs.focusIdx < len(depths) {
+				focused = depths[vs.focusIdx] == 0
+			}
+			rendered = append(rendered, RenderBorderOnly(content, focused, panelWidth))
+		case BorderNone:
+			rendered = append(rendered, content)
+		}
+	}
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, rendered...)
+}
+
 // Render produces the full TUI view string.
 func (e *LayoutEngine) Render() string {
 	visible := e.VisibleSlots()
@@ -137,39 +225,80 @@ func (e *LayoutEngine) Render() string {
 	heights := e.ComputeHeights()
 	depths := FocusDepths(e.focus.Count(), e.focus.ActiveIndex())
 
-	var sb strings.Builder
+	// Build visibleSlots with focus indices.
 	focusIdx := 0
-	for i, slot := range visible {
+	var vSlots []visibleSlot
+	for _, slot := range visible {
+		vs := visibleSlot{PanelSlot: slot, focusIdx: -1}
+		if slot.Focusable {
+			vs.focusIdx = focusIdx
+			focusIdx++
+		}
+		vSlots = append(vSlots, vs)
+	}
+
+	// Group consecutive slots with same non-empty Group.
+	var groups []slotGroup
+	for _, vs := range vSlots {
+		if vs.Group != "" && len(groups) > 0 && groups[len(groups)-1].group == vs.Group {
+			groups[len(groups)-1].slots = append(groups[len(groups)-1].slots, vs)
+		} else {
+			groups = append(groups, slotGroup{group: vs.Group, slots: []visibleSlot{vs}})
+		}
+	}
+
+	var sb strings.Builder
+	for i, g := range groups {
 		if i > 0 {
 			sb.WriteByte('\n')
 		}
 
-		// Resize flex panels.
-		if slot.Weight > 0 {
-			slot.Panel.Update(ResizeMsg{Width: innerWidth, Height: heights[slot.Panel.ID()]})
+		// Check if this is a horizontal group (non-empty group, all DirHorizontal).
+		isHorizontal := g.group != "" && len(g.slots) > 1
+		if isHorizontal {
+			for _, vs := range g.slots {
+				if vs.Direction != DirHorizontal {
+					isHorizontal = false
+					break
+				}
+			}
 		}
 
-		content := slot.Panel.View(innerWidth)
+		if isHorizontal {
+			// Pick the height for this group from the first slot.
+			h := heights[g.slots[0].Panel.ID()]
+			sb.WriteString(e.renderHorizontalGroup(g.slots, e.width, h, depths))
+		} else {
+			// Render each slot vertically (original logic).
+			for j, vs := range g.slots {
+				if j > 0 {
+					sb.WriteByte('\n')
+				}
 
-		switch slot.Border {
-		case BorderFocusDepth:
-			depth := 1 // default unfocused
-			if slot.Focusable && focusIdx < len(depths) {
-				depth = depths[focusIdx]
-			}
-			sb.WriteString(RenderWithDepth(content, depth, e.width))
-		case BorderOnly:
-			focused := false
-			if slot.Focusable && focusIdx < len(depths) {
-				focused = depths[focusIdx] == 0
-			}
-			sb.WriteString(RenderBorderOnly(content, focused, e.width))
-		case BorderNone:
-			sb.WriteString(content)
-		}
+				// Resize flex panels.
+				if vs.Weight > 0 {
+					vs.Panel.Update(ResizeMsg{Width: innerWidth, Height: heights[vs.Panel.ID()]})
+				}
 
-		if slot.Focusable {
-			focusIdx++
+				content := vs.Panel.View(innerWidth)
+
+				switch vs.Border {
+				case BorderFocusDepth:
+					depth := 1
+					if vs.Focusable && vs.focusIdx >= 0 && vs.focusIdx < len(depths) {
+						depth = depths[vs.focusIdx]
+					}
+					sb.WriteString(RenderWithDepth(content, depth, e.width))
+				case BorderOnly:
+					focused := false
+					if vs.Focusable && vs.focusIdx >= 0 && vs.focusIdx < len(depths) {
+						focused = depths[vs.focusIdx] == 0
+					}
+					sb.WriteString(RenderBorderOnly(content, focused, e.width))
+				case BorderNone:
+					sb.WriteString(content)
+				}
+			}
 		}
 	}
 

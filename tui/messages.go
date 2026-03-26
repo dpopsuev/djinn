@@ -123,6 +123,11 @@ type SandboxStateMsg struct {
 	Sandboxed bool // true = [>], false = >
 }
 
+// Dialog messages.
+type DialogResultMsg struct {
+	ActionID string // which action was selected ("allow", "deny", "cancel", etc.)
+}
+
 // Layout messages.
 type ResizeMsg struct{ Width, Height int }
 type FocusPanelMsg struct{ Index int }
