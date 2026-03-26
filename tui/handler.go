@@ -48,7 +48,8 @@ func (h *BubbletaHandler) OnToolResult(callID, name, output string, isError bool
 	})
 
 	// Intercept render tool results — emit panel message to TUI.
-	if name == "render" && !isError {
+	const renderToolName = "render"
+	if name == renderToolName && !isError {
 		var render struct {
 			Type  string `json:"type"`
 			Title string `json:"title"`

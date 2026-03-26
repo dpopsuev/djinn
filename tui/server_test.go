@@ -11,8 +11,9 @@ func TestServerPanel_GreenView(t *testing.T) {
 	if !strings.Contains(view, "scribe") {
 		t.Fatalf("view missing name: %q", view)
 	}
-	if !strings.Contains(view, GlyphToolSuccess) {
-		t.Fatalf("green should show checkmark: %q", view)
+	// Server panel uses Glyph(StateDone) which renders ⬢.
+	if !strings.Contains(view, "⬢") {
+		t.Fatalf("green should show done glyph (⬢): %q", view)
 	}
 }
 

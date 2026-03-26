@@ -11,8 +11,22 @@ package builtin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 )
+
+// Sentinel errors for render tool validation.
+var (
+	ErrRenderMissingField = errors.New("render: type and title required")
+	ErrRenderUnknownType  = errors.New("render: unknown type")
+	ErrRenderInvalidData  = errors.New("render: data is not valid JSON")
+)
+
+// Valid render types.
+var validRenderTypes = map[string]bool{
+	"table": true, "tree": true, "progress": true, "chart": true,
+	"diff": true, "diagram": true, "timeline": true, "code": true,
+}
 
 // RenderTool lets agents create structured visual panels in the TUI.
 type RenderTool struct{}
@@ -44,21 +58,15 @@ func (t *RenderTool) Execute(_ context.Context, input json.RawMessage) (string, 
 	}
 
 	if req.Type == "" || req.Title == "" {
-		return "", fmt.Errorf("render: type and title required")
+		return "", ErrRenderMissingField
 	}
 
-	switch req.Type {
-	case "table", "tree", "progress", "chart", "diff", "diagram", "timeline", "code":
-		// Valid type — pass through
-	default:
-		return "", fmt.Errorf("render: unknown type %q (supported: table, tree, progress, chart, diff, diagram, timeline, code)", req.Type)
+	if !validRenderTypes[req.Type] {
+		return "", fmt.Errorf("%w: %q", ErrRenderUnknownType, req.Type)
 	}
 
-	// Validate data is valid JSON.
-	if req.Data != "" {
-		if !json.Valid([]byte(req.Data)) {
-			return "", fmt.Errorf("render: data is not valid JSON")
-		}
+	if req.Data != "" && !json.Valid([]byte(req.Data)) {
+		return "", ErrRenderInvalidData
 	}
 
 	// Return the input as-is — the handler reads type+title+data

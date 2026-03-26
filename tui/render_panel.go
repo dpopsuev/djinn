@@ -12,6 +12,24 @@ import (
 	"strings"
 )
 
+// Render panel type constants.
+const (
+	RenderTypeTable    = "table"
+	RenderTypeTree     = "tree"
+	RenderTypeProgress = "progress"
+	RenderTypeChart    = "chart"
+	RenderTypeDiff     = "diff"
+	RenderTypeDiagram  = "diagram"
+	RenderTypeTimeline = "timeline"
+	RenderTypeCode     = "code"
+)
+
+// Chart kind constants.
+const (
+	ChartKindSparkline = "sparkline"
+	ChartKindBar       = "bar"
+)
+
 // RenderPanel renders a RenderPanelMsg as a styled string.
 func RenderPanel(msg RenderPanelMsg, width int) string {
 	if width < 20 {
@@ -21,21 +39,21 @@ func RenderPanel(msg RenderPanelMsg, width int) string {
 
 	var content string
 	switch msg.Type {
-	case "table":
+	case RenderTypeTable:
 		content = renderTable(msg.Data, inner)
-	case "tree":
+	case RenderTypeTree:
 		content = renderTree(msg.Data, inner)
-	case "progress":
+	case RenderTypeProgress:
 		content = renderProgress(msg.Data, inner)
-	case "chart":
+	case RenderTypeChart:
 		content = renderChart(msg.Data, inner)
-	case "diff":
+	case RenderTypeDiff:
 		content = renderDiffPanel(msg.Data)
-	case "diagram":
+	case RenderTypeDiagram:
 		content = renderDiagram(msg.Data, inner)
-	case "timeline":
+	case RenderTypeTimeline:
 		content = renderTimeline(msg.Data)
-	case "code":
+	case RenderTypeCode:
 		content = renderCode(msg.Data, inner)
 	default:
 		content = DimStyle.Render("[unknown render type: " + msg.Type + "]")
@@ -198,7 +216,7 @@ func renderProgress(data string, width int) string {
 	bar := ToolSuccessStyle.Render(strings.Repeat("█", filled)) +
 		DimStyle.Render(strings.Repeat("░", empty))
 	sb.WriteString(bar)
-	sb.WriteString(fmt.Sprintf(" %3.0f%%", pct))
+	fmt.Fprintf(&sb, " %3.0f%%", pct)
 	sb.WriteString(DimStyle.Render(fmt.Sprintf(" (%d/%d)", pd.Done, pd.Total)))
 	sb.WriteByte('\n')
 
@@ -236,7 +254,7 @@ func renderChart(data string, width int) string {
 	}
 
 	switch cd.Kind {
-	case "bar":
+	case ChartKindBar:
 		return renderBarChart(cd, width)
 	default: // sparkline
 		return renderSparkline(cd)
@@ -315,7 +333,7 @@ func renderBarChart(cd chartData, width int) string {
 		sb.WriteString(pad(label, labelWidth))
 		sb.WriteString(" ")
 		sb.WriteString(ToolSuccessStyle.Render(strings.Repeat("█", barLen)))
-		sb.WriteString(fmt.Sprintf(" %.1f", v))
+		fmt.Fprintf(&sb, " %.1f", v)
 		sb.WriteByte('\n')
 	}
 
@@ -431,11 +449,11 @@ func renderTimeline(data string) string {
 	for _, e := range td.Events {
 		var marker string
 		switch e.State {
-		case "done":
+		case StateDone:
 			marker = ToolSuccessStyle.Render("●")
-		case "active":
+		case StateActive:
 			marker = ToolNameStyle.Render("●")
-		case "error":
+		case StateError:
 			marker = ErrorStyle.Render("●")
 		default:
 			marker = DimStyle.Render("○")

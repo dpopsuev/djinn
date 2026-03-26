@@ -96,8 +96,8 @@ func TestListPanel_View_ShowsCursor(t *testing.T) {
 	p := NewListPanel("test", makeItems("alpha", "beta"))
 	view := p.View(80)
 	// First item should have cursor marker.
-	if !strings.Contains(view, GlyphToolCall) {
-		t.Fatalf("view should show cursor glyph: %q", view)
+	if !strings.Contains(view, ActiveGlyphs.ListCursor) {
+		t.Fatalf("view should show cursor glyph %q: %q", ActiveGlyphs.ListCursor, view)
 	}
 }
 

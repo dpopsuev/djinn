@@ -69,8 +69,10 @@ var (
 )
 
 // Glyph variables for tool call indicators.
+// Derived from Glyph() in elements.go — single source of truth.
+// These vars exist for backward compat with ApplyGlyphs() and direct references.
 var (
 	GlyphToolCall    = "λ"
-	GlyphToolSuccess = "✓"
-	GlyphToolError   = "✗"
+	GlyphToolSuccess = "⬢"
+	GlyphToolError   = "●"
 )

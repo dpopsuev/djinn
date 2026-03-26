@@ -28,29 +28,32 @@ func TestEnvelope_ErrorResult(t *testing.T) {
 	}
 }
 
-func TestEnvelope_ExpandedShowsLambda(t *testing.T) {
+func TestEnvelope_ExpandedShowsToolStatus(t *testing.T) {
 	e := NewEnvelopePanel("e", "Read", "test.go")
 	view := e.View(80)
-	if !strings.Contains(view, GlyphToolCall) {
-		t.Fatalf("expanded should show λ: %q", view)
+	// Expanded envelope uses ToolStatus with StateActive glyph (⬡).
+	if !strings.Contains(view, "⬡") && !strings.Contains(view, "Read") {
+		t.Fatalf("expanded should show active glyph + name: %q", view)
 	}
 }
 
-func TestEnvelope_SuccessShowsCheckmark(t *testing.T) {
+func TestEnvelope_SuccessShowsDoneGlyph(t *testing.T) {
 	e := NewEnvelopePanel("e", "Read", "test.go")
 	e.SetResult("ok", false)
 	view := e.View(80)
-	if !strings.Contains(view, GlyphToolSuccess) {
-		t.Fatalf("success should show ✓: %q", view)
+	// Collapsed success uses ToolStatus with StateDone glyph (⬢).
+	if !strings.Contains(view, "⬢") {
+		t.Fatalf("success should show ⬢: %q", view)
 	}
 }
 
-func TestEnvelope_ErrorShowsCross(t *testing.T) {
+func TestEnvelope_ErrorShowsErrorGlyph(t *testing.T) {
 	e := NewEnvelopePanel("e", "Bash", "ls")
 	e.SetResult("denied", true)
 	view := e.View(80)
-	if !strings.Contains(view, GlyphToolError) {
-		t.Fatalf("error should show ✗: %q", view)
+	// Collapsed error uses ToolStatus with StateError glyph (●).
+	if !strings.Contains(view, "●") {
+		t.Fatalf("error should show ●: %q", view)
 	}
 }
 

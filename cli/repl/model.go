@@ -329,16 +329,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.activeToolIdx = -1
 		} else {
-			var line string
+			state := tui.StateDone
 			if msg.IsError {
-				line = fmt.Sprintf("  %s %s",
-					tui.ErrorStyle.Render(tui.GlyphToolError+" "+msg.Name),
-					tui.DimStyle.Render(truncate(msg.Output, 100)))
-			} else {
-				line = fmt.Sprintf("  %s %s",
-					tui.ToolSuccessStyle.Render(tui.GlyphToolSuccess+" "+msg.Name),
-					tui.DimStyle.Render(truncate(msg.Output, 100)))
+				state = tui.StateError
 			}
+			line := "  " + tui.ToolStatus(msg.Name, state, 0) + " " + tui.DimStyle.Render(truncate(msg.Output, 100))
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: line})
 		}
 		return m, nil

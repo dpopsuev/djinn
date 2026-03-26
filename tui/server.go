@@ -41,11 +41,11 @@ func (p *ServerPanel) View(width int) string {
 	var indicator string
 	switch p.status {
 	case StatusGreen:
-		indicator = healthGreen.Render(GlyphToolSuccess)
+		indicator = Glyph(StateDone)
 	case StatusYellow:
-		indicator = healthYellow.Render("⚠")
+		indicator = Glyph(StatePending)
 	case StatusRed:
-		indicator = healthRed.Render(GlyphToolError)
+		indicator = Glyph(StateError)
 	default:
 		indicator = fieldKeyStyle.Render("·")
 	}

@@ -10,16 +10,24 @@ import (
 	"strings"
 )
 
+// State constants for Glyph and ToolStatus.
+const (
+	StateDone    = "done"
+	StateActive  = "active"
+	StateError   = "error"
+	StatePending = "pending"
+)
+
 // Glyph returns a styled status glyph for the given state.
 func Glyph(state string) string {
 	switch state {
-	case "done":
+	case StateDone:
 		return ToolSuccessStyle.Render("⬢")
-	case "active":
+	case StateActive:
 		return ToolNameStyle.Render("⬡")
-	case "error":
+	case StateError:
 		return ErrorStyle.Render("●")
-	case "pending":
+	case StatePending:
 		return DimStyle.Render("○")
 	default:
 		return DimStyle.Render("○")
@@ -46,6 +54,11 @@ func HorizontalRule(width int) string {
 		return ""
 	}
 	return DimStyle.Render(strings.Repeat("─", width))
+}
+
+// Dim applies faint styling to content for visual hierarchy.
+func Dim(content string) string {
+	return DimStyle.Render(content)
 }
 
 // CompactNumber formats large numbers: 1200→"1.2k", 3400000→"3.4M", 42→"42".

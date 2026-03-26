@@ -8,11 +8,18 @@ package builtin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
 
 	"github.com/dpopsuev/djinn/tools"
+)
+
+// Sentinel errors for tool input validation.
+var (
+	ErrMissingRequiredField = errors.New("missing required field")
+	ErrUnknownAction        = errors.New("unknown action")
 )
 
 // ── PlanTool ────────────────────────────────────────────────────────────

@@ -39,10 +39,18 @@ func preprocessFileRefs(prompt, workDir string) string {
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {
-			sb.WriteString(fmt.Sprintf("\n<file path=%q error=%q />\n", ref, err.Error()))
+			sb.WriteString(fileErrorTag(ref, err))
 			continue
 		}
-		sb.WriteString(fmt.Sprintf("\n<file path=%q>\n%s\n</file>\n", ref, string(data)))
+		sb.WriteString(fileContentTag(ref, string(data)))
 	}
 	return prompt + sb.String()
+}
+
+func fileContentTag(path, content string) string {
+	return fmt.Sprintf("\n<file path=%q>\n%s\n</file>\n", path, content)
+}
+
+func fileErrorTag(path string, err error) string {
+	return fmt.Sprintf("\n<file path=%q error=%q />\n", path, err.Error())
 }
