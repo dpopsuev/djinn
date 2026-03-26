@@ -294,10 +294,11 @@ func RunREPL(args []string, stderr io.Writer) error {
 
 	// Build tool registry
 	registry := builtin.NewRegistry()
+	builtin.RegisterAeonShellTools(registry, ws.PrimaryPath(), HomeDir())
 	for _, tool := range mcpClient.MCPTools() {
 		registry.Register(tool)
 	}
-	log.Info("tools registered", "builtin", 6, "mcp", len(mcpClient.MCPTools()), "total", len(registry.Names()))
+	log.Info("tools registered", "builtin", len(registry.Names())-len(mcpClient.MCPTools()), "mcp", len(mcpClient.MCPTools()), "total", len(registry.Names()))
 
 	// Load staff config: built-in defaults → user config → workspace config.
 	staffCfg := staff.LoadConfigChain(

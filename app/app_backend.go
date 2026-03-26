@@ -132,6 +132,7 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 
 	// Build tool registry.
 	registry := builtin.NewRegistry()
+	builtin.RegisterAeonShellTools(registry, ".", HomeDir())
 
 	log.Info("backend ready", "model", modelName, "driver", *driverName, "session", sess.Name)
 
