@@ -128,6 +128,14 @@ type DialogResultMsg struct {
 	ActionID string // which action was selected ("allow", "deny", "cancel", etc.)
 }
 
+// Odometer messages.
+type OdometerUpdateMsg struct {
+	RoundTrips int
+	Cost       float64
+	Tasks      int
+	Relays     int
+}
+
 // Layout messages.
 type ResizeMsg struct{ Width, Height int }
 type FocusPanelMsg struct{ Index int }
