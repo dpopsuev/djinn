@@ -41,30 +41,8 @@ func RenderPanel(msg RenderPanelMsg, width int) string {
 		content = DimStyle.Render("[unknown render type: " + msg.Type + "]")
 	}
 
-	// Build bordered panel.
-	title := " " + msg.Title + " "
-	topLen := inner - len(title)
-	if topLen < 2 {
-		topLen = 2
-	}
-	leftPad := topLen / 2
-	rightPad := topLen - leftPad
-
-	var sb strings.Builder
-	sb.WriteString(DimStyle.Render("╭" + strings.Repeat("─", leftPad) + title + strings.Repeat("─", rightPad) + "╮"))
-	sb.WriteByte('\n')
-
-	for _, line := range strings.Split(content, "\n") {
-		if line == "" {
-			continue
-		}
-		sb.WriteString(DimStyle.Render("│ "))
-		sb.WriteString(line)
-		sb.WriteByte('\n')
-	}
-
-	sb.WriteString(DimStyle.Render("╰" + strings.Repeat("─", inner) + "╯"))
-	return sb.String()
+	// Wrap content in the design system's LabeledBorder component.
+	return LabeledBorder(msg.Title, content, width)
 }
 
 // --- Table renderer ---
