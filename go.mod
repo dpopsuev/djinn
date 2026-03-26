@@ -7,7 +7,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
-	github.com/dpopsuev/bugle v0.11.0
+	github.com/dpopsuev/bugle v0.12.0
 	github.com/dpopsuev/misbah v0.0.0-20260321142959-18b9d0f2e4f3
 	github.com/muesli/termenv v0.16.0
 	go.uber.org/goleak v1.3.0
@@ -47,4 +47,5 @@ require (
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/term v0.38.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/time v0.15.0 // indirect
 )
