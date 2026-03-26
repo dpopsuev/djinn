@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -1021,32 +1020,3 @@ func (m *Model) runShellInline(cmd string) tea.Cmd {
 	}
 }
 
-// preprocessFileRefs finds @path/to/file references in the prompt and
-// injects file content as context blocks.
-func preprocessFileRefs(prompt, workDir string) string {
-	words := strings.Fields(prompt)
-	var refs []string
-	for _, w := range words {
-		if strings.HasPrefix(w, "@") && len(w) > 1 {
-			refs = append(refs, strings.TrimPrefix(w, "@"))
-		}
-	}
-	if len(refs) == 0 {
-		return prompt
-	}
-
-	var sb strings.Builder
-	for _, ref := range refs {
-		path := ref
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(workDir, path)
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			sb.WriteString(fmt.Sprintf("\n<file path=%q error=%q />\n", ref, err.Error()))
-			continue
-		}
-		sb.WriteString(fmt.Sprintf("\n<file path=%q>\n%s\n</file>\n", ref, string(data)))
-	}
-	return prompt + sb.String()
-}
