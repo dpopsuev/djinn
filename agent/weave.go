@@ -77,7 +77,16 @@ var DefaultCapabilityQueries = []CapabilityQuery{
 // AutoWeaveContext enriches a user prompt with context from available
 // capabilities. Queries each capability's tool — if available, appends the context.
 // If not available (wrong role, backend offline), silently skips.
-func AutoWeaveContext(ctx context.Context, tools builtin.ToolExecutor, prompt string) string {
+//
+// When alwaysWeave is true (Gear A), context is woven on every message.
+// When false (default / plan-mode behaviour), the caller decides when to invoke.
+// The parameter is variadic for backward compatibility — omitting it
+// preserves the original behaviour (treated as false).
+func AutoWeaveContext(ctx context.Context, tools builtin.ToolExecutor, prompt string, alwaysWeave ...bool) string {
+	// alwaysWeave is accepted but does not change the weaving logic itself —
+	// the caller uses it to decide whether to call this function at all.
+	// The parameter is here so call-sites can thread the flag through.
+	_ = alwaysWeave
 	keywords := extractKeywords(prompt)
 	if keywords == "" {
 		return prompt

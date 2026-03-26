@@ -154,6 +154,35 @@ type TriageStateMsg struct {
 	Reason string
 }
 
+// HITL messages (GOL-34).
+type AnnotationMsg struct {
+	TurnIdx int
+	Kind    string
+}
+type CordonMsg struct {
+	Reason  string
+	AgentID string
+	Detail  string
+}
+type SpectateMsg struct {
+	AgentID string
+	Active  bool
+}
+
+// Scope messages (GOL-36).
+type ScopeChangeMsg struct {
+	Path  string
+	Level string
+	Repos []string
+}
+
+// Discourse messages (GOL-35).
+type DiscourseStatusMsg struct {
+	Scope       string
+	OpenTopics  int
+	StaleTopics int
+}
+
 // Layout messages.
 type ResizeMsg struct{ Width, Height int }
 type FocusPanelMsg struct{ Index int }
