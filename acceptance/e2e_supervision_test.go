@@ -44,70 +44,72 @@ func (m *mockLauncher) Healthy(_ context.Context, id bugleport.EntityID) bool {
 }
 
 // TestE2E_ProcessSupervision exercises the full Djinn staff process supervision
-// lifecycle through StaffWorld: fork, tree, orphan reparenting, exit codes,
-// zombie reaping, and clean shutdown.
+// lifecycle through StaffWorld using the Bugle facade: spawn, tree, orphan
+// reparenting, exit codes, zombie reaping, and clean shutdown.
 func TestE2E_ProcessSupervision(t *testing.T) {
 	ctx := context.Background()
 	launcher := newMockLauncher()
 	sw := staff.NewStaffWorld(launcher)
-	pool := sw.Pool
 
-	// --- Phase 1: Fork GenSec as root (parentID=0) ---
-	gensecID, err := pool.Fork(ctx, "gensec", bugleport.LaunchConfig{
+	// Escape hatch for operations the facade doesn't expose yet.
+	pool := sw.Pool()
+
+	// --- Phase 1: Spawn GenSec as root ---
+	gensec, err := sw.Spawn(ctx, "gensec", bugleport.LaunchConfig{
 		Role:  "gensec",
 		Model: "haiku",
-	}, 0)
+	})
 	if err != nil {
-		t.Fatalf("Fork gensec: %v", err)
+		t.Fatalf("Spawn gensec: %v", err)
 	}
-	if gensecID == 0 {
+	if gensec.ID() == 0 {
 		t.Fatal("gensec ID should not be 0")
 	}
 
-	// --- Phase 2: SetSubreaper(gensecID) ---
-	pool.SetSubreaper(gensecID)
-	pool.SetAutoReap(gensecID, false) // GenSec explicitly reaps
+	// --- Phase 2: SetSubreaper(gensec) ---
+	sw.SetSubreaper(gensec)
+	pool.SetAutoReap(gensec.ID(), false) // GenSec explicitly reaps
 
-	// --- Phase 3: Fork Scheduler under GenSec ---
-	schedulerID, err := pool.Fork(ctx, "scheduler", bugleport.LaunchConfig{
+	// --- Phase 3: Spawn Scheduler under GenSec ---
+	scheduler, err := gensec.Spawn(ctx, "scheduler", bugleport.LaunchConfig{
 		Role:  "scheduler",
 		Model: "sonnet",
-	}, gensecID)
+	})
 	if err != nil {
-		t.Fatalf("Fork scheduler: %v", err)
+		t.Fatalf("Spawn scheduler: %v", err)
 	}
-	pool.SetAutoReap(schedulerID, false) // Scheduler explicitly reaps
+	pool.SetAutoReap(scheduler.ID(), false) // Scheduler explicitly reaps
 
-	// --- Phase 4: Fork 3 Executors under Scheduler ---
-	exec1, err := pool.Fork(ctx, "executor-1", bugleport.LaunchConfig{
+	// --- Phase 4: Spawn 3 Executors under Scheduler ---
+	exec1, err := scheduler.Spawn(ctx, "executor", bugleport.LaunchConfig{
 		Role:  "executor",
 		Model: "opus",
-	}, schedulerID)
+	})
 	if err != nil {
-		t.Fatalf("Fork executor-1: %v", err)
+		t.Fatalf("Spawn executor-1: %v", err)
 	}
-	exec2, err := pool.Fork(ctx, "executor-2", bugleport.LaunchConfig{
+	exec2, err := scheduler.Spawn(ctx, "executor", bugleport.LaunchConfig{
 		Role:  "executor",
 		Model: "opus",
-	}, schedulerID)
+	})
 	if err != nil {
-		t.Fatalf("Fork executor-2: %v", err)
+		t.Fatalf("Spawn executor-2: %v", err)
 	}
-	exec3, err := pool.Fork(ctx, "executor-3", bugleport.LaunchConfig{
+	exec3, err := scheduler.Spawn(ctx, "executor", bugleport.LaunchConfig{
 		Role:  "executor",
 		Model: "opus",
-	}, schedulerID)
+	})
 	if err != nil {
-		t.Fatalf("Fork executor-3: %v", err)
+		t.Fatalf("Spawn executor-3: %v", err)
 	}
 
 	// --- Phase 5: Verify Tree shows 3-level hierarchy ---
 	// gensec -> scheduler -> [exec1, exec2, exec3]
-	if pool.Count() != 5 {
-		t.Fatalf("count = %d, want 5", pool.Count())
+	if sw.Count() != 5 {
+		t.Fatalf("count = %d, want 5", sw.Count())
 	}
 
-	tree := pool.Tree(gensecID)
+	tree := sw.Tree(gensec)
 	if tree == nil {
 		t.Fatal("tree should not be nil")
 	}
@@ -126,29 +128,29 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 	}
 
 	// --- Phase 6: Kill Scheduler -> verify orphans reparented to GenSec ---
-	if err := pool.Kill(ctx, schedulerID); err != nil {
+	if err := scheduler.Kill(ctx); err != nil {
 		t.Fatalf("Kill scheduler: %v", err)
 	}
 
 	// Executors should now be children of GenSec (subreaper).
-	if pool.ParentOf(exec1) != gensecID {
-		t.Fatalf("exec1 parent = %d, want gensec %d", pool.ParentOf(exec1), gensecID)
+	if pool.ParentOf(exec1.ID()) != gensec.ID() {
+		t.Fatalf("exec1 parent = %d, want gensec %d", pool.ParentOf(exec1.ID()), gensec.ID())
 	}
-	if pool.ParentOf(exec2) != gensecID {
-		t.Fatalf("exec2 parent = %d, want gensec %d", pool.ParentOf(exec2), gensecID)
+	if pool.ParentOf(exec2.ID()) != gensec.ID() {
+		t.Fatalf("exec2 parent = %d, want gensec %d", pool.ParentOf(exec2.ID()), gensec.ID())
 	}
-	if pool.ParentOf(exec3) != gensecID {
-		t.Fatalf("exec3 parent = %d, want gensec %d", pool.ParentOf(exec3), gensecID)
+	if pool.ParentOf(exec3.ID()) != gensec.ID() {
+		t.Fatalf("exec3 parent = %d, want gensec %d", pool.ParentOf(exec3.ID()), gensec.ID())
 	}
 
 	// GenSec should now have 3 adopted children.
-	children := pool.Children(gensecID)
+	children := gensec.Children()
 	if len(children) != 3 {
 		t.Fatalf("gensec children after reparenting = %d, want 3", len(children))
 	}
 
 	// Reap the scheduler zombie.
-	schedStatus := pool.WaitAny(gensecID)
+	schedStatus := pool.WaitAny(gensec.ID())
 	if schedStatus == nil {
 		t.Fatal("scheduler should be a zombie under gensec")
 	}
@@ -156,19 +158,19 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 		t.Fatalf("scheduler exit role = %q", schedStatus.Role)
 	}
 
-	// --- Phase 7: KillWithCode each executor with different exit codes ---
-	if err := pool.KillWithCode(ctx, exec1, bugleport.ExitSuccess); err != nil {
-		t.Fatalf("KillWithCode exec1: %v", err)
+	// --- Phase 7: KillWithReason each executor with different exit codes ---
+	if err := exec1.KillWithReason(ctx, bugleport.ExitSuccess); err != nil {
+		t.Fatalf("KillWithReason exec1: %v", err)
 	}
-	if err := pool.KillWithCode(ctx, exec2, bugleport.ExitBudget); err != nil {
-		t.Fatalf("KillWithCode exec2: %v", err)
+	if err := exec2.KillWithReason(ctx, bugleport.ExitBudget); err != nil {
+		t.Fatalf("KillWithReason exec2: %v", err)
 	}
-	if err := pool.KillWithCode(ctx, exec3, bugleport.ExitError); err != nil {
-		t.Fatalf("KillWithCode exec3: %v", err)
+	if err := exec3.KillWithReason(ctx, bugleport.ExitError); err != nil {
+		t.Fatalf("KillWithReason exec3: %v", err)
 	}
 
 	// --- Phase 8: Wait for each -> verify correct ExitStatus codes ---
-	status1, err := pool.Wait(ctx, exec1)
+	status1, err := exec1.Wait(ctx)
 	if err != nil {
 		t.Fatalf("Wait exec1: %v", err)
 	}
@@ -179,7 +181,7 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 		t.Fatal("exec1 duration should be positive")
 	}
 
-	status2, err := pool.Wait(ctx, exec2)
+	status2, err := exec2.Wait(ctx)
 	if err != nil {
 		t.Fatalf("Wait exec2: %v", err)
 	}
@@ -187,7 +189,7 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 		t.Fatalf("exec2 exit code = %d, want ExitBudget (%d)", status2.Code, bugleport.ExitBudget)
 	}
 
-	status3, err := pool.Wait(ctx, exec3)
+	status3, err := exec3.Wait(ctx)
 	if err != nil {
 		t.Fatalf("Wait exec3: %v", err)
 	}
@@ -202,22 +204,22 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 
 	// --- Phase 10: Verify launcher tracked all starts and stops ---
 	launcher.mu.Lock()
-	for _, id := range []bugleport.EntityID{gensecID, schedulerID, exec1, exec2, exec3} {
-		if !launcher.started[id] {
-			t.Errorf("entity %d was not started", id)
+	for _, h := range []*bugleport.AgentHandle{gensec, scheduler, exec1, exec2, exec3} {
+		if !launcher.started[h.ID()] {
+			t.Errorf("entity %d was not started", h.ID())
 		}
 	}
-	for _, id := range []bugleport.EntityID{schedulerID, exec1, exec2, exec3} {
-		if !launcher.stopped[id] {
-			t.Errorf("entity %d was not stopped", id)
+	for _, h := range []*bugleport.AgentHandle{scheduler, exec1, exec2, exec3} {
+		if !launcher.stopped[h.ID()] {
+			t.Errorf("entity %d was not stopped", h.ID())
 		}
 	}
 	launcher.mu.Unlock()
 
 	// --- Phase 11: KillAll -> verify clean shutdown ---
-	pool.KillAll(ctx)
-	if pool.Count() != 0 {
-		t.Fatalf("count = %d after KillAll, want 0", pool.Count())
+	sw.KillAll(ctx)
+	if sw.Count() != 0 {
+		t.Fatalf("count = %d after KillAll, want 0", sw.Count())
 	}
 	if pool.ZombieCount() != 0 {
 		t.Fatalf("zombie count = %d after KillAll, want 0", pool.ZombieCount())
@@ -225,7 +227,7 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 
 	// Verify GenSec was also stopped by KillAll.
 	launcher.mu.Lock()
-	if !launcher.stopped[gensecID] {
+	if !launcher.stopped[gensec.ID()] {
 		t.Fatal("gensec should have been stopped by KillAll")
 	}
 	launcher.mu.Unlock()
