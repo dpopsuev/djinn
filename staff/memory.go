@@ -126,6 +126,64 @@ func (m *RoleMemory) Context(role string) []Entry {
 	return ctx
 }
 
+// GetSlice returns a copy of a role's conversation entries.
+func (m *RoleMemory) GetSlice(role string) []Entry {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	src := m.slices[role]
+	if len(src) == 0 {
+		return nil
+	}
+	out := make([]Entry, len(src))
+	copy(out, src)
+	return out
+}
+
+// SeedSlice pre-populates a role's slice (used when switching to a role
+// for the first time). Existing entries are replaced.
+func (m *RoleMemory) SeedSlice(role string, entries []Entry) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	seeded := make([]Entry, len(entries))
+	copy(seeded, entries)
+
+	for i := range seeded {
+		if seeded[i].Speaker == "" {
+			seeded[i].Speaker = role
+		}
+		if seeded[i].ID == "" {
+			m.nextID++
+			seeded[i].ID = fmt.Sprintf("MSG-%04d", m.nextID)
+		}
+		if seeded[i].Timestamp.IsZero() {
+			seeded[i].Timestamp = time.Now()
+		}
+		m.allByID[seeded[i].ID] = &seeded[i]
+	}
+
+	m.slices[role] = seeded
+}
+
+// Clear removes all entries from a role's conversation slice.
+func (m *RoleMemory) Clear(role string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, e := range m.slices[role] {
+		delete(m.allByID, e.ID)
+	}
+	delete(m.slices, role)
+}
+
+// SliceLen returns the number of entries in a role's slice.
+func (m *RoleMemory) SliceLen(role string) int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.slices[role])
+}
+
 // Len returns total entries across all slices and briefing.
 func (m *RoleMemory) Len() int {
 	m.mu.RLock()
