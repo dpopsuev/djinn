@@ -39,14 +39,6 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dlclark/regexp2 v1.11.5 h1:Q/sSnsKerHeCkc/jSTNq1oCm7KiVgUMZRDUoRu0JQZQ=
 github.com/dlclark/regexp2 v1.11.5/go.mod h1:DHkYz0B9wPfa6wondMfaivmHpzrQ3v9q8cnmRbL6yW8=
-github.com/dpopsuev/bugle v0.7.0 h1:3oDrJJcpkpzssdtnGXdYOAIk47rAiDnofDPAsSSDN2E=
-github.com/dpopsuev/bugle v0.7.0/go.mod h1:J+5G1utTKsUyYoazvbS7XozCL+/N4l4FkWa052hGfNc=
-github.com/dpopsuev/bugle v0.8.0 h1:QiuH0e5fGWAfTC9UCpP1jJCiJ8CaFW6FynZngwzY53s=
-github.com/dpopsuev/bugle v0.8.0/go.mod h1:J+5G1utTKsUyYoazvbS7XozCL+/N4l4FkWa052hGfNc=
-github.com/dpopsuev/bugle v0.9.0 h1:GYKkzdfdPeWIImSjAuJl/N6iEN2Aer5yaCpkN9tyt9w=
-github.com/dpopsuev/bugle v0.9.0/go.mod h1:J+5G1utTKsUyYoazvbS7XozCL+/N4l4FkWa052hGfNc=
-github.com/dpopsuev/bugle v0.10.0 h1:hKOXqQlAFlipFMLJRkmAT+kllPxQhm6EXqZTuarlw7k=
-github.com/dpopsuev/bugle v0.10.0/go.mod h1:J+5G1utTKsUyYoazvbS7XozCL+/N4l4FkWa052hGfNc=
 github.com/dpopsuev/misbah v0.0.0-20260321142959-18b9d0f2e4f3 h1:9nW+hIMSfoss7JZZgah75jkmP/PVdqpNhsITo6YRhD4=
 github.com/dpopsuev/misbah v0.0.0-20260321142959-18b9d0f2e4f3/go.mod h1:BZ65oO8di3ASVQexLJ5OAMcr7QiI8dG3fW24mVwFn84=
 github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f h1:Y/CXytFA4m6baUTXGLOoWe4PQhGxaX0KpnayAqC48p4=

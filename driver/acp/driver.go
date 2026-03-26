@@ -1,329 +1,138 @@
-// Package acp provides a universal ChatDriver via the Agent Client Protocol.
-// One driver for all ACP-compatible agents: Claude, Gemini, Codex, Cursor.
-// Warm process, persistent context, standard JSON-RPC over stdio.
+// Package acp provides a ChatDriver adapter over bugle/acp.Client.
+//
+// The ACP protocol implementation lives in bugle/acp. This package wraps
+// the Bugle client to satisfy Djinn's driver.ChatDriver interface.
 package acp
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
-	"fmt"
 	"log/slog"
-	"os"
-	"os/exec"
-	"sync"
-	"sync/atomic"
 
+	"github.com/dpopsuev/bugle/acp"
 	"github.com/dpopsuev/djinn/driver"
 )
 
-// CommandFactory creates exec.Cmd — injectable for testing.
-type CommandFactory func(ctx context.Context, name string, args ...string) *exec.Cmd
-
-// Known ACP agent launch commands.
-var AgentCommands = map[string][]string{
-	"cursor": {"agent", "acp"},
-	"claude": {"claude", "--experimental-acp"},
-	"gemini": {"gemini", "--experimental-acp"},
-	"codex":  {"codex-acp"},
-}
-
-// ACPDriver implements driver.ChatDriver via ACP JSON-RPC over stdio.
+// ACPDriver wraps bugle/acp.Client as a driver.ChatDriver.
 type ACPDriver struct {
-	agentName string   // "cursor", "claude", "gemini", "codex"
-	agentCmd  string   // binary name
-	agentArgs []string // launch args
-	model     string
-
-	cmd       *exec.Cmd
-	stdin     *json.Encoder
-	scanner   *bufio.Scanner
-	sessionID string
-	messages  []driver.Message
-	mu        sync.Mutex
-	nextID    atomic.Int64
-	log       *slog.Logger
-
-	cmdFactory CommandFactory
+	client *acp.Client
 }
 
-type Option func(*ACPDriver)
+// Option configures the ACPDriver (forwarded to bugle/acp.Client).
+type Option func(*options)
 
-func WithModel(m string) Option              { return func(d *ACPDriver) { d.model = m } }
-func WithLogger(l *slog.Logger) Option       { return func(d *ACPDriver) { d.log = l } }
-func WithCommandFactory(f CommandFactory) Option { return func(d *ACPDriver) { d.cmdFactory = f } }
+type options struct {
+	model      string
+	logger     *slog.Logger
+	cmdFactory acp.CommandFactory
+}
+
+func WithModel(m string) Option              { return func(o *options) { o.model = m } }
+func WithLogger(l *slog.Logger) Option       { return func(o *options) { o.logger = l } }
+func WithCommandFactory(f acp.CommandFactory) Option { return func(o *options) { o.cmdFactory = f } }
 
 // New creates an ACP driver for the named agent.
 func New(agentName string, opts ...Option) (*ACPDriver, error) {
-	args, ok := AgentCommands[agentName]
-	if !ok {
-		return nil, fmt.Errorf("unknown ACP agent %q (supported: cursor, claude, gemini, codex)", agentName)
+	o := &options{}
+	for _, opt := range opts {
+		opt(o)
 	}
 
-	d := &ACPDriver{
-		agentName:  agentName,
-		agentCmd:   args[0],
-		agentArgs:  args[1:],
-		log:        slog.Default(),
-		cmdFactory: exec.CommandContext,
+	clientOpts := []acp.Option{
+		acp.WithClientInfo(acp.ClientInfo{Name: "djinn", Version: "0.1.0"}),
 	}
-	for _, o := range opts {
-		o(d)
+	if o.model != "" {
+		clientOpts = append(clientOpts, acp.WithModel(o.model))
 	}
-	return d, nil
+	if o.logger != nil {
+		clientOpts = append(clientOpts, acp.WithLogger(o.logger))
+	}
+	if o.cmdFactory != nil {
+		clientOpts = append(clientOpts, acp.WithCommandFactory(o.cmdFactory))
+	}
+
+	client, err := acp.NewClient(agentName, clientOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ACPDriver{client: client}, nil
 }
 
 // Start launches the agent process and performs the ACP handshake.
 func (d *ACPDriver) Start(ctx context.Context, _ driver.SandboxHandle) error {
-	args := make([]string, len(d.agentArgs))
-	copy(args, d.agentArgs)
-
-	d.cmd = d.cmdFactory(ctx, d.agentCmd, args...)
-	d.cmd.Stderr = os.Stderr
-
-	stdinPipe, err := d.cmd.StdinPipe()
-	if err != nil {
-		return fmt.Errorf("stdin pipe: %w", err)
-	}
-
-	stdoutPipe, err := d.cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("stdout pipe: %w", err)
-	}
-
-	if err := d.cmd.Start(); err != nil {
-		return fmt.Errorf("start %s: %w", d.agentCmd, err)
-	}
-
-	d.stdin = json.NewEncoder(stdinPipe)
-	d.scanner = bufio.NewScanner(stdoutPipe)
-	d.scanner.Buffer(make([]byte, 4*1024*1024), 4*1024*1024) // 4MB buffer
-
-	d.log.Info("ACP agent started", "agent", d.agentName, "pid", d.cmd.Process.Pid)
-
-	// Initialize handshake.
-	initResp, err := d.call("initialize", initializeParams{
-		ProtocolVersion: ProtocolVersion,
-		ClientInfo:      clientInfo{Name: "djinn", Version: "0.1.0"},
-	})
-	if err != nil {
-		d.cmd.Process.Kill() //nolint:errcheck
-		return fmt.Errorf("ACP initialize: %w", err)
-	}
-
-	var initResult initializeResult
-	if initResp != nil {
-		json.Unmarshal(*initResp, &initResult) //nolint:errcheck
-	}
-	d.log.Info("ACP initialized", "agent_name", initResult.AgentInfo.Name, "protocol", initResult.ProtocolVersion)
-
-	// Create session.
-	cwd, _ := os.Getwd()
-	d.log.Debug("ACP session/new", "cwd", cwd)
-	sessResp, err := d.call("session/new", newSessionParams{CWD: cwd, MCPServers: []any{}})
-	if err != nil {
-		d.log.Error("ACP session/new failed", "error", err)
-		d.cmd.Process.Kill() //nolint:errcheck
-		return fmt.Errorf("ACP session/new: %w", err)
-	}
-
-	var sessResult newSessionResult
-	if sessResp != nil {
-		json.Unmarshal(*sessResp, &sessResult) //nolint:errcheck
-	}
-	d.sessionID = sessResult.SessionID
-	d.log.Info("ACP session created", "session_id", d.sessionID)
-
-	return nil
+	return d.client.Start(ctx)
 }
 
 // Stop cancels the session and kills the agent process.
-func (d *ACPDriver) Stop(_ context.Context) error {
-	if d.cmd == nil || d.cmd.Process == nil {
-		return nil
-	}
-	// Send cancel notification (best-effort).
-	d.notify("session/cancel", map[string]string{"sessionId": d.sessionID})
-	d.cmd.Process.Kill() //nolint:errcheck
-	return d.cmd.Wait()
+func (d *ACPDriver) Stop(ctx context.Context) error {
+	return d.client.Stop(ctx)
 }
 
+// Send appends a message to the conversation history.
 func (d *ACPDriver) Send(_ context.Context, msg driver.Message) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.messages = append(d.messages, msg)
+	d.client.Send(acp.Message{Role: msg.Role, Content: msg.Content})
 	return nil
 }
 
-func (d *ACPDriver) SendRich(_ context.Context, msg driver.RichMessage) error {
-	return d.Send(context.Background(), msg.ToMessage())
+// SendRich converts a rich message to plain and sends it.
+func (d *ACPDriver) SendRich(ctx context.Context, msg driver.RichMessage) error {
+	return d.Send(ctx, msg.ToMessage())
 }
 
+// AppendAssistant appends an assistant message to history.
 func (d *ACPDriver) AppendAssistant(msg driver.RichMessage) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.messages = append(d.messages, msg.ToMessage())
+	d.client.Send(acp.Message{Role: msg.Role, Content: msg.TextContent()})
 }
 
-func (d *ACPDriver) SetSystemPrompt(_ string) {
-	// ACP agents manage their own system prompt.
-}
+// SetSystemPrompt is a no-op — ACP agents manage their own system prompt.
+func (d *ACPDriver) SetSystemPrompt(_ string) {}
 
 // ContextWindow returns the model's context window in tokens.
 func (d *ACPDriver) ContextWindow() int { return 200_000 }
 
-// Chat sends a prompt and streams ACP session/update events.
+// Chat sends the last message as a prompt and streams events.
 func (d *ACPDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error) {
-	d.mu.Lock()
-	if len(d.messages) == 0 {
-		d.mu.Unlock()
-		return nil, fmt.Errorf("no messages to send")
-	}
-	lastMsg := d.messages[len(d.messages)-1]
-	d.mu.Unlock()
-
-	// Send prompt.
-	id := d.nextID.Add(1)
-	err := d.stdin.Encode(jsonRPCRequest{
-		JSONRPC: "2.0",
-		ID:      int(id),
-		Method:  "session/prompt",
-		Params: promptParams{
-			SessionID: d.sessionID,
-			Prompt:    []promptBlock{{Type: "text", Text: lastMsg.Content}},
-		},
-	})
+	acpCh, err := d.client.Chat(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("send prompt: %w", err)
+		return nil, err
 	}
 
 	ch := make(chan driver.StreamEvent, 64)
-
 	go func() {
 		defer close(ch)
-
-		var fullText string
-
-		for d.scanner.Scan() {
-			line := d.scanner.Text()
-			if line == "" {
-				continue
-			}
-
-			var msg jsonRPCResponse
-			if err := json.Unmarshal([]byte(line), &msg); err != nil {
-				continue
-			}
-
-			// Response to our prompt request (stop reason).
-			if msg.ID == int(id) && msg.Result != nil {
-				var result promptResult
-				json.Unmarshal(*msg.Result, &result) //nolint:errcheck
-				ch <- driver.StreamEvent{Type: driver.EventDone}
-
-				// Append assistant response to history.
-				if fullText != "" {
-					d.mu.Lock()
-					d.messages = append(d.messages, driver.Message{
-						Role:    driver.RoleAssistant,
-						Content: fullText,
-					})
-					d.mu.Unlock()
-				}
-				return
-			}
-
-			// Notification (session/update).
-			if msg.Method == "session/update" && msg.Params != nil {
-				var notif sessionUpdateNotification
-				if err := json.Unmarshal(*msg.Params, &notif); err != nil {
-					continue
-				}
-
-				switch notif.Update.SessionUpdate {
-				case "agent_message_chunk":
-					if notif.Update.Content != nil && notif.Update.Content.Type == "text" {
-						ch <- driver.StreamEvent{Type: driver.EventText, Text: notif.Update.Content.Text}
-						fullText += notif.Update.Content.Text
-					}
-				case "tool_call":
-					ch <- driver.StreamEvent{
-						Type: driver.EventToolUse,
-						ToolCall: &driver.ToolCall{
-							ID:   notif.Update.ToolCallID,
-							Name: notif.Update.Title,
-						},
-					}
-				case "tool_call_update":
-					// Tool progress — emit as text for now.
-					if notif.Update.Content != nil && notif.Update.Content.Text != "" {
-						ch <- driver.StreamEvent{Type: driver.EventText, Text: notif.Update.Content.Text}
-					}
-				}
-			}
-
-			// Error response.
-			if msg.Error != nil {
-				ch <- driver.StreamEvent{Type: driver.EventError, Error: msg.Error.Message}
-				return
-			}
+		for evt := range acpCh {
+			ch <- convertEvent(evt)
 		}
-
-		// Scanner ended (process died).
-		ch <- driver.StreamEvent{Type: driver.EventError, Error: "ACP agent process exited"}
 	}()
 
 	return ch, nil
 }
 
-// call sends a JSON-RPC request and reads the response.
-func (d *ACPDriver) call(method string, params any) (*json.RawMessage, error) {
-	id := int(d.nextID.Add(1))
-
-	d.log.Debug("ACP call", "method", method, "id", id)
-	if err := d.stdin.Encode(jsonRPCRequest{
-		JSONRPC: "2.0",
-		ID:      id,
-		Method:  method,
-		Params:  params,
-	}); err != nil {
-		return nil, fmt.Errorf("send %s: %w", method, err)
+// convertEvent maps bugle/acp.StreamEvent to driver.StreamEvent.
+func convertEvent(evt acp.StreamEvent) driver.StreamEvent {
+	de := driver.StreamEvent{
+		Type:     evt.Type,
+		Text:     evt.Text,
+		Thinking: evt.Thinking,
+		Error:    evt.Error,
 	}
-
-	// Read lines until we get a response with matching ID.
-	for d.scanner.Scan() {
-		line := d.scanner.Text()
-		if line == "" {
-			continue
-		}
-		d.log.Debug("ACP recv", "method", method, "line_len", len(line))
-
-		var resp jsonRPCResponse
-		if err := json.Unmarshal([]byte(line), &resp); err != nil {
-			d.log.Warn("ACP parse error", "method", method, "error", err)
-			continue
-		}
-
-		if resp.ID == id {
-			if resp.Error != nil {
-				d.log.Error("ACP error response", "method", method, "code", resp.Error.Code, "message", resp.Error.Message)
-				return nil, fmt.Errorf("%s error: %s", method, resp.Error.Message)
-			}
-			d.log.Debug("ACP result", "method", method, "id", id)
-			return resp.Result, nil
+	if evt.ToolCall != nil {
+		de.ToolCall = &driver.ToolCall{
+			ID:    evt.ToolCall.ID,
+			Name:  evt.ToolCall.Name,
+			Input: evt.ToolCall.Input,
 		}
 	}
-
-	return nil, fmt.Errorf("%s: no response (agent exited)", method)
+	if evt.Usage != nil {
+		de.Usage = &driver.Usage{
+			InputTokens:  evt.Usage.InputTokens,
+			OutputTokens: evt.Usage.OutputTokens,
+		}
+	}
+	return de
 }
 
-// notify sends a JSON-RPC notification (no response expected).
-func (d *ACPDriver) notify(method string, params any) {
-	d.stdin.Encode(map[string]any{ //nolint:errcheck
-		"jsonrpc": "2.0",
-		"method":  method,
-		"params":  params,
-	})
-}
+// Client returns the underlying bugle/acp.Client for direct access.
+func (d *ACPDriver) Client() *acp.Client { return d.client }
 
 var _ driver.ChatDriver = (*ACPDriver)(nil)

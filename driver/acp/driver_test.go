@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dpopsuev/bugle/acp"
 	"github.com/dpopsuev/djinn/driver"
 
 	"go.uber.org/goleak"
@@ -19,7 +20,6 @@ func TestMain(m *testing.M) {
 
 // mockACPServer is a bash script that simulates an ACP agent.
 const mockACPServer = `#!/bin/bash
-# Read and respond to JSON-RPC messages from stdin.
 while IFS= read -r line; do
   method=$(echo "$line" | grep -o '"method":"[^"]*"' | cut -d'"' -f4)
   id=$(echo "$line" | grep -o '"id":[0-9]*' | cut -d: -f2)
@@ -43,14 +43,18 @@ while IFS= read -r line; do
 done
 `
 
+func mockCmdFactory(ctx context.Context, name string, args ...string) *exec.Cmd {
+	return exec.CommandContext(ctx, "bash", "-c", mockACPServer)
+}
+
 func TestNew_ValidAgent(t *testing.T) {
 	for _, name := range []string{"cursor", "claude", "gemini", "codex"} {
 		d, err := New(name)
 		if err != nil {
 			t.Fatalf("New(%q): %v", name, err)
 		}
-		if d.agentName != name {
-			t.Fatalf("agent = %q, want %q", d.agentName, name)
+		if d.Client().AgentName() != name {
+			t.Fatalf("agent = %q, want %q", d.Client().AgentName(), name)
 		}
 	}
 }
@@ -63,24 +67,19 @@ func TestNew_InvalidAgent(t *testing.T) {
 }
 
 func TestACPDriver_FullLifecycle(t *testing.T) {
-	d, err := New("cursor", WithCommandFactory(
-		func(ctx context.Context, name string, args ...string) *exec.Cmd {
-			return exec.CommandContext(ctx, "bash", "-c", mockACPServer)
-		},
-	))
+	d, err := New("cursor", WithCommandFactory(mockCmdFactory))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	ctx := context.Background()
 
-	// Start — handshake.
 	if err := d.Start(ctx, ""); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 
-	if d.sessionID != "test-session-1" {
-		t.Fatalf("sessionID = %q", d.sessionID)
+	if d.Client().SessionID() != "test-session-1" {
+		t.Fatalf("sessionID = %q", d.Client().SessionID())
 	}
 
 	// Send + Chat.
@@ -111,17 +110,17 @@ func TestACPDriver_FullLifecycle(t *testing.T) {
 	}
 
 	// History should have user + assistant.
-	if len(d.messages) != 2 {
-		t.Fatalf("messages = %d, want 2", len(d.messages))
+	msgs := d.Client().Messages()
+	if len(msgs) != 2 {
+		t.Fatalf("messages = %d, want 2", len(msgs))
 	}
-	if d.messages[1].Role != driver.RoleAssistant {
-		t.Fatalf("role = %q", d.messages[1].Role)
+	if msgs[1].Role != acp.RoleAssistant {
+		t.Fatalf("role = %q", msgs[1].Role)
 	}
-	if d.messages[1].Content != "hello world" {
-		t.Fatalf("content = %q", d.messages[1].Content)
+	if msgs[1].Content != "hello world" {
+		t.Fatalf("content = %q", msgs[1].Content)
 	}
 
-	// Stop.
 	d.Stop(ctx) //nolint:errcheck
 }
 
@@ -139,20 +138,21 @@ func TestACPDriver_SendRich(t *testing.T) {
 		Role:   "user",
 		Blocks: []driver.ContentBlock{driver.NewTextBlock("rich")},
 	})
-	if len(d.messages) != 1 || d.messages[0].Content != "rich" {
-		t.Fatalf("messages = %+v", d.messages)
+	msgs := d.Client().Messages()
+	if len(msgs) != 1 || msgs[0].Content != "rich" {
+		t.Fatalf("messages = %+v", msgs)
 	}
 }
 
 func TestACPDriver_AppendAssistant(t *testing.T) {
 	d, _ := New("cursor")
 	d.AppendAssistant(driver.RichMessage{Role: "assistant", Content: "hi"})
-	if len(d.messages) != 1 {
-		t.Fatalf("messages = %d", len(d.messages))
+	msgs := d.Client().Messages()
+	if len(msgs) != 1 {
+		t.Fatalf("messages = %d", len(msgs))
 	}
 }
 
-// mockACPServerBadSession simulates an ACP agent that rejects session/new.
 const mockACPServerBadSession = `#!/bin/bash
 while IFS= read -r line; do
   method=$(echo "$line" | grep -o '"method":"[^"]*"' | cut -d'"' -f4)
@@ -185,7 +185,6 @@ func TestACPDriver_SessionNewError(t *testing.T) {
 }
 
 func TestACPDriver_AgentCrashDuringChat(t *testing.T) {
-	// Agent exits immediately after session/new — Chat should get error event.
 	crashServer := `#!/bin/bash
 while IFS= read -r line; do
   method=$(echo "$line" | grep -o '"method":"[^"]*"' | cut -d'"' -f4)
@@ -230,5 +229,4 @@ done
 	}
 }
 
-// Verify ACPDriver implements ChatDriver at compile time.
 var _ driver.ChatDriver = (*ACPDriver)(nil)

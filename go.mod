@@ -2,6 +2,8 @@ module github.com/dpopsuev/djinn
 
 go 1.25.7
 
+replace github.com/dpopsuev/bugle => ../bugle
+
 require (
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.3.10
