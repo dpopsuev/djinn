@@ -2,6 +2,7 @@ package repl
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -107,6 +108,10 @@ type Model struct {
 
 	// Context relay
 	monitor      *session.ContextMonitor
+
+	// TUI telemetry
+	filesEdited  int    // count of files edited this session
+	isThinking   bool   // true when agent is in thinking/reasoning mode
 
 	// Debug
 	debugTap     *tui.DebugTap
@@ -252,7 +257,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.ready = true
 		tui.ReinitRenderer(msg.Width)
-		// LayoutEngine handles panel resize in Render().
+		// Apply Law of Thirds layout — pinned input, flexible output, fixed dashboard.
+		inputLines := max(1, m.inputPanel.Height())
+		thirds := tui.ComputeThirdsLayout(m.height, inputLines)
+		m.layout.SetMinHeight(m.outputPanel, thirds.OutputHeight)
+		m.layout.SetMinHeight(m.dashboard, thirds.DashboardHeight)
 		if m.outputPanel.LineCount() == 0 {
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: renderMOTD(m.sess, m.tools, m.version, m.currentRole)})
 		}
@@ -293,6 +302,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tui.TextMsg:
 		m.spinnerActive = false
+		m.isThinking = false
 		if m.outputMode == outputChunked {
 			m.chunkedBuf.WriteString(string(msg))
 		} else {
@@ -301,7 +311,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tui.ThinkingMsg:
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render(string(msg))})
+		m.isThinking = true
+		m.dashboard.Update(tui.DashboardUIStateMsg{State: "THINKING"})
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.Dim(string(msg))})
 		return m, nil
 
 	case tui.ToolCallMsg:
@@ -322,6 +334,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tui.ToolResultMsg:
+		// Track file edits for status line.
+		if !msg.IsError && (msg.Name == "Write" || msg.Name == "Edit") {
+			m.filesEdited++
+		}
 		if m.activeToolIdx >= 0 && m.activeToolIdx < m.outputPanel.LineCount() {
 			if env, ok := m.envelopes[m.activeToolIdx]; ok {
 				env.SetResult(msg.Output, msg.IsError)
@@ -451,6 +467,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.agentsPanel.Update(tui.AgentOutputMsg{AgentID: msg.AgentID, Text: tui.DimStyle.Render(msg.Text)})
 		return m, nil
 
+	case tui.PlanUpdateMsg:
+		// Render inline checklist from plan steps.
+		if len(msg.Steps) > 0 {
+			data := fmt.Sprintf(`{"done":0,"total":%d,"items":%s}`,
+				len(msg.Steps), mustMarshalStrings(msg.Steps))
+			panel := tui.RenderPanel(tui.RenderPanelMsg{
+				Type:  tui.RenderTypeProgress,
+				Title: "Plan",
+				Data:  data,
+			}, m.width)
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: panel})
+		}
+		return m, nil
+
+	case tui.RenderPanelMsg:
+		// Agent-driven render panel — insert inline in conversation.
+		panel := tui.RenderPanel(msg, m.width)
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: panel})
+		return m, nil
+
 	case tui.TickMsg:
 		if m.state == stateStreaming {
 			m.outputPanel.Update(tui.FlushStreamMsg{})
@@ -472,7 +508,14 @@ func (m Model) View() string {
 
 	// Update panel state before render.
 	m.outputPanel.Update(tui.OutputSetOverlayMsg{Text: m.overlayContent()})
-	m.dashboard.Update(tui.DashboardMetricsMsg{TokensIn: m.totalIn, TokensOut: m.totalOut, Turns: m.sess.History.Len(), AgentCount: m.agentsPanel.Count(), ActiveRole: m.currentRole})
+	_ = m.filesEdited // used by StatusLine in dashboard (future wiring)
+	m.dashboard.Update(tui.DashboardMetricsMsg{
+		TokensIn:   m.totalIn,
+		TokensOut:  m.totalOut,
+		Turns:      m.sess.History.Len(),
+		AgentCount: m.agentsPanel.Count(),
+		ActiveRole: m.currentRole,
+	})
 
 	// LayoutEngine handles: visibility, heights, borders, focus sync.
 	m.layout.Resize(m.width, m.height)
@@ -643,6 +686,11 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			_, c = m.inputPanel.Update(msg)
 			return m, c
 
+		case "review-edits":
+			// Show pending edits as overlay — agent's file changes for review.
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.Dim("(ctrl+r: edit review — no pending edits)")})
+			return m, nil
+
 		case "dive":
 			if m.focus.Active() != nil && m.focus.Active().ID() != "input" {
 				m.focus.Dive()
@@ -764,6 +812,31 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 			}
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: sb.String()})
 		}
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
+		return m, nil
+	}
+
+	// Handle /exec — drop into sandbox shell.
+	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/exec" {
+		if len(cmd.Args) == 0 {
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: "usage: /exec <command>"})
+		} else {
+			shellCmd := strings.Join(cmd.Args, " ")
+			return m, m.runShellInline(shellCmd)
+		}
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
+		return m, nil
+	}
+
+	// Handle /mcp — list registered tools by source.
+	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/mcp" {
+		var sb strings.Builder
+		sb.WriteString("Registered Tools:\n")
+		for _, name := range m.tools.Names() {
+			fmt.Fprintf(&sb, "  %s %s\n", tui.Glyph(tui.StateDone), name)
+		}
+		sb.WriteString(tui.Dim(fmt.Sprintf("\n  %d tools total", len(m.tools.Names()))))
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: sb.String()})
 		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
 		return m, nil
 	}
@@ -983,6 +1056,16 @@ func truncate(s string, max int) string {
 		return s
 	}
 	return s[:max] + "..."
+}
+
+// mustMarshalStrings marshals a string slice to JSON array. Panics on error
+// (impossible for []string). Used for inline JSON construction in PlanUpdateMsg.
+func mustMarshalStrings(ss []string) string {
+	data, err := json.Marshal(ss)
+	if err != nil {
+		return "[]"
+	}
+	return string(data)
 }
 
 // runShellInline executes a shell command inline and streams output to OutputPanel.

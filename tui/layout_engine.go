@@ -54,6 +54,16 @@ func (e *LayoutEngine) Resize(width, height int) {
 	e.height = height
 }
 
+// SetMinHeight updates the MinHeight of the slot containing the given panel.
+func (e *LayoutEngine) SetMinHeight(panel Panel, minHeight int) {
+	for i := range e.slots {
+		if e.slots[i].Panel.ID() == panel.ID() {
+			e.slots[i].MinHeight = minHeight
+			return
+		}
+	}
+}
+
 // VisibleSlots returns slots where Visible() == true (or Visible is nil).
 func (e *LayoutEngine) VisibleSlots() []PanelSlot {
 	var out []PanelSlot

@@ -6,10 +6,13 @@
 package tui
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
+
+	"github.com/alecthomas/chroma/v2/quick"
 )
 
 // Render panel type constants.
@@ -469,7 +472,7 @@ func renderTimeline(data string) string {
 	return sb.String()
 }
 
-// --- Code renderer (line numbers) ---
+// --- Code renderer (syntax highlighted via chroma) ---
 
 type codeData struct {
 	Language string `json:"language"`
@@ -485,13 +488,29 @@ func renderCode(data string, _ int) string {
 		return DimStyle.Render("[empty source]")
 	}
 
+	// Try chroma syntax highlighting.
+	highlighted, err := highlightCode(cd.Source, cd.Language)
+	if err == nil && highlighted != "" {
+		return highlighted
+	}
+
+	// Fallback: plain text with line numbers.
 	var sb strings.Builder
-	lines := strings.Split(cd.Source, "\n")
-	for i, line := range lines {
-		lineNum := fmt.Sprintf("%3d ", i+1)
-		sb.WriteString(DimStyle.Render(lineNum))
-		sb.WriteString(line)
-		sb.WriteByte('\n')
+	for i, line := range strings.Split(cd.Source, "\n") {
+		fmt.Fprintf(&sb, "%s%s\n", DimStyle.Render(fmt.Sprintf("%3d ", i+1)), line)
 	}
 	return sb.String()
+}
+
+// highlightCode uses chroma for syntax highlighting.
+// Returns empty string on failure (caller falls back to plain text).
+func highlightCode(source, language string) (string, error) {
+	if language == "" {
+		language = "text"
+	}
+	var buf bytes.Buffer
+	if err := quick.Highlight(&buf, source, language, "terminal256", "monokai"); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
