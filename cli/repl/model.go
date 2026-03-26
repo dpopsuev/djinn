@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -676,6 +678,19 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 	m.inputPanel.Update(tui.InputAddHistoryMsg{Value: input})
 	m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.UserStyle.Render(tui.LabelUser) + input})
 
+	// Handle ! shell inline execution.
+	if strings.HasPrefix(input, "!") {
+		shellCmd := strings.TrimSpace(strings.TrimPrefix(input, "!"))
+		if shellCmd != "" {
+			return m, m.runShellInline(shellCmd)
+		}
+	}
+
+	// Handle @ file references — inject file content into prompt context.
+	if strings.Contains(input, "@") {
+		input = preprocessFileRefs(input, m.sess.WorkDir)
+	}
+
 	// Handle /role before the general command dispatcher (needs Model access)
 	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/role" {
 		if len(cmd.Args) == 0 {
@@ -974,4 +989,64 @@ func truncate(s string, max int) string {
 		return s
 	}
 	return s[:max] + "..."
+}
+
+// runShellInline executes a shell command inline and streams output to OutputPanel.
+// Routes through SandboxExec when the current role is sandboxed.
+func (m *Model) runShellInline(cmd string) tea.Cmd {
+	return func() tea.Msg {
+		var stdout, stderr string
+		var err error
+
+		if m.sandboxExec != nil && m.currentRole != "gensec" {
+			stdout, stderr, err = m.sandboxExec(m.ctx, strings.Fields(cmd))
+		} else {
+			execCmd := exec.CommandContext(m.ctx, "bash", "-c", cmd)
+			execCmd.Dir = m.sess.WorkDir
+			out, execErr := execCmd.CombinedOutput()
+			stdout = string(out)
+			err = execErr
+		}
+
+		output := stdout
+		if stderr != "" {
+			output += "\n" + stderr
+		}
+		if err != nil {
+			output += "\n" + tui.ErrorStyle.Render(err.Error())
+		}
+
+		globalHandler.OnText(tui.DimStyle.Render(output))
+		return tui.AgentDoneMsg{}
+	}
+}
+
+// preprocessFileRefs finds @path/to/file references in the prompt and
+// injects file content as context blocks.
+func preprocessFileRefs(prompt, workDir string) string {
+	words := strings.Fields(prompt)
+	var refs []string
+	for _, w := range words {
+		if strings.HasPrefix(w, "@") && len(w) > 1 {
+			refs = append(refs, strings.TrimPrefix(w, "@"))
+		}
+	}
+	if len(refs) == 0 {
+		return prompt
+	}
+
+	var sb strings.Builder
+	for _, ref := range refs {
+		path := ref
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(workDir, path)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			sb.WriteString(fmt.Sprintf("\n<file path=%q error=%q />\n", ref, err.Error()))
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("\n<file path=%q>\n%s\n</file>\n", ref, string(data)))
+	}
+	return prompt + sb.String()
 }

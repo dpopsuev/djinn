@@ -17,16 +17,16 @@ func TestRegisterAeonShellTools(t *testing.T) {
 	dir := t.TempDir()
 	RegisterAeonShellTools(reg, dir, dir)
 
-	expected := []string{"plan", "test", "git", "arch", "discourse", "reconcile", "latency"}
+	expected := []string{"plan", "test", "git", "arch", "discourse", "reconcile", "latency", "render"}
 	for _, name := range expected {
 		if _, err := reg.Get(name); err != nil {
 			t.Fatalf("tool %q not registered: %v", name, err)
 		}
 	}
 
-	// Original 6 + 7 shell = 13 total.
-	if len(reg.Names()) != 13 {
-		t.Fatalf("total tools = %d, want 13", len(reg.Names()))
+	// Original 6 + 8 shell = 14 total.
+	if len(reg.Names()) != 14 {
+		t.Fatalf("total tools = %d, want 14", len(reg.Names()))
 	}
 }
 

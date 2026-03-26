@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"encoding/json"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dpopsuev/djinn/driver"
 )
@@ -34,6 +36,22 @@ func (h *BubbletaHandler) OnToolResult(callID, name, output string, isError bool
 		Output:  output,
 		IsError: isError,
 	})
+
+	// Intercept render tool results — emit panel message to TUI.
+	if name == "render" && !isError {
+		var render struct {
+			Type  string `json:"type"`
+			Title string `json:"title"`
+			Data  string `json:"data"`
+		}
+		if err := json.Unmarshal([]byte(output), &render); err == nil && render.Type != "" {
+			h.program.Send(RenderPanelMsg{
+				Type:  render.Type,
+				Title: render.Title,
+				Data:  render.Data,
+			})
+		}
+	}
 }
 
 func (h *BubbletaHandler) OnDone(usage *driver.Usage) {

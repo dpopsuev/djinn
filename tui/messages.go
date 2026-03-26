@@ -183,6 +183,13 @@ type DiscourseStatusMsg struct {
 	StaleTopics int
 }
 
+// Render Tool messages (GOL-40).
+type RenderPanelMsg struct {
+	Type  string // table, tree, progress, chart, diagram, diff, timeline
+	Title string
+	Data  string // JSON payload, type-specific
+}
+
 // Layout messages.
 type ResizeMsg struct{ Width, Height int }
 type FocusPanelMsg struct{ Index int }
