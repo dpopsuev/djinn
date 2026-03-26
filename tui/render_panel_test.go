@@ -294,6 +294,174 @@ func TestRenderPanel_NarrowWidth(t *testing.T) {
 	}
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// Diff renderer
+// ═══════════════════════════════════════════════════════════════════════
+
+func TestRenderDiffPanel_BasicDiff(t *testing.T) {
+	data := `{"file":"main.go","hunks":["@@ -1,3 +1,4 @@\n package main\n+import \"fmt\"\n func main() {}"]}`
+	result := renderDiffPanel(data)
+	if !strings.Contains(result, "main.go") {
+		t.Fatal("missing filename")
+	}
+	if !strings.Contains(result, "import") {
+		t.Fatal("missing diff content")
+	}
+}
+
+func TestRenderDiffPanel_InvalidJSON(t *testing.T) {
+	result := renderDiffPanel("not json")
+	if !strings.Contains(result, "invalid diff data") {
+		t.Fatalf("result = %q", result)
+	}
+}
+
+func TestRenderDiffPanel_EmptyHunks(t *testing.T) {
+	data := `{"file":"empty.go","hunks":[]}`
+	result := renderDiffPanel(data)
+	if !strings.Contains(result, "empty.go") {
+		t.Fatal("missing filename even with empty hunks")
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Diagram renderer
+// ═══════════════════════════════════════════════════════════════════════
+
+func TestRenderDiagram_TwoNodes(t *testing.T) {
+	data := `{"nodes":[{"id":"a","label":"app"},{"id":"b","label":"staff"}],"edges":[{"from":"a","to":"b"}]}`
+	result := renderDiagram(data, 80)
+	if !strings.Contains(result, "app") || !strings.Contains(result, "staff") {
+		t.Fatal("missing node labels")
+	}
+	if !strings.Contains(result, "──→") {
+		t.Fatal("missing arrow")
+	}
+	if !strings.Contains(result, "┌") {
+		t.Fatal("missing box border")
+	}
+}
+
+func TestRenderDiagram_InvalidJSON(t *testing.T) {
+	result := renderDiagram("bad", 80)
+	if !strings.Contains(result, "invalid diagram data") {
+		t.Fatalf("result = %q", result)
+	}
+}
+
+func TestRenderDiagram_EmptyNodes(t *testing.T) {
+	result := renderDiagram(`{"nodes":[],"edges":[]}`, 80)
+	if !strings.Contains(result, "empty diagram") {
+		t.Fatalf("result = %q", result)
+	}
+}
+
+func TestRenderDiagram_EdgeLabel(t *testing.T) {
+	data := `{"nodes":[{"id":"a","label":"X"},{"id":"b","label":"Y"}],"edges":[{"from":"a","to":"b","label":"uses"}]}`
+	result := renderDiagram(data, 80)
+	if !strings.Contains(result, "uses") {
+		t.Fatal("missing edge label")
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Timeline renderer
+// ═══════════════════════════════════════════════════════════════════════
+
+func TestRenderTimeline_ThreeEvents(t *testing.T) {
+	data := `{"events":[{"label":"Build","state":"done","time":"0:05"},{"label":"Test","state":"active","time":"0:10"},{"label":"Deploy","state":"pending"}]}`
+	result := renderTimeline(data)
+	if !strings.Contains(result, "Build") || !strings.Contains(result, "Deploy") {
+		t.Fatal("missing event labels")
+	}
+	if !strings.Contains(result, "●") {
+		t.Fatal("missing filled marker")
+	}
+	if !strings.Contains(result, "○") {
+		t.Fatal("missing empty marker")
+	}
+}
+
+func TestRenderTimeline_InvalidJSON(t *testing.T) {
+	result := renderTimeline("bad")
+	if !strings.Contains(result, "invalid timeline data") {
+		t.Fatalf("result = %q", result)
+	}
+}
+
+func TestRenderTimeline_EmptyEvents(t *testing.T) {
+	result := renderTimeline(`{"events":[]}`)
+	if !strings.Contains(result, "no events") {
+		t.Fatalf("result = %q", result)
+	}
+}
+
+func TestRenderTimeline_ErrorState(t *testing.T) {
+	data := `{"events":[{"label":"Crashed","state":"error"}]}`
+	result := renderTimeline(data)
+	if !strings.Contains(result, "●") {
+		t.Fatal("error state should have filled marker")
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Code renderer
+// ═══════════════════════════════════════════════════════════════════════
+
+func TestRenderCode_BasicSource(t *testing.T) {
+	data := `{"language":"go","source":"package main\n\nfunc main() {}"}`
+	result := renderCode(data, 80)
+	if !strings.Contains(result, "package main") {
+		t.Fatal("missing source content")
+	}
+	if !strings.Contains(result, "  1 ") {
+		t.Fatal("missing line numbers")
+	}
+}
+
+func TestRenderCode_InvalidJSON(t *testing.T) {
+	result := renderCode("bad", 80)
+	if !strings.Contains(result, "invalid code data") {
+		t.Fatalf("result = %q", result)
+	}
+}
+
+func TestRenderCode_EmptySource(t *testing.T) {
+	result := renderCode(`{"language":"go","source":""}`, 80)
+	if !strings.Contains(result, "empty source") {
+		t.Fatalf("result = %q", result)
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// All 8 types through RenderPanel wrapper
+// ═══════════════════════════════════════════════════════════════════════
+
+func TestRenderPanel_All8Types(t *testing.T) {
+	types := map[string]string{
+		"table":    `{"columns":["A"],"rows":[["1"]]}`,
+		"tree":     `{"root":{"label":"root"}}`,
+		"progress": `{"done":1,"total":2}`,
+		"chart":    `{"kind":"sparkline","values":[1,2,3]}`,
+		"diff":     `{"file":"f.go","hunks":["+ added"]}`,
+		"diagram":  `{"nodes":[{"id":"a","label":"A"}],"edges":[]}`,
+		"timeline": `{"events":[{"label":"E","state":"done"}]}`,
+		"code":     `{"language":"go","source":"x := 1"}`,
+	}
+	for typ, data := range types {
+		t.Run(typ, func(t *testing.T) {
+			msg := RenderPanelMsg{Type: typ, Title: "Test " + typ, Data: data}
+			result := RenderPanel(msg, 60)
+			if result == "" {
+				t.Fatalf("empty result for type %q", typ)
+			}
+			if !strings.Contains(result, "╭") {
+				t.Fatalf("missing border for type %q", typ)
+			}
+		})
+	}
+}
+
 func TestPad(t *testing.T) {
 	if pad("hi", 5) != "hi   " {
 		t.Fatalf("pad = %q", pad("hi", 5))

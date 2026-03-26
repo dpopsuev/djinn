@@ -7,6 +7,16 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 )
 
+// TRUST BOUNDARY: Agent events → TUI messages.
+//
+// The handler is the trust boundary between the untrusted agent and the TUI.
+// It ONLY emits output-safe messages:
+//   - SAFE: TextMsg, ThinkingMsg, ToolCallMsg, ToolResultMsg, DoneMsg, ErrorMsg, RenderPanelMsg
+//   - NEVER from agent: InputSetValueMsg, SubmitMsg, DialogResultMsg, FocusPanelMsg, ResizeMsg
+//
+// The agent cannot inject commands, modify input, trigger dialogs, or change layout.
+// All agent output is confined to the output panel.
+
 // BubbletaHandler bridges agent.EventHandler to Bubbletea messages.
 type BubbletaHandler struct {
 	program *tea.Program

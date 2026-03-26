@@ -18,12 +18,12 @@ import (
 type RenderTool struct{}
 
 func (t *RenderTool) Name() string        { return "render" }
-func (t *RenderTool) Description() string { return "Create visual panels: table, tree, progress, chart" }
+func (t *RenderTool) Description() string { return "Create visual panels: table, tree, progress, chart, diff, diagram, timeline, code" }
 func (t *RenderTool) InputSchema() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
 		"properties": {
-			"type":  {"type": "string", "enum": ["table", "tree", "progress", "chart"]},
+			"type":  {"type": "string", "enum": ["table", "tree", "progress", "chart", "diff", "diagram", "timeline", "code"]},
 			"title": {"type": "string"},
 			"data":  {"type": "string", "description": "JSON payload, type-specific"}
 		},
@@ -48,10 +48,10 @@ func (t *RenderTool) Execute(_ context.Context, input json.RawMessage) (string, 
 	}
 
 	switch req.Type {
-	case "table", "tree", "progress", "chart":
+	case "table", "tree", "progress", "chart", "diff", "diagram", "timeline", "code":
 		// Valid type — pass through
 	default:
-		return "", fmt.Errorf("render: unknown type %q (supported: table, tree, progress, chart)", req.Type)
+		return "", fmt.Errorf("render: unknown type %q (supported: table, tree, progress, chart, diff, diagram, timeline, code)", req.Type)
 	}
 
 	// Validate data is valid JSON.

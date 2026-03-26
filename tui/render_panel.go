@@ -29,6 +29,14 @@ func RenderPanel(msg RenderPanelMsg, width int) string {
 		content = renderProgress(msg.Data, inner)
 	case "chart":
 		content = renderChart(msg.Data, inner)
+	case "diff":
+		content = renderDiffPanel(msg.Data)
+	case "diagram":
+		content = renderDiagram(msg.Data, inner)
+	case "timeline":
+		content = renderTimeline(msg.Data)
+	case "code":
+		content = renderCode(msg.Data, inner)
 	default:
 		content = DimStyle.Render("[unknown render type: " + msg.Type + "]")
 	}
@@ -333,5 +341,161 @@ func renderBarChart(cd chartData, width int) string {
 		sb.WriteByte('\n')
 	}
 
+	return sb.String()
+}
+
+// --- Diff renderer (delegates to existing diff.go) ---
+
+type diffPanelData struct {
+	File  string   `json:"file"`
+	Hunks []string `json:"hunks"`
+}
+
+func renderDiffPanel(data string) string {
+	var dd diffPanelData
+	if err := json.Unmarshal([]byte(data), &dd); err != nil {
+		return DimStyle.Render("[invalid diff data]")
+	}
+
+	var sb strings.Builder
+	if dd.File != "" {
+		sb.WriteString(ToolNameStyle.Render(dd.File))
+		sb.WriteByte('\n')
+	}
+	for _, hunk := range dd.Hunks {
+		sb.WriteString(RenderDiff(hunk))
+		sb.WriteByte('\n')
+	}
+	return sb.String()
+}
+
+// --- Diagram renderer (box-and-arrow) ---
+
+type diagramData struct {
+	Nodes []diagramNode `json:"nodes"`
+	Edges []diagramEdge `json:"edges"`
+}
+
+type diagramNode struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+}
+
+type diagramEdge struct {
+	From  string `json:"from"`
+	To    string `json:"to"`
+	Label string `json:"label,omitempty"`
+}
+
+func renderDiagram(data string, _ int) string {
+	var dd diagramData
+	if err := json.Unmarshal([]byte(data), &dd); err != nil {
+		return DimStyle.Render("[invalid diagram data]")
+	}
+	if len(dd.Nodes) == 0 {
+		return DimStyle.Render("[empty diagram]")
+	}
+
+	labels := make(map[string]string, len(dd.Nodes))
+	for _, n := range dd.Nodes {
+		labels[n.ID] = n.Label
+	}
+
+	var sb strings.Builder
+	for _, n := range dd.Nodes {
+		box := fmt.Sprintf("┌%s┐\n│%s│\n└%s┘",
+			strings.Repeat("─", len(n.Label)+2),
+			" "+n.Label+" ",
+			strings.Repeat("─", len(n.Label)+2))
+		sb.WriteString(box)
+		sb.WriteByte('\n')
+
+		for _, e := range dd.Edges {
+			if e.From == n.ID {
+				target := labels[e.To]
+				if target == "" {
+					target = e.To
+				}
+				arrow := "  ──→ " + target
+				if e.Label != "" {
+					arrow += " (" + e.Label + ")"
+				}
+				sb.WriteString(DimStyle.Render(arrow))
+				sb.WriteByte('\n')
+			}
+		}
+	}
+	return sb.String()
+}
+
+// --- Timeline renderer (vertical events) ---
+
+type timelineData struct {
+	Events []timelineEvent `json:"events"`
+}
+
+type timelineEvent struct {
+	Time  string `json:"time"`
+	Label string `json:"label"`
+	State string `json:"state"` // done, active, pending, error
+}
+
+func renderTimeline(data string) string {
+	var td timelineData
+	if err := json.Unmarshal([]byte(data), &td); err != nil {
+		return DimStyle.Render("[invalid timeline data]")
+	}
+	if len(td.Events) == 0 {
+		return DimStyle.Render("[no events]")
+	}
+
+	var sb strings.Builder
+	for _, e := range td.Events {
+		var marker string
+		switch e.State {
+		case "done":
+			marker = ToolSuccessStyle.Render("●")
+		case "active":
+			marker = ToolNameStyle.Render("●")
+		case "error":
+			marker = ErrorStyle.Render("●")
+		default:
+			marker = DimStyle.Render("○")
+		}
+
+		line := fmt.Sprintf("  %s %s", marker, e.Label)
+		if e.Time != "" {
+			line += DimStyle.Render(" — " + e.Time)
+		}
+		sb.WriteString(line)
+		sb.WriteByte('\n')
+	}
+	return sb.String()
+}
+
+// --- Code renderer (line numbers) ---
+
+type codeData struct {
+	Language string `json:"language"`
+	Source   string `json:"source"`
+}
+
+func renderCode(data string, _ int) string {
+	var cd codeData
+	if err := json.Unmarshal([]byte(data), &cd); err != nil {
+		return DimStyle.Render("[invalid code data]")
+	}
+	if cd.Source == "" {
+		return DimStyle.Render("[empty source]")
+	}
+
+	var sb strings.Builder
+	lines := strings.Split(cd.Source, "\n")
+	for i, line := range lines {
+		lineNum := fmt.Sprintf("%3d ", i+1)
+		sb.WriteString(DimStyle.Render(lineNum))
+		sb.WriteString(line)
+		sb.WriteByte('\n')
+	}
 	return sb.String()
 }
