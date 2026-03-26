@@ -136,6 +136,24 @@ type OdometerUpdateMsg struct {
 	Relays     int
 }
 
+// DriftPanel messages (GOL-31).
+type DriftUpdateMsg struct {
+	FuncScore, ArchScore, PerfScore float64
+	FuncLabel, ArchLabel, PerfLabel string
+	TasksLeft                       int
+}
+
+// ACP routing messages (GOL-28).
+type PlanUpdateMsg struct{ Steps []string }
+type DiffUpdateMsg struct{ Files []string }
+type StateChangeMsg struct{ Key, Value string }
+
+// Triage messages (GOL-24).
+type TriageStateMsg struct {
+	State  string
+	Reason string
+}
+
 // Layout messages.
 type ResizeMsg struct{ Width, Height int }
 type FocusPanelMsg struct{ Index int }
