@@ -66,6 +66,16 @@ func (m *MisbahSandbox) Exec(ctx context.Context, handle sandbox.Handle, cmd []s
 
 func (m *MisbahSandbox) Name() string { return "misbah" }
 
+// Diff returns files changed by the agent in the container's overlay.
+func (m *MisbahSandbox) Diff(ctx context.Context, handle sandbox.Handle) ([]DiffEntry, error) {
+	return m.port.Diff(ctx, string(handle))
+}
+
+// Commit promotes selected files from the overlay to the real workspace.
+func (m *MisbahSandbox) Commit(ctx context.Context, handle sandbox.Handle, paths []string) error {
+	return m.port.Commit(ctx, string(handle), paths)
+}
+
 func (m *MisbahSandbox) Close() {
 	m.port.Close()
 }

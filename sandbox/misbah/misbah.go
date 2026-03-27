@@ -1,4 +1,5 @@
 // Package misbah implements broker.SandboxPort using the Misbah daemon.
+// Wraps daemon.Client with Agent Space operations (Diff, Commit, Events, Logs).
 package misbah
 
 import (
@@ -14,15 +15,16 @@ import (
 
 // Default container settings.
 const (
-	specVersion       = "1.0"
-	containerPrefix   = "djinn-"
-	defaultCwd        = "/workspace"
-	defaultCommand    = "/bin/sh"
-	mountTypeBind     = "bind"
-	mountTypeTmpfs    = "tmpfs"
-	mountOptionRO     = "ro"
-	mountOptionRW     = "rw"
+	specVersion     = "1.0"
+	containerPrefix = "djinn-"
+	defaultCwd      = "/workspace"
 )
+
+// DiffEntry re-exports Misbah's overlay diff entry type.
+type DiffEntry = daemon.DiffEntry
+
+// ContainerEvent re-exports Misbah's container lifecycle event type.
+type ContainerEvent = daemon.ContainerEvent
 
 // SandboxPort implements broker.SandboxPort using a Misbah daemon client.
 type SandboxPort struct {
@@ -41,10 +43,45 @@ func New(socketPath, workspace string) *SandboxPort {
 }
 
 // Create creates a Misbah container with tier-appropriate mounts.
+// The daemon's tier system generates overlay mounts for writable paths —
+// agent writes are captured in the overlay, real workspace untouched.
 func (s *SandboxPort) Create(ctx context.Context, scope tier.Scope) (string, error) {
 	name := fmt.Sprintf("%s%s-%d", containerPrefix, scope.Name, s.counter.Add(1))
 
-	spec := s.buildSpec(name, scope)
+	spec := &model.ContainerSpec{
+		Version: specVersion,
+		Metadata: model.ContainerMetadata{
+			Name: name,
+		},
+		Process: model.ProcessSpec{
+			Command: []string{"sleep", "infinity"},
+			Cwd:     defaultCwd,
+		},
+		Namespaces: model.NamespaceSpec{
+			User:  true,
+			Mount: true,
+		},
+		Mounts: []model.MountSpec{
+			{Type: "tmpfs", Destination: "/tmp"},
+		},
+	}
+
+	// Mount workspace read-only as overlay base. TierConfig tells Misbah
+	// which paths are writable — the daemon generates overlay mounts for those.
+	spec.Mounts = append(spec.Mounts, model.MountSpec{
+		Type:        "bind",
+		Source:      s.workspace,
+		Destination: defaultCwd,
+		Options:     []string{"ro", "rbind"},
+	})
+
+	if scope.Name != "" {
+		spec.TierConfig = &model.TierConfig{
+			Tier:          scope.Level.String(),
+			WritablePaths: []string{scope.Name},
+		}
+	}
+
 	if err := spec.Validate(); err != nil {
 		return "", fmt.Errorf("invalid container spec: %w", err)
 	}
@@ -60,7 +97,6 @@ func (s *SandboxPort) Create(ctx context.Context, scope tier.Scope) (string, err
 // Destroy stops and removes a Misbah container.
 func (s *SandboxPort) Destroy(ctx context.Context, sandboxID string) error {
 	if err := s.client.ContainerStop(ctx, sandboxID, false); err != nil {
-		// Best-effort stop before destroy
 		_ = s.client.ContainerStop(ctx, sandboxID, true)
 	}
 	return s.client.ContainerDestroy(ctx, sandboxID)
@@ -104,61 +140,41 @@ type ExecResult struct {
 	Stderr   string
 }
 
+// --- Agent Space operations ---
+
+// Diff returns files changed by the agent in the container's overlay.
+func (s *SandboxPort) Diff(ctx context.Context, name string) ([]DiffEntry, error) {
+	resp, err := s.client.ContainerDiff(ctx, name)
+	if err != nil {
+		return nil, fmt.Errorf("container diff: %w", err)
+	}
+	return resp.Entries, nil
+}
+
+// Commit promotes selected files from the overlay to the real workspace.
+func (s *SandboxPort) Commit(ctx context.Context, name string, paths []string) error {
+	if err := s.client.ContainerCommit(ctx, name, paths); err != nil {
+		return fmt.Errorf("container commit: %w", err)
+	}
+	return nil
+}
+
+// Events subscribes to container lifecycle events via SSE.
+// Returns a channel that receives events. Close ctx to stop.
+func (s *SandboxPort) Events(ctx context.Context, name string) (<-chan ContainerEvent, error) {
+	return s.client.ContainerEvents(ctx, name)
+}
+
+// Logs returns captured stdout/stderr for a container.
+func (s *SandboxPort) Logs(ctx context.Context, name string) (stdout, stderr string, err error) {
+	resp, err := s.client.ContainerLogs(ctx, name)
+	if err != nil {
+		return "", "", fmt.Errorf("container logs: %w", err)
+	}
+	return resp.Stdout, resp.Stderr, nil
+}
+
 // Close releases the underlying daemon client.
 func (s *SandboxPort) Close() {
 	s.client.Close()
-}
-
-func (s *SandboxPort) buildSpec(name string, scope tier.Scope) *model.ContainerSpec {
-	spec := &model.ContainerSpec{
-		Version: specVersion,
-		Metadata: model.ContainerMetadata{
-			Name: name,
-		},
-		Process: model.ProcessSpec{
-			Command: []string{defaultCommand},
-			Cwd:     defaultCwd,
-		},
-		Namespaces: model.NamespaceSpec{
-			User:  true,
-			Mount: true,
-		},
-		Mounts: []model.MountSpec{
-			{
-				Type:        mountTypeBind,
-				Source:      s.workspace,
-				Destination: defaultCwd,
-				Options:     mountOptionsForTier(scope.Level),
-			},
-			{
-				Type:        mountTypeTmpfs,
-				Destination: "/tmp",
-			},
-		},
-	}
-
-	// Set tier config for Misbah's built-in tier isolation
-	if scope.Name != "" {
-		spec.TierConfig = &model.TierConfig{
-			Tier:          scope.Level.String(),
-			WritablePaths: []string{scope.Name},
-		}
-	}
-
-	return spec
-}
-
-func mountOptionsForTier(level tier.TierLevel) []string {
-	switch level {
-	case tier.Eco:
-		return []string{mountTypeBind, mountOptionRO}
-	case tier.Sys:
-		return []string{mountTypeBind, mountOptionRO}
-	case tier.Com:
-		return []string{mountTypeBind, mountOptionRW}
-	case tier.Mod:
-		return []string{mountTypeBind, mountOptionRW}
-	default:
-		return []string{mountTypeBind, mountOptionRO}
-	}
 }
