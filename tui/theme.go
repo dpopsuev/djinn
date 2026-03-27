@@ -3,7 +3,9 @@
 // Foundation for style presets (claude/codex/gemini/djinn themes).
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/lipgloss"
+)
 
 // Theme defines the semantic color palette.
 type Theme struct {
@@ -65,34 +67,41 @@ var CodexTheme = Theme{
 	FocusDim:  lipgloss.AdaptiveColor{Light: "#6b7280", Dark: "#4b5563"},
 }
 
-// ThemeByName returns a theme by name. Returns DefaultTheme if not found.
-func ThemeByName(name string) Theme {
-	switch name {
-	case "claude":
-		return ClaudeTheme
-	case "gemini":
-		return GeminiTheme
-	case "codex":
-		return CodexTheme
-	case "djinn":
-		return DefaultTheme
-	default:
-		return DefaultTheme
-	}
+// themeRegistry holds named themes. Seeded with built-in presets.
+var themeRegistry = map[string]Theme{
+	"djinn":  DefaultTheme,
+	"claude": ClaudeTheme,
+	"gemini": GeminiTheme,
+	"codex":  CodexTheme,
 }
 
-// ActiveTheme is the currently active theme. Change this to swap palettes.
+// RegisterTheme adds or replaces a named theme in the registry.
+func RegisterTheme(name string, t Theme) {
+	themeRegistry[name] = t
+}
+
+// ThemeByName returns a theme by name. Returns DefaultTheme if not found.
+func ThemeByName(name string) Theme {
+	if t, ok := themeRegistry[name]; ok {
+		return t
+	}
+	return DefaultTheme
+}
+
+// ThemeNames returns all registered theme names.
+func ThemeNames() []string {
+	names := make([]string, 0, len(themeRegistry))
+	for n := range themeRegistry {
+		names = append(names, n)
+	}
+	return names
+}
+
+// ActiveTheme is the currently active theme.
 var ActiveTheme = DefaultTheme
 
-// ApplyTheme updates all style variables to use the given theme.
+// ApplyTheme sets the active theme and rebuilds all styles via ApplyTokens.
 func ApplyTheme(t Theme) {
 	ActiveTheme = t
-	RedHatRed = t.Accent
-	UserStyle = lipgloss.NewStyle().Foreground(t.User).Bold(true)
-	AssistStyle = lipgloss.NewStyle().Foreground(t.Assistant).Bold(true)
-	ToolNameStyle = lipgloss.NewStyle().Foreground(t.ToolName)
-	ToolArgStyle = lipgloss.NewStyle().Foreground(t.ToolArg)
-	ToolSuccessStyle = lipgloss.NewStyle().Foreground(t.Success)
-	ErrorStyle = lipgloss.NewStyle().Foreground(t.Error)
-	LogoStyle = lipgloss.NewStyle().Foreground(t.Accent).Bold(true)
+	ApplyTokens(TokensFromTheme(t))
 }

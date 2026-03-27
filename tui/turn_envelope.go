@@ -12,10 +12,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// turnBorder is the dim rounded border used for turn envelopes.
-var turnBorder = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(lipgloss.AdaptiveColor{Light: "#808080", Dark: "#505050"})
+// turnBorder — set by ApplyTokens(), never hardcode hex here.
+var turnBorder lipgloss.Style
 
 // TurnEnvelope wraps a full conversation turn (user + agent + tools) in a
 // bordered box with a "Turn #N" title. Collapsible to a single-line summary.

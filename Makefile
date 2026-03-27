@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags "-X github.com/dpopsuev/djinn/app.Version=$(VERSION)"
 
-.PHONY: build install test test-accept lint vet circuit coverage clean doctor preflight smoke-claude smoke-vertex smoke-gemini smoke-codex smoke-cursor smoke-agents smoke-all
+.PHONY: build install test test-accept lint lint-tui vet circuit coverage clean doctor preflight smoke-claude smoke-vertex smoke-gemini smoke-codex smoke-cursor smoke-agents smoke-all
 
 build:
 	go build $(LDFLAGS) ./cmd/djinn/
@@ -21,7 +21,15 @@ lint:
 vet:
 	go vet ./...
 
-circuit: build lint test test-accept
+lint-tui:
+	@echo "Checking no .Background() calls in tui/..."
+	@! grep -rn '\.Background(' tui/ --include='*.go' | grep -v '_test.go' || (echo "FAIL: .Background() found in tui/" && exit 1)
+	@echo "OK: no Background() calls"
+	@echo "Checking no raw hex outside colors.go/theme.go..."
+	@! grep -rn '"#[0-9a-fA-F]\{6\}"' tui/ --include='*.go' | grep -v '_test.go' | grep -v 'colors.go' | grep -v 'theme.go' || (echo "FAIL: raw hex found outside colors.go/theme.go" && exit 1)
+	@echo "OK: no raw hex"
+
+circuit: build lint lint-tui test test-accept
 	@echo "Circuit complete — all gates passed"
 
 smoke-claude:

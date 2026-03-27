@@ -47,9 +47,9 @@ const (
 
 // Status line styles.
 var (
-	healthGreen  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#22c55e", Dark: "#4ade80"})
-	healthYellow = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#eab308", Dark: "#facc15"})
-	healthRed    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#ef4444", Dark: "#f87171"})
+	healthGreen  lipgloss.Style // set by ApplyTokens()
+	healthYellow lipgloss.Style
+	healthRed    lipgloss.Style
 
 	fieldKeyStyle   = lipgloss.NewStyle().Faint(true)
 	fieldValueStyle = lipgloss.NewStyle().Bold(true)

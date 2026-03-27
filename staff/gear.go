@@ -25,6 +25,42 @@ const (
 // allGears lists all valid gear values for parsing.
 var allGears = []Gear{GearNone, GearRead, GearPlan, GearE0, GearE1, GearE2, GearE3, GearAuto}
 
+// RoleAssignment is a support role to spawn for a gear level.
+type RoleAssignment struct {
+	Role string
+}
+
+// SupportScheduler decides which support agents to spawn for a given gear.
+type SupportScheduler interface {
+	Plan(gear Gear) []RoleAssignment
+}
+
+// SupportSchedulerFunc adapts a plain function to the SupportScheduler interface.
+type SupportSchedulerFunc func(Gear) []RoleAssignment
+
+func (f SupportSchedulerFunc) Plan(g Gear) []RoleAssignment { return f(g) }
+
+// defaultSupportScheduler implements the built-in escalation rules.
+type defaultSupportScheduler struct{}
+
+func (defaultSupportScheduler) Plan(g Gear) []RoleAssignment {
+	switch g {
+	case GearE1:
+		return []RoleAssignment{{Role: "inspector"}}
+	case GearE2:
+		return []RoleAssignment{{Role: "scheduler"}, {Role: "inspector"}}
+	case GearE3:
+		return []RoleAssignment{{Role: "auditor"}, {Role: "scheduler"}, {Role: "inspector"}}
+	default:
+		return nil
+	}
+}
+
+// DefaultSupportScheduler returns the built-in support scheduling strategy.
+func DefaultSupportScheduler() SupportScheduler {
+	return defaultSupportScheduler{}
+}
+
 // GearState captures the current gear and its implications.
 type GearState struct {
 	Current   Gear
@@ -57,27 +93,35 @@ func (g Gear) Executors() int {
 	}
 }
 
-// SupportRoles returns the support roles auto-spawned for this gear.
+// SupportRoles returns the support roles auto-spawned for this gear
+// using the DefaultSupportScheduler.
 func (g Gear) SupportRoles() []string {
-	switch g {
-	case GearE1:
-		return []string{"inspector"}
-	case GearE2:
-		return []string{"scheduler", "inspector"}
-	case GearE3:
-		return []string{"auditor", "scheduler", "inspector"}
-	default:
-		return nil
-	}
+	return roleNames(DefaultSupportScheduler().Plan(g))
 }
 
-// State returns the full GearState for this gear.
+// State returns the full GearState using the default scheduler.
 func (g Gear) State() GearState {
+	return g.StateWith(DefaultSupportScheduler())
+}
+
+// StateWith returns the GearState using the provided scheduler.
+func (g Gear) StateWith(sched SupportScheduler) GearState {
 	return GearState{
 		Current:   g,
 		Executors: g.Executors(),
-		Support:   g.SupportRoles(),
+		Support:   roleNames(sched.Plan(g)),
 	}
+}
+
+func roleNames(assignments []RoleAssignment) []string {
+	if len(assignments) == 0 {
+		return nil
+	}
+	names := make([]string, len(assignments))
+	for i, a := range assignments {
+		names[i] = a.Role
+	}
+	return names
 }
 
 // ClassifyPromptComplexity uses simple heuristics to choose a gear

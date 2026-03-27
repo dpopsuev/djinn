@@ -4,39 +4,22 @@ package tui
 
 import "github.com/charmbracelet/lipgloss"
 
-// Red Hat Red — primary brand color.
-var RedHatRed = lipgloss.AdaptiveColor{Light: "#CC0000", Dark: "#EE0000"}
+// Red Hat Red — primary brand color. Set by ApplyTokens().
+var RedHatRed lipgloss.AdaptiveColor
 
 // All styles use foreground colors only — no backgrounds.
 // This preserves terminal transparency/opacity.
+// Set by ApplyTokens() at init — never assign hardcoded hex here.
 var (
-	UserStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#22c55e", Dark: "#4ade80"}).
-			Bold(true)
-
-	AssistStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#3b82f6", Dark: "#60a5fa"}).
-			Bold(true)
-
-	ToolNameStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#eab308", Dark: "#facc15"})
-
-	ToolArgStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#a855f7", Dark: "#c084fc"})
-
-	ToolSuccessStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "#22c55e", Dark: "#4ade80"})
-
-	ErrorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#ef4444", Dark: "#f87171"})
-
-	DimStyle = lipgloss.NewStyle().Faint(true)
-
-	StatusStyle = lipgloss.NewStyle().Faint(true)
-
-	LogoStyle = lipgloss.NewStyle().
-			Foreground(RedHatRed).
-			Bold(true)
+	UserStyle        lipgloss.Style
+	AssistStyle      lipgloss.Style
+	ToolNameStyle    lipgloss.Style
+	ToolArgStyle     lipgloss.Style
+	ToolSuccessStyle lipgloss.Style
+	ErrorStyle       lipgloss.Style
+	DimStyle         = lipgloss.NewStyle().Faint(true) // Faint is not color-based
+	StatusStyle      = lipgloss.NewStyle().Faint(true)
+	LogoStyle        lipgloss.Style
 )
 
 // Djinn logo — Red Hat fedora rendered from rh_logo.svg in block characters.

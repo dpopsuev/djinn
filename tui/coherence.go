@@ -58,11 +58,11 @@ func (g *CoherenceGauge) Zone() string {
 
 // Zone color styles — foreground only, transparency-safe.
 var (
-	zoneColdStyle    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#3b82f6", Dark: "#60a5fa"})
-	zoneWarmStyle    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#22c55e", Dark: "#4ade80"})
-	zoneFocusedStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#16a34a", Dark: "#22c55e"})
-	zoneHotStyle     = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#eab308", Dark: "#facc15"})
-	zoneRedlineStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#ef4444", Dark: "#f87171"})
+	zoneColdStyle    lipgloss.Style // set by ApplyTokens()
+	zoneWarmStyle    lipgloss.Style
+	zoneFocusedStyle lipgloss.Style
+	zoneHotStyle     lipgloss.Style
+	zoneRedlineStyle lipgloss.Style
 )
 
 func (g *CoherenceGauge) zoneStyle() lipgloss.Style {

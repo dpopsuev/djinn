@@ -42,4 +42,51 @@ func TestApplyTheme_UpdatesStyles(t *testing.T) {
 	if ActiveTheme.User.Light != "#ff0000" {
 		t.Fatal("theme not applied")
 	}
+	// ApplyTheme must flow through ApplyTokens
+	if ActiveTokens.UserFg != custom.User {
+		t.Fatal("ApplyTheme did not update ActiveTokens")
+	}
+	if RedHatRed != custom.Accent {
+		t.Fatal("ApplyTheme did not rebuild RedHatRed via tokens")
+	}
+}
+
+func TestRegisterTheme_RoundTrip(t *testing.T) {
+	custom := Theme{
+		User:      lipgloss.AdaptiveColor{Light: "#abcdef", Dark: "#abcdef"},
+		Assistant: lipgloss.AdaptiveColor{Light: "#abcdef", Dark: "#abcdef"},
+		ToolName:  lipgloss.AdaptiveColor{Light: "#abcdef", Dark: "#abcdef"},
+		ToolArg:   lipgloss.AdaptiveColor{Light: "#abcdef", Dark: "#abcdef"},
+		Success:   lipgloss.AdaptiveColor{Light: "#abcdef", Dark: "#abcdef"},
+		Error:     lipgloss.AdaptiveColor{Light: "#abcdef", Dark: "#abcdef"},
+		Accent:    lipgloss.AdaptiveColor{Light: "#abcdef", Dark: "#abcdef"},
+		FocusDim:  lipgloss.AdaptiveColor{Light: "#abcdef", Dark: "#abcdef"},
+	}
+	RegisterTheme("neon", custom)
+	defer delete(themeRegistry, "neon") // cleanup
+
+	got := ThemeByName("neon")
+	if got.User != custom.User {
+		t.Fatal("registered theme not returned")
+	}
+}
+
+func TestThemeByName_UnknownReturnsDefault(t *testing.T) {
+	got := ThemeByName("nonexistent")
+	if got.User != DefaultTheme.User {
+		t.Fatal("unknown name should return DefaultTheme")
+	}
+}
+
+func TestThemeNames_ContainsBuiltins(t *testing.T) {
+	names := ThemeNames()
+	want := map[string]bool{"djinn": false, "claude": false, "gemini": false, "codex": false}
+	for _, n := range names {
+		want[n] = true
+	}
+	for name, found := range want {
+		if !found {
+			t.Errorf("missing built-in theme: %s", name)
+		}
+	}
 }

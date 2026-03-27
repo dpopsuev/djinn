@@ -5,15 +5,11 @@ package tui
 
 import "github.com/charmbracelet/lipgloss"
 
-// Focused panel border — rounded edges, RedHatRed accent.
-var focusBorder = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(RedHatRed)
-
-// Unfocused panel border — same shape, dim grey.
-var unfocusedBorder = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(lipgloss.AdaptiveColor{Light: "#808080", Dark: "#505050"})
+// Panel border styles — set by ApplyTokens(), never hardcode hex here.
+var (
+	focusBorder     lipgloss.Style
+	unfocusedBorder lipgloss.Style
+)
 
 // RenderWithDepth wraps panel content with a border at the given width.
 // Depth 0 = focused (RedHatRed border). Higher depth = unfocused (dim grey border).

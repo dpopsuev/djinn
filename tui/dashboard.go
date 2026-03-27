@@ -84,9 +84,9 @@ func (p *DashboardPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 
 // Vim-style mode indicator styles.
 var (
-	modeInsertStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#22c55e", Dark: "#4ade80"})
-	modeStreamStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#3b82f6", Dark: "#60a5fa"})
-	modeApprovalStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#eab308", Dark: "#facc15"})
+	modeInsertStyle   lipgloss.Style // set by ApplyTokens()
+	modeStreamStyle   lipgloss.Style
+	modeApprovalStyle lipgloss.Style
 )
 
 func (p *DashboardPanel) View(width int) string {

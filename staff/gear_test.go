@@ -207,3 +207,65 @@ func TestClassifyPromptComplexity_DefaultE0(t *testing.T) {
 		t.Fatalf("no keywords = %q, want E0 (default)", g)
 	}
 }
+
+func TestSupportScheduler_DefaultMatchesLegacy(t *testing.T) {
+	sched := DefaultSupportScheduler()
+
+	tests := []struct {
+		gear      Gear
+		wantRoles []string
+	}{
+		{GearNone, nil},
+		{GearRead, nil},
+		{GearPlan, nil},
+		{GearE0, nil},
+		{GearE1, []string{"inspector"}},
+		{GearE2, []string{"scheduler", "inspector"}},
+		{GearE3, []string{"auditor", "scheduler", "inspector"}},
+		{GearAuto, nil},
+	}
+	for _, tt := range tests {
+		got := sched.Plan(tt.gear)
+		if len(got) != len(tt.wantRoles) {
+			t.Errorf("Plan(%q) returned %d roles, want %d: %v", tt.gear, len(got), len(tt.wantRoles), got)
+			continue
+		}
+		for i, r := range got {
+			if r.Role != tt.wantRoles[i] {
+				t.Errorf("Plan(%q)[%d].Role = %q, want %q", tt.gear, i, r.Role, tt.wantRoles[i])
+			}
+		}
+	}
+}
+
+func TestSupportScheduler_CustomStrategy(t *testing.T) {
+	// Custom scheduler that always returns a police role
+	custom := SupportSchedulerFunc(func(g Gear) []RoleAssignment {
+		if g.Executors() > 0 {
+			return []RoleAssignment{{Role: "police"}}
+		}
+		return nil
+	})
+
+	got := custom.Plan(GearE1)
+	if len(got) != 1 || got[0].Role != "police" {
+		t.Fatalf("custom Plan(E1) = %v, want [{police}]", got)
+	}
+
+	got = custom.Plan(GearNone)
+	if got != nil {
+		t.Fatalf("custom Plan(N) = %v, want nil", got)
+	}
+}
+
+func TestGearState_UsesSupportScheduler(t *testing.T) {
+	// StateWith should use the provided scheduler
+	custom := SupportSchedulerFunc(func(g Gear) []RoleAssignment {
+		return []RoleAssignment{{Role: "custom-role"}}
+	})
+
+	state := GearE1.StateWith(custom)
+	if len(state.Support) != 1 || state.Support[0] != "custom-role" {
+		t.Fatalf("StateWith(custom).Support = %v, want [custom-role]", state.Support)
+	}
+}

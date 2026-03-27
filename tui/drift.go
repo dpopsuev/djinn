@@ -14,14 +14,11 @@ import (
 
 const panelIDDrift = "drift"
 
-// Pillar color styles (foreground only — transparency safe).
+// Pillar color styles — set by ApplyTokens(), never hardcode hex here.
 var (
-	driftGoodStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#22c55e", Dark: "#4ade80"})
-	driftMidStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#eab308", Dark: "#facc15"})
-	driftBadStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#ef4444", Dark: "#f87171"})
+	driftGoodStyle lipgloss.Style
+	driftMidStyle  lipgloss.Style
+	driftBadStyle  lipgloss.Style
 )
 
 // DriftPanel displays three-pillar drift scores with progress bars.

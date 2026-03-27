@@ -7,10 +7,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// Diff styles — set by ApplyTokens(), never hardcode hex here.
 var (
-	diffAddStyle    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#22c55e", Dark: "#4ade80"})
-	diffDelStyle    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#ef4444", Dark: "#f87171"})
-	diffHeaderStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#06b6d4", Dark: "#22d3ee"})
+	diffAddStyle    lipgloss.Style
+	diffDelStyle    lipgloss.Style
+	diffHeaderStyle lipgloss.Style
 	diffMetaStyle   = lipgloss.NewStyle().Faint(true)
 )
 

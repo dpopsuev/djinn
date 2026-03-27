@@ -15,8 +15,8 @@ const (
 	SepSparse = '·' // level 3+: leaf details
 )
 
-var sepFocusStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.AdaptiveColor{Light: "#3b82f6", Dark: "#60a5fa"})
+// sepFocusStyle — set by ApplyTokens().
+var sepFocusStyle lipgloss.Style
 
 // Separator renders a horizontal line at the given nesting depth.
 // Focused separators render in accent color.

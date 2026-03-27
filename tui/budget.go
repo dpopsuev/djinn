@@ -45,9 +45,9 @@ func (g *BudgetGauge) Update(msg tea.Msg) (Panel, tea.Cmd) {
 
 // Budget bar color styles.
 var (
-	budgetOKStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#22c55e", Dark: "#4ade80"})
-	budgetWarnStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#eab308", Dark: "#facc15"})
-	budgetOverStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#ef4444", Dark: "#f87171"})
+	budgetOKStyle   lipgloss.Style // set by ApplyTokens()
+	budgetWarnStyle lipgloss.Style
+	budgetOverStyle lipgloss.Style
 )
 
 func (g *BudgetGauge) budgetStyle() lipgloss.Style {

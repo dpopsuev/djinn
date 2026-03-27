@@ -8,14 +8,43 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
 	"github.com/dpopsuev/djinn/session"
 )
 
-// Version is set via -ldflags at build time. Falls back to "dev".
+// Version is set via -ldflags at build time.
+// Falls back to git hash from debug.ReadBuildInfo (Go 1.18+).
 var Version = "0.1.0"
+
+func init() {
+	if Version != "0.1.0" {
+		return // ldflags already set
+	}
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return
+	}
+	var revision, dirty string
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			revision = s.Value
+		case "vcs.modified":
+			if s.Value == "true" {
+				dirty = "-dirty"
+			}
+		}
+	}
+	if revision != "" {
+		if len(revision) > 8 {
+			revision = revision[:8]
+		}
+		Version = revision + dirty
+	}
+}
 
 // Constants.
 const (
