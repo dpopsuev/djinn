@@ -41,7 +41,7 @@ func NewInputPanel() *InputPanel {
 	ta.Prompt = "" // No per-line prompt — chevron prepended in View() on first line only.
 	ta.Placeholder = `Try "explain this codebase"`
 	ta.ShowLineNumbers = false
-	ta.SetHeight(3)
+	ta.SetHeight(1) // Single line by default — expands upward on multi-line input.
 	ta.CharLimit = 0
 	// Style user input text in green (BUG-30).
 	ta.FocusedStyle.Text = UserStyle
