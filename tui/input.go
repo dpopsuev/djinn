@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // InputPanel is the user input area.
@@ -43,7 +44,19 @@ func NewInputPanel() *InputPanel {
 	ta.ShowLineNumbers = false
 	ta.SetHeight(1) // Single line by default — expands upward on multi-line input.
 	ta.CharLimit = 0
-	// Style user input text in green (BUG-30).
+
+	// Clear all backgrounds — our design language is foreground-only.
+	// The textarea component ships with default backgrounds that break
+	// terminal transparency.
+	noBackground := lipgloss.NewStyle()
+	ta.FocusedStyle.Base = noBackground
+	ta.BlurredStyle.Base = noBackground
+	ta.FocusedStyle.CursorLine = noBackground
+	ta.BlurredStyle.CursorLine = noBackground
+	ta.FocusedStyle.Placeholder = DimStyle
+	ta.BlurredStyle.Placeholder = DimStyle
+
+	// User input text in green (BUG-30). No background.
 	ta.FocusedStyle.Text = UserStyle
 	ta.BlurredStyle.Text = DimStyle
 	ta.Focus()
