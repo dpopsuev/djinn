@@ -7,10 +7,17 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 )
+
+var ansiPattern = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+func stripANSI(s string) string {
+	return ansiPattern.ReplaceAllString(s, "")
+}
 
 // DebugFrame is a single captured TUI render with component breakdown.
 type DebugFrame struct {
@@ -188,7 +195,7 @@ func (dt *DebugTap) ServeHTTP(addr string) (net.Listener, error) {
 	}
 	mux := http.NewServeMux()
 
-	// GET /debug/view — current frame (raw text)
+	// GET /debug/view — current frame. ?plain strips ANSI codes.
 	mux.HandleFunc("GET /debug/view", func(w http.ResponseWriter, r *http.Request) {
 		frame, ok := dt.Last()
 		if !ok {
@@ -196,7 +203,11 @@ func (dt *DebugTap) ServeHTTP(addr string) (net.Listener, error) {
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprint(w, frame.Frame)
+		content := frame.Frame
+		if r.URL.Query().Has("plain") {
+			content = stripANSI(content)
+		}
+		fmt.Fprint(w, content)
 	})
 
 	// GET /debug/state — current state as JSON
