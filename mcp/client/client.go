@@ -25,6 +25,8 @@ var (
 	ErrServerNotFound = errors.New("MCP server not found")
 	ErrToolNotFound   = errors.New("MCP tool not found")
 	ErrServerStopped  = errors.New("MCP server stopped")
+	ErrToolError      = errors.New("tool error")
+	ErrNoJSONInSSE    = errors.New("parse response: no JSON found in SSE body")
 )
 
 // Client manages connections to multiple MCP servers.
@@ -294,7 +296,7 @@ func (c *Client) callOnce(ctx context.Context, serverName, toolName string, inpu
 		}
 
 		if result.IsError {
-			return sb.String(), fmt.Errorf("tool error: %s", sb.String())
+			return sb.String(), fmt.Errorf("%w: %s", ErrToolError, sb.String())
 		}
 		return sb.String(), nil
 	}
@@ -380,8 +382,8 @@ func (t *stdioTransport) Send(req jsonRPCRequest) (jsonRPCResponse, error) {
 		timeout = DefaultCallTimeout
 	}
 	if t.stdoutRaw != nil {
-		t.stdoutRaw.SetReadDeadline(time.Now().Add(timeout)) //nolint:errcheck
-		defer t.stdoutRaw.SetReadDeadline(time.Time{})       //nolint:errcheck
+		t.stdoutRaw.SetReadDeadline(time.Now().Add(timeout)) //nolint:errcheck // error intentionally ignored
+		defer t.stdoutRaw.SetReadDeadline(time.Time{})       //nolint:errcheck // best-effort cleanup on defer
 	}
 
 	line, err := t.stdout.ReadBytes('\n')
@@ -450,7 +452,7 @@ func (t *httpTransport) Send(req jsonRPCRequest) (jsonRPCResponse, error) {
 	// Fall back to SSE parsing: extract JSON from "data: {json}" lines
 	jsonData := extractSSEData(string(body))
 	if jsonData == "" {
-		return jsonRPCResponse{}, fmt.Errorf("parse response: no JSON found in SSE body")
+		return jsonRPCResponse{}, ErrNoJSONInSSE
 	}
 
 	if err := json.Unmarshal([]byte(jsonData), &resp); err != nil {
@@ -467,7 +469,7 @@ func extractSSEData(body string) string {
 		if after, ok := strings.CutPrefix(line, "data: "); ok {
 			// Verify it looks like JSON
 			trimmed := strings.TrimSpace(after)
-			if len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[') {
+			if trimmed != "" && (trimmed[0] == '{' || trimmed[0] == '[') {
 				return trimmed
 			}
 		}

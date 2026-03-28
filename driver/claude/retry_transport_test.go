@@ -31,7 +31,7 @@ func TestRetryTransport_TransientRetried(t *testing.T) {
 	}, djinnlog.Nop())
 	rt.sleep = func(time.Duration) {} // no-op sleep
 
-	req, _ := http.NewRequest("POST", srv.URL, nil)
+	req, _ := http.NewRequest("POST", srv.URL, http.NoBody)
 	resp, err := rt.RoundTrip(req)
 	if err != nil {
 		t.Fatalf("RoundTrip: %v", err)
@@ -58,7 +58,7 @@ func TestRetryTransport_NonRetryable400(t *testing.T) {
 	rt := newRetryTransport(srv.Client().Transport, DefaultRetryConfig(), djinnlog.Nop())
 	rt.sleep = func(time.Duration) {}
 
-	req, _ := http.NewRequest("POST", srv.URL, nil)
+	req, _ := http.NewRequest("POST", srv.URL, http.NoBody)
 	resp, err := rt.RoundTrip(req)
 	if err != nil {
 		t.Fatalf("RoundTrip: %v", err)
@@ -88,7 +88,7 @@ func TestRetryTransport_MaxRetriesExhausted(t *testing.T) {
 	}, djinnlog.Nop())
 	rt.sleep = func(time.Duration) {}
 
-	req, _ := http.NewRequest("POST", srv.URL, nil)
+	req, _ := http.NewRequest("POST", srv.URL, http.NoBody)
 	resp, err := rt.RoundTrip(req)
 	if err != nil {
 		t.Fatalf("RoundTrip: %v", err)
@@ -118,8 +118,11 @@ func TestRetryTransport_BackoffTiming(t *testing.T) {
 	}, djinnlog.Nop())
 	rt.sleep = func(d time.Duration) { delays = append(delays, d) }
 
-	req, _ := http.NewRequest("POST", srv.URL, nil)
-	rt.RoundTrip(req)
+	req, _ := http.NewRequest("POST", srv.URL, http.NoBody)
+	resp, _ := rt.RoundTrip(req)
+	if resp != nil {
+		resp.Body.Close()
+	}
 
 	if len(delays) != 3 {
 		t.Fatalf("delays = %d, want 3", len(delays))
@@ -149,7 +152,7 @@ func TestRetryTransport_429Retried(t *testing.T) {
 	rt := newRetryTransport(srv.Client().Transport, DefaultRetryConfig(), djinnlog.Nop())
 	rt.sleep = func(time.Duration) {}
 
-	req, _ := http.NewRequest("POST", srv.URL, nil)
+	req, _ := http.NewRequest("POST", srv.URL, http.NoBody)
 	resp, err := rt.RoundTrip(req)
 	if err != nil {
 		t.Fatalf("RoundTrip: %v", err)
@@ -175,7 +178,7 @@ func TestRetryTransport_AuthError401NotRetried(t *testing.T) {
 	rt := newRetryTransport(srv.Client().Transport, DefaultRetryConfig(), djinnlog.Nop())
 	rt.sleep = func(time.Duration) {}
 
-	req, _ := http.NewRequest("POST", srv.URL, nil)
+	req, _ := http.NewRequest("POST", srv.URL, http.NoBody)
 	resp, err := rt.RoundTrip(req)
 	if err != nil {
 		t.Fatalf("RoundTrip: %v", err)
@@ -204,14 +207,14 @@ func TestRetryTransport_RequestBodyPreserved(t *testing.T) {
 	rt.sleep = func(time.Duration) {}
 
 	// bytes.NewReader automatically sets GetBody on the request.
-	req, _ := http.NewRequest("POST", srv.URL, nil)
+	req, _ := http.NewRequest("POST", srv.URL, http.NoBody)
 	req.Body = io.NopCloser(nil)
 	req.GetBody = func() (io.ReadCloser, error) {
 		return io.NopCloser(nil), nil
 	}
 
 	// Use a real body via a new request.
-	req2, _ := http.NewRequest("POST", srv.URL, nil)
+	req2, _ := http.NewRequest("POST", srv.URL, http.NoBody)
 	// Cannot easily test body preservation with http.NewRequest since
 	// httptest transport doesn't forward GetBody. Verify the function path.
 	resp, err := rt.RoundTrip(req2)
@@ -236,8 +239,11 @@ func TestRetryTransport_NetworkErrorRetried(t *testing.T) {
 	}, djinnlog.Nop())
 	rt.sleep = func(time.Duration) {}
 
-	req, _ := http.NewRequest("POST", srvURL, nil)
-	_, err := rt.RoundTrip(req)
+	req, _ := http.NewRequest("POST", srvURL, http.NoBody)
+	resp, err := rt.RoundTrip(req)
+	if resp != nil {
+		resp.Body.Close()
+	}
 	if err == nil {
 		t.Fatal("expected network error")
 	}

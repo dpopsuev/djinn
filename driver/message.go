@@ -7,20 +7,20 @@ import (
 
 // Content block types within a message.
 const (
-	BlockText     = "text"
-	BlockToolUse  = "tool_use"
+	BlockText       = "text"
+	BlockToolUse    = "tool_use"
 	BlockToolResult = "tool_result"
-	BlockThinking = "thinking"
+	BlockThinking   = "thinking"
 )
 
 // ContentBlock is a single piece of content within a message.
 // A message may contain multiple blocks (e.g., text + tool calls).
 type ContentBlock struct {
-	Type       string          `json:"type"`
-	Text       string          `json:"text,omitempty"`
-	ToolCall   *ToolCall       `json:"tool_call,omitempty"`
-	ToolResult *ToolResult     `json:"tool_result,omitempty"`
-	Thinking   string          `json:"thinking,omitempty"`
+	Type       string      `json:"type"`
+	Text       string      `json:"text,omitempty"`
+	ToolCall   *ToolCall   `json:"tool_call,omitempty"`
+	ToolResult *ToolResult `json:"tool_result,omitempty"`
+	Thinking   string      `json:"thinking,omitempty"`
 }
 
 // ToolCall represents a request from the model to execute a tool.
@@ -45,11 +45,11 @@ type Usage struct {
 
 // StreamEvent types for real-time processing.
 const (
-	EventText      = "text"
-	EventThinking  = "thinking"
-	EventToolUse   = "tool_use"
-	EventDone      = "done"
-	EventError     = "error"
+	EventText     = "text"
+	EventThinking = "thinking"
+	EventToolUse  = "tool_use"
+	EventDone     = "done"
+	EventError    = "error"
 )
 
 // StreamEvent represents a single event in a streaming response.

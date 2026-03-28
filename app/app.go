@@ -56,9 +56,12 @@ const (
 
 // Driver names.
 const (
-	DriverClaude = "claude"
-	DriverOllama = "ollama"
-	DriverCursor = "cursor"
+	DriverClaude    = "claude"
+	DriverClaudeAPI = "claude-api"
+	DriverOllama    = "ollama"
+	DriverCursor    = "cursor"
+	DriverGemini    = "gemini"
+	DriverCodex     = "codex"
 )
 
 // HomeDir returns the Djinn home directory.

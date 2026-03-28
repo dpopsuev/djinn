@@ -12,12 +12,12 @@ func Search(summaries []SessionSummary, query string) []SessionSummary {
 	query = strings.ToLower(query)
 
 	var matches []SessionSummary
-	for _, s := range summaries {
+	for i := range summaries {
 		haystack := strings.ToLower(strings.Join([]string{
-			s.Name, s.ID, s.Model, s.Driver, s.WorkDir,
+			summaries[i].Name, summaries[i].ID, summaries[i].Model, summaries[i].Driver, summaries[i].WorkDir,
 		}, " "))
 		if strings.Contains(haystack, query) {
-			matches = append(matches, s)
+			matches = append(matches, summaries[i])
 		}
 	}
 	return matches

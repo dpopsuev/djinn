@@ -35,7 +35,7 @@ func TestHomeDir_DualPath(t *testing.T) {
 
 	// Create ~/.djinn (legacy) → should find it
 	djinnDir := filepath.Join(home, ".djinn")
-	os.MkdirAll(djinnDir, 0755)
+	os.MkdirAll(djinnDir, 0o755)
 	dir = HomeDir()
 	if dir != djinnDir {
 		t.Fatalf("should find legacy .djinn, got %q", dir)
@@ -43,7 +43,7 @@ func TestHomeDir_DualPath(t *testing.T) {
 
 	// Create ~/.config/djinn (XDG) → should prefer it
 	configDir := filepath.Join(home, ".config", "djinn")
-	os.MkdirAll(configDir, 0755)
+	os.MkdirAll(configDir, 0o755)
 	dir = HomeDir()
 	if dir != configDir {
 		t.Fatalf("should prefer XDG .config/djinn, got %q", dir)
@@ -126,7 +126,7 @@ func TestPrintUsage(t *testing.T) {
 func TestReadSystemFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "system.txt")
-	os.WriteFile(path, []byte("You are a Go expert."), 0644)
+	os.WriteFile(path, []byte("You are a Go expert."), 0o644)
 
 	content := ReadSystemFile(path)
 	if content != "You are a Go expert." {
@@ -377,7 +377,7 @@ func TestRun_Debug_NoArgs(t *testing.T) {
 
 func TestRun_Ls(t *testing.T) {
 	var buf bytes.Buffer
-	Run([]string{"ls"}, &buf) //nolint:errcheck
+	Run([]string{"ls"}, &buf) //nolint:errcheck // test helper, error checked elsewhere
 }
 
 func TestRunDebug_Session_NoArgs(t *testing.T) {
@@ -408,7 +408,7 @@ func TestRunDebug_Component_DefaultFile(t *testing.T) {
 	var buf bytes.Buffer
 	// May succeed or fail depending on whether /tmp/djinn-frames.jsonl exists.
 	// Just verify no panic.
-	RunDebug([]string{"panels"}, &buf) //nolint:errcheck
+	RunDebug([]string{"panels"}, &buf) //nolint:errcheck // test helper, error checked elsewhere
 }
 
 func TestStripANSI(t *testing.T) {
@@ -456,8 +456,8 @@ func TestFindMostRecentJSONL_EmptyDir(t *testing.T) {
 
 func TestFindMostRecentJSONL_WithFiles(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "a.jsonl"), []byte("{}"), 0644)
-	os.WriteFile(filepath.Join(dir, "b.jsonl"), []byte("{}"), 0644)
+	os.WriteFile(filepath.Join(dir, "a.jsonl"), []byte("{}"), 0o644)
+	os.WriteFile(filepath.Join(dir, "b.jsonl"), []byte("{}"), 0o644)
 	result := findMostRecentJSONL(dir)
 	if result == "" {
 		t.Fatal("should find a jsonl file")

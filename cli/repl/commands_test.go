@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	djinnconfig "github.com/dpopsuev/djinn/config"
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/session"
 )
@@ -163,7 +164,7 @@ func TestExecuteCommand_Mode_InvalidMode(t *testing.T) {
 }
 
 func TestExecuteCommand_Mode_AllModes(t *testing.T) {
-	for _, mode := range []string{"ask", "plan", "agent", "auto"} {
+	for _, mode := range []string{djinnconfig.ModeAsk, djinnconfig.ModePlan, djinnconfig.ModeAgent, djinnconfig.ModeAuto} {
 		sess := session.New("test", "model", "/workspace")
 		result := ExecuteCommand(Command{Name: "/mode", Args: []string{mode}}, sess)
 		if sess.Mode != mode {
@@ -365,7 +366,7 @@ func TestExecuteCommand_Permissions_AutoMode(t *testing.T) {
 
 func TestExecuteCommand_Permissions_AskMode(t *testing.T) {
 	sess := session.New("test", "model", "/workspace")
-	sess.Mode = "ask"
+	sess.Mode = djinnconfig.ModeAsk
 	result := ExecuteCommand(Command{Name: "/permissions"}, sess)
 	if !strings.Contains(result.Output, "none") {
 		t.Fatalf("output = %q", result.Output)

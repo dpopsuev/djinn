@@ -1,5 +1,14 @@
 package staff
 
+// Role name constants — used across the staff package for deterministic scheduling.
+const (
+	RoleGenSec    = "gensec"
+	RoleAuditor   = "auditor"
+	RoleScheduler = "scheduler"
+	RoleExecutor  = "executor"
+	RoleInspector = "inspector"
+)
+
 // Signal represents a pipeline event that triggers role transitions.
 type Signal int
 
@@ -20,24 +29,24 @@ const (
 func NextRole(signal Signal) string {
 	switch signal {
 	case SignalPromptReceived:
-		return "gensec"
+		return RoleGenSec
 	case SignalNeedCaptured:
-		return "auditor"
+		return RoleAuditor
 	case SignalSpecStamped:
-		return "scheduler"
+		return RoleScheduler
 	case SignalTasksPlanned:
-		return "executor"
+		return RoleExecutor
 	case SignalExecutorDone:
 		return "" // gate fires mechanically, not a role transition
 	case SignalGatePassed:
-		return "inspector"
+		return RoleInspector
 	case SignalGateFailed:
-		return "executor" // rework
+		return RoleExecutor // rework
 	case SignalInspectorApproved:
-		return "gensec" // report back to human
+		return RoleGenSec // report back to human
 	case SignalInspectorRejected:
-		return "executor" // rework with feedback
+		return RoleExecutor // rework with feedback
 	default:
-		return "gensec"
+		return RoleGenSec
 	}
 }

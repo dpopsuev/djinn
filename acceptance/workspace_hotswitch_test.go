@@ -129,8 +129,8 @@ func TestHotSwitch_ContextReDiscovered(t *testing.T) {
 
 	// Create workspace with a repo that has CLAUDE.md
 	repoDir := filepath.Join(home, "project")
-	os.MkdirAll(repoDir, 0755)
-	os.WriteFile(filepath.Join(repoDir, "CLAUDE.md"), []byte("new project rules"), 0644)
+	os.MkdirAll(repoDir, 0o755)
+	os.WriteFile(filepath.Join(repoDir, "CLAUDE.md"), []byte("new project rules"), 0o644)
 
 	ws := &workspace.Workspace{
 		Name:  "with-context",

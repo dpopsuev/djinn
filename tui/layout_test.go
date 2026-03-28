@@ -69,11 +69,11 @@ func TestLayout_FixedHeight(t *testing.T) {
 	small := ComputeLayout(80, 24)
 	medium := ComputeLayout(120, 40)
 
-	// Small: output(2) + input(1) + inputBorder(2) + dash(1) + dashBorder(2) = 8
+	// Small layout: all panels contribute 8 fixed lines total.
 	if small.FixedHeight() != 8 {
 		t.Fatalf("small fixed = %d, want 8", small.FixedHeight())
 	}
-	// Medium: output(2) + input(3) + inputBorder(2) + dash(1) + dashBorder(2) = 10
+	// Medium layout: all panels contribute 10 fixed lines total.
 	if medium.FixedHeight() != 10 {
 		t.Fatalf("medium fixed = %d, want 10", medium.FixedHeight())
 	}

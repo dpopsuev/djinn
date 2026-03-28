@@ -51,7 +51,7 @@ func TestConfig_DumpProducesValidYAML(t *testing.T) {
 
 func TestConfig_FileOverridesDefault(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "djinn.yaml"), []byte("mode: auto\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "djinn.yaml"), []byte("mode: auto\n"), 0o644)
 
 	r := config.NewRegistry()
 	mc := &config.ModeConfig{Mode: "agent"}
@@ -65,9 +65,9 @@ func TestConfig_FileOverridesDefault(t *testing.T) {
 
 func TestConfig_CLIOverridesFile(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "djinn.yaml"), []byte("mode: plan\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "djinn.yaml"), []byte("mode: plan\n"), 0o644)
 	explicit := filepath.Join(dir, "override.yaml")
-	os.WriteFile(explicit, []byte("mode: auto\n"), 0644)
+	os.WriteFile(explicit, []byte("mode: auto\n"), 0o644)
 
 	r := config.NewRegistry()
 	mc := &config.ModeConfig{Mode: "agent"}

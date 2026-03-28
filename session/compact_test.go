@@ -62,7 +62,7 @@ func TestCompact_SummaryContainsOldContent(t *testing.T) {
 	if entries[0].Role != "user" {
 		t.Fatal("summary should be user role")
 	}
-	if len(entries[0].Content) == 0 {
+	if entries[0].Content == "" {
 		t.Fatal("summary should not be empty")
 	}
 }

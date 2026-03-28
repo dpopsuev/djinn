@@ -87,7 +87,7 @@ func WrapText(text string, width int) string {
 			result.WriteString(line[:breakAt])
 			line = strings.TrimLeft(line[breakAt:], " ")
 		}
-		if len(line) > 0 {
+		if line != "" {
 			if result.Len() > 0 {
 				result.WriteByte('\n')
 			}

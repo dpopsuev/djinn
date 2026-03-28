@@ -7,17 +7,25 @@ package tools
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"sync"
 	"time"
 )
 
+// Sentinel errors for DiscourseStore operations.
+var (
+	ErrForumNotFound  = errors.New("forum not found")
+	ErrTopicNotFound  = errors.New("topic not found")
+	ErrThreadNotFound = errors.New("thread not found")
+	ErrInvalidStatus  = errors.New("invalid topic status")
+)
+
 // ThreadMessage is a single message within a conversation thread.
 type ThreadMessage struct {
-	Role      string    `json:"role"`    // "user" or "assistant"
+	Role      string    `json:"role"` // "user" or "assistant"
 	Content   string    `json:"content"`
 	Timestamp time.Time `json:"timestamp"`
 }
@@ -149,13 +157,13 @@ func (d *DiscourseStore) UpdateTopicStatus(scope, topicID, status string) error 
 
 	f, ok := d.forums[scope]
 	if !ok {
-		return fmt.Errorf("forum for scope %q not found", scope)
+		return fmt.Errorf("%w: scope %q", ErrForumNotFound, scope)
 	}
 
 	switch status {
 	case TopicDraft, TopicStash, TopicActive, TopicComplete, TopicArchived:
 	default:
-		return fmt.Errorf("invalid topic status %q", status)
+		return fmt.Errorf("%w: %q", ErrInvalidStatus, status)
 	}
 
 	for _, t := range f.Topics {
@@ -165,7 +173,7 @@ func (d *DiscourseStore) UpdateTopicStatus(scope, topicID, status string) error 
 			return nil
 		}
 	}
-	return fmt.Errorf("topic %q not found in scope %q", topicID, scope)
+	return fmt.Errorf("%w: %q in scope %q", ErrTopicNotFound, topicID, scope)
 }
 
 // CreateThread adds a new thread to a topic. Returns an error if the topic
@@ -176,24 +184,25 @@ func (d *DiscourseStore) CreateThread(scope, topicID string) (*Thread, error) {
 
 	f, ok := d.forums[scope]
 	if !ok {
-		return nil, fmt.Errorf("forum for scope %q not found", scope)
+		return nil, fmt.Errorf("%w: scope %q", ErrForumNotFound, scope)
 	}
 
 	for _, topic := range f.Topics {
-		if topic.ID == topicID {
-			now := time.Now()
-			thread := &Thread{
-				ID:      d.nextID("TH"),
-				Status:  ThreadActive,
-				Created: now,
-				Updated: now,
-			}
-			topic.Threads = append(topic.Threads, thread)
-			topic.Updated = now
-			return thread, nil
+		if topic.ID != topicID {
+			continue
 		}
+		now := time.Now()
+		thread := &Thread{
+			ID:      d.nextID("TH"),
+			Status:  ThreadActive,
+			Created: now,
+			Updated: now,
+		}
+		topic.Threads = append(topic.Threads, thread)
+		topic.Updated = now
+		return thread, nil
 	}
-	return nil, fmt.Errorf("topic %q not found in scope %q", topicID, scope)
+	return nil, fmt.Errorf("%w: %q in scope %q", ErrTopicNotFound, topicID, scope)
 }
 
 // AppendMessage adds a message to a thread. Returns an error if the
@@ -204,7 +213,7 @@ func (d *DiscourseStore) AppendMessage(scope, topicID, threadID, role, content s
 
 	f, ok := d.forums[scope]
 	if !ok {
-		return fmt.Errorf("forum for scope %q not found", scope)
+		return fmt.Errorf("%w: scope %q", ErrForumNotFound, scope)
 	}
 
 	for _, topic := range f.Topics {
@@ -225,9 +234,9 @@ func (d *DiscourseStore) AppendMessage(scope, topicID, threadID, role, content s
 			topic.Updated = now
 			return nil
 		}
-		return fmt.Errorf("thread %q not found in topic %q", threadID, topicID)
+		return fmt.Errorf("%w: %q in topic %q", ErrThreadNotFound, threadID, topicID)
 	}
-	return fmt.Errorf("topic %q not found in scope %q", topicID, scope)
+	return fmt.Errorf("%w: %q in scope %q", ErrTopicNotFound, topicID, scope)
 }
 
 // StaleTopics returns topics that haven't been updated within the given threshold.
@@ -296,26 +305,7 @@ func (d *DiscourseStore) marshalState() discourseStoreState {
 func (d *DiscourseStore) Save() error {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-
-	data, err := json.MarshalIndent(d.marshalState(), "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal discourse: %w", err)
-	}
-
-	dir := filepath.Dir(d.path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("create dir: %w", err)
-	}
-
-	tmp := d.path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return fmt.Errorf("write tmp: %w", err)
-	}
-	if err := os.Rename(tmp, d.path); err != nil {
-		os.Remove(tmp) //nolint:errcheck
-		return fmt.Errorf("rename: %w", err)
-	}
-	return nil
+	return atomicSaveJSON(d.path, d.marshalState(), "discourse")
 }
 
 // Load reads discourse data from the file. Existing in-memory data is replaced.

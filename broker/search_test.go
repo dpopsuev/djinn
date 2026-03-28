@@ -10,7 +10,7 @@ import (
 
 func TestBroker_Search_Signals(t *testing.T) {
 	bus := signal.NewSignalBus()
-	b := NewBroker(BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
+	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
 
 	bus.Emit(signal.Signal{Workstream: "ws-1", Level: signal.Red, Message: "auth test failing"})
 	bus.Emit(signal.Signal{Workstream: "ws-2", Level: signal.Green, Message: "billing ok"})
@@ -29,7 +29,7 @@ func TestBroker_Search_Signals(t *testing.T) {
 
 func TestBroker_Search_Workstreams(t *testing.T) {
 	bus := signal.NewSignalBus()
-	b := NewBroker(BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
+	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
 
 	b.workstreams.Register(&WorkstreamInfo{
 		ID:        "ws-fix",
@@ -50,7 +50,7 @@ func TestBroker_Search_Workstreams(t *testing.T) {
 func TestBroker_Search_Cordons(t *testing.T) {
 	bus := signal.NewSignalBus()
 	cordons := NewCordonRegistry()
-	b := NewBroker(BrokerConfig{Bus: bus, Cordons: cordons})
+	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons})
 
 	cordons.Set([]string{"auth/middleware.go"}, "security vulnerability", "agent-1")
 
@@ -66,7 +66,7 @@ func TestBroker_Search_Cordons(t *testing.T) {
 func TestBroker_Search_CrossSubsystem(t *testing.T) {
 	bus := signal.NewSignalBus()
 	cordons := NewCordonRegistry()
-	b := NewBroker(BrokerConfig{Bus: bus, Cordons: cordons})
+	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons})
 
 	bus.Emit(signal.Signal{Workstream: "ws-auth", Level: signal.Red, Message: "auth broken"})
 	b.workstreams.Register(&WorkstreamInfo{
@@ -86,7 +86,7 @@ func TestBroker_Search_CrossSubsystem(t *testing.T) {
 
 func TestBroker_Search_NoMatch(t *testing.T) {
 	bus := signal.NewSignalBus()
-	b := NewBroker(BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
+	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
 
 	bus.Emit(signal.Signal{Workstream: "ws-1", Message: "all good"})
 
@@ -98,7 +98,7 @@ func TestBroker_Search_NoMatch(t *testing.T) {
 
 func TestBroker_Search_CaseInsensitive(t *testing.T) {
 	bus := signal.NewSignalBus()
-	b := NewBroker(BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
+	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
 
 	bus.Emit(signal.Signal{Workstream: "ws-1", Message: "Auth Module Error"})
 
@@ -110,7 +110,7 @@ func TestBroker_Search_CaseInsensitive(t *testing.T) {
 
 func TestBroker_Search_SortedByRecency(t *testing.T) {
 	bus := signal.NewSignalBus()
-	b := NewBroker(BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
+	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
 
 	t1 := time.Now().Add(-2 * time.Hour)
 	t2 := time.Now().Add(-1 * time.Hour)

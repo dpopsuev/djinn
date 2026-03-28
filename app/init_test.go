@@ -36,7 +36,7 @@ func TestGenerateConfig_WritesValidYAML(t *testing.T) {
 func TestGenerateConfig_DoesNotOverwrite(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "djinn.yaml")
-	os.WriteFile(path, []byte("existing"), 0644)
+	os.WriteFile(path, []byte("existing"), 0o644)
 
 	err := GenerateConfig(dir, DetectedDriver{Name: "cursor"})
 	if err == nil {

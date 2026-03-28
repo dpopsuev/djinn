@@ -135,9 +135,7 @@ func ComputeStructureWithViolations(arch *ArchReport, violations []string) Pilla
 		}
 		ps.Details = append(ps.Details, detail)
 	}
-	for _, v := range violations {
-		ps.Details = append(ps.Details, v)
-	}
+	ps.Details = append(ps.Details, violations...)
 	return ps
 }
 

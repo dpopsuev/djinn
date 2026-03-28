@@ -21,7 +21,7 @@ const (
 	WorkstreamRunning   WorkstreamStatus = "running"
 	WorkstreamCompleted WorkstreamStatus = "completed"
 	WorkstreamFailed    WorkstreamStatus = "failed"
-	WorkstreamCancelled WorkstreamStatus = "cancelled"
+	WorkstreamCanceled  WorkstreamStatus = "canceled"
 	WorkstreamPending   WorkstreamStatus = "pending"
 )
 
@@ -49,10 +49,10 @@ func WithMaxConcurrent(n int) RegistryOption {
 
 // WorkstreamRegistry tracks active and recent workstreams.
 type WorkstreamRegistry struct {
-	mu             sync.RWMutex
-	workstreams    map[string]*WorkstreamInfo
-	maxConcurrent  int
-	pending        []*WorkstreamInfo
+	mu            sync.RWMutex
+	workstreams   map[string]*WorkstreamInfo
+	maxConcurrent int
+	pending       []*WorkstreamInfo
 }
 
 // NewWorkstreamRegistry creates a new workstream registry.
@@ -69,7 +69,7 @@ func NewWorkstreamRegistry(opts ...RegistryOption) *WorkstreamRegistry {
 // TryRegister attempts to register a workstream. Returns false and queue
 // position if at the concurrency limit. The workstream is added to the
 // pending queue with status WorkstreamPending.
-func (r *WorkstreamRegistry) TryRegister(info *WorkstreamInfo) (bool, int) {
+func (r *WorkstreamRegistry) TryRegister(info *WorkstreamInfo) (accepted bool, position int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -108,8 +108,8 @@ func (r *WorkstreamRegistry) Dequeue() *WorkstreamInfo {
 	return ws
 }
 
-// Complete marks a workstream as completed, failed, or cancelled.
-// Only transitions from Running are allowed — a cancelled workstream
+// Complete marks a workstream as completed, failed, or canceled.
+// Only transitions from Running are allowed — a canceled workstream
 // cannot be overwritten by a subsequent failed/completed status.
 func (r *WorkstreamRegistry) Complete(id string, status WorkstreamStatus) {
 	r.mu.Lock()

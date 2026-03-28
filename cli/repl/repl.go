@@ -7,37 +7,37 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/agent"
-	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/staff"
+	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/workspace"
-	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
 // Config configures the REPL.
 type Config struct {
-	Driver       driver.ChatDriver
-	Tools        *builtin.Registry
-	Session      *session.Session
-	SystemPrompt string
-	MaxTurns     int
-	AutoApprove  bool
-	Mode         string // "ask", "plan", "agent", "auto"
-	Log          *slog.Logger
-	Ring         *djinnlog.RingHandler
-	Store         *session.Store      // for auto-save after each turn
-	InitialPrompt string             // auto-submit on first render
-	WorkspaceBus  *workspace.Bus     // workspace event bus for /workspace-switch
-	Transport     interface{}        // clutch.Transport for hot-swap (nil = direct agent.Run)
-	Router        *staff.ToolClearance       // capability-based tool routing (nil = use raw registry)
+	Driver        driver.ChatDriver
+	Tools         *builtin.Registry
+	Session       *session.Session
+	SystemPrompt  string
+	MaxTurns      int
+	AutoApprove   bool
+	Mode          string // "ask", "plan", "agent", "auto"
+	Log           *slog.Logger
+	Ring          *djinnlog.RingHandler
+	Store         *session.Store            // for auto-save after each turn
+	InitialPrompt string                    // auto-submit on first render
+	WorkspaceBus  *workspace.Bus            // workspace event bus for /workspace-switch
+	Transport     interface{}               // clutch.Transport for hot-swap (nil = direct agent.Run)
+	Router        *staff.ToolClearance      // capability-based tool routing (nil = use raw registry)
 	Enforcer      policy.ToolPolicyEnforcer // ToolPolicyEnforcer for agent call mediation
 	Token         policy.CapabilityToken
-	HealthReports []tui.HealthReport   // initial health from startup
-	Version       string              // app version for MOTD (set via ldflags)
-	DebugTap      *tui.DebugTap       // nil = disabled; captures rendered frames
+	HealthReports []tui.HealthReport // initial health from startup
+	Version       string             // app version for MOTD (set via ldflags)
+	DebugTap      *tui.DebugTap      // nil = disabled; captures rendered frames
 
 	// Sandbox: when set, all agents except GenSec run inside the sandbox.
 	SandboxHandle  string
@@ -47,7 +47,7 @@ type Config struct {
 }
 
 // Run starts the interactive REPL. Blocks until /exit or ctrl-C.
-func Run(ctx context.Context, cfg Config) error {
+func Run(ctx context.Context, cfg Config) error { //nolint:gocritic // Config is a value type, changing would break all callers
 	m := NewModel(cfg)
 	m.ctx = ctx
 

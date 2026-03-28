@@ -11,6 +11,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// Cursor indicators for the agent roster.
+const (
+	cursorActive   = "> "
+	cursorInactive = "  "
+)
+
 // AgentsPanel manages a roster of agent status cards.
 type AgentsPanel struct {
 	BasePanel
@@ -108,9 +114,9 @@ func (p *AgentsPanel) View(width int) string {
 
 	var sb strings.Builder
 	for i, a := range p.agents {
-		indicator := "  "
+		indicator := cursorInactive
 		if i == p.cursor {
-			indicator = "> "
+			indicator = cursorActive
 		}
 		line := fmt.Sprintf("%s%s", indicator, a.View(width-4))
 		if i < len(p.agents)-1 {

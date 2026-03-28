@@ -60,7 +60,7 @@ func withMaxConcurrentFromConfig(n int) []RegistryOption {
 }
 
 // NewBroker creates a new broker from its dependencies.
-func NewBroker(cfg BrokerConfig) *Broker {
+func NewBroker(cfg *BrokerConfig) *Broker {
 	return &Broker{
 		orch:        cfg.Orchestrator,
 		bus:         cfg.Bus,
@@ -100,8 +100,8 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 	plan := b.planFactory(intent)
 
 	scopes := make([]tier.Scope, len(plan.Stages))
-	for i, s := range plan.Stages {
-		scopes[i] = s.Scope
+	for i := range plan.Stages {
+		scopes[i] = plan.Stages[i].Scope
 	}
 
 	wsBus := signal.NewSignalBus()
@@ -190,7 +190,7 @@ func (b *Broker) CancelWorkstream(id string) error {
 		return fmt.Errorf("%w: %s", ErrWorkstreamNotFound, id)
 	}
 	cancel()
-	b.workstreams.Complete(id, WorkstreamCancelled)
+	b.workstreams.Complete(id, WorkstreamCanceled)
 	return nil
 }
 

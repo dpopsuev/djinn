@@ -21,7 +21,7 @@ package staff
 //   - tone: formal | casual
 //   - icons: emoji | ascii | none
 //   - timestamps: always | failures | never
-//   - names: heraldic | colour | role
+//   - names: heraldic | color | role
 //   - failure_detail: full | summary
 //   - success_detail: celebrate | silent
 type CommunicationStyle interface {

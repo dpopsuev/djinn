@@ -17,29 +17,29 @@ const (
 
 // EnvSnapshot captures the current environment state in one call.
 type EnvSnapshot struct {
-	GitBranch      string `json:"git_branch"`
-	UncommittedFiles int  `json:"uncommitted_files"`
-	GoVersion      string `json:"go_version"`
-	Hostname       string `json:"hostname"`
-	WorkingDir     string `json:"working_dir"`
-	MisbahDaemon   bool   `json:"misbah_daemon"`
+	GitBranch        string `json:"git_branch"`
+	UncommittedFiles int    `json:"uncommitted_files"`
+	GoVersion        string `json:"go_version"`
+	Hostname         string `json:"hostname"`
+	WorkingDir       string `json:"working_dir"`
+	MisbahDaemon     bool   `json:"misbah_daemon"`
 }
 
 // Snapshot captures the current environment state.
 func Snapshot() EnvSnapshot {
 	snap := EnvSnapshot{
-		GitBranch:      gitCurrentBranch(),
+		GitBranch:        gitCurrentBranch(),
 		UncommittedFiles: gitUncommittedCount(),
-		GoVersion:      goVersion(),
-		WorkingDir:     workingDir(),
-		Hostname:       hostname(),
-		MisbahDaemon:   misbahReachable(),
+		GoVersion:        goVersion(),
+		WorkingDir:       workingDir(),
+		Hostname:         hostname(),
+		MisbahDaemon:     misbahReachable(),
 	}
 	return snap
 }
 
 func gitCurrentBranch() string {
-	out, err := exec.Command(gitBranch, strings.Fields(gitBranchArgs)...).Output()
+	out, err := exec.Command(gitBranch, strings.Fields(gitBranchArgs)...).Output() //nolint:gosec // args are compile-time constants
 	if err != nil {
 		return ""
 	}
@@ -47,7 +47,7 @@ func gitCurrentBranch() string {
 }
 
 func gitUncommittedCount() int {
-	out, err := exec.Command(gitBranch, strings.Fields(gitStatusArgs)...).Output()
+	out, err := exec.Command(gitBranch, strings.Fields(gitStatusArgs)...).Output() //nolint:gosec // args are compile-time constants
 	if err != nil {
 		return 0
 	}

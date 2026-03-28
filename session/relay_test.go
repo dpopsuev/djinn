@@ -31,13 +31,15 @@ func (d *mockChatDriver) SendRich(_ context.Context, _ driver.RichMessage) error
 func (d *mockChatDriver) Chat(_ context.Context) (<-chan driver.StreamEvent, error) {
 	return nil, nil
 }
-func (d *mockChatDriver) AppendAssistant(_ driver.RichMessage)   {}
-func (d *mockChatDriver) SetSystemPrompt(_ string)               {}
-func (d *mockChatDriver) ContextWindow() int                     { return 200_000 }
+func (d *mockChatDriver) AppendAssistant(_ driver.RichMessage) {}
+func (d *mockChatDriver) SetSystemPrompt(_ string)             {}
+func (d *mockChatDriver) ContextWindow() int                   { return 200_000 }
 
-func newTestRelay(maxTokens int) (*RelayManager, *mockChatDriver, *mockChatDriver) {
+const testMaxTokens = 10000
+
+func newTestRelay() (relay *RelayManager, primary, secondary *mockChatDriver) {
 	monitor := NewContextMonitor(
-		WithMaxTokens(maxTokens),
+		WithMaxTokens(testMaxTokens),
 		WithSpawnAt(0.80),
 		WithSwapAt(0.95),
 	)
@@ -67,7 +69,7 @@ func newTestRelay(maxTokens int) (*RelayManager, *mockChatDriver, *mockChatDrive
 }
 
 func TestRelayManager_no_action_below_threshold(t *testing.T) {
-	r, _, _ := newTestRelay(10000)
+	r, _, _ := newTestRelay()
 
 	// Record tokens below spawn threshold (80% of 10000 = 8000).
 	r.monitor.Record(1000, 1000) // 20%
@@ -88,7 +90,7 @@ func TestRelayManager_no_action_below_threshold(t *testing.T) {
 }
 
 func TestRelayManager_spawns_at_threshold(t *testing.T) {
-	r, _, backupDriver := newTestRelay(10000)
+	r, _, backupDriver := newTestRelay()
 
 	// Push past 80%.
 	r.monitor.totalIn = 8500
@@ -110,7 +112,7 @@ func TestRelayManager_spawns_at_threshold(t *testing.T) {
 }
 
 func TestRelayManager_swaps_at_threshold(t *testing.T) {
-	r, activeDriver, backupDriver := newTestRelay(10000)
+	r, activeDriver, backupDriver := newTestRelay()
 
 	// Spawn first.
 	r.monitor.totalIn = 8500
@@ -143,7 +145,7 @@ func TestRelayManager_swaps_at_threshold(t *testing.T) {
 }
 
 func TestRelayManager_queue(t *testing.T) {
-	r, _, _ := newTestRelay(10000)
+	r, _, _ := newTestRelay()
 
 	r.QueuePrompt("first")
 	r.QueuePrompt("second")
@@ -197,7 +199,7 @@ func TestRelayManager_fallback_compact_on_factory_nil(t *testing.T) {
 }
 
 func TestRelayManager_backup_seed_replays_entries(t *testing.T) {
-	r, _, backupDriver := newTestRelay(10000)
+	r, _, backupDriver := newTestRelay()
 
 	// Trigger spawn.
 	r.monitor.totalIn = 8500

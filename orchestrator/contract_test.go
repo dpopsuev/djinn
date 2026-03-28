@@ -32,7 +32,7 @@ func simpleFactory(
 	return NewSimpleOrchestrator(createSandbox, destroySandbox, driverFactory, gateFactory, signalEmit)
 }
 
-func runContractTests(t *testing.T, factory OrchestratorFactory) {
+func runContractTests(t *testing.T, factory OrchestratorFactory) { //nolint:thelper // test dispatcher, not helper
 	t.Run("HappyPath", func(t *testing.T) {
 		contractHappyPath(t, factory)
 	})
@@ -54,7 +54,7 @@ func TestSimpleOrchestrator_Contract(t *testing.T) {
 	runContractTests(t, simpleFactory)
 }
 
-func contractHappyPath(t *testing.T, factory OrchestratorFactory) {
+func contractHappyPath(t *testing.T, factory OrchestratorFactory) { //nolint:thelper // contract test, not helper
 	orch := factory(
 		func(ctx context.Context, scope tier.Scope) (string, error) { return "sb", nil },
 		func(ctx context.Context, id string) error { return nil },
@@ -89,7 +89,7 @@ func contractHappyPath(t *testing.T, factory OrchestratorFactory) {
 	}
 }
 
-func contractGateFailureStops(t *testing.T, factory OrchestratorFactory) {
+func contractGateFailureStops(t *testing.T, factory OrchestratorFactory) { //nolint:thelper // contract test
 	stageCount := 0
 	orch := factory(
 		func(ctx context.Context, scope tier.Scope) (string, error) {
@@ -121,7 +121,7 @@ func contractGateFailureStops(t *testing.T, factory OrchestratorFactory) {
 	}
 }
 
-func contractCancelTerminates(t *testing.T, factory OrchestratorFactory) {
+func contractCancelTerminates(t *testing.T, factory OrchestratorFactory) { //nolint:thelper // contract test
 	blockCh := make(chan struct{})
 	orch := factory(
 		func(ctx context.Context, scope tier.Scope) (string, error) { return "sb", nil },
@@ -157,7 +157,7 @@ func contractCancelTerminates(t *testing.T, factory OrchestratorFactory) {
 	}
 }
 
-func contractEventsInOrder(t *testing.T, factory OrchestratorFactory) {
+func contractEventsInOrder(t *testing.T, factory OrchestratorFactory) { //nolint:thelper // contract test
 	orch := factory(
 		func(ctx context.Context, scope tier.Scope) (string, error) { return "sb", nil },
 		func(ctx context.Context, id string) error { return nil },
@@ -188,7 +188,7 @@ func contractEventsInOrder(t *testing.T, factory OrchestratorFactory) {
 	}
 }
 
-func contractChannelClosed(t *testing.T, factory OrchestratorFactory) {
+func contractChannelClosed(t *testing.T, factory OrchestratorFactory) { //nolint:thelper // contract test
 	orch := factory(
 		func(ctx context.Context, scope tier.Scope) (string, error) { return "sb", nil },
 		func(ctx context.Context, id string) error { return nil },

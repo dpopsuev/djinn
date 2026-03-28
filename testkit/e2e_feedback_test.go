@@ -36,7 +36,7 @@ func TestE2E_FeedbackLoop_AlertToFixToRecovery(t *testing.T) {
 
 	op := stubs.NewStubOperatorPort()
 
-	b := broker.NewBroker(broker.BrokerConfig{
+	b := broker.NewBroker(&broker.BrokerConfig{
 		Orchestrator: orch,
 		Bus:          bus,
 		Cordons:      cordons,

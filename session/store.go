@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	sessionFileExt = ".json"
-	sessionDirPerm = 0700
-	sessionFilePerm = 0600
+	sessionFileExt  = ".json"
+	sessionDirPerm  = 0o700
+	sessionFilePerm = 0o600
 )
 
 // Sentinel errors.
@@ -93,7 +93,7 @@ func (s *Store) Load(nameOrID string) (*Session, error) {
 	// Sanitize: repair corrupt entries, auto-compact oversized sessions (DJN-BUG-14).
 	if repaired := Sanitize(&sess); repaired {
 		// Persist sanitized version immediately so fixes survive crashes (DJN-BUG-18).
-		s.Save(&sess) //nolint:errcheck
+		s.Save(&sess) //nolint:errcheck // best-effort persist
 	}
 
 	return &sess, nil
@@ -124,20 +124,25 @@ func (s *Store) LoadRaw(nameOrID string) (*Session, error) {
 
 // List returns summaries of all sessions, sorted by most recently updated.
 func (s *Store) List() ([]SessionSummary, error) {
-	entries, err := os.ReadDir(s.dir)
+	return s.listDir(s.dir, s.Load)
+}
+
+// listDir reads session files from a directory and returns sorted summaries.
+func (s *Store) listDir(dir string, loader func(string) (*Session, error)) ([]SessionSummary, error) {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("read session dir: %w", err)
+		return nil, fmt.Errorf("read dir: %w", err)
 	}
 
-	var summaries []SessionSummary
+	summaries := make([]SessionSummary, 0, len(entries))
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), sessionFileExt) {
 			continue
 		}
 
 		nameOrID := strings.TrimSuffix(e.Name(), sessionFileExt)
-		sess, err := s.Load(nameOrID)
-		if err != nil {
+		sess, loadErr := loader(nameOrID)
+		if loadErr != nil {
 			continue // skip corrupt files
 		}
 
@@ -198,7 +203,7 @@ func (s *Store) Archive(sess *Session) error {
 
 	// Remove from active directory.
 	activePath := s.sessionPath(sess)
-	os.Remove(activePath) //nolint:errcheck
+	os.Remove(activePath) //nolint:errcheck // best-effort cleanup
 
 	return nil
 }
@@ -206,42 +211,13 @@ func (s *Store) Archive(sess *Session) error {
 // ListArchived returns summaries of all archived sessions.
 func (s *Store) ListArchived() ([]SessionSummary, error) {
 	archiveDir := filepath.Join(s.dir, "archive")
-	entries, err := os.ReadDir(archiveDir)
+	summaries, err := s.listDir(archiveDir, s.LoadArchived)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("read archive dir: %w", err)
+		return nil, err
 	}
-
-	var summaries []SessionSummary
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), sessionFileExt) {
-			continue
-		}
-
-		nameOrID := strings.TrimSuffix(e.Name(), sessionFileExt)
-		sess, err := s.LoadArchived(nameOrID)
-		if err != nil {
-			continue
-		}
-
-		summaries = append(summaries, SessionSummary{
-			ID:        sess.ID,
-			Name:      sess.Name,
-			Driver:    sess.Driver,
-			Model:     sess.Model,
-			WorkDir:   sess.WorkDir,
-			Turns:     sess.History.Len(),
-			Tokens:    sess.TotalTokens(),
-			CreatedAt: sess.CreatedAt,
-			UpdatedAt: sess.UpdatedAt,
-		})
-	}
-
-	sort.Slice(summaries, func(i, j int) bool {
-		return summaries[i].UpdatedAt.After(summaries[j].UpdatedAt)
-	})
 
 	return summaries, nil
 }

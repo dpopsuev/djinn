@@ -51,7 +51,7 @@ func (r *Registry) Load(cfg map[string]any) error {
 			continue
 		}
 		if err := c.Apply(v); err != nil {
-			return fmt.Errorf("%w: %s: %v", ErrConfigApply, key, err)
+			return fmt.Errorf("%w: %s: %w", ErrConfigApply, key, err)
 		}
 	}
 	return nil

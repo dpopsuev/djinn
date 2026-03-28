@@ -60,7 +60,7 @@ func TestHotSwap_DisconnectReconnect(t *testing.T) {
 	}
 
 	// Send a prompt to backend 1.
-	shell1.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "ping"}) //nolint:errcheck
+	shell1.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "ping"}) //nolint:errcheck // best-effort send, error logged by receiver
 
 	// Drain events until Done.
 	var b1GotDone bool
@@ -79,7 +79,7 @@ func TestHotSwap_DisconnectReconnect(t *testing.T) {
 	}
 
 	// Tell backend 1 to quit — simulates graceful shutdown before rebuild.
-	shell1.SendToBackend(ShellMsg{Type: ShellQuit}) //nolint:errcheck
+	shell1.SendToBackend(ShellMsg{Type: ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
 	if err := <-backend1Done; err != nil {
 		t.Fatalf("backend 1 error: %v", err)
 	}
@@ -119,7 +119,7 @@ func TestHotSwap_DisconnectReconnect(t *testing.T) {
 	}
 
 	// Send a prompt to backend 2.
-	shell2.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "ping again"}) //nolint:errcheck
+	shell2.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "ping again"}) //nolint:errcheck // best-effort send, error logged by receiver
 
 	var b2GotDone bool
 	for range 20 {
@@ -137,7 +137,7 @@ func TestHotSwap_DisconnectReconnect(t *testing.T) {
 	}
 
 	// Quit backend 2.
-	shell2.SendToBackend(ShellMsg{Type: ShellQuit}) //nolint:errcheck
+	shell2.SendToBackend(ShellMsg{Type: ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
 	if err := <-backend2Done; err != nil {
 		t.Fatalf("backend 2 error: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestHotSwap_BackendCrash_ShellDetects(t *testing.T) {
 	go func() {
 		transport, _ := Connect(sock)
 		// Send ready then immediately crash.
-		transport.SendToShell(BackendMsg{Type: BackendReady, Version: ProtocolVersion}) //nolint:errcheck
+		transport.SendToShell(BackendMsg{Type: BackendReady, Version: ProtocolVersion}) //nolint:errcheck // best-effort send, error logged by receiver
 		transport.Close()
 	}()
 
@@ -204,9 +204,9 @@ func TestHotSwap_ShellPreservesState(t *testing.T) {
 	// Backend 1: connect, send text, crash.
 	go func() {
 		transport, _ := Connect(sock)
-		transport.SendToShell(BackendMsg{Type: BackendReady}) //nolint:errcheck
-		transport.SendToShell(BackendMsg{Type: BackendText, Text: "hello from b1"}) //nolint:errcheck
-		transport.Close() // crash
+		transport.SendToShell(BackendMsg{Type: BackendReady})                       //nolint:errcheck // best-effort send, error logged by receiver
+		transport.SendToShell(BackendMsg{Type: BackendText, Text: "hello from b1"}) //nolint:errcheck // best-effort send, error logged by receiver
+		transport.Close()                                                           // crash
 	}()
 
 	shell1, _ := ln.Accept()
@@ -225,8 +225,8 @@ func TestHotSwap_ShellPreservesState(t *testing.T) {
 	// Backend 2: connect, send text.
 	go func() {
 		transport, _ := Connect(sock)
-		transport.SendToShell(BackendMsg{Type: BackendReady}) //nolint:errcheck
-		transport.SendToShell(BackendMsg{Type: BackendText, Text: "hello from b2"}) //nolint:errcheck
+		transport.SendToShell(BackendMsg{Type: BackendReady})                       //nolint:errcheck // best-effort send, error logged by receiver
+		transport.SendToShell(BackendMsg{Type: BackendText, Text: "hello from b2"}) //nolint:errcheck // best-effort send, error logged by receiver
 		transport.Close()
 	}()
 

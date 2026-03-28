@@ -219,7 +219,7 @@ func (e *LayoutEngine) renderHorizontalGroup(slots []visibleSlot, totalWidth, he
 }
 
 // Render produces the full TUI view string.
-func (e *LayoutEngine) Render() string {
+func (e *LayoutEngine) Render() string { //nolint:gocyclo // layout composition with horizontal/vertical splits
 	visible := e.VisibleSlots()
 	if len(visible) == 0 {
 		return ""
@@ -237,7 +237,7 @@ func (e *LayoutEngine) Render() string {
 
 	// Build visibleSlots with focus indices.
 	focusIdx := 0
-	var vSlots []visibleSlot
+	vSlots := make([]visibleSlot, 0, len(visible))
 	for _, slot := range visible {
 		vs := visibleSlot{PanelSlot: slot, focusIdx: -1}
 		if slot.Focusable {
@@ -274,7 +274,7 @@ func (e *LayoutEngine) Render() string {
 			}
 		}
 
-		if isHorizontal {
+		if isHorizontal { //nolint:nestif // layout computation requires branching on orientation
 			// Pick the height for this group from the first slot.
 			h := heights[g.slots[0].Panel.ID()]
 			sb.WriteString(e.renderHorizontalGroup(g.slots, e.width, h, depths))

@@ -39,8 +39,8 @@ func TestSession_AppendAndEntries(t *testing.T) {
 func TestHistory_TokenBudget(t *testing.T) {
 	h := NewHistory(50) // very tight budget
 
-	h.Append(Entry{Content: "short"})    // ~1 token
-	h.Append(Entry{Content: "another"})  // ~1 token
+	h.Append(Entry{Content: "short"})   // ~1 token
+	h.Append(Entry{Content: "another"}) // ~1 token
 
 	// Add a long entry that should trigger trimming
 	long := ""

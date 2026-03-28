@@ -5,6 +5,7 @@ package codex
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os/exec"
@@ -13,6 +14,9 @@ import (
 
 	"github.com/dpopsuev/djinn/driver"
 )
+
+// Sentinel errors.
+var ErrNoMessages = errors.New("no messages to send")
 
 // CommandFactory creates exec.Cmd — injectable for testing.
 type CommandFactory func(ctx context.Context, name string, args ...string) *exec.Cmd
@@ -29,8 +33,8 @@ type CLIDriver struct {
 
 type Option func(*CLIDriver)
 
-func WithModel(m string) Option        { return func(d *CLIDriver) { d.model = m } }
-func WithSystemPrompt(p string) Option { return func(d *CLIDriver) { d.systemPrompt = p } }
+func WithModel(m string) Option                  { return func(d *CLIDriver) { d.model = m } }
+func WithSystemPrompt(p string) Option           { return func(d *CLIDriver) { d.systemPrompt = p } }
 func WithLogger(l *slog.Logger) Option           { return func(d *CLIDriver) { d.log = l } }
 func WithCommandFactory(f CommandFactory) Option { return func(d *CLIDriver) { d.cmdFactory = f } }
 
@@ -75,7 +79,7 @@ func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 	d.mu.Lock()
 	if len(d.messages) == 0 {
 		d.mu.Unlock()
-		return nil, fmt.Errorf("no messages to send")
+		return nil, ErrNoMessages
 	}
 	lastMsg := d.messages[len(d.messages)-1]
 	d.mu.Unlock()
@@ -99,7 +103,7 @@ func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 	ch := make(chan driver.StreamEvent, 64)
 	go func() {
 		defer close(ch)
-		defer cmd.Wait() //nolint:errcheck
+		defer cmd.Wait() //nolint:errcheck // best-effort cleanup on defer
 
 		scanner := bufio.NewScanner(stdout)
 		scanner.Buffer(make([]byte, 1024*1024), 1024*1024)

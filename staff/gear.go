@@ -4,9 +4,13 @@
 package staff
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+// Sentinel errors for gear parsing.
+var ErrUnknownGear = errors.New("unknown gear")
 
 // Gear represents the current execution gear.
 type Gear string
@@ -46,11 +50,11 @@ type defaultSupportScheduler struct{}
 func (defaultSupportScheduler) Plan(g Gear) []RoleAssignment {
 	switch g {
 	case GearE1:
-		return []RoleAssignment{{Role: "inspector"}}
+		return []RoleAssignment{{Role: RoleInspector}}
 	case GearE2:
-		return []RoleAssignment{{Role: "scheduler"}, {Role: "inspector"}}
+		return []RoleAssignment{{Role: RoleScheduler}, {Role: RoleInspector}}
 	case GearE3:
-		return []RoleAssignment{{Role: "auditor"}, {Role: "scheduler"}, {Role: "inspector"}}
+		return []RoleAssignment{{Role: RoleAuditor}, {Role: RoleScheduler}, {Role: RoleInspector}}
 	default:
 		return nil
 	}
@@ -76,7 +80,7 @@ func ParseGear(s string) (Gear, error) {
 			return g, nil
 		}
 	}
-	return GearNone, fmt.Errorf("unknown gear %q", s)
+	return GearNone, fmt.Errorf("%w: %q", ErrUnknownGear, s)
 }
 
 // Executors returns the number of executor agents this gear spawns.

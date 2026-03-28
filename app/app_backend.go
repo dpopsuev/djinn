@@ -2,7 +2,8 @@
 // that connects to a shell process via Unix socket.
 //
 // Usage:
-//   djinn backend --socket /tmp/djinn.sock [--driver claude] [--model ...]
+//
+//	djinn backend --socket /tmp/djinn.sock [--driver claude] [--model ...]
 //
 // The shell (TUI) runs separately and communicates via the clutch protocol.
 // This enables hot-swap: rebuild the backend, restart it, and the shell
@@ -22,8 +23,8 @@ import (
 	"github.com/dpopsuev/djinn/clutch"
 	djinnctx "github.com/dpopsuev/djinn/context"
 	"github.com/dpopsuev/djinn/djinnlog"
-	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	"github.com/dpopsuev/djinn/driver"
+	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -47,7 +48,7 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 	}
 
 	if *socketPath == "" {
-		return fmt.Errorf("--socket is required for backend mode")
+		return ErrSocketRequired
 	}
 
 	// Logging
@@ -122,7 +123,7 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 	if err := chatDriver.Start(ctx, ""); err != nil {
 		return fmt.Errorf("start driver: %w", err)
 	}
-	defer chatDriver.Stop(ctx) //nolint:errcheck
+	defer chatDriver.Stop(ctx) //nolint:errcheck // best-effort shutdown
 
 	// Replay session history into driver.
 	if err := ReplayHistory(ctx, chatDriver, sess); err != nil {
@@ -158,6 +159,6 @@ func createBackendDriver(name, model, systemPrompt string, logger *slog.Logger) 
 			claudedriver.WithLogger(logger),
 		)
 	default:
-		return nil, fmt.Errorf("unknown driver: %s (supported: claude)", name)
+		return nil, fmt.Errorf("%w: %s (supported: claude)", ErrUnknownDriver, name)
 	}
 }

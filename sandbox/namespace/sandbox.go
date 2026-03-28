@@ -5,6 +5,7 @@ package namespace
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"sync"
@@ -12,6 +13,12 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/sandbox"
+)
+
+// Sentinel errors.
+var (
+	ErrUnknownHandle = errors.New("namespace sandbox: unknown handle")
+	ErrEmptyCommand  = errors.New("namespace sandbox: empty command")
 )
 
 // NamespaceSandbox implements sandbox.Sandbox using fuse-overlayfs.
@@ -32,7 +39,10 @@ func New(workDir string) *NamespaceSandbox {
 	}
 }
 
-func (s *NamespaceSandbox) Name() string { return "namespace" }
+// BackendName is the sandbox backend identifier for namespace sandboxes.
+const BackendName = "namespace"
+
+func (s *NamespaceSandbox) Name() string { return BackendName }
 
 // Create mounts a new overlay on the workspace. The level and repos params
 // are accepted for interface compatibility but ignored — all overlays use
@@ -62,7 +72,7 @@ func (s *NamespaceSandbox) Destroy(_ context.Context, handle sandbox.Handle) err
 	s.mu.Unlock()
 
 	if !ok {
-		return fmt.Errorf("namespace sandbox: unknown handle %q", handle)
+		return fmt.Errorf("%w: %s", ErrUnknownHandle, handle)
 	}
 	return ov.Unmount()
 }
@@ -75,11 +85,11 @@ func (s *NamespaceSandbox) Exec(ctx context.Context, handle sandbox.Handle, cmd 
 	s.mu.Unlock()
 
 	if !ok {
-		return sandbox.ExecResult{}, fmt.Errorf("namespace sandbox: unknown handle %q", handle)
+		return sandbox.ExecResult{}, fmt.Errorf("%w: %s", ErrUnknownHandle, handle)
 	}
 
 	if len(cmd) == 0 {
-		return sandbox.ExecResult{}, fmt.Errorf("namespace sandbox: empty command")
+		return sandbox.ExecResult{}, ErrEmptyCommand
 	}
 
 	if timeoutSec > 0 {
@@ -90,7 +100,7 @@ func (s *NamespaceSandbox) Exec(ctx context.Context, handle sandbox.Handle, cmd 
 
 	// Run the command with cwd set to the merged overlay directory.
 	// The command sees the merged view — lower (real) + upper (agent's writes).
-	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
+	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...) //nolint:gosec // command is agent-controlled within sandbox
 	c.Dir = ov.Merged
 
 	var stdout, stderr bytes.Buffer
@@ -101,8 +111,9 @@ func (s *NamespaceSandbox) Exec(ctx context.Context, handle sandbox.Handle, cmd 
 
 	exitCode := int32(0)
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode = int32(exitErr.ExitCode())
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			exitCode = int32(exitErr.ExitCode()) //nolint:gosec // exit codes are 0-255, safe for int32
 		} else {
 			return sandbox.ExecResult{}, fmt.Errorf("namespace sandbox: exec: %w", err)
 		}
@@ -123,7 +134,7 @@ func (s *NamespaceSandbox) GetOverlay(handle sandbox.Handle) (*Overlay, error) {
 
 	ov, ok := s.overlays[handle]
 	if !ok {
-		return nil, fmt.Errorf("namespace sandbox: unknown handle %q", handle)
+		return nil, fmt.Errorf("%w: %s", ErrUnknownHandle, handle)
 	}
 	return ov, nil
 }
@@ -150,7 +161,7 @@ func init() {
 	// Register as "namespace" backend in the sandbox registry.
 	// Factory requires a workDir — use current directory as default.
 	// Real usage will call New(workDir) directly.
-	sandbox.Register("namespace", func() (sandbox.Sandbox, error) {
+	sandbox.Register(BackendName, func() (sandbox.Sandbox, error) {
 		return New("."), nil
 	})
 }

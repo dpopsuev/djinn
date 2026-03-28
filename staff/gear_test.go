@@ -133,10 +133,8 @@ func TestClassifyPromptComplexity_Plan(t *testing.T) {
 		t.Fatalf("design prompt = %q, want P", g)
 	}
 
-	g = ClassifyPromptComplexity("write a spec for the data pipeline")
-	// "write" matches E1 before "spec" matches Plan, but spec is checked after E1
-	// Actually "write" hits E1 first. This is by design: "write a spec" is E1.
-	// Let's test a pure plan keyword.
+	// "write a spec" → "write" matches E1 first (by design: "write a spec" is E1).
+	// Test a pure plan keyword instead.
 	g = ClassifyPromptComplexity("plan the architecture for the new service")
 	if g != GearPlan {
 		t.Fatalf("plan prompt = %q, want P", g)

@@ -14,7 +14,8 @@ const (
 
 // Sentinel errors.
 var (
-	ErrNoServers = errors.New("no MCP servers configured")
+	ErrNoServers         = errors.New("no MCP servers configured")
+	ErrUnknownServerType = errors.New("unknown server type")
 )
 
 // claudeConfigFile is the top-level structure Claude Code expects
@@ -57,7 +58,7 @@ func GenerateConfig(servers []Server) ([]byte, error) {
 				entry.CWD = s.CWD
 			}
 		default:
-			return nil, fmt.Errorf("unknown server type %q for %q", s.Type, s.Name)
+			return nil, fmt.Errorf("%w: %q for %q", ErrUnknownServerType, s.Type, s.Name)
 		}
 		cfg.MCPServers[s.Name] = entry
 	}
@@ -74,7 +75,7 @@ func WriteConfigFile(dir string, servers []Server) (string, error) {
 	}
 
 	path := filepath.Join(dir, configFileName)
-	if err := os.WriteFile(path, data, 0600); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return "", fmt.Errorf("write mcp config: %w", err)
 	}
 

@@ -8,9 +8,9 @@ import (
 
 // Cordon represents a fenced-off scope that should not receive new work.
 type Cordon struct {
-	Scope     []string  // cordoned file/package paths
+	Scope     []string // cordoned file/package paths
 	Reason    string
-	Source    string    // which signal/agent triggered it
+	Source    string // which signal/agent triggered it
 	Timestamp time.Time
 	Cleared   bool
 }

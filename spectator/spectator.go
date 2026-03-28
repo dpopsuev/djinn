@@ -13,10 +13,13 @@
 package spectator
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/dpopsuev/djinn/clutch"
 )
+
+// Sentinel errors.
+var ErrNotImplemented = errors.New("spectator not implemented — requires multi-client socket support")
 
 // Spectator observes a backend session in read-only mode.
 // It receives all BackendMsg events but cannot send ShellMsg commands.
@@ -50,9 +53,9 @@ type ResourceInfo struct {
 
 // MountInfo describes a single filesystem mount inside the sandbox.
 type MountInfo struct {
-	HostPath    string
-	GuestPath   string
-	ReadOnly    bool
+	HostPath  string
+	GuestPath string
+	ReadOnly  bool
 }
 
 // ReadOnlySpectator is the stub implementation.
@@ -66,7 +69,7 @@ type ReadOnlySpectator struct {
 func (s *ReadOnlySpectator) Attach(transport clutch.Transport) error {
 	s.transport = transport
 	s.running = true
-	return fmt.Errorf("spectator not implemented — requires multi-client socket support")
+	return ErrNotImplemented
 }
 
 func (s *ReadOnlySpectator) Detach() error {

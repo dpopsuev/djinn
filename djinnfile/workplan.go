@@ -14,7 +14,8 @@ func (df *Djinnfile) ToWorkPlan(id string) orchestrator.WorkPlan {
 		Stages: make([]orchestrator.Stage, len(df.Stages)),
 	}
 
-	for i, sc := range df.Stages {
+	for i := range df.Stages {
+		sc := df.Stages[i]
 		plan.Stages[i] = orchestrator.Stage{
 			Name:  sc.Name,
 			Scope: tier.Scope{Level: parseTierLevel(sc.Tier), Name: sc.Scope},
@@ -38,11 +39,11 @@ func (df *Djinnfile) ToWorkPlan(id string) orchestrator.WorkPlan {
 
 func parseTierLevel(s string) tier.TierLevel {
 	switch s {
-	case "eco":
+	case TierEco:
 		return tier.Eco
-	case "sys":
+	case TierSys:
 		return tier.Sys
-	case "com":
+	case TierCom:
 		return tier.Com
 	default:
 		return tier.Mod

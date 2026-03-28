@@ -36,11 +36,11 @@ func (d *APIDriver) validateRequest(messages []apiMessage) error {
 
 	// Validate tool_use content blocks have non-nil input.
 	for _, msg := range messages {
-		for _, block := range msg.ContentBlocks {
-			if block.Type == "tool_use" && block.Input == nil {
+		for j := range msg.ContentBlocks {
+			if msg.ContentBlocks[j].Type == "tool_use" && msg.ContentBlocks[j].Input == nil {
 				return &driver.ValidationError{
 					Field:   "tool_use.input",
-					Message: "tool_use block '" + block.Name + "' has nil input — Vertex rejects null input fields",
+					Message: "tool_use block '" + msg.ContentBlocks[j].Name + "' has nil input — Vertex rejects null input fields",
 				}
 			}
 		}

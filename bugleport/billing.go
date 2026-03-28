@@ -13,7 +13,7 @@ type (
 
 // Constructors.
 var (
-	NewTracker    = billing.NewTracker
-	BuildCostBill = billing.BuildCostBill
+	NewTracker     = billing.NewTracker
+	BuildCostBill  = billing.BuildCostBill
 	FormatCostBill = billing.FormatCostBill
 )

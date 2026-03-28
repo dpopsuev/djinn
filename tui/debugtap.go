@@ -21,12 +21,12 @@ func stripANSI(s string) string {
 
 // DebugFrame is a single captured TUI render with component breakdown.
 type DebugFrame struct {
-	Timestamp  time.Time       `json:"timestamp"`
-	Frame      string          `json:"frame"`
-	Width      int             `json:"width"`
-	Height     int             `json:"height"`
-	State      string          `json:"state"`
-	Role       string          `json:"role"`
+	Timestamp  time.Time        `json:"timestamp"`
+	Frame      string           `json:"frame"`
+	Width      int              `json:"width"`
+	Height     int              `json:"height"`
+	State      string           `json:"state"`
+	Role       string           `json:"role"`
 	Components *DebugComponents `json:"components,omitempty"`
 }
 
@@ -49,9 +49,9 @@ type DebugTap struct {
 	enc    *json.Encoder
 
 	// Live state for the debug server
-	state string
-	role  string
-	width int
+	state  string
+	role   string
+	width  int
 	height int
 }
 
@@ -98,7 +98,7 @@ func (dt *DebugTap) Capture(frame, state, role string, width, height int, compon
 
 	// File output
 	if dt.enc != nil {
-		dt.enc.Encode(df) //nolint:errcheck
+		dt.enc.Encode(df) //nolint:errcheck // error intentionally ignored
 	}
 
 	dt.state = state
@@ -222,18 +222,18 @@ func (dt *DebugTap) ServeHTTP(addr string) (net.Listener, error) {
 		}
 		dt.mu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(state) //nolint:errcheck
+		json.NewEncoder(w).Encode(state) //nolint:errcheck // error intentionally ignored
 	})
 
 	// GET /debug/frames?n=5 — last N frames as JSON array
 	mux.HandleFunc("GET /debug/frames", func(w http.ResponseWriter, r *http.Request) {
 		n := 5
 		if v := r.URL.Query().Get("n"); v != "" {
-			fmt.Sscanf(v, "%d", &n) //nolint:errcheck
+			fmt.Sscanf(v, "%d", &n) //nolint:errcheck // error intentionally ignored
 		}
 		frames := dt.LastN(n)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(frames) //nolint:errcheck
+		json.NewEncoder(w).Encode(frames) //nolint:errcheck // error intentionally ignored
 	})
 
 	ln, err := net.Listen("tcp", addr)
@@ -241,6 +241,7 @@ func (dt *DebugTap) ServeHTTP(addr string) (net.Listener, error) {
 		return nil, err
 	}
 
-	go http.Serve(ln, mux) //nolint:errcheck
+	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second} //nolint:mnd // debug server
+	go srv.Serve(ln)                                                      //nolint:errcheck // fire-and-forget debug server goroutine
 	return ln, nil
 }

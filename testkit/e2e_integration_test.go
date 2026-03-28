@@ -64,7 +64,7 @@ func TestE2E_Integration_MisbahSandbox(t *testing.T) {
 	)
 
 	op := stubs.NewStubOperatorPort()
-	b := broker.NewBroker(broker.BrokerConfig{
+	b := broker.NewBroker(&broker.BrokerConfig{
 		Orchestrator: orch,
 		Bus:          bus,
 		Cordons:      cordons,

@@ -31,7 +31,7 @@ func TestNavigator_DiveIntoSystem(t *testing.T) {
 	nav := NewNavigator()
 	nav.AddEcosystem("aeon", []string{"/workspace/djinn", "/workspace/misbah"})
 
-	nav.Dive("aeon") //nolint:errcheck
+	nav.Dive("aeon") //nolint:errcheck // error intentionally ignored
 	if err := nav.Dive("djinn"); err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestNavigator_DirectPath(t *testing.T) {
 func TestNavigator_Climb(t *testing.T) {
 	nav := NewNavigator()
 	nav.AddEcosystem("aeon", []string{"/workspace/djinn"})
-	nav.Dive("aeon/djinn") //nolint:errcheck
+	nav.Dive("aeon/djinn") //nolint:errcheck // error intentionally ignored
 
 	nav.Climb()
 	if nav.Path() != "general/aeon" {
@@ -81,7 +81,7 @@ func TestNavigator_Climb(t *testing.T) {
 func TestNavigator_Root(t *testing.T) {
 	nav := NewNavigator()
 	nav.AddEcosystem("aeon", []string{"/workspace/djinn"})
-	nav.Dive("aeon/djinn") //nolint:errcheck
+	nav.Dive("aeon/djinn") //nolint:errcheck // error intentionally ignored
 
 	nav.Root()
 	if nav.Path() != "general" {
@@ -117,13 +117,13 @@ func TestNavigator_GenSecPersistsAcrossScopes(t *testing.T) {
 	}
 
 	// Dive into ecosystem — GenSec still active.
-	nav.Dive("aeon") //nolint:errcheck
+	nav.Dive("aeon") //nolint:errcheck // error intentionally ignored
 	if !nav.GenSec().Active {
 		t.Fatal("GenSec should persist after diving into ecosystem")
 	}
 
 	// Dive into system — GenSec still active.
-	nav.Dive("djinn") //nolint:errcheck
+	nav.Dive("djinn") //nolint:errcheck // error intentionally ignored
 	if !nav.GenSec().Active {
 		t.Fatal("GenSec should persist after diving into system")
 	}
@@ -143,7 +143,7 @@ func TestNavigator_GenSecPersistsAcrossScopes(t *testing.T) {
 func TestNavigator_SystemHasSingleRepo(t *testing.T) {
 	nav := NewNavigator()
 	nav.AddEcosystem("aeon", []string{"/workspace/djinn", "/workspace/misbah"})
-	nav.Dive("aeon/djinn") //nolint:errcheck
+	nav.Dive("aeon/djinn") //nolint:errcheck // error intentionally ignored
 
 	repos := nav.Current().Repos
 	if len(repos) != 1 || repos[0] != "/workspace/djinn" {

@@ -30,10 +30,10 @@ type Bottleneck struct {
 
 // Detection thresholds.
 const (
-	toolLatencyThreshold = 2 * time.Second    // p95 > 2s
-	rateLimitMultiplier  = 10                  // TTFT spike 10x over average
-	gateLimitThreshold   = 3                   // gate failures > 3
-	toolSpamThreshold    = 20                  // > 20 tool calls per round-trip
+	toolLatencyThreshold = 2 * time.Second // p95 > 2s
+	rateLimitMultiplier  = 10              // TTFT spike 10x over average
+	gateLimitThreshold   = 3               // gate failures > 3
+	toolSpamThreshold    = 20              // > 20 tool calls per round-trip
 )
 
 // DetectBottlenecks analyzes agent metrics and tool latency to find performance issues.

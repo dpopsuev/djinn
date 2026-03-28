@@ -89,7 +89,7 @@ func TestDiscourse_StaleTopicsSkipsCompleted(t *testing.T) {
 	store := NewDiscourseStore("")
 	topic := store.CreateTopic("/aeon", "Done feature", "feature")
 	topic.Updated = time.Now().Add(-48 * time.Hour)
-	store.UpdateTopicStatus("/aeon", topic.ID, TopicComplete) //nolint:errcheck
+	store.UpdateTopicStatus("/aeon", topic.ID, TopicComplete) //nolint:errcheck // test setup, error not relevant
 
 	// Backdate again after status update.
 	topic.Updated = time.Now().Add(-48 * time.Hour)
@@ -110,7 +110,7 @@ func TestDiscourse_OpenTopicCount(t *testing.T) {
 		t.Fatalf("open = %d, want 3", count)
 	}
 
-	store.UpdateTopicStatus("/aeon", t3.ID, TopicComplete) //nolint:errcheck
+	store.UpdateTopicStatus("/aeon", t3.ID, TopicComplete) //nolint:errcheck // test setup, error not relevant
 	if count := store.OpenTopicCount("/aeon"); count != 2 {
 		t.Fatalf("open = %d, want 2 after completing one", count)
 	}
@@ -128,9 +128,9 @@ func TestDiscourse_SaveLoadRoundtrip(t *testing.T) {
 	// Build state.
 	store := NewDiscourseStore(path)
 	topic := store.CreateTopic("/aeon/djinn", "Scope tree", "feature")
-	store.UpdateTopicStatus("/aeon/djinn", topic.ID, TopicActive) //nolint:errcheck
+	store.UpdateTopicStatus("/aeon/djinn", topic.ID, TopicActive) //nolint:errcheck // test setup, error not relevant
 	thread, _ := store.CreateThread("/aeon/djinn", topic.ID)
-	store.AppendMessage("/aeon/djinn", topic.ID, thread.ID, "user", "Let's build it") //nolint:errcheck
+	store.AppendMessage("/aeon/djinn", topic.ID, thread.ID, "user", "Let's build it") //nolint:errcheck // test setup, error not relevant
 
 	if err := store.Save(); err != nil {
 		t.Fatalf("Save: %v", err)
@@ -233,10 +233,10 @@ func TestDiscourse_ConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := 0; i < 50; i++ {
 		wg.Add(1)
-		go func(n int) {
+		go func() {
 			defer wg.Done()
-			store.AppendMessage("/aeon", topic.ID, thread.ID, "user", "msg") //nolint:errcheck
-		}(i)
+			store.AppendMessage("/aeon", topic.ID, thread.ID, "user", "msg") //nolint:errcheck // test setup, error not relevant
+		}()
 	}
 	wg.Wait()
 
@@ -269,7 +269,7 @@ func TestDiscourse_ErrorCases(t *testing.T) {
 
 	// AppendMessage on non-existent thread.
 	topic := store.CreateTopic("/test", "Test", "bug")
-	store.CreateThread("/test", topic.ID) //nolint:errcheck
+	store.CreateThread("/test", topic.ID) //nolint:errcheck // test setup, error not relevant
 	err = store.AppendMessage("/test", topic.ID, "TH-999", "user", "hi")
 	if err == nil {
 		t.Fatal("expected error for missing thread")

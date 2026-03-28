@@ -62,7 +62,7 @@ func TestWorktreeManager_Remove(t *testing.T) {
 	repo := initTestRepo(t)
 	mgr := NewWorktreeManager(repo)
 
-	mgr.Create("TSK-109") //nolint:errcheck
+	mgr.Create("TSK-109") //nolint:errcheck // error intentionally ignored
 
 	err := mgr.Remove("TSK-109")
 	if err != nil {
@@ -99,7 +99,7 @@ func TestWorktreeManager_ParallelWorktrees(t *testing.T) {
 	}
 
 	// Write a file in worktree 1 — should NOT appear in worktree 2.
-	os.WriteFile(filepath.Join(path1, "from-110.txt"), []byte("hello"), 0644) //nolint:errcheck
+	os.WriteFile(filepath.Join(path1, "from-110.txt"), []byte("hello"), 0o644) //nolint:errcheck // best-effort write
 	if _, err := os.Stat(filepath.Join(path2, "from-110.txt")); !os.IsNotExist(err) {
 		t.Fatal("file from worktree 1 should NOT appear in worktree 2")
 	}
@@ -111,8 +111,8 @@ func TestWorktreeManager_ParallelWorktrees(t *testing.T) {
 	}
 
 	// Cleanup.
-	mgr.Remove("TSK-110") //nolint:errcheck
-	mgr.Remove("TSK-111") //nolint:errcheck
+	mgr.Remove("TSK-110") //nolint:errcheck // best-effort cleanup
+	mgr.Remove("TSK-111") //nolint:errcheck // best-effort cleanup
 }
 
 func TestWorktreeManager_Path(t *testing.T) {

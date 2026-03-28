@@ -21,7 +21,7 @@ type BackendConfig struct {
 
 // RunBackend runs the backend loop: receives prompts from the shell,
 // runs the agent, sends events back. Returns when the shell sends Quit
-// or the context is cancelled.
+// or the context is canceled.
 func RunBackend(ctx context.Context, transport Transport, cfg BackendConfig) error {
 	// Announce ready with session state
 	transport.SendToShell(BackendMsg{ //nolint:errcheck // fire-and-forget channel send

@@ -3,6 +3,7 @@ package clutch
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -54,12 +55,12 @@ func TestChannelTransport_Close(t *testing.T) {
 	tr.Close()
 
 	err := tr.SendToBackend(ShellMsg{Type: ShellPrompt})
-	if err != ErrClosed {
+	if !errors.Is(err, ErrClosed) {
 		t.Fatalf("SendToBackend after close: expected ErrClosed, got %v", err)
 	}
 
 	err = tr.SendToShell(BackendMsg{Type: BackendText})
-	if err != ErrClosed {
+	if !errors.Is(err, ErrClosed) {
 		t.Fatalf("SendToShell after close: expected ErrClosed, got %v", err)
 	}
 }
@@ -72,10 +73,10 @@ func TestChannelTransport_DoubleClose(t *testing.T) {
 
 func TestBackendMsg_JSON(t *testing.T) {
 	msg := BackendMsg{
-		Type:  BackendToolCall,
+		Type: BackendToolCall,
 		ToolCall: &driver.ToolCall{
-			ID:   "call-1",
-			Name: "Read",
+			ID:    "call-1",
+			Name:  "Read",
 			Input: json.RawMessage(`{"path":"main.go"}`),
 		},
 	}

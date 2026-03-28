@@ -56,7 +56,7 @@ func TestSandboxPort_Integration_DiffCommit(t *testing.T) {
 	conn.Close()
 
 	workspace := t.TempDir()
-	if err := os.WriteFile(workspace+"/test.go", []byte("original"), 0644); err != nil {
+	if err := os.WriteFile(workspace+"/test.go", []byte("original"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

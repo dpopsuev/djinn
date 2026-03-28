@@ -1,17 +1,19 @@
 // app_hub.go — djinn hub: the GenSec daemon for seamless hot-swap.
 //
 // Usage:
-//   djinn hub                    start hub on default socket (~/.djinn/hub.sock)
-//   djinn hub --socket <path>    start hub on custom socket
+//
+//	djinn hub                    start hub on default socket (~/.djinn/hub.sock)
+//	djinn hub --socket <path>    start hub on custom socket
 //
 // The hub is the persistent process. Both shell (TUI) and backend (LLM)
 // connect to it as clients. Either side can restart independently.
 //
 // Typical dogfooding workflow:
-//   Terminal 1:  djinn hub                     # stays alive
-//   Terminal 2:  djinn                         # auto-connects as shell
-//   Terminal 3:  djinn backend --socket <path> # auto-connects as backend
-//   [rebuild]    go build && djinn             # shell reconnects, session preserved
+//
+//	Terminal 1:  djinn hub                     # stays alive
+//	Terminal 2:  djinn                         # auto-connects as shell
+//	Terminal 3:  djinn backend --socket <path> # auto-connects as backend
+//	[rebuild]    go build && djinn             # shell reconnects, session preserved
 package app
 
 import (
@@ -36,7 +38,7 @@ import (
 func DefaultHubSocket() string {
 	home, _ := os.UserHomeDir()
 	dir := filepath.Join(home, ".djinn")
-	os.MkdirAll(dir, 0700) //nolint:errcheck
+	os.MkdirAll(dir, 0o700) //nolint:errcheck // best-effort directory creation
 	return filepath.Join(dir, "hub.sock")
 }
 
@@ -85,7 +87,7 @@ func RunHub(args []string, stderr io.Writer) error {
 	hub.Close()
 
 	// Clean up socket file.
-	os.Remove(socketPath) //nolint:errcheck
+	os.Remove(socketPath) //nolint:errcheck // best-effort cleanup
 	log.Info("hub stopped")
 	return err
 }
@@ -127,7 +129,7 @@ func HubSocketExists() (string, bool) {
 	conn, err := net.DialTimeout("unix", path, 500*time.Millisecond)
 	if err != nil {
 		// Stale socket — clean it up.
-		os.Remove(path) //nolint:errcheck
+		os.Remove(path) //nolint:errcheck // best-effort cleanup
 		return "", false
 	}
 	conn.Close()

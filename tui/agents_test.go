@@ -59,12 +59,12 @@ func TestAgentsPanel_UpdateAgent(t *testing.T) {
 
 	p.UpdateAgent(AgentStatusMsg{
 		AgentID:  "a1",
-		State:    "streaming",
+		State:    AgentStateStreaming,
 		TokensIn: 100,
 	})
 
 	agent := p.GetAgent("a1")
-	if agent.State != "streaming" {
+	if agent.State != AgentStateStreaming {
 		t.Fatalf("state = %q, want streaming", agent.State)
 	}
 	if agent.TokensIn != 100 {
@@ -95,7 +95,7 @@ func TestAgentsPanel_Children_ReturnsDiveTarget(t *testing.T) {
 
 func TestAgentStatusPanel_View(t *testing.T) {
 	a := NewAgentStatusPanel("a1", "executor", lipgloss.Color("2"))
-	a.State = "streaming"
+	a.State = AgentStateStreaming
 	a.TokensIn = 150
 	a.TokensOut = 45
 
@@ -103,7 +103,7 @@ func TestAgentStatusPanel_View(t *testing.T) {
 	if !strings.Contains(view, "executor") {
 		t.Fatal("should show role name")
 	}
-	if !strings.Contains(view, "streaming") {
+	if !strings.Contains(view, AgentStateStreaming) {
 		t.Fatal("should show state")
 	}
 	if !strings.Contains(view, "150/45") {
@@ -126,8 +126,8 @@ func TestAgentStatusPanel_OutputPanel(t *testing.T) {
 
 func TestAgentStatusPanel_IgnoresOtherAgentMessages(t *testing.T) {
 	a := NewAgentStatusPanel("a1", "executor", lipgloss.Color("2"))
-	a.Update(AgentStatusMsg{AgentID: "a2", State: "error"})
-	if a.State != "idle" {
+	a.Update(AgentStatusMsg{AgentID: "a2", State: AgentStateError})
+	if a.State != AgentStateIdle {
 		t.Fatal("should ignore messages for other agents")
 	}
 }

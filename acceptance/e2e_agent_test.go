@@ -19,7 +19,7 @@ import (
 )
 
 // testModelWithScripted creates a Model wired to a ScriptedDriver for E2E flows.
-func testModelWithScripted(t *testing.T, steps ...stubs.ScriptedStep) (*repl.Model, *stubs.ScriptedDriver) {
+func testModelWithScripted(t *testing.T, steps ...stubs.ScriptedStep) *repl.Model {
 	t.Helper()
 	drv := stubs.NewScriptedDriver(steps...)
 	sess := session.New("e2e-test", "test-model", "/workspace")
@@ -31,14 +31,14 @@ func testModelWithScripted(t *testing.T, steps ...stubs.ScriptedStep) (*repl.Mod
 	})
 	m2, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	mp := toModelPtr(m2)
-	return mp, drv
+	return mp
 }
 
 // TestE2E_PromptToResponse wires Model + ScriptedDriver. The driver streams
 // "Hello world". A SubmitMsg is sent, messages are processed through Update(),
 // and the session must contain user + assistant entries.
 func TestE2E_PromptToResponse(t *testing.T) {
-	m, drv := testModelWithScripted(t, stubs.ScriptedStep{
+	m := testModelWithScripted(t, stubs.ScriptedStep{
 		TextDeltas: []string{"Hello ", "world"},
 		Usage:      &driver.Usage{InputTokens: 10, OutputTokens: 5},
 	})
@@ -54,12 +54,10 @@ func TestE2E_PromptToResponse(t *testing.T) {
 		t.Fatal("should return agent cmd batch")
 	}
 
-	// Verify the driver received the message via Send (agent.Run calls Send).
-	if !drv.Started() {
-		// The driver starts inside agent.Run which runs as a tea.Cmd.
-		// We cannot fully run the agent loop in a unit test without
-		// executing the cmd. Instead we verify the submit path is correct.
-	}
+	// NOTE: drv.Started() is false here because the driver starts inside
+	// agent.Run which runs as a tea.Cmd. We cannot fully run the agent
+	// loop in a unit test without executing the cmd. Instead we verify
+	// the submit path is correct.
 
 	// Simulate the streaming events that the agent loop would produce.
 	result := multiUpdate(t, *model,
@@ -90,7 +88,7 @@ func TestE2E_PromptToResponse(t *testing.T) {
 // in step 1, the TUI handles ToolCallMsg → ToolResultMsg, then the agent
 // responds with text in step 2.
 func TestE2E_ToolCallCycle(t *testing.T) {
-	m, _ := testModelWithScripted(t,
+	m := testModelWithScripted(t,
 		// Step 1: agent requests a Read tool call.
 		stubs.ScriptedStep{
 			TextDeltas: []string{"Let me read that."},

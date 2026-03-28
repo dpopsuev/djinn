@@ -55,13 +55,13 @@ func RunList(w io.Writer) error {
 
 	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 	fmt.Fprintln(tw, "NAME\tDRIVER\tMODEL\tTURNS\tUPDATED")
-	for _, s := range list {
-		name := s.Name
+	for i := range list {
+		name := list[i].Name
 		if name == "" {
-			name = s.ID
+			name = list[i].ID
 		}
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%d\t%s\n",
-			name, s.Driver, s.Model, s.Turns, s.UpdatedAt.Format(time.RFC3339))
+			name, list[i].Driver, list[i].Model, list[i].Turns, list[i].UpdatedAt.Format(time.RFC3339))
 	}
 	tw.Flush()
 	return nil
@@ -89,13 +89,13 @@ func RunAttach(args []string, stderr io.Writer) error {
 
 	// Show all sessions as a numbered list
 	fmt.Fprintln(stderr, "sessions:")
-	for i, s := range list {
-		name := s.Name
+	for i := range list {
+		name := list[i].Name
 		if name == "" {
-			name = s.ID
+			name = list[i].ID
 		}
 		fmt.Fprintf(stderr, "  %d. %s (%s, %d turns, %s)\n",
-			i+1, name, s.Model, s.Turns, s.UpdatedAt.Format("2006-01-02 15:04"))
+			i+1, name, list[i].Model, list[i].Turns, list[i].UpdatedAt.Format("2006-01-02 15:04"))
 	}
 	fmt.Fprintf(stderr, "\nattach with: djinn attach <name>\n")
 	return nil
@@ -104,7 +104,7 @@ func RunAttach(args []string, stderr io.Writer) error {
 // RunKill deletes a session.
 func RunKill(args []string, stderr io.Writer) error {
 	if len(args) < 1 {
-		return fmt.Errorf("kill requires a session name (usage: djinn kill <name>)")
+		return ErrUsageKill
 	}
 
 	store, err := session.NewStore(SessionDir())
@@ -123,7 +123,7 @@ func RunKill(args []string, stderr io.Writer) error {
 // RunImport imports a session from another CLI tool.
 func RunImport(args []string, stderr io.Writer) error {
 	if len(args) < 2 {
-		return fmt.Errorf("import requires source and file (usage: djinn import claude <session.jsonl> [-s name])")
+		return ErrUsageImport
 	}
 
 	source := args[0]
@@ -138,7 +138,7 @@ func RunImport(args []string, stderr io.Writer) error {
 	}
 
 	switch source {
-	case "claude":
+	case DriverClaude:
 		sess, err := session.ImportClaudeSession(filePath, *tokenBudget)
 		if err != nil {
 			return fmt.Errorf("import: %w", err)
@@ -255,7 +255,7 @@ func RunDoctor(w io.Writer) error {
 // RunConfig handles the config subcommand.
 func RunConfig(args []string, w io.Writer) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: djinn config dump")
+		return ErrUsageConfigDump
 	}
 
 	switch args[0] {
@@ -278,7 +278,7 @@ func RunConfig(args []string, w io.Writer) error {
 		return err
 
 	default:
-		return fmt.Errorf("unknown config command: %q (try: djinn config dump)", args[0])
+		return fmt.Errorf("%w: %q (try: djinn config dump)", ErrUnknownConfigCmd, args[0])
 	}
 }
 
@@ -292,7 +292,7 @@ func RunWorkspace(args []string, w io.Writer) error {
 		return RunWorkspaceList(w)
 	case "create":
 		if len(args) < 2 {
-			return fmt.Errorf("usage: djinn workspace create <name> --repo <path> [--repo <path>...]")
+			return ErrUsageWsCreate
 		}
 		name := args[1]
 		ws := &djinnws.Workspace{Name: name}
@@ -315,7 +315,7 @@ func RunWorkspace(args []string, w io.Writer) error {
 		fmt.Fprintf(w, "workspace %q created (%d repos)\n", name, len(ws.Repos))
 		return nil
 	default:
-		return fmt.Errorf("unknown workspace command: %q (try: list, create)", args[0])
+		return fmt.Errorf("%w: %q (try: list, create)", ErrUnknownWsCmd, args[0])
 	}
 }
 
@@ -356,7 +356,7 @@ func RunLog(w io.Writer) error {
 // RunHeadless runs a one-shot headless execution.
 func RunHeadless(args []string, stderr io.Writer) error {
 	if len(args) < 1 {
-		return fmt.Errorf("run requires a prompt (usage: djinn run <prompt>)")
+		return ErrUsageRun
 	}
 
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
@@ -409,7 +409,7 @@ func RunHeadless(args []string, stderr io.Writer) error {
 		func(s sigsvc.Signal) { bus.Emit(s) },
 	)
 
-	b := broker.NewBroker(broker.BrokerConfig{
+	b := broker.NewBroker(&broker.BrokerConfig{
 		Orchestrator: orch, Bus: bus, Cordons: cordons, Operator: op,
 		PlanFactory: func(intent ari.Intent) orchestrator.WorkPlan { return df.ToWorkPlan(intent.ID) },
 	})

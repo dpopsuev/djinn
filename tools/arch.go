@@ -35,10 +35,10 @@ type ArchReport struct {
 
 // goListPackage is the subset of `go list -json` output we parse.
 type goListPackage struct {
-	ImportPath string   `json:"ImportPath"`
-	Name       string   `json:"Name"`
-	Imports    []string `json:"Imports"`
-	GoFiles    []string `json:"GoFiles"`
+	ImportPath  string   `json:"ImportPath"`
+	Name        string   `json:"Name"`
+	Imports     []string `json:"Imports"`
+	GoFiles     []string `json:"GoFiles"`
 	TestGoFiles []string `json:"TestGoFiles,omitempty"`
 }
 
@@ -159,7 +159,7 @@ func findCycles(adj map[string][]string) [][]string {
 		}
 
 		// If v is a root node, pop SCC.
-		if lowlink[v] == indices[v] {
+		if lowlink[v] == indices[v] { //nolint:nestif // Tarjan's algorithm requires this nesting
 			var scc []string
 			for {
 				w := stack[len(stack)-1]
@@ -187,7 +187,7 @@ func findCycles(adj map[string][]string) [][]string {
 	}
 
 	// Process all nodes.
-	var nodes []string
+	nodes := make([]string, 0, len(adj))
 	for n := range adj {
 		nodes = append(nodes, n)
 	}

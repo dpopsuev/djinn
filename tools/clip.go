@@ -12,8 +12,8 @@ import (
 
 const (
 	clipDirName = "clips"
-	clipPerm    = 0600
-	clipDirPerm = 0700
+	clipPerm    = 0o600
+	clipDirPerm = 0o700
 )
 
 // Sentinel errors for clipboard.

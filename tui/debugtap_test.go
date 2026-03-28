@@ -101,7 +101,7 @@ func TestDebugTap_JSONLFile(t *testing.T) {
 	}
 
 	dt.Capture("hello", "input", "gensec", 80, 24)
-	dt.Close() //nolint:errcheck
+	dt.Close() //nolint:errcheck // best-effort cleanup
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -168,9 +168,9 @@ func TestDebugTransitions_DetectsStateChanges(t *testing.T) {
 	}
 
 	dt.Capture("f0", "input", "gensec", 80, 24)
-	dt.Capture("f1", "streaming", "gensec", 80, 24) // state change
-	dt.Capture("f2", "streaming", "gensec", 80, 24) // no change
-	dt.Capture("f3", "input", "gensec", 80, 24)     // state change
+	dt.Capture("f1", "streaming", "gensec", 80, 24)   // state change
+	dt.Capture("f2", "streaming", "gensec", 80, 24)   // no change
+	dt.Capture("f3", "input", "gensec", 80, 24)       // state change
 	dt.Capture("f4", "streaming", "executor", 80, 24) // state + role change
 	dt.Capture("f5", "approval", "executor", 80, 24)  // state change
 	dt.Capture("f6", "input", "gensec", 80, 24)       // state + role change
@@ -223,7 +223,7 @@ func TestDebugTap_HTTPServer_RequiresExplicitStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer dt.Close() //nolint:errcheck
+	defer dt.Close() //nolint:errcheck // best-effort cleanup
 
 	// Server not started — no listener exists.
 	// This is correct: ServeHTTP() must be called explicitly (--live-debug).
@@ -236,7 +236,7 @@ func TestDebugTap_HTTPServer_ViewEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer dt.Close() //nolint:errcheck
+	defer dt.Close() //nolint:errcheck // best-effort cleanup
 
 	ln, err := dt.ServeHTTP("")
 	if err != nil {
@@ -263,7 +263,7 @@ func TestDebugTap_HTTPServer_StateEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer dt.Close() //nolint:errcheck
+	defer dt.Close() //nolint:errcheck // best-effort cleanup
 
 	ln, err := dt.ServeHTTP("")
 	if err != nil {
@@ -280,7 +280,7 @@ func TestDebugTap_HTTPServer_StateEndpoint(t *testing.T) {
 	defer resp.Body.Close()
 
 	var state map[string]any
-	json.NewDecoder(resp.Body).Decode(&state) //nolint:errcheck
+	json.NewDecoder(resp.Body).Decode(&state) //nolint:errcheck // error intentionally ignored
 
 	if state["state"] != "streaming" {
 		t.Fatalf("state = %v", state["state"])
@@ -295,7 +295,7 @@ func TestDebugTap_HTTPServer_FramesEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer dt.Close() //nolint:errcheck
+	defer dt.Close() //nolint:errcheck // best-effort cleanup
 
 	ln, err := dt.ServeHTTP("")
 	if err != nil {
@@ -314,7 +314,7 @@ func TestDebugTap_HTTPServer_FramesEndpoint(t *testing.T) {
 	defer resp.Body.Close()
 
 	var frames []DebugFrame
-	json.NewDecoder(resp.Body).Decode(&frames) //nolint:errcheck
+	json.NewDecoder(resp.Body).Decode(&frames) //nolint:errcheck // error intentionally ignored
 
 	if len(frames) != 2 {
 		t.Fatalf("frames = %d, want 2", len(frames))

@@ -174,7 +174,7 @@ func TestStore_Load_SanitizesNilToolUseInput(t *testing.T) {
 			]}
 		]
 	}`
-	os.WriteFile(filepath.Join(dir, "corrupt.json"), []byte(rawJSON), 0600) //nolint:errcheck
+	os.WriteFile(filepath.Join(dir, "corrupt.json"), []byte(rawJSON), 0o600) //nolint:errcheck // best-effort write
 
 	store, _ := NewStore(dir)
 	loaded, err := store.Load("corrupt")
@@ -213,7 +213,7 @@ func TestStore_Load_SanitizesLargeSession(t *testing.T) {
 		sess.Append(Entry{Role: role, Content: "message " + string(rune('0'+i%10))})
 	}
 
-	store.Save(sess) //nolint:errcheck
+	store.Save(sess) //nolint:errcheck // best-effort persist
 
 	loaded, err := store.Load("big")
 	if err != nil {
@@ -247,7 +247,7 @@ func TestStore_Load_SanitizesOrphanedToolUse(t *testing.T) {
 			{"role": "user", "content": "what happened?"}
 		]
 	}`
-	os.WriteFile(filepath.Join(dir, "orphan.json"), []byte(rawJSON), 0600) //nolint:errcheck
+	os.WriteFile(filepath.Join(dir, "orphan.json"), []byte(rawJSON), 0o600) //nolint:errcheck // best-effort write
 
 	store, _ := NewStore(dir)
 	loaded, err := store.Load("orphan")
@@ -301,7 +301,7 @@ func TestStore_Load_SanitizesNullStringInput(t *testing.T) {
 			]}
 		]
 	}`
-	os.WriteFile(filepath.Join(dir, "null-str.json"), []byte(rawJSON), 0600) //nolint:errcheck
+	os.WriteFile(filepath.Join(dir, "null-str.json"), []byte(rawJSON), 0o600) //nolint:errcheck // best-effort write
 
 	store, _ := NewStore(dir)
 	loaded, err := store.Load("null-str")
@@ -423,7 +423,7 @@ func TestImport_NilToolUseInputDefaultsToEmptyObject(t *testing.T) {
 			]}
 		]
 	}`
-	os.WriteFile(filepath.Join(dir, "imported-test.json"), []byte(rawJSON), 0600) //nolint:errcheck
+	os.WriteFile(filepath.Join(dir, "imported-test.json"), []byte(rawJSON), 0o600) //nolint:errcheck // best-effort write
 
 	store, _ := NewStore(dir)
 	loaded, err := store.Load("imported-test")

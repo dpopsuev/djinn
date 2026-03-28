@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// TestResult summarises a go test run.
+// TestResult summarizes a go test run.
 type TestResult struct {
 	Suite    string
 	Passed   int
@@ -75,7 +75,7 @@ func ParseGoTestJSON(r io.Reader) (*TestResult, error) {
 		}
 
 		// Package-level result (no Test field).
-		if evt.Test == "" && evt.Package != "" {
+		if evt.Test == "" && evt.Package != "" { //nolint:nestif // JSON event processing with multiple fields
 			if result.Suite == "" {
 				result.Suite = evt.Package
 			}

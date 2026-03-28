@@ -30,7 +30,7 @@ Usage:
 	switch args[0] {
 	case "session":
 		if len(args) < 2 {
-			return fmt.Errorf("usage: djinn debug session <file-or-name>")
+			return ErrUsageDebugSession
 		}
 		return debugSession(args[1], stderr)
 	case "frame":
@@ -45,15 +45,15 @@ Usage:
 		}
 		return debugFrame(file, raw, stderr)
 	case "transcript":
-		return debugComponent("/tmp/djinn-frames.jsonl", "transcript", stderr)
+		return debugComponent("transcript", stderr)
 	case "input":
-		return debugComponent("/tmp/djinn-frames.jsonl", "input", stderr)
+		return debugComponent("input", stderr)
 	case "dashboard":
-		return debugComponent("/tmp/djinn-frames.jsonl", "dashboard", stderr)
+		return debugComponent("dashboard", stderr)
 	case "panels":
-		return debugComponent("/tmp/djinn-frames.jsonl", "panels", stderr)
+		return debugComponent("panels", stderr)
 	default:
-		return fmt.Errorf("unknown debug command: %s", args[0])
+		return fmt.Errorf("%w: %s", ErrUnknownDebugCmd, args[0])
 	}
 }
 
@@ -73,7 +73,7 @@ func debugFrame(file string, raw bool, w io.Writer) error {
 		}
 	}
 	if lastLine == nil {
-		return fmt.Errorf("no frames in %s", file)
+		return fmt.Errorf("%w: %s", ErrNoFrames, file)
 	}
 
 	var frame struct {
@@ -153,10 +153,12 @@ func splitString(s string, sep byte) []string {
 	return parts
 }
 
-func debugComponent(file, component string, w io.Writer) error {
-	data, err := os.ReadFile(file)
+const debugFramesFile = "/tmp/djinn-frames.jsonl"
+
+func debugComponent(component string, w io.Writer) error {
+	data, err := os.ReadFile(debugFramesFile)
 	if err != nil {
-		return fmt.Errorf("read %s: %w", file, err)
+		return fmt.Errorf("read %s: %w", debugFramesFile, err)
 	}
 
 	lines := splitLines(data)
@@ -168,7 +170,7 @@ func debugComponent(file, component string, w io.Writer) error {
 		}
 	}
 	if lastLine == nil {
-		return fmt.Errorf("no frames in %s", file)
+		return fmt.Errorf("%w: %s", ErrNoFrames, debugFramesFile)
 	}
 
 	var frame struct {
@@ -190,7 +192,7 @@ func debugComponent(file, component string, w io.Writer) error {
 	}
 
 	if frame.Components == nil {
-		return fmt.Errorf("no component data in frame (run with debug.tap_file enabled)")
+		return ErrNoComponentData
 	}
 
 	c := frame.Components
@@ -234,7 +236,7 @@ func debugSession(nameOrPath string, w io.Writer) error {
 	var sess *session.Session
 	var err error
 
-	if _, statErr := os.Stat(nameOrPath); statErr == nil {
+	if _, statErr := os.Stat(nameOrPath); statErr == nil { //nolint:nestif // file vs name resolution
 		// It's a file path
 		data, readErr := os.ReadFile(nameOrPath)
 		if readErr != nil {

@@ -52,7 +52,10 @@ type TickMsg time.Time
 
 // OutputPanel messages.
 type OutputAppendMsg struct{ Line string }
-type OutputSetLineMsg struct{ Index int; Line string }
+type OutputSetLineMsg struct {
+	Index int
+	Line  string
+}
 type OutputAppendLastMsg struct{ Text string }
 type OutputClearMsg struct{}
 type OutputSetOverlayMsg struct{ Text string }

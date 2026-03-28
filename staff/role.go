@@ -4,6 +4,7 @@
 package staff
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,13 +13,16 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Sentinel errors for staff config validation.
+var ErrUnknownCapability = errors.New("references unknown capability")
+
 // Role defines a staff role. Loaded from YAML, not hardcoded.
 type Role struct {
-	Name              string   `yaml:"name"`
-	Prompt            string   `yaml:"prompt"`              // path to prompt file OR inline text
-	Mode              string   `yaml:"mode"`                // ask, plan, agent, auto
-	ToolCapabilities  []string `yaml:"tool_capabilities"`   // explicit whitelist — empty means NO capabilities
-	Model             string   `yaml:"model,omitempty"`     // preferred model (empty = default)
+	Name             string   `yaml:"name"`
+	Prompt           string   `yaml:"prompt"`            // path to prompt file OR inline text
+	Mode             string   `yaml:"mode"`              // ask, plan, agent, auto
+	ToolCapabilities []string `yaml:"tool_capabilities"` // explicit whitelist — empty means NO capabilities
+	Model            string   `yaml:"model,omitempty"`   // preferred model (empty = default)
 }
 
 // ToolCapability defines a named capability backed by an MCP server or built-in.
@@ -26,15 +30,15 @@ type Role struct {
 type ToolCapability struct {
 	Name        string   `yaml:"name"`
 	Description string   `yaml:"description,omitempty"`
-	Backend     string   `yaml:"backend"`              // MCP server name or "builtin"
-	Tools       []string `yaml:"tools,omitempty"`       // which tools from that backend
+	Backend     string   `yaml:"backend"`         // MCP server name or "builtin"
+	Tools       []string `yaml:"tools,omitempty"` // which tools from that backend
 }
 
 // StaffConfig is the top-level YAML config for roles and tool capabilities.
 type StaffConfig struct {
-	Roles            []Role                 `yaml:"roles"`
-	ToolCapabilities []ToolCapability       `yaml:"tool_capabilities"`
-	ToolCategories   map[string][]string    `yaml:"tool_categories,omitempty"`
+	Roles            []Role              `yaml:"roles"`
+	ToolCapabilities []ToolCapability    `yaml:"tool_capabilities"`
+	ToolCategories   map[string][]string `yaml:"tool_categories,omitempty"`
 }
 
 // LoadConfig reads a staff config from a YAML file.
@@ -89,12 +93,12 @@ func (c *StaffConfig) ResolveToolNames(capNames []string) []string {
 	capMap := c.ToolCapabilityMap()
 	var tools []string
 	for _, name := range capNames {
-		if cap, ok := capMap[name]; ok {
-			for _, toolName := range cap.Tools {
+		if tc, ok := capMap[name]; ok {
+			for _, toolName := range tc.Tools {
 				tools = append(tools, toolName)
 				// Also include MCP-prefixed form.
-				if cap.Backend != "" && cap.Backend != "builtin" {
-					tools = append(tools, fmt.Sprintf("mcp__%s__%s", cap.Backend, toolName))
+				if tc.Backend != "" && tc.Backend != "builtin" {
+					tools = append(tools, fmt.Sprintf("mcp__%s__%s", tc.Backend, toolName))
 				}
 			}
 		}
@@ -109,14 +113,14 @@ func (c *StaffConfig) Validate() error {
 	for _, role := range c.Roles {
 		for _, capName := range role.ToolCapabilities {
 			if _, ok := capMap[capName]; !ok {
-				return fmt.Errorf("role %q references unknown capability %q", role.Name, capName)
+				return fmt.Errorf("role %q %w: %q", role.Name, ErrUnknownCapability, capName)
 			}
 		}
 	}
 	for stage, caps := range c.ToolCategories {
 		for _, capName := range caps {
 			if _, ok := capMap[capName]; !ok {
-				return fmt.Errorf("category %q references unknown capability %q", stage, capName)
+				return fmt.Errorf("category %q %w: %q", stage, ErrUnknownCapability, capName)
 			}
 		}
 	}

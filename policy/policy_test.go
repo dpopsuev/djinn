@@ -54,8 +54,8 @@ func TestDefaultToolPolicyEnforcer_SymlinkBypass(t *testing.T) {
 	// Create a real config dir and a symlink to it
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "config")
-	os.MkdirAll(configDir, 0755)
-	os.WriteFile(filepath.Join(configDir, "secret.yaml"), []byte("secret"), 0644)
+	os.MkdirAll(configDir, 0o755)
+	os.WriteFile(filepath.Join(configDir, "secret.yaml"), []byte("secret"), 0o644)
 
 	symlink := filepath.Join(dir, "innocent")
 	os.Symlink(configDir, symlink)
@@ -76,7 +76,7 @@ func TestDefaultToolPolicyEnforcer_PathTraversal(t *testing.T) {
 	e := NewDefaultToolPolicyEnforcer()
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "config")
-	os.MkdirAll(configDir, 0755)
+	os.MkdirAll(configDir, 0o755)
 
 	token := CapabilityToken{
 		DeniedPaths: []string{configDir},

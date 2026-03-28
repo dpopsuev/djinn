@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	djinnconfig "github.com/dpopsuev/djinn/config"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/session"
 )
@@ -43,7 +44,7 @@ func executeMode(cmd Command, sess *session.Session) CommandResult {
 	if len(cmd.Args) > 0 {
 		newMode := cmd.Args[0]
 		switch newMode {
-		case "ask", "plan", "agent", "auto":
+		case djinnconfig.ModeAsk, djinnconfig.ModePlan, djinnconfig.ModeAgent, djinnconfig.ModeAuto:
 			sess.Mode = newMode
 			return CommandResult{
 				Output:     fmt.Sprintf("mode: %s", newMode),
@@ -110,9 +111,9 @@ func executePermissions(sess *session.Session) CommandResult {
 	}
 	approval := "interactive"
 	switch mode {
-	case "auto":
+	case djinnconfig.ModeAuto:
 		approval = "auto-approve (no prompts)"
-	case "ask", "plan":
+	case djinnconfig.ModeAsk, djinnconfig.ModePlan:
 		approval = "none (tools disabled)"
 	}
 	return CommandResult{
@@ -142,12 +143,12 @@ func executeSessions(cmd Command, sess *session.Session) CommandResult {
 	}
 
 	var sb strings.Builder
-	for _, s := range matches {
-		name := s.Name
+	for i := range matches {
+		name := matches[i].Name
 		if name == "" {
-			name = s.ID
+			name = matches[i].ID
 		}
-		fmt.Fprintf(&sb, "  %s (%s, %d turns)\n", name, s.Model, s.Turns)
+		fmt.Fprintf(&sb, "  %s (%s, %d turns)\n", name, matches[i].Model, matches[i].Turns)
 	}
 	return CommandResult{Output: strings.TrimRight(sb.String(), "\n")}
 }

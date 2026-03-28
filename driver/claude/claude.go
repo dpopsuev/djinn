@@ -18,10 +18,10 @@ var (
 
 // Environment variable keys set by ContainerEnv.
 const (
-	EnvDjinnTier      = "DJINN_TIER"
-	EnvDjinnScope     = "DJINN_SCOPE"
-	EnvDjinnSandbox   = "DJINN_SANDBOX"
-	EnvAnthropicModel = "ANTHROPIC_MODEL"
+	EnvDjinnTier       = "DJINN_TIER"
+	EnvDjinnScope      = "DJINN_SCOPE"
+	EnvDjinnSandbox    = "DJINN_SANDBOX"
+	EnvAnthropicModel  = "ANTHROPIC_MODEL"
 	EnvClaudeMaxTokens = "CLAUDE_MAX_TOKENS"
 )
 
@@ -40,8 +40,8 @@ type ContainerEnv struct {
 // In the MVP, it generates container environment specs and records messages.
 // Real LLM communication is deferred to Misbah container integration.
 type ClaudeDriver struct {
-	config  driver.DriverConfig
-	scope   tier.Scope
+	config   driver.DriverConfig
+	scope    tier.Scope
 	claudeMD string
 
 	mu      sync.Mutex

@@ -55,9 +55,9 @@ var builtinPresets = []Preset{
 }
 
 func (r *builtinRegistry) Get(name string) (Preset, bool) {
-	for _, p := range builtinPresets {
-		if p.Name == name {
-			return p, true
+	for i := range builtinPresets {
+		if builtinPresets[i].Name == name {
+			return builtinPresets[i], true
 		}
 	}
 	return Preset{}, false

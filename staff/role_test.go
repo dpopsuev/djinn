@@ -81,7 +81,7 @@ func TestDefaultConfig_ToolCategoriesExist(t *testing.T) {
 func TestLoadConfig_FromYAML(t *testing.T) {
 	dir := t.TempDir()
 	promptFile := filepath.Join(dir, "custom.md")
-	os.WriteFile(promptFile, []byte("You are Custom Role."), 0644) //nolint:errcheck
+	os.WriteFile(promptFile, []byte("You are Custom Role."), 0o644) //nolint:errcheck // best-effort write
 
 	yamlContent := `
 roles:
@@ -105,7 +105,7 @@ tool_capabilities:
     tools: [artifact]
 `
 	cfgFile := filepath.Join(dir, "staff.yaml")
-	os.WriteFile(cfgFile, []byte(yamlContent), 0644) //nolint:errcheck
+	os.WriteFile(cfgFile, []byte(yamlContent), 0o644) //nolint:errcheck // best-effort write
 
 	cfg, err := LoadConfig(cfgFile)
 	if err != nil {
@@ -144,7 +144,7 @@ roles:
     tool_capabilities: []
 `
 	cfgFile := filepath.Join(dir, "staff.yaml")
-	os.WriteFile(cfgFile, []byte(yamlContent), 0644) //nolint:errcheck
+	os.WriteFile(cfgFile, []byte(yamlContent), 0o644) //nolint:errcheck // best-effort write
 
 	cfg, err := LoadConfig(cfgFile)
 	if err != nil {
@@ -272,9 +272,9 @@ func TestMergeConfig_OverlayReplacesCapability(t *testing.T) {
 		},
 	}
 	merged := MergeConfig(base, overlay)
-	cap := merged.ToolCapabilityMap()["FileEditing"]
-	if cap.Backend != "custom" {
-		t.Fatalf("FileEditing backend = %q, want custom", cap.Backend)
+	tc := merged.ToolCapabilityMap()["FileEditing"]
+	if tc.Backend != "custom" {
+		t.Fatalf("FileEditing backend = %q, want custom", tc.Backend)
 	}
 }
 

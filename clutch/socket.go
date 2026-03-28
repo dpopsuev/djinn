@@ -62,7 +62,7 @@ type SocketListener struct {
 // Removes any existing socket file before binding.
 func Listen(socketPath string) (*SocketListener, error) {
 	// Remove stale socket file from previous run.
-	os.Remove(socketPath) //nolint:errcheck
+	os.Remove(socketPath) //nolint:errcheck // best-effort cleanup
 	ln, err := net.Listen("unix", socketPath)
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", socketPath, err)
@@ -83,7 +83,7 @@ func (sl *SocketListener) Accept() (*SocketTransport, error) {
 // Close stops listening and removes the socket file.
 func (sl *SocketListener) Close() error {
 	err := sl.listener.Close()
-	os.Remove(sl.path) //nolint:errcheck
+	os.Remove(sl.path) //nolint:errcheck // best-effort cleanup
 	return err
 }
 

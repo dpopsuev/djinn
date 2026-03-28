@@ -11,7 +11,7 @@ import (
 type HealthStatus int
 
 const (
-	StatusGreen   HealthStatus = iota
+	StatusGreen HealthStatus = iota
 	StatusYellow
 	StatusRed
 	StatusOffline // server declared but not running — dimmed, not warning
@@ -64,7 +64,7 @@ type StatusField struct {
 }
 
 // FormatField renders a single key:value field with styled key and value.
-func FormatField(f StatusField) string {
+func FormatField(f StatusField) string { //nolint:gocritic // StatusField contains lipgloss.Style which is heavy but copy-safe
 	val := fieldValueStyle.Render(f.Value)
 	if f.Style.Value() != "" {
 		val = f.Style.Render(f.Value)
@@ -75,8 +75,8 @@ func FormatField(f StatusField) string {
 // FormatStatusLine renders a list of fields separated by styled │.
 func FormatStatusLine(fields []StatusField) string {
 	parts := make([]string, 0, len(fields))
-	for _, f := range fields {
-		parts = append(parts, FormatField(f))
+	for i := range fields {
+		parts = append(parts, FormatField(fields[i]))
 	}
 	sep := fieldSepStyle.Render(" │ ")
 	return "  " + strings.Join(parts, sep)

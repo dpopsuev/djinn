@@ -30,13 +30,13 @@ func TestHandler_TrustBoundary_SafeMessageTypes(t *testing.T) {
 	// Verify no dangerous message types can be emitted by the handler.
 	// These message types MUST NEVER be sent from agent events:
 	dangerousTypes := []string{
-		"InputSetValueMsg",   // command injection
-		"SubmitMsg",          // re-trigger commands
-		"DialogResultMsg",    // fake approvals
-		"FocusPanelMsg",      // layout manipulation
-		"ResizeMsg",          // layout manipulation
-		"InputResetMsg",      // clear user input
-		"InputFocusMsg",      // steal focus
+		"InputSetValueMsg", // command injection
+		"SubmitMsg",        // re-trigger commands
+		"DialogResultMsg",  // fake approvals
+		"FocusPanelMsg",    // layout manipulation
+		"ResizeMsg",        // layout manipulation
+		"InputResetMsg",    // clear user input
+		"InputFocusMsg",    // steal focus
 	}
 	_ = dangerousTypes // documented for human review
 }

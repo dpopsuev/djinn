@@ -31,36 +31,40 @@ const (
 	headerAnthropicVer = "anthropic-version"
 	anthropicVersion   = "2023-06-01"
 
-	envAPIKey          = "ANTHROPIC_API_KEY"
-	envVertexProject   = "ANTHROPIC_VERTEX_PROJECT_ID"
-	envVertexRegion    = "CLOUD_ML_REGION"
+	envAPIKey        = "ANTHROPIC_API_KEY" //nolint:gosec // env var name, not a credential
+	envVertexProject = "ANTHROPIC_VERTEX_PROJECT_ID"
+	envVertexRegion  = "CLOUD_ML_REGION"
 
-	defaultModel      = "claude-sonnet-4-6"
-	defaultMaxTokens  = 8192
+	defaultModel     = "claude-sonnet-4-6"
+	defaultMaxTokens = 8192
 
 	sseDataPrefix = "data: "
 	sseDoneMarker = "[DONE]"
+
+	contentTypeToolUse = "tool_use"
 )
 
 // Sentinel errors.
 var (
-	ErrNoAPIKey     = errors.New("no API key: set ANTHROPIC_API_KEY or ANTHROPIC_VERTEX_PROJECT_ID")
-	ErrAPIError     = errors.New("claude API error")
-	ErrAuthFailed   = errors.New("authentication failed")
+	ErrNoAPIKey   = errors.New("no API key: set ANTHROPIC_API_KEY or ANTHROPIC_VERTEX_PROJECT_ID")
+	ErrAPIError   = errors.New("claude API error")
+	ErrAuthFailed = errors.New("authentication failed")
+	ErrEmptyToken = errors.New("empty token from gcloud")
 )
 
 // APIDriver implements driver.ChatDriver by calling the Claude Messages API
 // directly with streaming SSE support.
 var _ driver.ChatDriver = (*APIDriver)(nil)
+
 type APIDriver struct {
-	config     driver.DriverConfig
-	tools      *builtin.Registry
+	config       driver.DriverConfig
+	tools        *builtin.Registry
 	systemPrompt string
-	apiURL     string
-	apiKey     string
-	useVertex  bool
-	log        *slog.Logger
-	client     *http.Client
+	apiURL       string
+	apiKey       string
+	useVertex    bool
+	log          *slog.Logger
+	client       *http.Client
 
 	mu       sync.Mutex
 	messages []apiMessage
@@ -157,7 +161,7 @@ func (d *APIDriver) Start(ctx context.Context, sandbox driver.SandboxHandle) err
 	if d.useVertex {
 		token, err := getGCPAccessToken()
 		if err != nil {
-			return fmt.Errorf("%w: gcloud auth failed: %v (run: gcloud auth login)", ErrAuthFailed, err)
+			return fmt.Errorf("%w: gcloud auth failed: %w (run: gcloud auth login)", ErrAuthFailed, err)
 		}
 		d.apiKey = token // reuse apiKey field for bearer token
 	}
@@ -175,7 +179,7 @@ func getGCPAccessToken() (string, error) {
 	}
 	token := strings.TrimSpace(string(out))
 	if token == "" {
-		return "", fmt.Errorf("empty token from gcloud")
+		return "", ErrEmptyToken
 	}
 	return token, nil
 }
@@ -254,7 +258,7 @@ func (d *APIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		d.log.Error("API error", "status", resp.StatusCode, slog.Duration("rtt", time.Since(reqStart)))
+		d.log.Error("API error", slog.Int("status", resp.StatusCode), slog.Duration("rtt", time.Since(reqStart)))
 		return nil, &driver.DriverError{
 			StatusCode: resp.StatusCode,
 			Retryable:  driver.ClassifyRetryable(resp.StatusCode),
@@ -264,7 +268,7 @@ func (d *APIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 		}
 	}
 
-	d.log.Debug("response received", "status", resp.StatusCode, slog.Duration("rtt", time.Since(reqStart)))
+	d.log.Debug("response received", slog.Int("status", resp.StatusCode), slog.Duration("rtt", time.Since(reqStart)))
 
 	ch := make(chan driver.StreamEvent, 100)
 	go d.streamResponse(resp.Body, ch)
@@ -365,34 +369,34 @@ func (m apiMessage) MarshalJSON() ([]byte, error) {
 }
 
 type apiContent struct {
-	Type       string          `json:"type"`
-	Text       string          `json:"text,omitempty"`
-	ID         string          `json:"id,omitempty"`
-	Name       string          `json:"name,omitempty"`
-	Input      json.RawMessage `json:"input,omitempty"`
-	ToolUseID  string          `json:"tool_use_id,omitempty"`
-	Content    string          `json:"content,omitempty"`
-	IsError    bool            `json:"is_error,omitempty"`
+	Type      string          `json:"type"`
+	Text      string          `json:"text,omitempty"`
+	ID        string          `json:"id,omitempty"`
+	Name      string          `json:"name,omitempty"`
+	Input     json.RawMessage `json:"input,omitempty"`
+	ToolUseID string          `json:"tool_use_id,omitempty"`
+	Content   string          `json:"content,omitempty"`
+	IsError   bool            `json:"is_error,omitempty"`
 }
 
 // MarshalJSON ensures tool_use blocks always have input:{} not null.
 func (c apiContent) MarshalJSON() ([]byte, error) {
 	type raw apiContent // avoid recursion
 	r := raw(c)
-	if r.Type == "tool_use" && r.Input == nil {
+	if r.Type == contentTypeToolUse && r.Input == nil {
 		r.Input = json.RawMessage(`{}`)
 	}
 	return json.Marshal(r)
 }
 
 type apiRequest struct {
-	Model             string       `json:"model,omitempty"`
-	MaxTokens         int          `json:"max_tokens"`
-	System            string       `json:"system,omitempty"`
-	Messages          []apiMessage `json:"messages"`
-	Stream            bool         `json:"stream"`
-	Tools             []apiTool    `json:"tools,omitempty"`
-	AnthropicVersion  string       `json:"anthropic_version,omitempty"` // required for Vertex
+	Model            string       `json:"model,omitempty"`
+	MaxTokens        int          `json:"max_tokens"`
+	System           string       `json:"system,omitempty"`
+	Messages         []apiMessage `json:"messages"`
+	Stream           bool         `json:"stream"`
+	Tools            []apiTool    `json:"tools,omitempty"`
+	AnthropicVersion string       `json:"anthropic_version,omitempty"` // required for Vertex
 }
 
 type apiTool struct {
@@ -517,10 +521,10 @@ type sseContentBlockDelta struct {
 	Type  string `json:"type"`
 	Index int    `json:"index"`
 	Delta struct {
-		Type           string          `json:"type"`
-		Text           string          `json:"text,omitempty"`
-		Thinking       string          `json:"thinking,omitempty"`
-		PartialJSON    string          `json:"partial_json,omitempty"`
+		Type        string `json:"type"`
+		Text        string `json:"text,omitempty"`
+		Thinking    string `json:"thinking,omitempty"`
+		PartialJSON string `json:"partial_json,omitempty"`
 	} `json:"delta"`
 }
 
@@ -539,7 +543,7 @@ func (d *APIDriver) processSSEEventWithInput(evt sseEvent, ch chan<- driver.Stre
 		if json.Unmarshal([]byte(evt.Data), &block) != nil {
 			return
 		}
-		if block.ContentBlock.Type == "tool_use" {
+		if block.ContentBlock.Type == contentTypeToolUse {
 			tc := &driver.ToolCall{
 				ID:   block.ContentBlock.ID,
 				Name: block.ContentBlock.Name,
@@ -615,7 +619,7 @@ func richBlocksToAPI(blocks []driver.ContentBlock) []apiContent {
 		case driver.BlockToolUse:
 			if b.ToolCall != nil {
 				out = append(out, apiContent{
-					Type:  "tool_use",
+					Type:  contentTypeToolUse,
 					ID:    b.ToolCall.ID,
 					Name:  b.ToolCall.Name,
 					Input: b.ToolCall.Input,

@@ -10,11 +10,11 @@ import (
 
 // StubSandbox implements broker.SandboxPort with deterministic IDs.
 type StubSandbox struct {
-	mu        sync.Mutex
-	counter   int
-	created   []string
-	destroyed []string
-	createErr error
+	mu         sync.Mutex
+	counter    int
+	created    []string
+	destroyed  []string
+	createErr  error
 	destroyErr error
 }
 

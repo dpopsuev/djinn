@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os/exec"
@@ -14,6 +15,9 @@ import (
 
 	"github.com/dpopsuev/djinn/driver"
 )
+
+// Sentinel errors.
+var ErrNoMessages = errors.New("no messages to send")
 
 // CommandFactory creates exec.Cmd — injectable for testing.
 type CommandFactory func(ctx context.Context, name string, args ...string) *exec.Cmd
@@ -93,11 +97,11 @@ func (d *CLIDriver) ContextWindow() int { return 200_000 }
 
 // Chat runs `agent -p --output-format stream-json` with the last user message
 // and streams events back via the channel.
-func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error) {
+func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error) { //nolint:gocyclo // SSE stream parsing with multiple event types
 	d.mu.Lock()
 	if len(d.messages) == 0 {
 		d.mu.Unlock()
-		return nil, fmt.Errorf("no messages to send")
+		return nil, ErrNoMessages
 	}
 	lastMsg := d.messages[len(d.messages)-1]
 	d.mu.Unlock()
@@ -124,7 +128,7 @@ func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 
 	go func() {
 		defer close(ch)
-		defer cmd.Wait() //nolint:errcheck
+		defer cmd.Wait() //nolint:errcheck // best-effort cleanup on defer
 
 		scanner := bufio.NewScanner(stdout)
 		scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
@@ -148,7 +152,7 @@ func (d *CLIDriver) Chat(ctx context.Context) (<-chan driver.StreamEvent, error)
 
 			switch evt.Type {
 			case "assistant":
-				if evt.Message != nil {
+				if evt.Message != nil { //nolint:nestif // SSE event processing with nested content blocks
 					for _, block := range evt.Message.Content {
 						if block.Type == "text" && block.Text != lastText {
 							// Cursor sends cumulative text — emit only the delta.

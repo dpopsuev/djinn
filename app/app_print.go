@@ -19,9 +19,9 @@ import (
 
 // PrintResult is the JSON output format for --print mode.
 type PrintResult struct {
-	Response string       `json:"response"`
+	Response string        `json:"response"`
 	Usage    *driver.Usage `json:"usage,omitempty"`
-	Duration string       `json:"duration"`
+	Duration string        `json:"duration"`
 }
 
 // RunPrint executes a single prompt in headless mode and writes the
@@ -33,7 +33,7 @@ func RunPrint(ctx context.Context, chatDriver driver.ChatDriver, prompt, outputF
 	if err := chatDriver.Start(ctx, ""); err != nil {
 		return fmt.Errorf("start driver: %w", err)
 	}
-	defer chatDriver.Stop(ctx) //nolint:errcheck
+	defer chatDriver.Stop(ctx) //nolint:errcheck // best-effort shutdown
 
 	// Send prompt.
 	if err := chatDriver.Send(ctx, driver.Message{

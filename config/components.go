@@ -1,6 +1,23 @@
 package config
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+// Agent mode constants.
+const (
+	ModeAsk   = "ask"
+	ModePlan  = "plan"
+	ModeAgent = "agent"
+	ModeAuto  = "auto"
+)
+
+// Sentinel errors for config component parsing.
+var (
+	ErrUnexpectedType = errors.New("unexpected type")
+	ErrUnknownMode    = errors.New("unknown mode")
+)
 
 // ModeConfig implements Configurable for the agent mode.
 type ModeConfig struct {
@@ -12,14 +29,14 @@ func (c *ModeConfig) Snapshot() any     { return c.Mode }
 func (c *ModeConfig) Apply(v any) error {
 	s, ok := v.(string)
 	if !ok {
-		return fmt.Errorf("mode: expected string, got %T", v)
+		return fmt.Errorf("mode: %w: expected string, got %T", ErrUnexpectedType, v)
 	}
 	switch s {
-	case "ask", "plan", "agent", "auto":
+	case ModeAsk, ModePlan, ModeAgent, ModeAuto:
 		c.Mode = s
 		return nil
 	default:
-		return fmt.Errorf("mode: unknown %q", s)
+		return fmt.Errorf("mode: %w: %q", ErrUnknownMode, s)
 	}
 }
 
@@ -40,7 +57,7 @@ func (c *DriverConfigurable) Snapshot() any {
 func (c *DriverConfigurable) Apply(v any) error {
 	m, ok := v.(map[string]any)
 	if !ok {
-		return fmt.Errorf("driver: expected map, got %T", v)
+		return fmt.Errorf("driver: %w: expected map, got %T", ErrUnexpectedType, v)
 	}
 	if name, ok := m["name"].(string); ok {
 		c.Name = name
@@ -71,7 +88,7 @@ func (c *SessionConfigurable) Snapshot() any {
 func (c *SessionConfigurable) Apply(v any) error {
 	m, ok := v.(map[string]any)
 	if !ok {
-		return fmt.Errorf("session: expected map, got %T", v)
+		return fmt.Errorf("session: %w: expected map, got %T", ErrUnexpectedType, v)
 	}
 	if mt, ok := m["max_turns"]; ok {
 		switch val := mt.(type) {
@@ -109,7 +126,7 @@ func (c *SandboxConfigurable) Snapshot() any {
 func (c *SandboxConfigurable) Apply(v any) error {
 	m, ok := v.(map[string]any)
 	if !ok {
-		return fmt.Errorf("sandbox: expected map, got %T", v)
+		return fmt.Errorf("sandbox: %w: expected map, got %T", ErrUnexpectedType, v)
 	}
 	if b, ok := m["backend"].(string); ok {
 		c.Backend = b
@@ -138,7 +155,7 @@ func (c *DebugConfigurable) Snapshot() any {
 func (c *DebugConfigurable) Apply(v any) error {
 	m, ok := v.(map[string]any)
 	if !ok {
-		return fmt.Errorf("debug: expected map, got %T", v)
+		return fmt.Errorf("debug: %w: expected map, got %T", ErrUnexpectedType, v)
 	}
 	if tf, ok := m["tap_file"].(string); ok {
 		c.TapFile = tf
@@ -166,7 +183,7 @@ func (c *ToolsConfigurable) Snapshot() any {
 func (c *ToolsConfigurable) Apply(v any) error {
 	m, ok := v.(map[string]any)
 	if !ok {
-		return fmt.Errorf("tools: expected map, got %T", v)
+		return fmt.Errorf("tools: %w: expected map, got %T", ErrUnexpectedType, v)
 	}
 	if enabled, ok := m["enabled"]; ok {
 		switch val := enabled.(type) {

@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/dpopsuev/djinn/djinnlog"
-	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/tui"
 )
 
 // Tools & dev command names.
@@ -118,7 +118,7 @@ func executeConfigSave(cmd Command, sess *session.Session) CommandResult {
 	}
 	content := fmt.Sprintf("driver:\n  name: %s\n  model: %s\nmode: %s\nsession:\n  max_turns: 20\n",
 		sess.Driver, sess.Model, mode)
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		return CommandResult{Output: fmt.Sprintf("error saving config: %v", err)}
 	}
 	return CommandResult{Output: fmt.Sprintf("config saved to %s", path)}

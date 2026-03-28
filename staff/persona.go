@@ -7,14 +7,14 @@ import "github.com/dpopsuev/djinn/bugleport"
 // RolePersona maps a Djinn staff role to a Bugle persona name.
 // Persona provides: element, color, position, alignment, step affinity.
 var RolePersona = map[string]string{
-	"gensec":       "Herald",    // Broker: fast intake, optimistic routing
-	"executor":     "Seeker",    // Worker: deep investigator, builds evidence
-	"inspector":    "Specter",   // Enforcer: fastest path to contradiction
-	"manager":      "Weaver",    // Manager: holistic synthesizer
-	"auditor":      "Bulwark",   // Enforcer (pre): precision verifier
+	"gensec":       "Herald",     // Broker: fast intake, optimistic routing
+	"executor":     "Seeker",     // Worker: deep investigator, builds evidence
+	"inspector":    "Specter",    // Enforcer: fastest path to contradiction
+	"manager":      "Weaver",     // Manager: holistic synthesizer
+	"auditor":      "Bulwark",    // Enforcer (pre): precision verifier
 	"scheduler":    "Challenger", // Broker (pre): aggressive skeptic
-	"externalizer": "Sentinel",  // Worker: steady resolver
-	"investigator": "Abyss",    // Enforcer: deep adversary
+	"externalizer": "Sentinel",   // Worker: steady resolver
+	"investigator": "Abyss",      // Enforcer: deep adversary
 }
 
 // ResolvePersona returns the Bugle persona for a Djinn role.

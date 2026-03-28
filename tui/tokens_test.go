@@ -11,7 +11,7 @@ func TestDefaultTokens_MatchesTheme(t *testing.T) {
 
 	// Direct Theme fields must round-trip exactly.
 	checks := []struct {
-		name     string
+		name      string
 		got, want lipgloss.AdaptiveColor
 	}{
 		{"UserFg", ts.UserFg, DefaultTheme.User},

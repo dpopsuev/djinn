@@ -133,14 +133,20 @@ func TestTUI_AllModesValid(t *testing.T) {
 func multiUpdate(t *testing.T, m tea.Model, msgs ...tea.Msg) tea.Model {
 	t.Helper()
 	for i, msg := range msgs {
-		defer func(step int) {
-			if r := recover(); r != nil {
-				t.Fatalf("PANIC at Update step %d (msg=%T): %v", step, msgs[step], r)
-			}
-		}(i)
-		m, _ = m.Update(msg)
+		m = safeUpdate(t, m, i, msg)
 	}
 	return m
+}
+
+func safeUpdate(t *testing.T, m tea.Model, step int, msg tea.Msg) (result tea.Model) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("PANIC at Update step %d (msg=%T): %v", step, msg, r)
+		}
+	}()
+	result, _ = m.Update(msg)
+	return result
 }
 
 func TestTUI_StreamingCycle_NoPanic(t *testing.T) {
@@ -153,13 +159,13 @@ func TestTUI_StreamingCycle_NoPanic(t *testing.T) {
 	m.AppendConversation(tui.AssistStyle.Render(tui.LabelAssist) + ": ")
 
 	result := multiUpdate(t, *m,
-		tui.TextMsg("Hello "),        // token 1
-		tui.TickMsg(time.Now()),       // flush 1
-		tui.TextMsg("world, "),        // token 2
-		tui.TickMsg(time.Now()),       // flush 2
-		tui.TextMsg("how are you?"),   // token 3
-		tui.TickMsg(time.Now()),       // flush 3
-		tui.AgentDoneMsg{},            // completion
+		tui.TextMsg("Hello "),       // token 1
+		tui.TickMsg(time.Now()),     // flush 1
+		tui.TextMsg("world, "),      // token 2
+		tui.TickMsg(time.Now()),     // flush 2
+		tui.TextMsg("how are you?"), // token 3
+		tui.TickMsg(time.Now()),     // flush 3
+		tui.AgentDoneMsg{},          // completion
 	)
 
 	model := toModelPtr(result)
@@ -342,7 +348,7 @@ func TestTUI_DebugTap_NotStartedWithoutFlag(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer dt.Close() //nolint:errcheck
+	defer dt.Close() //nolint:errcheck // best-effort cleanup
 
 	// Just capturing — no server running. This is --debug-tap without --live-debug.
 	dt.Capture("frame", "input", "gensec", 80, 24)

@@ -9,6 +9,9 @@ import (
 // DefaultMaxLoadEntries is the maximum entries before auto-compact on load.
 const DefaultMaxLoadEntries = 200
 
+// jsonNull is the literal JSON null string used for corrupt input detection.
+const jsonNull = "null"
+
 // Sanitize repairs known corruption patterns in session history.
 // Called automatically by Store.Load().
 //
@@ -17,6 +20,7 @@ const DefaultMaxLoadEntries = 200
 //
 // Compacts:
 //   - sessions with > DefaultMaxLoadEntries entries
+//
 // Sanitize repairs known corruption patterns in session history.
 // Returns true if any repairs were made.
 func Sanitize(sess *Session) bool {
@@ -31,7 +35,7 @@ func Sanitize(sess *Session) bool {
 		for j := range entries[i].Blocks {
 			block := &entries[i].Blocks[j]
 			if block.Type == driver.BlockToolUse && block.ToolCall != nil {
-				if block.ToolCall.Input == nil || string(block.ToolCall.Input) == "null" {
+				if block.ToolCall.Input == nil || string(block.ToolCall.Input) == jsonNull {
 					block.ToolCall.Input = json.RawMessage(`{}`)
 					repaired = true
 				}
@@ -61,7 +65,7 @@ func Sanitize(sess *Session) bool {
 // repairOrphanedToolUse finds tool_use blocks without a matching
 // tool_result in the next message and injects synthetic results.
 func repairOrphanedToolUse(entries []Entry) []Entry {
-	var result []Entry
+	result := make([]Entry, 0, len(entries))
 
 	for i, entry := range entries {
 		result = append(result, entry)

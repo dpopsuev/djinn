@@ -73,7 +73,7 @@ type tableData struct {
 	Rows    [][]any  `json:"rows"`
 }
 
-func renderTable(data string, width int) string {
+func renderTable(data string, _ int) string { //nolint:unparam // width reserved for column-width-aware rendering
 	var td tableData
 	if err := json.Unmarshal([]byte(data), &td); err != nil {
 		return DimStyle.Render("[invalid table data]")
@@ -265,24 +265,24 @@ func renderChart(data string, width int) string {
 }
 
 func renderSparkline(cd chartData) string {
-	min, max := cd.Values[0], cd.Values[0]
+	lo, hi := cd.Values[0], cd.Values[0]
 	for _, v := range cd.Values {
-		if v < min {
-			min = v
+		if v < lo {
+			lo = v
 		}
-		if v > max {
-			max = v
+		if v > hi {
+			hi = v
 		}
 	}
 
-	rng := max - min
+	rng := hi - lo
 	if rng == 0 {
 		rng = 1
 	}
 
 	var sb strings.Builder
 	for _, v := range cd.Values {
-		idx := int((v - min) / rng * 7)
+		idx := int((v - lo) / rng * 7)
 		if idx > 7 {
 			idx = 7
 		}
@@ -299,14 +299,14 @@ func renderSparkline(cd chartData) string {
 }
 
 func renderBarChart(cd chartData, width int) string {
-	max := cd.Values[0]
+	hi := cd.Values[0]
 	for _, v := range cd.Values {
-		if v > max {
-			max = v
+		if v > hi {
+			hi = v
 		}
 	}
-	if max == 0 {
-		max = 1
+	if hi == 0 {
+		hi = 1
 	}
 
 	// Find max label width.
@@ -332,7 +332,7 @@ func renderBarChart(cd chartData, width int) string {
 		if i < len(cd.Labels) {
 			label = cd.Labels[i]
 		}
-		barLen := int(v / max * float64(barMax))
+		barLen := int(v / hi * float64(barMax))
 		sb.WriteString(pad(label, labelWidth))
 		sb.WriteString(" ")
 		sb.WriteString(ToolSuccessStyle.Render(strings.Repeat("█", barLen)))
@@ -410,18 +410,19 @@ func renderDiagram(data string, _ int) string {
 		sb.WriteByte('\n')
 
 		for _, e := range dd.Edges {
-			if e.From == n.ID {
-				target := labels[e.To]
-				if target == "" {
-					target = e.To
-				}
-				arrow := "  ──→ " + target
-				if e.Label != "" {
-					arrow += " (" + e.Label + ")"
-				}
-				sb.WriteString(DimStyle.Render(arrow))
-				sb.WriteByte('\n')
+			if e.From != n.ID {
+				continue
 			}
+			target := labels[e.To]
+			if target == "" {
+				target = e.To
+			}
+			arrow := "  ──→ " + target
+			if e.Label != "" {
+				arrow += " (" + e.Label + ")"
+			}
+			sb.WriteString(DimStyle.Render(arrow))
+			sb.WriteByte('\n')
 		}
 	}
 	return sb.String()

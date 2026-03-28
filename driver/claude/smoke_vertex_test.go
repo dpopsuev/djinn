@@ -34,7 +34,7 @@ func TestSmoke_Vertex_RoundTrip(t *testing.T) {
 	if err := d.Start(ctx, ""); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	defer d.Stop(ctx) //nolint:errcheck
+	defer d.Stop(ctx) //nolint:errcheck // best-effort shutdown
 
 	if err := d.Send(ctx, driver.Message{Role: driver.RoleUser, Content: "Reply with exactly: PONG"}); err != nil {
 		t.Fatalf("Send: %v", err)

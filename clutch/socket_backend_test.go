@@ -37,9 +37,9 @@ func TestSocketBackend_HandshakeOverSocket(t *testing.T) {
 		}
 		defer transport.Close()
 		backendDone <- RunBackend(ctx, transport, BackendConfig{
-			Driver:  &stubs.StubChatDriver{},
-			Tools:   builtin.NewRegistry(),
-			Session: sess,
+			Driver:   &stubs.StubChatDriver{},
+			Tools:    builtin.NewRegistry(),
+			Session:  sess,
 			MaxTurns: 5,
 		})
 	}()
@@ -66,7 +66,7 @@ func TestSocketBackend_HandshakeOverSocket(t *testing.T) {
 	}
 
 	// Tell backend to quit.
-	shell.SendToBackend(ShellMsg{Type: ShellQuit}) //nolint:errcheck
+	shell.SendToBackend(ShellMsg{Type: ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
 	if err := <-backendDone; err != nil {
 		t.Fatalf("backend error: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestSocketBackend_PromptRoundTrip(t *testing.T) {
 	}
 
 	// Send a prompt.
-	shell.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "ping"}) //nolint:errcheck
+	shell.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "ping"}) //nolint:errcheck // best-effort send, error logged by receiver
 
 	// Collect backend events until Done.
 	var gotText bool
@@ -151,6 +151,6 @@ func TestSocketBackend_PromptRoundTrip(t *testing.T) {
 	}
 
 	// Quit.
-	shell.SendToBackend(ShellMsg{Type: ShellQuit}) //nolint:errcheck
+	shell.SendToBackend(ShellMsg{Type: ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
 	<-backendDone
 }

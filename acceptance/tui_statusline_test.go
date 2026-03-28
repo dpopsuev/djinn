@@ -13,9 +13,9 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/cli/repl"
-	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
+	"github.com/dpopsuev/djinn/tui"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

@@ -8,8 +8,8 @@ const securityWatchdogName = "security-watchdog"
 // Misbah permission event stream integration.
 type SecurityWatchdog struct{}
 
-func NewSecurityWatchdog() *SecurityWatchdog          { return &SecurityWatchdog{} }
-func (w *SecurityWatchdog) Name() string              { return securityWatchdogName }
-func (w *SecurityWatchdog) Category() string          { return CategorySecurity }
+func NewSecurityWatchdog() *SecurityWatchdog                { return &SecurityWatchdog{} }
+func (w *SecurityWatchdog) Name() string                    { return securityWatchdogName }
+func (w *SecurityWatchdog) Category() string                { return CategorySecurity }
 func (w *SecurityWatchdog) Start(ctx context.Context) error { return nil }
 func (w *SecurityWatchdog) Stop(ctx context.Context) error  { return nil }

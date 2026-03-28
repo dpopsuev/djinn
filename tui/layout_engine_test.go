@@ -51,7 +51,7 @@ func TestLayoutEngine_ComputeHeights_FixedOnly(t *testing.T) {
 	fm := NewFocusManager()
 	e := NewLayoutEngine(fm)
 	e.Resize(80, 24)
-	e.Register(PanelSlot{Panel: NewInputPanel(), Border: BorderFocusDepth})   // height=1
+	e.Register(PanelSlot{Panel: NewInputPanel(), Border: BorderFocusDepth})     // height=1
 	e.Register(PanelSlot{Panel: NewDashboardPanel(), Border: BorderFocusDepth}) // height=1
 
 	heights := e.ComputeHeights()
@@ -65,7 +65,7 @@ func TestLayoutEngine_ComputeHeights_FlexDistribution(t *testing.T) {
 	e := NewLayoutEngine(fm)
 	e.Resize(80, 30)
 	e.Register(PanelSlot{Panel: NewOutputPanel(), Weight: 1, MinHeight: 3, Border: BorderOnly})
-	e.Register(PanelSlot{Panel: NewDashboardPanel(), Border: BorderFocusDepth}) // fixed, height=1
+	e.Register(PanelSlot{Panel: NewDashboardPanel(), Border: BorderFocusDepth}) // fixed panel, single-line height
 
 	heights := e.ComputeHeights()
 	if heights["output"] < 3 {

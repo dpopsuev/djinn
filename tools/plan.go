@@ -7,22 +7,28 @@ package tools
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"sync"
 	"time"
 )
 
+// Sentinel errors for TaskStore operations.
+var (
+	ErrTaskNotFound      = errors.New("task not found")
+	ErrInvalidTaskStatus = errors.New("invalid task status")
+)
+
 // Task represents a single work item in the plan.
 type Task struct {
-	ID        string   `json:"id"`
-	Title     string   `json:"title"`
-	Status    string   `json:"status"` // pending, active, done, blocked
-	DependsOn []string `json:"depends_on,omitempty"`
-	Parent    string   `json:"parent,omitempty"`
-	Labels    []string `json:"labels,omitempty"`
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	Status    string    `json:"status"` // pending, active, done, blocked
+	DependsOn []string  `json:"depends_on,omitempty"`
+	Parent    string    `json:"parent,omitempty"`
+	Labels    []string  `json:"labels,omitempty"`
 	Created   time.Time `json:"created"`
 	Updated   time.Time `json:"updated"`
 }
@@ -81,18 +87,18 @@ func (s *TaskStore) Get(id string) (*Task, bool) {
 
 // Update changes a task's status. Returns an error if the task
 // is not found or the status is invalid.
-func (s *TaskStore) Update(id string, status string) error {
+func (s *TaskStore) Update(id, status string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	t, ok := s.tasks[id]
 	if !ok {
-		return fmt.Errorf("task %q not found", id)
+		return fmt.Errorf("%w: %q", ErrTaskNotFound, id)
 	}
 	switch status {
 	case StatusPending, StatusActive, StatusDone, StatusBlocked:
 	default:
-		return fmt.Errorf("invalid status %q", status)
+		return fmt.Errorf("%w: %q", ErrInvalidTaskStatus, status)
 	}
 	t.Status = status
 	t.Updated = time.Now()
@@ -184,26 +190,7 @@ func (s *TaskStore) TopoSort() []*Task {
 func (s *TaskStore) Save() error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
-	data, err := json.MarshalIndent(s.marshalState(), "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal tasks: %w", err)
-	}
-
-	dir := filepath.Dir(s.path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("create dir: %w", err)
-	}
-
-	tmp := s.path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return fmt.Errorf("write tmp: %w", err)
-	}
-	if err := os.Rename(tmp, s.path); err != nil {
-		os.Remove(tmp) //nolint:errcheck
-		return fmt.Errorf("rename: %w", err)
-	}
-	return nil
+	return atomicSaveJSON(s.path, s.marshalState(), "tasks")
 }
 
 // Load reads task data from the file. Existing in-memory tasks are replaced.

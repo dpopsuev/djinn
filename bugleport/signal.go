@@ -4,9 +4,9 @@ import "github.com/dpopsuev/bugle/signal"
 
 // Type aliases — definitions live in bugle/signal.
 type (
-	Signal   = signal.Signal
-	Bus      = signal.Bus
-	MemBus   = signal.MemBus
+	Signal     = signal.Signal
+	Bus        = signal.Bus
+	MemBus     = signal.MemBus
 	DurableBus = signal.DurableBus
 )
 
@@ -39,6 +39,6 @@ const (
 
 // Constructors.
 var (
-	NewMemBus    = signal.NewMemBus
+	NewMemBus     = signal.NewMemBus
 	NewDurableBus = signal.NewDurableBus
 )

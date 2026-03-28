@@ -79,9 +79,9 @@ var DefaultCapabilityQueries = []CapabilityQuery{
 // If not available (wrong role, backend offline), silently skips.
 //
 // When alwaysWeave is true (Gear A), context is woven on every message.
-// When false (default / plan-mode behaviour), the caller decides when to invoke.
+// When false (default / plan-mode behavior), the caller decides when to invoke.
 // The parameter is variadic for backward compatibility — omitting it
-// preserves the original behaviour (treated as false).
+// preserves the original behavior (treated as false).
 func AutoWeaveContext(ctx context.Context, tools builtin.ToolExecutor, prompt string, alwaysWeave ...bool) string {
 	// alwaysWeave is accepted but does not change the weaving logic itself —
 	// the caller uses it to decide whether to call this function at all.
@@ -132,7 +132,7 @@ func extractKeywords(prompt string) string {
 	}
 
 	words := strings.Fields(strings.ToLower(prompt))
-	var keywords []string
+	keywords := make([]string, 0, len(words))
 	for _, w := range words {
 		w = strings.Trim(w, ".,!?()[]{}\"'")
 		if len(w) < 3 || stopWords[w] {

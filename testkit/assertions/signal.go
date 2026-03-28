@@ -29,9 +29,9 @@ func AssertSignalSequence(t *testing.T, signals []signal.Signal, expected []stru
 func AssertAndonLevel(t *testing.T, health map[string]signal.WorkstreamHealth, want signal.FlagLevel) {
 	t.Helper()
 	worst := signal.Green
-	for _, h := range health {
-		if h.Level > worst {
-			worst = h.Level
+	for k := range health {
+		if health[k].Level > worst {
+			worst = health[k].Level
 		}
 	}
 	if worst != want {

@@ -18,7 +18,7 @@ import (
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
-func startTestBackend(t *testing.T, ctx context.Context, sock string, model string, responses ...driver.Message) chan error {
+func startTestBackend(ctx context.Context, t *testing.T, sock, model string, responses ...driver.Message) chan error {
 	t.Helper()
 	done := make(chan error, 1)
 	go func() {
@@ -53,7 +53,7 @@ func TestSPC26_SocketHandshake(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	backendDone := startTestBackend(t, ctx, sock, "claude-opus-4-6")
+	backendDone := startTestBackend(ctx, t, sock, "claude-opus-4-6")
 
 	shell, err := ln.Accept()
 	if err != nil {
@@ -75,7 +75,7 @@ func TestSPC26_SocketHandshake(t *testing.T) {
 		t.Fatalf("model = %q", msg.Model)
 	}
 
-	shell.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit}) //nolint:errcheck
+	shell.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
 	<-backendDone
 }
 
@@ -93,8 +93,8 @@ func TestSPC26_BackendDisconnect_ShellPreserves(t *testing.T) {
 
 	go func() {
 		transport, _ := clutch.Connect(sock)
-		transport.SendToShell(clutch.BackendMsg{Type: clutch.BackendReady}) //nolint:errcheck
-		transport.SendToShell(clutch.BackendMsg{Type: clutch.BackendText, Text: "partial response"}) //nolint:errcheck
+		transport.SendToShell(clutch.BackendMsg{Type: clutch.BackendReady})                          //nolint:errcheck // best-effort send, error logged by receiver
+		transport.SendToShell(clutch.BackendMsg{Type: clutch.BackendText, Text: "partial response"}) //nolint:errcheck // best-effort send, error logged by receiver
 		transport.Close()
 	}()
 
@@ -134,19 +134,19 @@ func TestSPC26_BackendReconnect_SessionPreserved(t *testing.T) {
 	defer cancel()
 
 	// Backend 1
-	b1 := startTestBackend(t, ctx, sock, "model-v1",
+	b1 := startTestBackend(ctx, t, sock, "model-v1",
 		driver.Message{Role: "assistant", Content: "v1"})
 	shell1, _ := ln.Accept()
 	ready1, _ := shell1.RecvFromBackend()
 	if ready1.Model != "model-v1" {
 		t.Fatalf("b1 model = %q", ready1.Model)
 	}
-	shell1.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit}) //nolint:errcheck
+	shell1.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
 	<-b1
 	shell1.Close()
 
 	// Backend 2 — hot-swap
-	b2 := startTestBackend(t, ctx, sock, "model-v2",
+	b2 := startTestBackend(ctx, t, sock, "model-v2",
 		driver.Message{Role: "assistant", Content: "v2"})
 	shell2, err := ln.Accept()
 	if err != nil {
@@ -159,7 +159,7 @@ func TestSPC26_BackendReconnect_SessionPreserved(t *testing.T) {
 		t.Fatalf("b2 model = %q — hot-swap should show new model", ready2.Model)
 	}
 
-	shell2.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit}) //nolint:errcheck
+	shell2.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
 	<-b2
 }
 
@@ -181,7 +181,7 @@ func TestSPC26_ShellWithoutBackend_Queues(t *testing.T) {
 	// Backend connects after delay.
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		startTestBackend(t, ctx, sock, "model",
+		startTestBackend(ctx, t, sock, "model",
 			driver.Message{Role: "assistant", Content: "got it"})
 	}()
 
@@ -198,7 +198,7 @@ func TestSPC26_ShellWithoutBackend_Queues(t *testing.T) {
 	}
 
 	// Send queued prompt.
-	shell.SendToBackend(clutch.ShellMsg{Type: clutch.ShellPrompt, Text: "queued"}) //nolint:errcheck
+	shell.SendToBackend(clutch.ShellMsg{Type: clutch.ShellPrompt, Text: "queued"}) //nolint:errcheck // best-effort send, error logged by receiver
 
 	var gotText bool
 	for range 20 {
@@ -217,5 +217,5 @@ func TestSPC26_ShellWithoutBackend_Queues(t *testing.T) {
 		t.Fatal("queued prompt should produce response after backend connects")
 	}
 
-	shell.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit}) //nolint:errcheck
+	shell.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
 }

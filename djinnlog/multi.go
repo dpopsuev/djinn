@@ -24,7 +24,7 @@ func (h *MultiHandler) Enabled(_ context.Context, level slog.Level) bool {
 	return false
 }
 
-func (h *MultiHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *MultiHandler) Handle(ctx context.Context, r slog.Record) error { //nolint:gocritic // slog.Handler interface requires value receiver
 	for _, handler := range h.handlers {
 		if handler.Enabled(ctx, r.Level) {
 			if err := handler.Handle(ctx, r.Clone()); err != nil {

@@ -26,6 +26,12 @@ func (b Breakpoint) String() string {
 	}
 }
 
+// Dashboard style constants.
+const (
+	DashboardStyleCompact = "compact"
+	DashboardStyleFull    = "full"
+)
+
 // LayoutConfig holds dimension decisions for a given terminal size.
 type LayoutConfig struct {
 	Breakpoint      Breakpoint
@@ -48,25 +54,25 @@ func ComputeLayout(width, height int) LayoutConfig {
 		cfg.InputHeight = 1
 		cfg.ShowLogo = false
 		cfg.MaxContentWidth = width
-		cfg.DashboardStyle = "compact"
+		cfg.DashboardStyle = DashboardStyleCompact
 	case width <= 120:
 		cfg.Breakpoint = Medium
 		cfg.InputHeight = 3
 		cfg.ShowLogo = true
 		cfg.MaxContentWidth = width
-		cfg.DashboardStyle = "full"
+		cfg.DashboardStyle = DashboardStyleFull
 	case width <= 200:
 		cfg.Breakpoint = Large
 		cfg.InputHeight = 3
 		cfg.ShowLogo = true
 		cfg.MaxContentWidth = width
-		cfg.DashboardStyle = "full"
+		cfg.DashboardStyle = DashboardStyleFull
 	default:
 		cfg.Breakpoint = Massive
 		cfg.InputHeight = 3
 		cfg.ShowLogo = true
 		cfg.MaxContentWidth = 200 // cap at readable width
-		cfg.DashboardStyle = "full"
+		cfg.DashboardStyle = DashboardStyleFull
 	}
 
 	// Adjust input height for very short terminals.
