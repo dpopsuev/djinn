@@ -9,7 +9,7 @@ import (
 
 func TestDiscover_ProjectLocal(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "djinn.yaml"), []byte("mode: auto\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "djinn.yaml"), []byte("mode: auto\n"), 0o644)
 	paths := Discover(dir)
 	if len(paths) == 0 {
 		t.Fatal("should find project config")
@@ -28,7 +28,7 @@ func TestDiscover_ProjectLocal(t *testing.T) {
 func TestDiscover_EnvVar(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "custom.yaml")
-	os.WriteFile(path, []byte("mode: plan\n"), 0644)
+	os.WriteFile(path, []byte("mode: plan\n"), 0o644)
 	t.Setenv(EnvConfigVar, path)
 	paths := Discover(dir)
 	found := false
@@ -54,7 +54,7 @@ func TestDiscover_EmptyDir(t *testing.T) {
 
 func TestLoadAll_MergesInOrder(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "djinn.yaml"), []byte("mode: plan\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "djinn.yaml"), []byte("mode: plan\n"), 0o644)
 
 	r := NewRegistry()
 	mc := &ModeConfig{Mode: "agent"}
@@ -62,16 +62,16 @@ func TestLoadAll_MergesInOrder(t *testing.T) {
 	if err := LoadAll(r, dir, ""); err != nil {
 		t.Fatal(err)
 	}
-	if mc.Mode != "plan" {
+	if mc.Mode != ModePlan {
 		t.Fatalf("mode = %q, want plan", mc.Mode)
 	}
 }
 
 func TestLoadAll_ExplicitOverrides(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "djinn.yaml"), []byte("mode: plan\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "djinn.yaml"), []byte("mode: plan\n"), 0o644)
 	explicit := filepath.Join(dir, "override.yaml")
-	os.WriteFile(explicit, []byte("mode: auto\n"), 0644)
+	os.WriteFile(explicit, []byte("mode: auto\n"), 0o644)
 
 	r := NewRegistry()
 	mc := &ModeConfig{Mode: "agent"}

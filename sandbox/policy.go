@@ -18,9 +18,9 @@ const policyFileName = "sandbox.json"
 
 // Sentinel errors.
 var (
-	ErrPolicyNotFound   = errors.New("sandbox.json not found")
-	ErrCommandDenied    = errors.New("command denied by sandbox policy")
-	ErrPathDenied       = errors.New("path denied by sandbox policy")
+	ErrPolicyNotFound = errors.New("sandbox.json not found")
+	ErrCommandDenied  = errors.New("command denied by sandbox policy")
+	ErrPathDenied     = errors.New("path denied by sandbox policy")
 )
 
 // Policy defines declarative sandbox constraints loaded from sandbox.json.

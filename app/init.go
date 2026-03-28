@@ -25,11 +25,11 @@ func GenerateConfig(dir string, drv DetectedDriver) error {
 
 	// Don't overwrite existing config.
 	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("djinn.yaml already exists at %s", path)
+		return fmt.Errorf("%w: %s", ErrConfigExists, path)
 	}
 
 	content := fmt.Sprintf(configTemplate, drv.ACPName(), drv.DefaultModel())
-	return os.WriteFile(path, []byte(content), 0644)
+	return os.WriteFile(path, []byte(content), 0o600)
 }
 
 // FriendlyNoDriverError returns an actionable error message when no agent CLI

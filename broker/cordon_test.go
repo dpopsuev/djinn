@@ -97,16 +97,16 @@ func TestCordonRegistry_ConcurrentSafety(t *testing.T) {
 	r := NewCordonRegistry()
 	var wg sync.WaitGroup
 
-	for i := range 50 {
+	for range 50 {
 		wg.Add(2)
-		go func(n int) {
+		go func() {
 			defer wg.Done()
 			r.Set([]string{"scope"}, "reason", "agent")
-		}(i)
-		go func(n int) {
+		}()
+		go func() {
 			defer wg.Done()
 			r.Overlaps([]string{"scope"})
-		}(i)
+		}()
 	}
 	wg.Wait()
 }

@@ -19,7 +19,7 @@ func TestLoadPolicy_NotFound(t *testing.T) {
 
 func TestLoadPolicy_InvalidJSON(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, policyFileName), []byte("not json"), 0644)
+	os.WriteFile(filepath.Join(dir, policyFileName), []byte("not json"), 0o644)
 	_, err := LoadPolicy(dir)
 	if err == nil {
 		t.Fatal("should fail on invalid JSON")
@@ -36,7 +36,7 @@ func TestLoadPolicy_Valid(t *testing.T) {
 		AllowNetwork:    false,
 	}
 	data, _ := json.Marshal(p)
-	os.WriteFile(filepath.Join(dir, policyFileName), data, 0644)
+	os.WriteFile(filepath.Join(dir, policyFileName), data, 0o644)
 
 	loaded, err := LoadPolicy(dir)
 	if err != nil {

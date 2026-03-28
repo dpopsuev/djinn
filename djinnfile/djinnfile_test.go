@@ -54,8 +54,8 @@ func TestParse_Valid(t *testing.T) {
 	if df.Stages[0].Name != "analyze" {
 		t.Fatalf("Stage[0].Name = %q, want %q", df.Stages[0].Name, "analyze")
 	}
-	if df.Stages[0].Tier != "eco" {
-		t.Fatalf("Stage[0].Tier = %q, want %q", df.Stages[0].Tier, "eco")
+	if df.Stages[0].Tier != TierEco {
+		t.Fatalf("Stage[0].Tier = %q, want %q", df.Stages[0].Tier, TierEco)
 	}
 	if df.Stages[1].parsedTimeBudget != 3*time.Minute {
 		t.Fatalf("Stage[1].parsedTimeBudget = %v, want 3m", df.Stages[1].parsedTimeBudget)
@@ -83,8 +83,8 @@ func TestParse_Defaults(t *testing.T) {
 	if df.Driver.Model != DefaultModel {
 		t.Fatalf("default Model = %q, want %q", df.Driver.Model, DefaultModel)
 	}
-	if df.Stages[0].Tier != "mod" {
-		t.Fatalf("default Tier = %q, want %q", df.Stages[0].Tier, "mod")
+	if df.Stages[0].Tier != TierMod {
+		t.Fatalf("default Tier = %q, want %q", df.Stages[0].Tier, TierMod)
 	}
 	if df.Stages[0].Gate.Severity != gate.SeverityBlocking {
 		t.Fatalf("default Severity = %q, want %q", df.Stages[0].Gate.Severity, gate.SeverityBlocking)
@@ -102,10 +102,10 @@ func TestParse_DefaultTimeBudgetPerTier(t *testing.T) {
 		tier string
 		want time.Duration
 	}{
-		{"eco", DefaultTimeBudgetEco},
-		{"sys", DefaultTimeBudgetSys},
-		{"com", DefaultTimeBudgetCom},
-		{"mod", DefaultTimeBudgetMod},
+		{TierEco, DefaultTimeBudgetEco},
+		{TierSys, DefaultTimeBudgetSys},
+		{TierCom, DefaultTimeBudgetCom},
+		{TierMod, DefaultTimeBudgetMod},
 	}
 	for _, tt := range tests {
 		input := `{"stages": [{"name": "s", "tier": "` + tt.tier + `"}]}`

@@ -4,6 +4,7 @@ package namespace
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,8 +18,8 @@ func setupWorkspace(t *testing.T, files map[string]string) string {
 	dir := t.TempDir()
 	for name, content := range files {
 		path := filepath.Join(dir, name)
-		os.MkdirAll(filepath.Dir(path), 0755)
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		os.MkdirAll(filepath.Dir(path), 0o755)
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -30,7 +31,7 @@ func createSandbox(t *testing.T, workDir string) (*NamespaceSandbox, sandbox.Han
 	sb := New(workDir)
 	handle, err := sb.Create(context.Background(), "", nil)
 	if err != nil {
-		if err == ErrUnsupported {
+		if errors.Is(err, ErrUnsupported) {
 			t.Skip("fuse-overlayfs not available")
 		}
 		t.Fatal(err)
@@ -47,7 +48,7 @@ func TestSandbox_CreateDestroy(t *testing.T) {
 
 	handle, err := sb.Create(context.Background(), "", nil)
 	if err != nil {
-		if err == ErrUnsupported {
+		if errors.Is(err, ErrUnsupported) {
 			t.Skip("fuse-overlayfs not available")
 		}
 		t.Fatal(err)
@@ -101,9 +102,9 @@ func TestSandbox_ExecWriteFile(t *testing.T) {
 	}
 
 	// Real file untouched.
-	real, _ := os.ReadFile(filepath.Join(dir, "main.go"))
-	if string(real) != "original" {
-		t.Fatalf("real file modified: %q", real)
+	actual, _ := os.ReadFile(filepath.Join(dir, "main.go"))
+	if string(actual) != "original" {
+		t.Fatalf("real file modified: %q", actual)
 	}
 
 	// Read back through sandbox — should see write.
@@ -263,7 +264,7 @@ func TestSandbox_TwoSandboxesIndependent(t *testing.T) {
 
 	handleA, err := sb.Create(context.Background(), "", nil)
 	if err != nil {
-		if err == ErrUnsupported {
+		if errors.Is(err, ErrUnsupported) {
 			t.Skip("fuse-overlayfs not available")
 		}
 		t.Fatal(err)
@@ -295,9 +296,9 @@ func TestSandbox_TwoSandboxesIndependent(t *testing.T) {
 	}
 
 	// Real file untouched.
-	real, _ := os.ReadFile(filepath.Join(dir, "main.go"))
-	if string(real) != "original" {
-		t.Fatalf("real file = %q, want original", real)
+	actual, _ := os.ReadFile(filepath.Join(dir, "main.go"))
+	if string(actual) != "original" {
+		t.Fatalf("real file = %q, want original", actual)
 	}
 }
 
@@ -307,7 +308,7 @@ func TestSandbox_DestroyOnePreservesOther(t *testing.T) {
 
 	handleA, err := sb.Create(context.Background(), "", nil)
 	if err != nil {
-		if err == ErrUnsupported {
+		if errors.Is(err, ErrUnsupported) {
 			t.Skip("fuse-overlayfs not available")
 		}
 		t.Fatal(err)
@@ -345,9 +346,9 @@ func TestSandbox_DestroyOnePreservesOther(t *testing.T) {
 func TestE2E_UniversalSevenRoundTrip(t *testing.T) {
 	// Setup: workspace with files.
 	dir := setupWorkspace(t, map[string]string{
-		"main.go":    "package main\n\nfunc main() {}\n",
+		"main.go":     "package main\n\nfunc main() {}\n",
 		"config.yaml": "key: value\n",
-		"README.md":  "# Hello\n",
+		"README.md":   "# Hello\n",
 	})
 
 	sb, handle := createSandbox(t, dir)
@@ -369,9 +370,9 @@ func TestE2E_UniversalSevenRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WRITE: %v", err)
 	}
-	real, _ := os.ReadFile(filepath.Join(dir, "main.go"))
-	if !strings.Contains(string(real), "func main()") {
-		t.Fatalf("WRITE: real file modified: %q", real)
+	actual, _ := os.ReadFile(filepath.Join(dir, "main.go"))
+	if !strings.Contains(string(actual), "func main()") {
+		t.Fatalf("WRITE: real file modified: %q", actual)
 	}
 
 	// 3. EDIT (via sed) — agent edits a file.

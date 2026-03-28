@@ -76,7 +76,7 @@ func (m *WorktreeManager) Remove(taskID string) error {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		// If worktree dir doesn't exist, try to prune stale entries.
 		if _, statErr := os.Stat(wtPath); os.IsNotExist(statErr) {
-			exec.CommandContext(ctx, "git", "worktree", "prune").Run() //nolint:errcheck
+			exec.CommandContext(ctx, "git", "worktree", "prune").Run() //nolint:errcheck // test helper, error checked elsewhere
 		} else {
 			return fmt.Errorf("git worktree remove: %s: %w", strings.TrimSpace(string(out)), err)
 		}
@@ -106,11 +106,12 @@ func (m *WorktreeManager) List() ([]WorktreeInfo, error) {
 	var currentPath, currentBranch string
 
 	for _, line := range strings.Split(string(out), "\n") {
-		if strings.HasPrefix(line, "worktree ") {
+		switch {
+		case strings.HasPrefix(line, "worktree "):
 			currentPath = strings.TrimPrefix(line, "worktree ")
-		} else if strings.HasPrefix(line, "branch refs/heads/") {
+		case strings.HasPrefix(line, "branch refs/heads/"):
 			currentBranch = strings.TrimPrefix(line, "branch refs/heads/")
-		} else if line == "" && currentPath != "" {
+		case line == "" && currentPath != "":
 			// Only include djinn-managed worktrees.
 			if strings.HasPrefix(currentBranch, branchPrefix) {
 				taskID := strings.TrimPrefix(currentBranch, branchPrefix)

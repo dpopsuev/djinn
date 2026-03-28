@@ -9,7 +9,7 @@ import (
 
 func TestLoadProjectContext_FindsClaudeMD(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte("# Claude Instructions"), 0644)
+	os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte("# Claude Instructions"), 0o644)
 
 	ctx := LoadProjectContext(dir)
 	if ctx.ClaudeMD == "" {
@@ -22,8 +22,8 @@ func TestLoadProjectContext_FindsClaudeMD(t *testing.T) {
 
 func TestLoadProjectContext_FindsClaudeMDInSubdir(t *testing.T) {
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, ".claude"), 0755)
-	os.WriteFile(filepath.Join(dir, ".claude", "CLAUDE.md"), []byte("# Nested"), 0644)
+	os.MkdirAll(filepath.Join(dir, ".claude"), 0o755)
+	os.WriteFile(filepath.Join(dir, ".claude", "CLAUDE.md"), []byte("# Nested"), 0o644)
 
 	ctx := LoadProjectContext(dir)
 	if !strings.Contains(ctx.ClaudeMD, "Nested") {
@@ -33,7 +33,7 @@ func TestLoadProjectContext_FindsClaudeMDInSubdir(t *testing.T) {
 
 func TestLoadProjectContext_FindsAgentsMD(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte("# Codex Instructions"), 0644)
+	os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte("# Codex Instructions"), 0o644)
 
 	ctx := LoadProjectContext(dir)
 	if !strings.Contains(ctx.AgentsMD, "Codex Instructions") {
@@ -43,7 +43,7 @@ func TestLoadProjectContext_FindsAgentsMD(t *testing.T) {
 
 func TestLoadProjectContext_FindsGeminiMD(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "GEMINI.md"), []byte("# Gemini Instructions"), 0644)
+	os.WriteFile(filepath.Join(dir, "GEMINI.md"), []byte("# Gemini Instructions"), 0o644)
 
 	ctx := LoadProjectContext(dir)
 	if !strings.Contains(ctx.GeminiMD, "Gemini Instructions") {
@@ -53,7 +53,7 @@ func TestLoadProjectContext_FindsGeminiMD(t *testing.T) {
 
 func TestLoadProjectContext_FindsCursorRules(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".cursorrules"), []byte("use typescript"), 0644)
+	os.WriteFile(filepath.Join(dir, ".cursorrules"), []byte("use typescript"), 0o644)
 
 	ctx := LoadProjectContext(dir)
 	if !strings.Contains(ctx.CursorRules, "use typescript") {
@@ -74,9 +74,9 @@ func TestLoadProjectContext_EmptyDir(t *testing.T) {
 
 func TestLoadProjectContext_MultipleFiles(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte("claude"), 0644)
-	os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte("codex"), 0644)
-	os.WriteFile(filepath.Join(dir, "GEMINI.md"), []byte("gemini"), 0644)
+	os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte("claude"), 0o644)
+	os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte("codex"), 0o644)
+	os.WriteFile(filepath.Join(dir, "GEMINI.md"), []byte("gemini"), 0o644)
 
 	ctx := LoadProjectContext(dir)
 	if ctx.ClaudeMD != "claude" {
@@ -96,8 +96,8 @@ func TestLoadProjectContext_WalksUp(t *testing.T) {
 	// Create: parent/CLAUDE.md, parent/child/
 	parent := t.TempDir()
 	child := filepath.Join(parent, "child")
-	os.MkdirAll(child, 0755)
-	os.WriteFile(filepath.Join(parent, "CLAUDE.md"), []byte("found from parent"), 0644)
+	os.MkdirAll(child, 0o755)
+	os.WriteFile(filepath.Join(parent, "CLAUDE.md"), []byte("found from parent"), 0o644)
 
 	ctx := LoadProjectContext(child)
 	if ctx.ClaudeMD != "found from parent" {
@@ -108,8 +108,8 @@ func TestLoadProjectContext_WalksUp(t *testing.T) {
 func TestLoadProjectContext_WalksUpTwoLevels(t *testing.T) {
 	root := t.TempDir()
 	deep := filepath.Join(root, "a", "b")
-	os.MkdirAll(deep, 0755)
-	os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte("found two levels up"), 0644)
+	os.MkdirAll(deep, 0o755)
+	os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte("found two levels up"), 0o644)
 
 	ctx := LoadProjectContext(deep)
 	if ctx.ClaudeMD != "found two levels up" {
@@ -120,9 +120,9 @@ func TestLoadProjectContext_WalksUpTwoLevels(t *testing.T) {
 func TestLoadProjectContext_ClosestWins(t *testing.T) {
 	root := t.TempDir()
 	child := filepath.Join(root, "child")
-	os.MkdirAll(child, 0755)
-	os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte("root version"), 0644)
-	os.WriteFile(filepath.Join(child, "CLAUDE.md"), []byte("child version"), 0644)
+	os.MkdirAll(child, 0o755)
+	os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte("root version"), 0o644)
+	os.WriteFile(filepath.Join(child, "CLAUDE.md"), []byte("child version"), 0o644)
 
 	ctx := LoadProjectContext(child)
 	if ctx.ClaudeMD != "child version" {
@@ -133,8 +133,8 @@ func TestLoadProjectContext_ClosestWins(t *testing.T) {
 func TestLoadProjectContext_MultipleDirs(t *testing.T) {
 	dir1 := t.TempDir()
 	dir2 := t.TempDir()
-	os.WriteFile(filepath.Join(dir1, "CLAUDE.md"), []byte("from dir1"), 0644)
-	os.WriteFile(filepath.Join(dir2, "AGENTS.md"), []byte("from dir2"), 0644)
+	os.WriteFile(filepath.Join(dir1, "CLAUDE.md"), []byte("from dir1"), 0o644)
+	os.WriteFile(filepath.Join(dir2, "AGENTS.md"), []byte("from dir2"), 0o644)
 
 	ctx := LoadProjectContext(dir1, dir2)
 	if ctx.ClaudeMD != "from dir1" {
@@ -162,13 +162,13 @@ func TestDiscoverMemory(t *testing.T) {
 	t.Setenv("HOME", home)
 
 	workDir := filepath.Join(home, "Workspace", "djinn")
-	os.MkdirAll(workDir, 0755)
+	os.MkdirAll(workDir, 0o755)
 
 	// Create Claude memory path
 	slug := strings.ReplaceAll(workDir, "/", "-")
 	memDir := filepath.Join(home, ".claude", "projects", slug, "memory")
-	os.MkdirAll(memDir, 0755)
-	os.WriteFile(filepath.Join(memDir, "MEMORY.md"), []byte("# Project Memory\nDjinn is an agent runtime."), 0644)
+	os.MkdirAll(memDir, 0o755)
+	os.WriteFile(filepath.Join(memDir, "MEMORY.md"), []byte("# Project Memory\nDjinn is an agent runtime."), 0o644)
 
 	content := discoverMemory([]string{workDir})
 	if !strings.Contains(content, "Project Memory") {

@@ -45,6 +45,12 @@ func TestChainStrategy_AlwaysFirst(t *testing.T) {
 
 // --- Test skeletons: future implementation ---
 
-func TestHubAndSpoke_SpawnSibling(t *testing.T)  { t.Skip("not implemented — requires Misbah + Clutch integration") }
-func TestHubAndSpoke_BrokerDispatch(t *testing.T) { t.Skip("not implemented — requires Broker + multi-backend") }
-func TestRoutingStrategy_Affinity(t *testing.T)   { t.Skip("not implemented — requires Bugle identity system") }
+func TestHubAndSpoke_SpawnSibling(t *testing.T) {
+	t.Skip("not implemented — requires Misbah + Clutch integration")
+}
+func TestHubAndSpoke_BrokerDispatch(t *testing.T) {
+	t.Skip("not implemented — requires Broker + multi-backend")
+}
+func TestRoutingStrategy_Affinity(t *testing.T) {
+	t.Skip("not implemented — requires Bugle identity system")
+}

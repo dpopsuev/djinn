@@ -9,6 +9,15 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// Agent state constants.
+const (
+	AgentStateIdle      = "idle"
+	AgentStateStreaming = "streaming"
+	AgentStateToolWait  = "tool-wait"
+	AgentStateDone      = "done"
+	AgentStateError     = "error"
+)
+
 // AgentStatusPanel displays a single agent's role, state, and token usage.
 type AgentStatusPanel struct {
 	BasePanel
@@ -28,7 +37,7 @@ func NewAgentStatusPanel(agentID, role string, color lipgloss.Color) *AgentStatu
 		BasePanel: NewBasePanel("agent-"+agentID, 1),
 		AgentID:   agentID,
 		Role:      role,
-		State:     "idle",
+		State:     AgentStateIdle,
 		Color:     color,
 		output:    NewOutputPanel(),
 	}
@@ -54,11 +63,11 @@ func (p *AgentStatusPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 func (p *AgentStatusPanel) View(width int) string {
 	stateStyle := DimStyle
 	switch p.State {
-	case "streaming":
+	case AgentStateStreaming:
 		stateStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2")) // green
-	case "tool-wait":
+	case AgentStateToolWait:
 		stateStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3")) // yellow
-	case "error":
+	case AgentStateError:
 		stateStyle = ErrorStyle
 	}
 

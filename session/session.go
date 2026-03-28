@@ -10,11 +10,11 @@ import (
 
 // Entry represents a single turn in a conversation.
 type Entry struct {
-	Role        string             `json:"role"`
-	Content     string             `json:"content,omitempty"`
-	Blocks      []driver.ContentBlock `json:"blocks,omitempty"`
-	Timestamp   time.Time          `json:"timestamp"`
-	TokenCount  int                `json:"token_count,omitempty"` // approximate
+	Role       string                `json:"role"`
+	Content    string                `json:"content,omitempty"`
+	Blocks     []driver.ContentBlock `json:"blocks,omitempty"`
+	Timestamp  time.Time             `json:"timestamp"`
+	TokenCount int                   `json:"token_count,omitempty"` // approximate
 }
 
 // TextContent returns the text from this entry.
@@ -34,8 +34,8 @@ type Session struct {
 	Model     string    `json:"model"`
 	Mode      string    `json:"mode,omitempty"`
 	WorkDir   string    `json:"work_dir"`
-	WorkDirs  []string  `json:"work_dirs,omitempty"`  // deprecated: use Workspace
-	Workspace string   `json:"workspace,omitempty"`   // named workspace reference
+	WorkDirs  []string  `json:"work_dirs,omitempty"` // deprecated: use Workspace
+	Workspace string    `json:"workspace,omitempty"` // named workspace reference
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	History   *History  `json:"history"`

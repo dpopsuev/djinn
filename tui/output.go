@@ -15,9 +15,9 @@ type OutputPanel struct {
 	vp          viewport.Model
 	vpReady     bool
 	lines       []string
-	overlay     string // ephemeral content (spinner, streaming, approval)
-	dirty       bool   // content changed since last View() — avoids flicker (BUG-25)
-	lastContent string // previous frame's content for change detection
+	overlay     string          // ephemeral content (spinner, streaming, approval)
+	dirty       bool            // content changed since last View() — avoids flicker (BUG-25)
+	lastContent string          // previous frame's content for change detection
 	streamBuf   strings.Builder // stream buffer (moved from Model)
 }
 
@@ -41,12 +41,10 @@ func (p *OutputPanel) InitViewport(width, height int) {
 		p.vp = viewport.New(width, height)
 		p.vpReady = true
 		p.dirty = true
-	} else {
-		if p.vp.Width != width || p.vp.Height != height {
-			p.vp.Width = width
-			p.vp.Height = height
-			p.dirty = true
-		}
+	} else if p.vp.Width != width || p.vp.Height != height {
+		p.vp.Width = width
+		p.vp.Height = height
+		p.dirty = true
 	}
 }
 

@@ -11,15 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/djinnlog"
-	"github.com/dpopsuev/djinn/keybind"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/keybind"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/staff"
@@ -30,6 +30,18 @@ import (
 
 // Frame rate for streaming — 20fps is smooth enough for text, reduces jitter.
 const tickInterval = 50 * time.Millisecond
+
+// Role name constants.
+const (
+	roleGensec   = "gensec"
+	roleExecutor = "executor"
+)
+
+// State string constants for view rendering.
+const (
+	stateStrInput = "input"
+	panelIDInput  = "input"
+)
 
 // State represents the REPL state machine.
 type State int
@@ -45,7 +57,7 @@ type OutputMode int
 
 const (
 	outputStreaming OutputMode = iota // token-by-token (default)
-	outputChunked                    // all-at-once after completion
+	outputChunked                     // all-at-once after completion
 )
 
 // Model is the Bubbletea model for the Djinn REPL.
@@ -58,7 +70,7 @@ type Model struct {
 	maxTurns     int
 	autoApprove  bool
 	mode         agent.Mode
-	approvalCh   chan bool // bridges approval from UI to agent goroutine
+	approvalCh   chan bool      // bridges approval from UI to agent goroutine
 	store        *session.Store // auto-save after each turn
 	enforcer     policy.ToolPolicyEnforcer
 	token        policy.CapabilityToken
@@ -66,65 +78,65 @@ type Model struct {
 	ctx          context.Context
 
 	// UI state
-	state        State
-	inputPanel   *tui.InputPanel
-	pendingTool  *driver.ToolCall
-	queuePanel   *tui.QueuePanel // visible queue between output and input
-	lastUsage    *driver.Usage
-	totalIn      int      // cumulative input tokens
-	totalOut     int      // cumulative output tokens
-	lastError    string
-	handler      agent.EventHandler
-	outputMode   OutputMode
-	chunkedBuf   *strings.Builder // accumulates full response for chunked mode
-	width        int
-	height       int
-	healthReports  []tui.HealthReport // component health for status line
-	spin           spinner.Model
-	spinnerActive  bool
-	activeToolIdx  int  // conversation index of active tool spinner (-1 = none)
-	envelopes      map[int]*tui.EnvelopePanel // tool envelopes keyed by output line index
-	outputPanel    *tui.OutputPanel
-	thinkingPanel  *tui.ThinkingPanel
-	commandsPanel  *tui.CommandsPanel
-	dashboard      *tui.DashboardPanel
-	focus          *tui.FocusManager
-	layout         *tui.LayoutEngine
-	ready          bool
-	quitting       bool
-	initialPrompt  string // auto-submit on first render
-	version        string // app version for MOTD
-	rawStreamLine  *strings.Builder // raw unrendered text for incremental markdown (pointer: Builder can't be copied)
+	state         State
+	inputPanel    *tui.InputPanel
+	pendingTool   *driver.ToolCall
+	queuePanel    *tui.QueuePanel // visible queue between output and input
+	lastUsage     *driver.Usage
+	totalIn       int // cumulative input tokens
+	totalOut      int // cumulative output tokens
+	lastError     string
+	handler       agent.EventHandler
+	outputMode    OutputMode
+	chunkedBuf    *strings.Builder // accumulates full response for chunked mode
+	width         int
+	height        int
+	healthReports []tui.HealthReport // component health for status line
+	spin          spinner.Model
+	spinnerActive bool
+	activeToolIdx int                        // conversation index of active tool spinner (-1 = none)
+	envelopes     map[int]*tui.EnvelopePanel // tool envelopes keyed by output line index
+	outputPanel   *tui.OutputPanel
+	thinkingPanel *tui.ThinkingPanel
+	commandsPanel *tui.CommandsPanel
+	dashboard     *tui.DashboardPanel
+	focus         *tui.FocusManager
+	layout        *tui.LayoutEngine
+	ready         bool
+	quitting      bool
+	initialPrompt string           // auto-submit on first render
+	version       string           // app version for MOTD
+	rawStreamLine *strings.Builder // raw unrendered text for incremental markdown (pointer: Builder can't be copied)
 
 	// Tool routing
-	router       *staff.ToolClearance // capability-filtered tool dispatch (nil = raw registry)
+	router *staff.ToolClearance // capability-filtered tool dispatch (nil = raw registry)
 
 	// Worktree isolation for executor tasks
-	worktreeMgr  *vcs.WorktreeManager
+	worktreeMgr    *vcs.WorktreeManager
 	activeWorktree string // current worktree path (empty = main repo)
 
 	// Keybindings
-	keys         *keybind.ModeTable
+	keys *keybind.ModeTable
 
 	// Context relay
-	monitor      *session.ContextMonitor
+	monitor *session.ContextMonitor
 
 	// TUI telemetry
-	filesEdited  int    // count of files edited this session
-	isThinking   bool   // true when agent is in thinking/reasoning mode
+	filesEdited int  // count of files edited this session
+	isThinking  bool // true when agent is in thinking/reasoning mode
 
 	// Debug
-	debugTap     *tui.DebugTap
+	debugTap *tui.DebugTap
 
 	// Staff — role pipeline
-	currentRole  string
-	roleMemory   *staff.RoleMemory
-	roles        map[string]staff.Role
-	staffCfg     *staff.StaffConfig
+	currentRole string
+	roleMemory  *staff.RoleMemory
+	roles       map[string]staff.Role
+	staffCfg    *staff.StaffConfig
 
 	// Multi-agent monitoring
-	agentsPanel    *tui.AgentsPanel
-	agentOutputs   map[string]*tui.OutputPanel // per-agent output buffers
+	agentsPanel  *tui.AgentsPanel
+	agentOutputs map[string]*tui.OutputPanel // per-agent output buffers
 
 	// Sandbox
 	sandboxHandle  string
@@ -134,7 +146,7 @@ type Model struct {
 }
 
 // NewModel creates a new REPL model.
-func NewModel(cfg Config) Model {
+func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type used as constructor input
 	inputPanel := tui.NewInputPanel()
 	inputPanel.SetCompletions(CommandNames())
 	if placeholder := pickPlaceholderFile(cfg.Session.WorkDirs); placeholder != "" {
@@ -153,23 +165,23 @@ func NewModel(cfg Config) Model {
 	log = djinnlog.For(log, "repl")
 
 	m := Model{
-		chatDriver:   cfg.Driver,
-		tools:        cfg.Tools,
-		sess:         cfg.Session,
-		systemPrompt: cfg.SystemPrompt,
-		maxTurns:     cfg.MaxTurns,
-		autoApprove:  cfg.AutoApprove,
-		mode:         mode,
-		approvalCh:   make(chan bool, 1),
-		store:        cfg.Store,
-		enforcer:     cfg.Enforcer,
-		token:        cfg.Token,
-		log:          log,
-		ctx:          context.Background(),
-		state:        stateInput,
-		inputPanel:   inputPanel,
+		chatDriver:    cfg.Driver,
+		tools:         cfg.Tools,
+		sess:          cfg.Session,
+		systemPrompt:  cfg.SystemPrompt,
+		maxTurns:      cfg.MaxTurns,
+		autoApprove:   cfg.AutoApprove,
+		mode:          mode,
+		approvalCh:    make(chan bool, 1),
+		store:         cfg.Store,
+		enforcer:      cfg.Enforcer,
+		token:         cfg.Token,
+		log:           log,
+		ctx:           context.Background(),
+		state:         stateInput,
+		inputPanel:    inputPanel,
 		handler:       agent.NilHandler{},
-		healthReports:  cfg.HealthReports,
+		healthReports: cfg.HealthReports,
 		spin: spinner.New(
 			spinner.WithSpinner(spinner.Spinner{
 				Frames: tui.SpinnerFrames,
@@ -230,8 +242,8 @@ func NewModel(cfg Config) Model {
 	m.staffCfg = staffCfg
 	m.roles = staffCfg.RoleMap()
 	m.roleMemory = staff.NewRoleMemory()
-	m.currentRole = "gensec"
-	if defaultRole, ok := m.roles["gensec"]; ok {
+	m.currentRole = roleGensec
+	if defaultRole, ok := m.roles[roleGensec]; ok {
 		if newMode, err := agent.ParseMode(defaultRole.Mode); err == nil {
 			m.mode = newMode
 		}
@@ -242,14 +254,14 @@ func NewModel(cfg Config) Model {
 	return m
 }
 
-func (m Model) Init() tea.Cmd {
+func (m Model) Init() tea.Cmd { //nolint:gocritic // tea.Model interface requires value receiver
 	return tea.Batch(
 		textarea.Blink,
 		tea.SetWindowTitle("djinn"),
 	)
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocyclo,funlen // tea.Model interface; msg type switch is inherently complex
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
@@ -282,7 +294,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		// Not streaming — submit directly.
-		m.inputPanel.Update(tui.InputAddHistoryMsg{Value: msg.Value})
+		m.inputPanel.Update(tui.InputAddHistoryMsg(msg))
 		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.UserStyle.Render(tui.LabelUser) + msg.Value})
 		m.state = stateStreaming
 		m.dashboard.Update(tui.DashboardUIStateMsg{State: "STREAMING"})
@@ -418,8 +430,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg { return tui.SubmitMsg{Value: next} }
 		}
 
-		// Auto-transition: executor gate check.
-		if m.currentRole == "executor" {
+		// Auto-transition: role-based gate check.
+		switch {
+		case m.currentRole == roleExecutor:
 			gate := &staff.MakeCircuitGate{}
 			gateDir := m.sess.WorkDir
 			if m.activeWorktree != "" {
@@ -440,9 +453,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  gate failed — fix and try again")})
 			}
-		} else if m.currentRole != "gensec" {
-			m.switchRole("gensec")
-		} else {
+		case m.currentRole != roleGensec:
+			m.switchRole(roleGensec)
+		default:
 			m.dashboard.Update(tui.DashboardUIStateMsg{State: "GENSEC"})
 		}
 		return m, nil
@@ -498,7 +511,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) View() string {
+func (m Model) View() string { //nolint:gocritic // tea.Model interface requires value receiver
 	if !m.ready {
 		return "initializing..."
 	}
@@ -523,7 +536,7 @@ func (m Model) View() string {
 
 	// DebugTap: capture every rendered frame.
 	if m.debugTap != nil {
-		stateStr := "input"
+		stateStr := stateStrInput
 		switch m.state {
 		case stateStreaming:
 			stateStr = "streaming"
@@ -545,7 +558,7 @@ func (m Model) View() string {
 }
 
 // overlayContent returns ephemeral content for the output panel based on state.
-func (m Model) overlayContent() string {
+func (m Model) overlayContent() string { //nolint:gocritic // read-only helper called from View()
 	switch {
 	case m.state == stateStreaming && m.spinnerActive:
 		return "  " + m.spin.View() + " thinking..."
@@ -557,8 +570,6 @@ func (m Model) overlayContent() string {
 		return ""
 	}
 }
-
-
 
 // switchRole transitions to a new staff role — swaps prompt, mode, and narrates.
 func (m *Model) switchRole(roleName string) {
@@ -582,7 +593,7 @@ func (m *Model) switchRole(roleName string) {
 	}
 
 	// Update sandbox indicator: everyone sandboxed except GenSec.
-	isSandboxed := m.sandboxHandle != "" && roleName != "gensec"
+	isSandboxed := m.sandboxHandle != "" && roleName != roleGensec
 	m.inputPanel.Update(tui.SandboxStateMsg{Sandboxed: isSandboxed})
 
 	m.dashboard.Update(tui.DashboardUIStateMsg{State: strings.ToUpper(roleName)})
@@ -594,7 +605,7 @@ func (m *Model) switchRole(roleName string) {
 		fmt.Sprintf("  → %s", roleName))})
 }
 
-func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) { //nolint:gocyclo,funlen // keybinding dispatch is inherently branchy
 	// Tool approval intercept — y/n before any command lookup.
 	if m.state == stateToolApproval {
 		switch msg.String() {
@@ -608,7 +619,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Command lookup via keybind.ModeTable (SPC-51).
 	cmd, ok := m.keys.Lookup(msg.String())
-	if ok {
+	if ok { //nolint:nestif // keybinding command dispatch
 		switch cmd.Name {
 		case "quit":
 			m.quitting = true
@@ -624,7 +635,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m.handleSubmit()
 			}
 			// Enter on non-input panel = Dive.
-			if m.focus.Active() != nil && m.focus.Active().ID() != "input" {
+			if m.focus.Active() != nil && m.focus.Active().ID() != panelIDInput {
 				if m.focus.Dive() {
 					return m, nil
 				}
@@ -654,7 +665,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			if m.state == stateStreaming {
-				m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  " + tui.ActiveGlyphs.Cancelled)})
+				m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  " + tui.ActiveGlyphs.Canceled)})
 				m.outputPanel.Update(tui.FlushStreamMsg{})
 				m.state = stateInput
 				m.focus.FocusPanel(1)
@@ -692,7 +703,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "dive":
-			if m.focus.Active() != nil && m.focus.Active().ID() != "input" {
+			if m.focus.Active() != nil && m.focus.Active().ID() != panelIDInput {
 				m.focus.Dive()
 			}
 			return m, nil
@@ -709,7 +720,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, c
 }
 
-func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
+func (m *Model) handleSubmit() (tea.Model, tea.Cmd) { //nolint:gocyclo,funlen // command dispatch with file refs, shell, roles
 	input := strings.TrimSpace(m.inputPanel.Value())
 	m.inputPanel.Update(tui.InputResetMsg{})
 
@@ -724,7 +735,8 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 	if strings.HasPrefix(input, "!") {
 		shellCmd := strings.TrimSpace(strings.TrimPrefix(input, "!"))
 		if shellCmd != "" {
-			return m, m.runShellInline(shellCmd)
+			cmd := m.runShellInline(shellCmd)
+			return m, cmd
 		}
 	}
 
@@ -735,7 +747,8 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 
 	// Handle /role before the general command dispatcher (needs Model access)
 	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/role" {
-		if len(cmd.Args) == 0 {
+		switch {
+		case len(cmd.Args) == 0:
 			names := make([]string, 0, len(m.roles))
 			for n := range m.roles {
 				names = append(names, n)
@@ -743,16 +756,16 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 			sort.Strings(names)
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: fmt.Sprintf("current role: %s\navailable: %s",
 				m.currentRole, strings.Join(names, ", "))})
-		} else if cmd.Args[0] == "create" && len(cmd.Args) >= 3 {
+		case cmd.Args[0] == "create" && len(cmd.Args) >= 3:
 			name, mode := cmd.Args[1], cmd.Args[2]
 			m.roles[name] = staff.Role{
-				Name:   name,
-				Prompt: fmt.Sprintf("You are %s. The operator created this role on the fly.", name),
-				Mode:   mode,
+				Name:             name,
+				Prompt:           fmt.Sprintf("You are %s. The operator created this role on the fly.", name),
+				Mode:             mode,
 				ToolCapabilities: []string{},
 			}
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: fmt.Sprintf("created role %q (mode: %s, capabilities: none — use /role capabilities %s to configure)", name, mode, name)})
-		} else {
+		default:
 			m.switchRole(cmd.Args[0])
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: fmt.Sprintf("switched to %s (manual override)", cmd.Args[0])})
 		}
@@ -785,12 +798,12 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 
 	// Handle /jailbreak — toggle sandbox for GenSec only.
 	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/jailbreak" {
-		if m.currentRole != "gensec" {
+		switch {
+		case m.currentRole != roleGensec:
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render("jailbreak: only GenSec (root agent) can toggle sandbox")})
-		} else if m.sandboxHandle == "" {
+		case m.sandboxHandle == "":
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("jailbreak: no sandbox configured")})
-		} else {
-			// Toggle: if currently sandboxed (shouldn't be for gensec), unsandbox. If not, sandbox.
+		default:
 			// GenSec starts unsandboxed. /jailbreak re-sandboxes GenSec (testing/lockdown).
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  GenSec is the root agent — always unsandboxed. Other roles are sandboxed by default.")})
 		}
@@ -822,7 +835,8 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: "usage: /exec <command>"})
 		} else {
 			shellCmd := strings.Join(cmd.Args, " ")
-			return m, m.runShellInline(shellCmd)
+			execCmd := m.runShellInline(shellCmd)
+			return m, execCmd
 		}
 		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
 		return m, nil
@@ -842,7 +856,7 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) {
 	}
 
 	// Slash command dispatch
-	if cmd, ok := ParseCommand(input); ok {
+	if cmd, ok := ParseCommand(input); ok { //nolint:nestif // command result handling with mode/role changes
 		result := ExecuteCommand(cmd, m.sess)
 		if result.Output != "" {
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: result.Output})
@@ -924,7 +938,7 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 
 		// Sandbox: everyone sandboxed except GenSec.
 		// GenSec is the root agent — it can jailbreak by design.
-		if m.sandboxHandle != "" && m.currentRole != "gensec" {
+		if m.sandboxHandle != "" && m.currentRole != roleGensec {
 			cfg.SandboxHandle = m.sandboxHandle
 			cfg.SandboxExec = m.sandboxExec
 			cfg.SandboxWorkDir = m.sess.WorkDir
@@ -1005,19 +1019,21 @@ func (m *Model) SetState(s State) { m.state = s }
 func (m *Model) SetMode(mode agent.Mode) { m.mode = mode }
 
 // AppendConversation adds a line to conversation (for testing).
-func (m *Model) AppendConversation(line string) { m.outputPanel.Update(tui.OutputAppendMsg{Line: line}) }
+func (m *Model) AppendConversation(line string) {
+	m.outputPanel.Update(tui.OutputAppendMsg{Line: line})
+}
 
 // ConversationLen returns the number of conversation lines (for testing).
 func (m *Model) ConversationLen() int { return m.outputPanel.LineCount() }
 
 // StreamBufString returns the stream buffer contents (for testing).
-func (m Model) StreamBufString() string { return m.outputPanel.StreamBufString() }
+func (m Model) StreamBufString() string { return m.outputPanel.StreamBufString() } //nolint:gocritic // test accessor, read-only
 
 // CurrentState returns the current state (for testing).
-func (m Model) CurrentState() State { return m.state }
+func (m Model) CurrentState() State { return m.state } //nolint:gocritic // test accessor, read-only
 
 // TextInputValue returns the text input value (for testing).
-func (m Model) TextInputValue() string { return m.inputPanel.Value() }
+func (m Model) TextInputValue() string { return m.inputPanel.Value() } //nolint:gocritic // test accessor, read-only
 
 // AddInputHistory adds an entry to input history (for testing).
 func (m *Model) AddInputHistory(s string) { m.inputPanel.Update(tui.InputAddHistoryMsg{Value: s}) }
@@ -1041,7 +1057,7 @@ func pickPlaceholderFile(dirs []string) string {
 // Export state constants for acceptance tests.
 const (
 	StateInput        = stateInput
-	StateStreaming     = stateStreaming
+	StateStreaming    = stateStreaming
 	StateToolApproval = stateToolApproval
 )
 
@@ -1051,11 +1067,11 @@ func tickCmd() tea.Cmd {
 	})
 }
 
-func truncate(s string, max int) string {
-	if len(s) <= max {
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
 		return s
 	}
-	return s[:max] + "..."
+	return s[:maxLen] + "..."
 }
 
 // mustMarshalStrings marshals a string slice to JSON array. Panics on error
@@ -1075,7 +1091,7 @@ func (m *Model) runShellInline(cmd string) tea.Cmd {
 		var stdout, stderr string
 		var err error
 
-		if m.sandboxExec != nil && m.currentRole != "gensec" {
+		if m.sandboxExec != nil && m.currentRole != roleGensec {
 			stdout, stderr, err = m.sandboxExec(m.ctx, strings.Fields(cmd))
 		} else {
 			execCmd := exec.CommandContext(m.ctx, "bash", "-c", cmd)
@@ -1097,4 +1113,3 @@ func (m *Model) runShellInline(cmd string) tea.Cmd {
 		return tui.AgentDoneMsg{}
 	}
 }
-

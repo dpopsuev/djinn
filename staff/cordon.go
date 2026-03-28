@@ -1,6 +1,6 @@
 // cordon.go — Cordon system for the Djinn staffing model.
 // A Cordon is an automatic safety brake that halts agent execution
-// when budget, time, or behavioural thresholds are breached.
+// when budget, time, or behavioral thresholds are breached.
 package staff
 
 import "time"
@@ -9,7 +9,7 @@ import "time"
 type CordonReason string
 
 const (
-	CordonTokenBudget    CordonReason = "token_budget_exceeded"
+	CordonTokenBudget    CordonReason = "token_budget_exceeded" //nolint:gosec // not a credential, cordon reason string
 	CordonCostBudget     CordonReason = "cost_budget_exceeded"
 	CordonTimeBudget     CordonReason = "time_budget_exceeded"
 	CordonContextRedline CordonReason = "context_redline"

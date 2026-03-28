@@ -62,9 +62,9 @@ func (b *SignalBus) ForWorkstream(workstream string) []Signal {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	var out []Signal
-	for _, s := range b.signals {
-		if s.Workstream == workstream {
-			out = append(out, s)
+	for i := range b.signals {
+		if b.signals[i].Workstream == workstream {
+			out = append(out, b.signals[i])
 		}
 	}
 	return out
@@ -75,9 +75,9 @@ func (b *SignalBus) Since(t time.Time) []Signal {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	var out []Signal
-	for _, s := range b.signals {
-		if s.Timestamp.After(t) {
-			out = append(out, s)
+	for i := range b.signals {
+		if b.signals[i].Timestamp.After(t) {
+			out = append(out, b.signals[i])
 		}
 	}
 	return out

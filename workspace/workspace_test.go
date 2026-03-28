@@ -22,7 +22,7 @@ mode: agent
 mcp:
   scribe:
     url: "http://localhost:8080/"
-`), 0644)
+`), 0o644)
 
 	ws, err := Load(manifest)
 	if err != nil {
@@ -47,13 +47,13 @@ func TestLoad_ByName(t *testing.T) {
 	t.Setenv("HOME", home)
 
 	wsDir := filepath.Join(home, ".config", "djinn", "workspaces")
-	os.MkdirAll(wsDir, 0755)
+	os.MkdirAll(wsDir, 0o755)
 	os.WriteFile(filepath.Join(wsDir, "dev.yaml"), []byte(`
 name: dev
 repos:
   - path: /work
     role: primary
-`), 0644)
+`), 0o644)
 
 	ws, err := Load("dev")
 	if err != nil {

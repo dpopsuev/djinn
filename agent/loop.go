@@ -55,7 +55,7 @@ type Config struct {
 	ContextLimit int  // max tokens before auto-compact (0 = 200K default)
 	Approve      ApprovalFunc
 	Enforcer     policy.ToolPolicyEnforcer // agent call mediation (nil = NopToolPolicyEnforcer)
-	Token        policy.CapabilityToken // immutable capability token
+	Token        policy.CapabilityToken    // immutable capability token
 	Handler      EventHandler
 	Log          *slog.Logger
 
@@ -68,7 +68,7 @@ type Config struct {
 
 // Run executes the agentic ReAct loop: send → receive → tool calls → repeat.
 // Returns the final text response.
-func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) {
+func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) { //nolint:gocritic // Config is mutated locally for defaults
 	if cfg.MaxTurns == 0 {
 		cfg.MaxTurns = DefaultMaxTurns
 	}
@@ -142,7 +142,7 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) {
 
 		// If no tool calls, we're done
 		if len(response.toolCalls) == 0 {
-			cfg.Log.Info("turn complete", "turn", turn+1,
+			cfg.Log.Info("turn complete", slog.Int("turn", turn+1),
 				slog.Group("perf",
 					djinnlog.RTT(time.Since(turnStart)),
 					djinnlog.TokensIn(usageIn(response.usage)),
@@ -255,11 +255,11 @@ func collectResponse(events <-chan driver.StreamEvent, handler EventHandler) (co
 	return resp, nil
 }
 
-func executeTools(ctx context.Context, cfg Config, calls []driver.ToolCall) ([]driver.ContentBlock, error) {
+func executeTools(ctx context.Context, cfg Config, calls []driver.ToolCall) ([]driver.ContentBlock, error) { //nolint:gocritic,unparam // Config mutated locally; error reserved for future use
 	if cfg.Log == nil {
 		cfg.Log = djinnlog.Nop()
 	}
-	var resultBlocks []driver.ContentBlock
+	resultBlocks := make([]driver.ContentBlock, 0, len(calls))
 
 	for _, call := range calls {
 		// Agent call mediation — PolicyEnforcer gates every tool call
@@ -306,7 +306,7 @@ func executeTools(ctx context.Context, cfg Config, calls []driver.ToolCall) ([]d
 			call.ID, output, isError,
 		))
 
-		cfg.Log.Debug("tool result", "tool", call.Name, "error", isError, djinnlog.ToolLatency(time.Since(toolStart)))
+		cfg.Log.Debug("tool result", slog.String("tool", call.Name), slog.Bool("error", isError), djinnlog.ToolLatency(time.Since(toolStart)))
 		if cfg.Handler != nil {
 			cfg.Handler.OnToolResult(call.ID, call.Name, truncateForDisplay(output), isError)
 		}
@@ -343,12 +343,12 @@ func ApproveByName(allowed ...string) ApprovalFunc {
 // NilHandler is an EventHandler that discards all events.
 type NilHandler struct{}
 
-func (NilHandler) OnText(string)                                  {}
-func (NilHandler) OnThinking(string)                              {}
-func (NilHandler) OnToolCall(driver.ToolCall)                     {}
-func (NilHandler) OnToolResult(string, string, string, bool)      {}
-func (NilHandler) OnDone(*driver.Usage)                           {}
-func (NilHandler) OnError(error)                                  {}
+func (NilHandler) OnText(string)                             {}
+func (NilHandler) OnThinking(string)                         {}
+func (NilHandler) OnToolCall(driver.ToolCall)                {}
+func (NilHandler) OnToolResult(string, string, string, bool) {}
+func (NilHandler) OnDone(*driver.Usage)                      {}
+func (NilHandler) OnError(error)                             {}
 
 // ensure NilHandler satisfies EventHandler
 var _ EventHandler = NilHandler{}

@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
-	acpdriver "github.com/dpopsuev/djinn/driver/acp"
 	"github.com/dpopsuev/djinn/driver"
+	acpdriver "github.com/dpopsuev/djinn/driver/acp"
 )
 
 func TestRealAgent_CursorPromptToResponse(t *testing.T) {
@@ -42,7 +42,7 @@ func TestRealAgent_CursorPromptToResponse(t *testing.T) {
 	if err := drv.Start(ctx, ""); err != nil {
 		t.Fatalf("start driver: %v", err)
 	}
-	defer drv.Stop(ctx) //nolint:errcheck
+	defer drv.Stop(ctx) //nolint:errcheck // best-effort shutdown
 
 	// Send a simple prompt.
 	if err := drv.Send(ctx, driver.Message{
@@ -113,7 +113,7 @@ func TestRealAgent_CursorToolCallWritesFile(t *testing.T) {
 	if err := drv.Start(ctx, ""); err != nil {
 		t.Fatalf("start driver: %v", err)
 	}
-	defer drv.Stop(ctx) //nolint:errcheck
+	defer drv.Stop(ctx) //nolint:errcheck // best-effort shutdown
 
 	// Prompt the agent to create a file.
 	targetFile := filepath.Join(workspace, "hello.txt")

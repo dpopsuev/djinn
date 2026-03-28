@@ -13,30 +13,30 @@ type WorkstreamHealth struct {
 // Tracks per-agent health via Signal.Source (empty Source is ignored for agent tracking).
 func ComputeHealth(signals []Signal) map[string]WorkstreamHealth {
 	health := make(map[string]WorkstreamHealth)
-	for _, s := range signals {
-		h, ok := health[s.Workstream]
+	for i := range signals {
+		h, ok := health[signals[i].Workstream]
 		if !ok {
 			h = WorkstreamHealth{
-				Workstream:  s.Workstream,
+				Workstream:  signals[i].Workstream,
 				AgentHealth: make(map[string]FlagLevel),
 			}
 		}
 
-		if s.Level > h.Level {
-			h.Level = s.Level
+		if signals[i].Level > h.Level {
+			h.Level = signals[i].Level
 		}
 
-		if s.Source != "" {
-			if existing, exists := h.AgentHealth[s.Source]; !exists || s.Level > existing {
-				h.AgentHealth[s.Source] = s.Level
+		if signals[i].Source != "" {
+			if existing, exists := h.AgentHealth[signals[i].Source]; !exists || signals[i].Level > existing {
+				h.AgentHealth[signals[i].Source] = signals[i].Level
 			}
 		}
 
-		if !ok || s.Timestamp.After(h.Latest.Timestamp) {
-			h.Latest = s
+		if !ok || signals[i].Timestamp.After(h.Latest.Timestamp) {
+			h.Latest = signals[i]
 		}
 
-		health[s.Workstream] = h
+		health[signals[i].Workstream] = h
 	}
 	return health
 }

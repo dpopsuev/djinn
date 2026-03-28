@@ -1,6 +1,8 @@
 // theme.go — semantic color palette for the Djinn TUI.
 // All styles reference the active theme instead of hardcoded colors.
 // Foundation for style presets (claude/codex/gemini/djinn themes).
+//
+//nolint:dupl // each theme has unique colors, structural similarity is inherent
 package tui
 
 import (
@@ -76,7 +78,7 @@ var themeRegistry = map[string]Theme{
 }
 
 // RegisterTheme adds or replaces a named theme in the registry.
-func RegisterTheme(name string, t Theme) {
+func RegisterTheme(name string, t Theme) { //nolint:gocritic // Theme is stored by value in registry
 	themeRegistry[name] = t
 }
 
@@ -101,7 +103,7 @@ func ThemeNames() []string {
 var ActiveTheme = DefaultTheme
 
 // ApplyTheme sets the active theme and rebuilds all styles via ApplyTokens.
-func ApplyTheme(t Theme) {
+func ApplyTheme(t Theme) { //nolint:gocritic // Theme is stored as global, copy is intentional
 	ActiveTheme = t
 	ApplyTokens(TokensFromTheme(t))
 }

@@ -76,9 +76,9 @@ func (o *SimpleOrchestrator) Execute(ctx context.Context, plan WorkPlan) (<-chan
 			o.mu.Unlock()
 		}()
 
-		for _, stage := range plan.Stages {
-			if err := o.executeStage(execCtx, plan.ID, stage, ch); err != nil {
-				ch <- Event{ExecID: plan.ID, Kind: StageFailed, Stage: stage.Name, Message: err.Error()}
+		for si := range plan.Stages {
+			if err := o.executeStage(execCtx, plan.ID, plan.Stages[si], ch); err != nil {
+				ch <- Event{ExecID: plan.ID, Kind: StageFailed, Stage: plan.Stages[si].Name, Message: err.Error()}
 				ch <- Event{ExecID: plan.ID, Kind: ExecutionDone, Message: "failed: " + err.Error()}
 				return
 			}
@@ -128,7 +128,7 @@ func (o *SimpleOrchestrator) executeStage(ctx context.Context, execID string, st
 	for {
 		select {
 		case <-stageCtx.Done():
-			if stageCtx.Err() == context.DeadlineExceeded {
+			if errors.Is(stageCtx.Err(), context.DeadlineExceeded) {
 				o.signalEmit(signal.Signal{
 					Workstream: execID,
 					Level:      signal.Yellow,

@@ -40,7 +40,7 @@ func TestNewContextMonitor_options(t *testing.T) {
 
 func TestContextMonitor_Usage(t *testing.T) {
 	m := NewContextMonitor(WithMaxTokens(1000))
-	m.Record(100, 100) // 200/1000 = 0.2
+	m.Record(100, 100) // total 200 of 1000 max
 	got := m.Usage()
 	if got != 0.2 {
 		t.Errorf("Usage() = %f, want 0.2", got)

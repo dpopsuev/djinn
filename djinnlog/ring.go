@@ -77,7 +77,7 @@ func (h *RingHandler) Enabled(_ context.Context, _ slog.Level) bool {
 	return true
 }
 
-func (h *RingHandler) Handle(_ context.Context, r slog.Record) error {
+func (h *RingHandler) Handle(_ context.Context, r slog.Record) error { //nolint:gocritic // slog.Handler interface requires value receiver
 	entry := Entry{
 		Time:    r.Time,
 		Level:   r.Level,

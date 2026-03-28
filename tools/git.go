@@ -2,7 +2,7 @@
 //
 // GitRepo wraps git CLI commands with structured output parsing.
 // Every method uses exec.CommandContext for timeout-safe execution.
-// Thread-safe: a mutex serialises git calls on the same repo.
+// Thread-safe: a mutex serializes git calls on the same repo.
 package tools
 
 import (
@@ -54,7 +54,7 @@ func (g *GitRepo) Status(ctx context.Context) (*GitStatus, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	branch, _ := g.currentBranch(ctx) //nolint:errcheck
+	branch, _ := g.currentBranch(ctx) //nolint:errcheck // error intentionally ignored
 
 	out, err := g.run(ctx, "status", "--porcelain=v1", "-b")
 	if err != nil {
@@ -127,8 +127,9 @@ func (g *GitRepo) Log(ctx context.Context, n int) ([]Commit, error) {
 		return nil, fmt.Errorf("git log: %w", err)
 	}
 
-	var commits []Commit
-	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	commits := make([]Commit, 0, len(lines))
+	for _, line := range lines {
 		if line == "" {
 			continue
 		}
@@ -137,7 +138,7 @@ func (g *GitRepo) Log(ctx context.Context, n int) ([]Commit, error) {
 			continue
 		}
 
-		epoch, _ := strconv.ParseInt(parts[2], 10, 64) //nolint:errcheck
+		epoch, _ := strconv.ParseInt(parts[2], 10, 64) //nolint:errcheck // error intentionally ignored
 		commits = append(commits, Commit{
 			Hash:    parts[0],
 			Author:  parts[1],

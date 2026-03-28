@@ -37,27 +37,27 @@ const (
 
 // ShellMsg is a message from the shell to the backend.
 type ShellMsg struct {
-	Type       string `json:"type"`
-	Text       string `json:"text,omitempty"`
-	ToolCallID string `json:"tool_call_id,omitempty"`
-	Approved   bool   `json:"approved,omitempty"`
-	CmdName    string `json:"cmd_name,omitempty"`
+	Type       string   `json:"type"`
+	Text       string   `json:"text,omitempty"`
+	ToolCallID string   `json:"tool_call_id,omitempty"`
+	Approved   bool     `json:"approved,omitempty"`
+	CmdName    string   `json:"cmd_name,omitempty"`
 	CmdArgs    []string `json:"cmd_args,omitempty"`
 }
 
 // BackendMsg is a message from the backend to the shell.
 type BackendMsg struct {
-	Type       string          `json:"type"`
-	Text       string          `json:"text,omitempty"`
+	Type       string           `json:"type"`
+	Text       string           `json:"text,omitempty"`
 	ToolCall   *driver.ToolCall `json:"tool_call,omitempty"`
-	ToolName   string          `json:"tool_name,omitempty"`
-	ToolOutput string          `json:"tool_output,omitempty"`
-	IsError    bool            `json:"is_error,omitempty"`
-	Usage      *driver.Usage   `json:"usage,omitempty"`
-	Error      string          `json:"error,omitempty"`
-	Model      string          `json:"model,omitempty"`
-	HistoryLen int             `json:"history_len,omitempty"`
-	Version    int             `json:"version,omitempty"`
+	ToolName   string           `json:"tool_name,omitempty"`
+	ToolOutput string           `json:"tool_output,omitempty"`
+	IsError    bool             `json:"is_error,omitempty"`
+	Usage      *driver.Usage    `json:"usage,omitempty"`
+	Error      string           `json:"error,omitempty"`
+	Model      string           `json:"model,omitempty"`
+	HistoryLen int              `json:"history_len,omitempty"`
+	Version    int              `json:"version,omitempty"`
 }
 
 // Transport abstracts the communication channel between shell and backend.

@@ -27,9 +27,9 @@ func newTestDriver() *testDriver {
 }
 
 func (d *testDriver) Start(ctx context.Context, sandbox driver.SandboxHandle) error { return nil }
-func (d *testDriver) Send(ctx context.Context, msg driver.Message) error             { return nil }
-func (d *testDriver) Recv(ctx context.Context) <-chan driver.Message                  { return d.recvCh }
-func (d *testDriver) Stop(ctx context.Context) error                                 { return nil }
+func (d *testDriver) Send(ctx context.Context, msg driver.Message) error            { return nil }
+func (d *testDriver) Recv(ctx context.Context) <-chan driver.Message                { return d.recvCh }
+func (d *testDriver) Stop(ctx context.Context) error                                { return nil }
 
 // testGate implements gate.Gate for broker tests.
 type testGate struct{}
@@ -98,7 +98,7 @@ func (o *testOperator) getAndons() []AndonBoard {
 	return out
 }
 
-func newTestBrokerConfig(op *testOperator, bus *signal.SignalBus) BrokerConfig {
+func newTestBrokerConfig(op *testOperator, bus *signal.SignalBus) *BrokerConfig {
 	cordons := NewCordonRegistry()
 
 	orch := orchestrator.NewSimpleOrchestrator(
@@ -109,7 +109,7 @@ func newTestBrokerConfig(op *testOperator, bus *signal.SignalBus) BrokerConfig {
 		func(s signal.Signal) { bus.Emit(s) },
 	)
 
-	return BrokerConfig{
+	return &BrokerConfig{
 		Orchestrator: orch,
 		Bus:          bus,
 		Cordons:      cordons,
@@ -177,7 +177,7 @@ func TestBroker_WorkstreamTracking(t *testing.T) {
 func TestBroker_Andon(t *testing.T) {
 	bus := signal.NewSignalBus()
 	cordons := NewCordonRegistry()
-	b := NewBroker(BrokerConfig{Bus: bus, Cordons: cordons})
+	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons})
 
 	board := b.Andon()
 	if board.Level != signal.Green {
@@ -222,7 +222,7 @@ func TestBroker_BlackSignalAutoCordon(t *testing.T) {
 	bus := signal.NewSignalBus()
 	cordons := NewCordonRegistry()
 	op := newTestOperator()
-	b := NewBroker(BrokerConfig{Bus: bus, Cordons: cordons, Operator: op})
+	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons, Operator: op})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -252,7 +252,7 @@ func TestBroker_BlackSignalNoScopeNoCordon(t *testing.T) {
 	bus := signal.NewSignalBus()
 	cordons := NewCordonRegistry()
 	op := newTestOperator()
-	b := NewBroker(BrokerConfig{Bus: bus, Cordons: cordons, Operator: op})
+	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons, Operator: op})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -276,7 +276,7 @@ func TestBroker_CancelWorkstream(t *testing.T) {
 
 	// Use a blocking driver so the workstream stays running
 	blockCh := make(chan struct{})
-	cfg := BrokerConfig{
+	cfg := &BrokerConfig{
 		Orchestrator: orchestrator.NewSimpleOrchestrator(
 			func(ctx context.Context, scope tier.Scope) (string, error) { return "sb", nil },
 			func(ctx context.Context, id string) error { return nil },
@@ -321,13 +321,13 @@ func TestBroker_CancelWorkstream(t *testing.T) {
 	if !ok {
 		t.Fatal("workstream should exist after cancel")
 	}
-	if ws.Status != WorkstreamCancelled {
-		t.Fatalf("Status = %q, want %q", ws.Status, WorkstreamCancelled)
+	if ws.Status != WorkstreamCanceled {
+		t.Fatalf("Status = %q, want %q", ws.Status, WorkstreamCanceled)
 	}
 }
 
 func TestBroker_CancelNonexistent(t *testing.T) {
-	b := NewBroker(BrokerConfig{
+	b := NewBroker(&BrokerConfig{
 		Bus:     signal.NewSignalBus(),
 		Cordons: NewCordonRegistry(),
 	})
@@ -341,7 +341,7 @@ func TestBroker_CancelNonexistent(t *testing.T) {
 func TestBroker_ClearCordon(t *testing.T) {
 	bus := signal.NewSignalBus()
 	cordons := NewCordonRegistry()
-	b := NewBroker(BrokerConfig{Bus: bus, Cordons: cordons})
+	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons})
 
 	cordons.Set([]string{"auth/middleware.go"}, "security", "agent-1")
 

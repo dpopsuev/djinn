@@ -17,10 +17,10 @@ import (
 
 // Directory and file conventions.
 const (
-	WorkspacesDir  = "workspaces"
-	ManifestExt    = ".yaml"
-	DefaultDirPerm = 0700
-	DefaultFilePerm = 0644
+	WorkspacesDir   = "workspaces"
+	ManifestExt     = ".yaml"
+	DefaultDirPerm  = 0o700
+	DefaultFilePerm = 0o644
 )
 
 // Sentinel errors.
@@ -178,7 +178,7 @@ func List() ([]Summary, error) {
 		return nil, err
 	}
 
-	var summaries []Summary
+	summaries := make([]Summary, 0, len(entries))
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ManifestExt) {
 			continue

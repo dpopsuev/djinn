@@ -8,9 +8,13 @@ package clutch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 )
+
+// Sentinel errors for Hub operations.
+var ErrUnknownRole = errors.New("unknown role")
 
 // Hub is the GenSec relay — both shell and backend connect as clients.
 type Hub struct {
@@ -23,7 +27,7 @@ type Hub struct {
 	shellQ   []BackendMsg // queued for shell while disconnected
 	backendQ []ShellMsg   // queued for backend while disconnected
 
-	// cancelFuncs for active relay goroutines — cancelled on reconnect.
+	// cancelFuncs for active relay goroutines — canceled on reconnect.
 	shellRelay   context.CancelFunc
 	backendRelay context.CancelFunc
 }
@@ -37,7 +41,7 @@ func NewHub(socketPath string) (*Hub, error) {
 	return &Hub{listener: ln}, nil
 }
 
-// Run accepts connections and relays messages until ctx is cancelled.
+// Run accepts connections and relays messages until ctx is canceled.
 func (h *Hub) Run(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
@@ -100,7 +104,7 @@ func (h *Hub) readRegistration(transport *SocketTransport) (string, error) {
 		return "", fmt.Errorf("read registration: %w", err)
 	}
 	if reg.Role != "shell" && reg.Role != "backend" {
-		return "", fmt.Errorf("unknown role: %q", reg.Role)
+		return "", fmt.Errorf("%w: %q", ErrUnknownRole, reg.Role)
 	}
 	return reg.Role, nil
 }
@@ -120,8 +124,8 @@ func (h *Hub) registerShell(ctx context.Context, transport *SocketTransport) {
 	h.shell = transport
 
 	// Drain queued backend messages to the new shell.
-	for _, msg := range h.shellQ {
-		transport.SendToShell(msg) //nolint:errcheck
+	for i := range h.shellQ {
+		transport.SendToShell(h.shellQ[i]) //nolint:errcheck // best-effort send, error logged by receiver
 	}
 	h.shellQ = nil
 
@@ -147,7 +151,7 @@ func (h *Hub) registerBackend(ctx context.Context, transport *SocketTransport) {
 
 	// Drain queued shell messages to the new backend.
 	for _, msg := range h.backendQ {
-		transport.SendToBackend(msg) //nolint:errcheck
+		transport.SendToBackend(msg) //nolint:errcheck // best-effort send, error logged by receiver
 	}
 	h.backendQ = nil
 
@@ -157,8 +161,7 @@ func (h *Hub) registerBackend(ctx context.Context, transport *SocketTransport) {
 	go h.relayBackendToShell(relayCtx, transport)
 }
 
-// relayShellToBackend forwards shell messages to the backend.
-// On disconnect, queues messages for the backend.
+//nolint:dupl // relay functions are directional mirrors, not extractable without generics
 func (h *Hub) relayShellToBackend(ctx context.Context, transport *SocketTransport) {
 	for {
 		if ctx.Err() != nil {
@@ -196,6 +199,8 @@ func (h *Hub) relayShellToBackend(ctx context.Context, transport *SocketTranspor
 
 // relayBackendToShell forwards backend messages to the shell.
 // On disconnect, queues messages for the shell.
+//
+//nolint:dupl // relay functions are directional mirrors, not extractable without generics
 func (h *Hub) relayBackendToShell(ctx context.Context, transport *SocketTransport) {
 	for {
 		if ctx.Err() != nil {

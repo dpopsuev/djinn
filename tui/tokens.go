@@ -56,7 +56,7 @@ func DefaultTokens() TokenSet {
 
 // TokensFromTheme maps a Theme to a full TokenSet.
 // Theme covers 8 semantic colors; tokens extend with diff, health, and zone colors.
-func TokensFromTheme(t Theme) TokenSet {
+func TokensFromTheme(t Theme) TokenSet { //nolint:gocritic // Theme is a value type, copy is cheap at init time
 	return TokenSet{
 		// Direct from Theme
 		UserFg:      t.User,
@@ -69,9 +69,9 @@ func TokensFromTheme(t Theme) TokenSet {
 		FocusDimFg:  t.FocusDim,
 
 		// Extended — derived from Theme semantics
-		WarningFg:    t.ToolName, // yellow/warning shares tool name color
-		DiffAddFg:    t.Success,  // green = additions
-		DiffDelFg:    t.Error,    // red = deletions
+		WarningFg:    t.ToolName,                                          // yellow/warning shares tool name color
+		DiffAddFg:    t.Success,                                           // additions use success color (green)
+		DiffDelFg:    t.Error,                                             // deletions use error color (red)
 		DiffHeaderFg: lipgloss.AdaptiveColor{Light: Teal40, Dark: Teal20}, // diff headers — teal family
 
 		// Health uses the traffic light triad
@@ -80,14 +80,14 @@ func TokensFromTheme(t Theme) TokenSet {
 		HealthRedFg:    t.Error,
 
 		// Coherence thermal gradient
-		ZoneColdFg:    t.Assistant,                                                   // blue
+		ZoneColdFg:    t.Assistant,                                           // blue
 		ZoneFocusedFg: lipgloss.AdaptiveColor{Light: Green40, Dark: Green30}, // dark green — deep focus zone
 	}
 }
 
 // ApplyTokens rebuilds all global style variables from the given token set.
 // This is the SINGLE WRITER of style vars — no other code should assign them.
-func ApplyTokens(ts TokenSet) {
+func ApplyTokens(ts TokenSet) { //nolint:gocritic // TokenSet is stored as global, copy is intentional
 	ActiveTokens = ts
 
 	// Core styles (styles.go vars)

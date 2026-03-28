@@ -41,10 +41,10 @@ const (
 type Signal struct {
 	Workstream string
 	Level      FlagLevel
-	Confidence float64   // 0.0-1.0, agent's self-assessed confidence
-	Source     string    // agent ID or watchdog ID
-	Scope      []string  // affected file/package paths
-	Category   string    // one of Category* constants
-	Message    string    // human-readable evidence
+	Confidence float64  // 0.0-1.0, agent's self-assessed confidence
+	Source     string   // agent ID or watchdog ID
+	Scope      []string // affected file/package paths
+	Category   string   // one of Category* constants
+	Message    string   // human-readable evidence
 	Timestamp  time.Time
 }

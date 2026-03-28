@@ -31,9 +31,9 @@ func TestReplayHistory_ToolResultViaSendRich(t *testing.T) {
 	sess.Append(session.Entry{Role: "assistant", Content: "I see two files."})
 
 	stub := &stubs.StubChatDriver{}
-	stub.Start(context.Background(), "") //nolint:errcheck
+	stub.Start(context.Background(), "") //nolint:errcheck // error intentionally ignored
 
-	ReplayHistory(context.Background(), stub, sess) //nolint:errcheck
+	ReplayHistory(context.Background(), stub, sess) //nolint:errcheck // error intentionally ignored
 
 	// The tool_result entry MUST go through SendRich
 	if len(stub.SendRichLog) == 0 {
@@ -63,9 +63,9 @@ func TestReplayHistory_PlainUserViaSend(t *testing.T) {
 	sess.Append(session.Entry{Role: "assistant", Content: "hi"})
 
 	stub := &stubs.StubChatDriver{}
-	stub.Start(context.Background(), "") //nolint:errcheck
+	stub.Start(context.Background(), "") //nolint:errcheck // error intentionally ignored
 
-	ReplayHistory(context.Background(), stub, sess) //nolint:errcheck
+	ReplayHistory(context.Background(), stub, sess) //nolint:errcheck // error intentionally ignored
 
 	if len(stub.SendLog) != 1 {
 		t.Fatalf("plain user entry: SendLog = %d, want 1", len(stub.SendLog))

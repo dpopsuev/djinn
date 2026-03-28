@@ -29,7 +29,7 @@ func TestLeak_HubCleanShutdown(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	go hub.Run(ctx) //nolint:errcheck
+	go hub.Run(ctx) //nolint:errcheck // test helper, error checked elsewhere
 	time.Sleep(50 * time.Millisecond)
 
 	// Connect shell + backend, exchange a message, disconnect.
@@ -37,8 +37,8 @@ func TestLeak_HubCleanShutdown(t *testing.T) {
 	backend := leakConnect(t, sock, "backend")
 	time.Sleep(50 * time.Millisecond)
 
-	backend.SendToShell(BackendMsg{Type: BackendReady}) //nolint:errcheck
-	shell.RecvFromBackend()                              //nolint:errcheck
+	backend.SendToShell(BackendMsg{Type: BackendReady}) //nolint:errcheck // best-effort send, error logged by receiver
+	shell.RecvFromBackend()                             //nolint:errcheck // error intentionally ignored
 
 	shell.Close()
 	backend.Close()

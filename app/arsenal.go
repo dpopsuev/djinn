@@ -19,12 +19,12 @@ type DetectedDriver struct {
 // ACPName returns the driver name to use in djinn.yaml.
 func (d DetectedDriver) ACPName() string {
 	switch d.Name {
-	case "cursor":
+	case DriverCursor:
 		return "acp"
-	case "claude":
-		return "claude"
-	case "claude-api":
-		return "claude"
+	case DriverClaude:
+		return DriverClaude
+	case DriverClaudeAPI:
+		return DriverClaude
 	default:
 		return d.Name
 	}
@@ -33,15 +33,15 @@ func (d DetectedDriver) ACPName() string {
 // DefaultModel returns the default model for this driver.
 func (d DetectedDriver) DefaultModel() string {
 	switch d.Name {
-	case "cursor":
+	case DriverCursor:
 		return "cursor/sonnet-4"
-	case "claude", "claude-api":
+	case DriverClaude, DriverClaudeAPI:
 		return "claude-sonnet-4-6"
-	case "gemini":
+	case DriverGemini:
 		return "gemini-2.5-pro"
-	case "codex":
-		return "codex"
-	case "ollama":
+	case DriverCodex:
+		return DriverCodex
+	case DriverOllama:
 		return "llama3"
 	default:
 		return ""
@@ -73,7 +73,7 @@ var knownAPIKeys = []struct {
 // ScanArsenal detects installed agent CLIs and API keys.
 // Results are sorted by preference (cursor first — ACP native).
 func ScanArsenal() []DetectedDriver {
-	var detected []DetectedDriver
+	detected := make([]DetectedDriver, 0, len(knownCLIs)+len(knownAPIKeys))
 
 	// Scan for CLIs on PATH.
 	for _, cli := range knownCLIs {
@@ -89,7 +89,7 @@ func ScanArsenal() []DetectedDriver {
 		}
 
 		// Try to get version (best-effort, 2s timeout).
-		if out, err := exec.Command(cli.binary, cli.versionArg).Output(); err == nil {
+		if out, err := exec.Command(cli.binary, cli.versionArg).Output(); err == nil { //nolint:gosec // binary and args are from compile-time knownCLIs table
 			version := strings.TrimSpace(string(out))
 			if len(version) > 100 {
 				version = version[:100]

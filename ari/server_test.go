@@ -13,7 +13,7 @@ import (
 // mockRuntime implements Runtime for testing.
 type mockRuntime struct {
 	intentReceived Intent
-	cancelledID    string
+	canceledID     string
 	clearedPaths   []string
 }
 
@@ -22,7 +22,7 @@ func (m *mockRuntime) HandleIntent(ctx context.Context, intent Intent) {
 }
 
 func (m *mockRuntime) CancelWorkstream(id string) error {
-	m.cancelledID = id
+	m.canceledID = id
 	return nil
 }
 
@@ -217,7 +217,7 @@ func TestServer_EmitAndReceiveEvent(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://ari"+RouteEvents, nil)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://ari"+RouteEvents, http.NoBody)
 
 	go func() {
 		resp, err := client.Do(req)

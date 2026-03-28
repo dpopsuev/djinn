@@ -11,8 +11,8 @@ import (
 
 // Queue panel messages.
 type QueueAddMsg struct{ Prompt string }
-type QueueDrainMsg struct{}     // remove first item
-type QueueClearMsg struct{}     // clear all
+type QueueDrainMsg struct{} // remove first item
+type QueueClearMsg struct{} // clear all
 type QueueRemoveMsg struct{ Index int }
 
 // QueuePanel displays queued prompts awaiting submission.
@@ -73,9 +73,9 @@ func (p *QueuePanel) View(width int) string {
 	return sb.String()
 }
 
-func truncateQueue(s string, max int) string {
-	if max <= 0 || len(s) <= max {
+func truncateQueue(s string, maxLen int) string {
+	if maxLen <= 0 || len(s) <= maxLen {
 		return s
 	}
-	return s[:max-3] + "..."
+	return s[:maxLen-3] + "..."
 }

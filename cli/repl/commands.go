@@ -63,7 +63,7 @@ func ParseCommand(input string) (Command, bool) {
 }
 
 // ExecuteCommand runs a slash command and returns the result.
-func ExecuteCommand(cmd Command, sess *session.Session) CommandResult {
+func ExecuteCommand(cmd Command, sess *session.Session) CommandResult { //nolint:gocyclo // command switch dispatch
 	switch cmd.Name {
 	// Lifecycle
 	case cmdExit, cmdQuit:

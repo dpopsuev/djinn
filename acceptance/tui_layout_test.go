@@ -31,14 +31,14 @@ func layoutModel(t *testing.T, width, height int) repl.Model {
 
 // maxLineWidth returns the longest visible line width (stripping ANSI).
 func maxLineWidth(view string) int {
-	max := 0
+	widest := 0
 	for _, line := range strings.Split(view, "\n") {
 		w := visibleWidth(line)
-		if w > max {
-			max = w
+		if w > widest {
+			widest = w
 		}
 	}
-	return max
+	return widest
 }
 
 // visibleWidth strips ANSI escape codes and returns visible character count.

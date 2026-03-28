@@ -126,7 +126,7 @@ func TestRegistry_LoadYAML_Invalid(t *testing.T) {
 func TestRegistry_LoadFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.yaml")
-	os.WriteFile(path, []byte("mode: plan\n"), 0644)
+	os.WriteFile(path, []byte("mode: plan\n"), 0o644)
 
 	r := NewRegistry()
 	s := &stubConfig{key: "mode", val: "agent"}
@@ -134,7 +134,7 @@ func TestRegistry_LoadFile(t *testing.T) {
 	if err := r.LoadFile(path); err != nil {
 		t.Fatal(err)
 	}
-	if s.val != "plan" {
+	if s.val != ModePlan {
 		t.Fatalf("val = %q, want plan", s.val)
 	}
 }

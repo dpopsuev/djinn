@@ -58,8 +58,8 @@ var defaultCommands = map[string]Command{
 	"back":         {Name: "back", Description: "Go back: cancel, climb, or dismiss"},
 	"scroll-up":    {Name: "scroll-up", Description: "Scroll output up"},
 	"scroll-down":  {Name: "scroll-down", Description: "Scroll output down"},
-	"newline":       {Name: "newline", Description: "Insert newline in input"},
-	"review-edits":  {Name: "review-edits", Description: "Review pending file edits"},
+	"newline":      {Name: "newline", Description: "Insert newline in input"},
+	"review-edits": {Name: "review-edits", Description: "Review pending file edits"},
 }
 
 // Mode represents a vim-style editing mode.

@@ -11,9 +11,13 @@
 package scope
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+// Sentinel errors for scope navigation.
+var ErrScopeNotFound = errors.New("scope not found")
 
 // Level represents a position in the scope hierarchy.
 type Level int
@@ -27,11 +31,11 @@ const (
 func (l Level) String() string {
 	switch l {
 	case General:
-		return "general"
+		return string(LevelGeneral)
 	case Ecosystem:
-		return "ecosystem"
+		return string(LevelEcosystem)
 	case System:
-		return "system"
+		return string(LevelSystem)
 	default:
 		return "unknown"
 	}
@@ -67,7 +71,7 @@ type Navigator struct {
 func NewNavigator() *Navigator {
 	root := &Scope{
 		Level: General,
-		Name:  "general",
+		Name:  string(LevelGeneral),
 	}
 	return &Navigator{
 		root:    root,
@@ -128,7 +132,7 @@ func (n *Navigator) Dive(name string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("scope %q not found under %s", name, n.current.Path())
+	return fmt.Errorf("%w: %q under %s", ErrScopeNotFound, name, n.current.Path())
 }
 
 // Climb moves up one level. At general, stays.
@@ -147,8 +151,8 @@ func (n *Navigator) Root() {
 // follows the human across scope changes. The GenSec is the global
 // Broker singleton — always running, always present.
 type GenSecState struct {
-	Active  bool   // always true once initialized
-	Role    string // always "gensec"
+	Active  bool     // always true once initialized
+	Role    string   // always "gensec"
 	Mailbox []string // simplified briefing (full impl in staff.RoleMemory)
 }
 

@@ -44,7 +44,7 @@ func TestE2E_StandardFlow_AllStubs(t *testing.T) {
 
 	op := stubs.NewStubOperatorPort()
 
-	b := broker.NewBroker(broker.BrokerConfig{
+	b := broker.NewBroker(&broker.BrokerConfig{
 		Orchestrator: orch,
 		Bus:          bus,
 		Cordons:      cordons,
@@ -135,7 +135,7 @@ func TestE2E_GateFailure_StopsExecution(t *testing.T) {
 
 	op := stubs.NewStubOperatorPort()
 
-	b := broker.NewBroker(broker.BrokerConfig{
+	b := broker.NewBroker(&broker.BrokerConfig{
 		Orchestrator: orch,
 		Bus:          bus,
 		Cordons:      cordons,

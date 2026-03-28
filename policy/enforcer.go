@@ -11,9 +11,9 @@ import (
 
 // Sentinel errors.
 var (
-	ErrDeniedPath   = errors.New("access denied: protected path")
-	ErrDeniedTool   = errors.New("access denied: tool not allowed")
-	ErrDeniedBash   = errors.New("access denied: command references protected path")
+	ErrDeniedPath = errors.New("access denied: protected path")
+	ErrDeniedTool = errors.New("access denied: tool not allowed")
+	ErrDeniedBash = errors.New("access denied: command references protected path")
 )
 
 // DefaultToolPolicyEnforcer checks file paths and tool permissions.
@@ -52,7 +52,7 @@ func (e *DefaultToolPolicyEnforcer) Check(token CapabilityToken, tool string, in
 
 func (e *DefaultToolPolicyEnforcer) checkFilePath(token CapabilityToken, tool string, input json.RawMessage) error {
 	var params struct {
-		Path    string `json:"path"`
+		Path     string `json:"path"`
 		FilePath string `json:"file_path"`
 	}
 	_ = json.Unmarshal(input, &params) //nolint:errcheck // best-effort parse for path extraction

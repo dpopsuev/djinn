@@ -232,7 +232,7 @@ func TestPersona_Usable(t *testing.T) {
 func TestColorIdentity_Usable(t *testing.T) {
 	ci := bugleport.ColorIdentity{
 		Shade:      "Azure",
-		Colour:     "Cerulean",
+		Colour:     "Cerulean", //nolint:misspell // Bugle uses British spelling
 		Role:       "Writer",
 		Collective: "Refactor",
 		Hex:        "#007BA7",

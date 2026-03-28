@@ -40,8 +40,7 @@ func (p *EnvelopePanel) SetResult(output string, isError bool) {
 }
 
 func (p *EnvelopePanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
-	switch msg := msg.(type) {
-	case ToolResultMsg:
+	if msg, ok := msg.(ToolResultMsg); ok {
 		p.SetResult(msg.Output, msg.IsError)
 	}
 	return p, nil

@@ -17,7 +17,7 @@ import (
 )
 
 // CreateDriver creates a ChatDriver for the given backend name and model.
-func CreateDriver(driverName, model, systemPrompt string, log ...*slog.Logger) (driver.ChatDriver, error) {
+func CreateDriver(driverName, model, systemPrompt string, log ...*slog.Logger) (driver.ChatDriver, error) { //nolint:gocyclo // driver factory with config variants
 	var driverLog *slog.Logger
 	if len(log) > 0 && log[0] != nil {
 		driverLog = djinnlog.For(log[0], "driver")

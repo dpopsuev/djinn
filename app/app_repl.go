@@ -29,7 +29,7 @@ import (
 // RunREPL starts the interactive REPL.
 // Essential flags: -m (model), -s (session), -c (continue), -e (ecosystem),
 // --config, --socket. Everything else lives in djinn.yaml.
-func RunREPL(args []string, stderr io.Writer) error {
+func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen // composition root, flag parsing + setup
 	fs := flag.NewFlagSet("repl", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 
@@ -94,7 +94,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 
 	// If no driver configured, auto-detect from installed CLIs.
-	if driverConf.Name == "" {
+	if driverConf.Name == "" { //nolint:nestif // auto-detect driver with fallback chain
 		detected := ScanArsenal()
 		if len(detected) > 0 {
 			best := detected[0]
@@ -111,7 +111,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 				fmt.Fprintf(stderr, "djinn: created djinn.yaml — edit to customize\n")
 			}
 		} else {
-			return fmt.Errorf("%s", FriendlyNoDriverError())
+			return fmt.Errorf("%w\n\n%s", ErrNoDriverDetected, FriendlyNoDriverError())
 		}
 	}
 
@@ -122,13 +122,14 @@ func RunREPL(args []string, stderr io.Writer) error {
 
 	// Session: resume, continue, or new
 	var sess *session.Session
-	if *cont {
+	switch {
+	case *cont:
 		sess, err = LoadMostRecent(store)
 		if err != nil {
 			return fmt.Errorf("no session to continue: %w", err)
 		}
 		fmt.Fprintf(stderr, "djinn: resumed session %q (%d turns)\n", sess.Name, sess.History.Len())
-	} else if *sessionName != "" {
+	case *sessionName != "":
 		sess, err = store.Load(*sessionName)
 		if err != nil {
 			sess = session.New(*sessionName, driverConf.Model, Getwd())
@@ -137,7 +138,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 		} else {
 			fmt.Fprintf(stderr, "djinn: resumed session %q (%d turns)\n", sess.Name, sess.History.Len())
 		}
-	} else {
+	default:
 		id := fmt.Sprintf("djinn-%d", time.Now().Unix())
 		sess = session.New(id, driverConf.Model, Getwd())
 		sess.Driver = driverConf.Name
@@ -255,8 +256,9 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 
 	// Build health reports from MCP connection results
-	var healthReports []tui.HealthReport
-	for _, name := range mcpClient.ServerNames() {
+	serverNames := mcpClient.ServerNames()
+	healthReports := make([]tui.HealthReport, 0, len(serverNames))
+	for _, name := range serverNames {
 		tools, _ := mcpClient.ServerTools(name)
 		healthReports = append(healthReports, tui.HealthReport{
 			Component: name,
@@ -326,7 +328,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 		if createErr != nil {
 			return fmt.Errorf("create sandbox: %w", createErr)
 		}
-		defer sb.Destroy(ctx, handle) //nolint:errcheck
+		defer sb.Destroy(ctx, handle) //nolint:errcheck // best-effort cleanup on defer
 		sandboxHandle = string(handle)
 		sandboxExecFn = func(ctx context.Context, cmd []string) (string, string, error) {
 			result, err := sb.Exec(ctx, handle, cmd, 120)
@@ -356,7 +358,7 @@ func RunREPL(args []string, stderr io.Writer) error {
 		}
 	}
 
-	if hubSocket != "" {
+	if hubSocket != "" { //nolint:nestif // hub connection setup with retry and error handling
 		// Hub mode: connect as shell, auto-spawn backend goroutine via hub.
 		hubTransport, hubErr := ConnectToHub(hubSocket)
 		if hubErr != nil {
@@ -400,13 +402,13 @@ func RunREPL(args []string, stderr io.Writer) error {
 
 	// DebugTap: configured via debug.tap_file and debug.live_debug in djinn.yaml.
 	var debugTap *tui.DebugTap
-	if debugConf.TapFile != "" || debugConf.LiveDebug != "" {
+	if debugConf.TapFile != "" || debugConf.LiveDebug != "" { //nolint:nestif // debug tap setup with file and live server
 		var tapErr error
 		debugTap, tapErr = tui.NewDebugTap(100, debugConf.TapFile)
 		if tapErr != nil {
 			fmt.Fprintf(stderr, "djinn: debug tap: %v\n", tapErr)
 		} else {
-			defer debugTap.Close() //nolint:errcheck
+			defer debugTap.Close() //nolint:errcheck // best-effort cleanup
 			if debugConf.TapFile != "" {
 				fmt.Fprintf(stderr, "djinn: debug tap writing to %s\n", debugConf.TapFile)
 			}
@@ -422,22 +424,22 @@ func RunREPL(args []string, stderr io.Writer) error {
 	}
 
 	replErr := repl.Run(ctx, repl.Config{
-		Driver:        chatDriver,
-		Tools:         registry,
-		Session:       sess,
-		SystemPrompt:  assembledPrompt,
-		MaxTurns:      sessConf.MaxTurns,
-		AutoApprove:   sessConf.AutoApprove,
-		Mode:          modeConf.Mode,
-		Log:           logResult.Logger,
-		Ring:          logResult.Ring,
-		Store:         store,
-		InitialPrompt: initialPrompt,
-		WorkspaceBus:  wsBus,
-		Transport:     transport,
-		Enforcer:      enforcer,
-		Token:         capToken,
-		HealthReports: healthReports,
+		Driver:         chatDriver,
+		Tools:          registry,
+		Session:        sess,
+		SystemPrompt:   assembledPrompt,
+		MaxTurns:       sessConf.MaxTurns,
+		AutoApprove:    sessConf.AutoApprove,
+		Mode:           modeConf.Mode,
+		Log:            logResult.Logger,
+		Ring:           logResult.Ring,
+		Store:          store,
+		InitialPrompt:  initialPrompt,
+		WorkspaceBus:   wsBus,
+		Transport:      transport,
+		Enforcer:       enforcer,
+		Token:          capToken,
+		HealthReports:  healthReports,
 		Router:         slotRouter,
 		Version:        Version,
 		DebugTap:       debugTap,

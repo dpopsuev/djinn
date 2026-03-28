@@ -13,7 +13,7 @@ import (
 type EventKind int
 
 const (
-	StageStarted   EventKind = iota
+	StageStarted EventKind = iota
 	StageCompleted
 	StageFailed
 	GatePassed

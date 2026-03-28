@@ -111,7 +111,7 @@ func TestGatherIntelligence_SkipsVendor(t *testing.T) {
 	}
 }
 
-func TestGatherIntelligence_CancelledContext(t *testing.T) {
+func TestGatherIntelligence_CanceledContext(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create some files.
@@ -125,7 +125,7 @@ func TestGatherIntelligence_CancelledContext(t *testing.T) {
 	b := GatherIntelligence(ctx, dir)
 	// Should still return a valid briefing (not panic).
 	if b == nil {
-		t.Fatal("expected non-nil briefing even with cancelled context")
+		t.Fatal("expected non-nil briefing even with canceled context")
 	}
 }
 

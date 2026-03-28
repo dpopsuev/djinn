@@ -14,7 +14,7 @@ func TestRuntimeAdapter_InterfaceSatisfaction(t *testing.T) {
 func TestRuntimeAdapter_Andon(t *testing.T) {
 	bus := signal.NewSignalBus()
 	cordons := NewCordonRegistry()
-	b := NewBroker(BrokerConfig{Bus: bus, Cordons: cordons})
+	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons})
 
 	adapter := NewRuntimeAdapter(b)
 
@@ -35,7 +35,7 @@ func TestRuntimeAdapter_Andon(t *testing.T) {
 
 func TestRuntimeAdapter_ListWorkstreams(t *testing.T) {
 	bus := signal.NewSignalBus()
-	b := NewBroker(BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
+	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
 
 	b.Workstreams().Register(&WorkstreamInfo{
 		ID:       "ws-1",
@@ -62,7 +62,7 @@ func TestRuntimeAdapter_ClearCordon(t *testing.T) {
 	cordons := NewCordonRegistry()
 	cordons.Set([]string{"auth"}, "broken", "agent-1")
 
-	b := NewBroker(BrokerConfig{Bus: signal.NewSignalBus(), Cordons: cordons})
+	b := NewBroker(&BrokerConfig{Bus: signal.NewSignalBus(), Cordons: cordons})
 	adapter := NewRuntimeAdapter(b)
 
 	adapter.ClearCordon([]string{"auth"})

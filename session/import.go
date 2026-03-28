@@ -17,14 +17,14 @@ const (
 
 // claudeJSONLEntry is a single line from Claude Code's session JSONL.
 type claudeJSONLEntry struct {
-	Type      string          `json:"type"`
-	Message   *claudeMessage  `json:"message,omitempty"`
-	Timestamp string          `json:"timestamp,omitempty"`
+	Type      string         `json:"type"`
+	Message   *claudeMessage `json:"message,omitempty"`
+	Timestamp string         `json:"timestamp,omitempty"`
 }
 
 type claudeMessage struct {
-	Role    string              `json:"role"`
-	Content json.RawMessage     `json:"content"`
+	Role    string          `json:"role"`
+	Content json.RawMessage `json:"content"`
 }
 
 type claudeContentBlock struct {
@@ -151,9 +151,9 @@ func compact(entries []Entry, tokenBudget int) []Entry {
 	for _, e := range old {
 		first := firstLine(e.Content)
 		if first != "" {
-			prefix := "user"
-			if e.Role == "assistant" {
-				prefix = "assistant"
+			prefix := claudeTypeUser
+			if e.Role == claudeTypeAssistant {
+				prefix = claudeTypeAssistant
 			}
 			summaryParts = append(summaryParts, prefix+": "+first)
 		}

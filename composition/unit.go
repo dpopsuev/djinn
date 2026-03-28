@@ -27,17 +27,17 @@ const (
 
 // Sentinel errors for unit validation.
 var (
-	ErrEmptyRole  = errors.New("unit role is required")
-	ErrNoBudget   = errors.New("unit budget must have tokens or wall clock")
+	ErrEmptyRole = errors.New("unit role is required")
+	ErrNoBudget  = errors.New("unit budget must have tokens or wall clock")
 )
 
 // Unit is the primitive building block of a formation.
 type Unit struct {
-	Role          string
-	Scope         UnitScope
-	Budget        Budget
+	Role           string
+	Scope          UnitScope
+	Budget         Budget
 	TerminatesWhen Termination
-	Env           map[string]string
+	Env            map[string]string
 }
 
 // UnitScope defines filesystem access for a unit.

@@ -123,4 +123,3 @@ func (p *ListPanel) View(width int) string {
 	}
 	return sb.String()
 }
-

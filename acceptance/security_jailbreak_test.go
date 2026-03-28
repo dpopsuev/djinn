@@ -68,8 +68,8 @@ func TestSecurity_SymlinkBypass(t *testing.T) {
 
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "protected")
-	os.MkdirAll(configDir, 0755)
-	os.WriteFile(filepath.Join(configDir, "secret.yaml"), []byte("secret"), 0644)
+	os.MkdirAll(configDir, 0o755)
+	os.WriteFile(filepath.Join(configDir, "secret.yaml"), []byte("secret"), 0o644)
 
 	symlink := filepath.Join(dir, "innocent-link")
 	os.Symlink(configDir, symlink)
@@ -92,7 +92,7 @@ func TestSecurity_PathTraversal(t *testing.T) {
 
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "config")
-	os.MkdirAll(configDir, 0755)
+	os.MkdirAll(configDir, 0o755)
 
 	token := policy.CapabilityToken{
 		DeniedPaths: []string{configDir},

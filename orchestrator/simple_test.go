@@ -27,9 +27,9 @@ func newStubDriver(msgs ...driver.Message) *stubDriver {
 }
 
 func (d *stubDriver) Start(ctx context.Context, sandbox driver.SandboxHandle) error { return nil }
-func (d *stubDriver) Send(ctx context.Context, msg driver.Message) error             { return nil }
-func (d *stubDriver) Recv(ctx context.Context) <-chan driver.Message                  { return d.recvCh }
-func (d *stubDriver) Stop(ctx context.Context) error                                 { return nil }
+func (d *stubDriver) Send(ctx context.Context, msg driver.Message) error            { return nil }
+func (d *stubDriver) Recv(ctx context.Context) <-chan driver.Message                { return d.recvCh }
+func (d *stubDriver) Stop(ctx context.Context) error                                { return nil }
 
 // stubGate implements gate.Gate for orchestrator tests.
 type stubGate struct{ err error }
@@ -215,7 +215,7 @@ func TestSimpleOrchestrator_TimeBudget(t *testing.T) {
 		func(ctx context.Context, scope tier.Scope) (string, error) { return "sb", nil },
 		func(ctx context.Context, id string) error { return nil },
 		func(cfg driver.DriverConfig) driver.Driver {
-			// Driver that blocks until context cancelled
+			// Driver that blocks until context canceled
 			ch := make(chan driver.Message)
 			return &stubDriver{recvCh: ch}
 		},

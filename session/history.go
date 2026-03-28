@@ -9,8 +9,8 @@ const approximateTokensPerChar = 4
 
 // History manages the conversation entries with optional token budget.
 type History struct {
-	entries    []Entry
-	maxTokens  int // 0 = unlimited
+	entries   []Entry
+	maxTokens int // 0 = unlimited
 }
 
 // NewHistory creates a history with an optional token budget.

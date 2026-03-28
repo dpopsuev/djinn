@@ -18,11 +18,11 @@ import (
 
 // Config holds the inputs needed to construct a Djinn facade.
 type Config struct {
-	StaffCfg  *staff.StaffConfig
-	Registry  *builtin.Registry
-	Enforcer  policy.ToolPolicyEnforcer
-	Token     policy.CapabilityToken
-	Session   *session.Session
+	StaffCfg *staff.StaffConfig
+	Registry *builtin.Registry
+	Enforcer policy.ToolPolicyEnforcer
+	Token    policy.CapabilityToken
+	Session  *session.Session
 
 	// Initial role name (must exist in StaffCfg).
 	InitialRole string
@@ -46,7 +46,7 @@ type Djinn struct {
 }
 
 // New creates a Djinn facade from the given configuration.
-// It initialises the ToolClearance with the initial role and
+// It initializes the ToolClearance with the initial role and
 // wires all subsystems together.
 func New(cfg Config) *Djinn {
 	if cfg.StaffCfg == nil {

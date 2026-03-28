@@ -139,7 +139,7 @@ func execCommandInDir(ctx context.Context, dir, command, target string) ([]byte,
 
 // Interface compliance.
 var (
-	_ RoleManager  = (*PromptRoleManager)(nil)
-	_ QualityGate  = (*MakeCircuitGate)(nil)
+	_ RoleManager   = (*PromptRoleManager)(nil)
+	_ QualityGate   = (*MakeCircuitGate)(nil)
 	_ AgentIdentity = (StringIdentity{})
 )

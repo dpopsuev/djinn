@@ -35,7 +35,7 @@ func TestPreprocessFileRefs_NoRefs(t *testing.T) {
 
 func TestPreprocessFileRefs_SingleFile(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0o644)
 
 	result := preprocessFileRefs("review @main.go", dir)
 	if !strings.Contains(result, "<file path=") {
@@ -51,8 +51,8 @@ func TestPreprocessFileRefs_SingleFile(t *testing.T) {
 
 func TestPreprocessFileRefs_MultipleFiles(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "a.go"), []byte("file a\n"), 0644)
-	os.WriteFile(filepath.Join(dir, "b.go"), []byte("file b\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "a.go"), []byte("file a\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "b.go"), []byte("file b\n"), 0o644)
 
 	result := preprocessFileRefs("compare @a.go and @b.go", dir)
 	if strings.Count(result, "<file path=") != 2 {
@@ -66,7 +66,7 @@ func TestPreprocessFileRefs_MultipleFiles(t *testing.T) {
 func TestPreprocessFileRefs_AbsolutePath(t *testing.T) {
 	dir := t.TempDir()
 	absPath := filepath.Join(dir, "abs.txt")
-	os.WriteFile(absPath, []byte("absolute content\n"), 0644)
+	os.WriteFile(absPath, []byte("absolute content\n"), 0o644)
 
 	result := preprocessFileRefs("read @"+absPath, "/some/other/dir")
 	if !strings.Contains(result, "absolute content") {
@@ -76,7 +76,7 @@ func TestPreprocessFileRefs_AbsolutePath(t *testing.T) {
 
 func TestPreprocessFileRefs_RelativePath(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "rel.txt"), []byte("relative content\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "rel.txt"), []byte("relative content\n"), 0o644)
 
 	result := preprocessFileRefs("check @rel.txt", dir)
 	if !strings.Contains(result, "relative content") {
@@ -109,8 +109,8 @@ func TestPreprocessFileRefs_AtAlone(t *testing.T) {
 
 func TestPreprocessFileRefs_MixedContent(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "main.go"), []byte("main\n"), 0644)
-	os.WriteFile(filepath.Join(dir, "test.go"), []byte("test\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "main.go"), []byte("main\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "test.go"), []byte("test\n"), 0o644)
 
 	result := preprocessFileRefs("review @main.go and also check @test.go please", dir)
 	if strings.Count(result, "<file path=") != 2 {
@@ -124,7 +124,7 @@ func TestPreprocessFileRefs_MixedContent(t *testing.T) {
 
 func TestPreprocessFileRefs_TrailingPunctuation(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "file.go"), []byte("content\n"), 0644)
+	os.WriteFile(filepath.Join(dir, "file.go"), []byte("content\n"), 0o644)
 
 	// @file.go, or @file.go. should still resolve.
 	result := preprocessFileRefs("check @file.go, please", dir)

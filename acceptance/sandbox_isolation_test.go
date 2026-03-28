@@ -33,7 +33,7 @@ sandbox:
 repos:
   - path: /project
     role: primary
-`), 0644)
+`), 0o644)
 
 	ws, err := workspace.Load(manifest)
 	if err != nil {
@@ -55,7 +55,7 @@ name: bare
 repos:
   - path: /project
     role: primary
-`), 0644)
+`), 0o644)
 
 	ws, err := workspace.Load(manifest)
 	if err != nil {
@@ -81,7 +81,7 @@ sandbox:
 repos:
   - path: /project
     role: primary
-`), 0644)
+`), 0o644)
 
 		ws, err := workspace.Load(manifest)
 		if err != nil {
@@ -105,7 +105,7 @@ sandbox:
 repos:
   - path: /project
     role: primary
-`), 0644)
+`), 0o644)
 
 		ws, err := workspace.Load(manifest)
 		if err != nil {
@@ -196,7 +196,7 @@ sandbox:
 repos:
   - path: /project
     role: primary
-`), 0644)
+`), 0o644)
 
 			ws, err := workspace.Load(manifest)
 			if err != nil {
@@ -301,7 +301,7 @@ sandbox:
 repos:
   - path: /project
     role: primary
-`), 0644)
+`), 0o644)
 
 	ws, err := workspace.Load(manifest)
 	if err != nil {
@@ -369,10 +369,7 @@ func TestSandbox_ManifestSandboxInDockerOutput(t *testing.T) {
 	}
 
 	// Format for display
-	display := strings.Join([]string{
-		"Workspace: " + ws.Name,
-		"Sandbox: " + ws.Sandbox.Backend + "/" + ws.Sandbox.Level,
-	}, "\n")
+	display := "Workspace: " + ws.Name + "\n" + "Sandbox: " + ws.Sandbox.Backend + "/" + ws.Sandbox.Level
 
 	if !strings.Contains(display, "misbah/kata") {
 		t.Fatalf("display should show sandbox: %s", display)

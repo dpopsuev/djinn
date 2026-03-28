@@ -7,8 +7,8 @@ import tea "github.com/charmbracelet/bubbletea"
 // ThinkingPanel displays the agent's thinking/reasoning text.
 type ThinkingPanel struct {
 	BasePanel
-	text    string
-	active  bool
+	text   string
+	active bool
 }
 
 const panelIDThinking = "thinking"

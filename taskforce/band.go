@@ -9,9 +9,9 @@ type ComplexityBand int
 
 const (
 	Clear       ComplexityBand = iota // Trivial: 1 file, 0 cross-pkg imports
-	Complicated                      // Bounded: 1 package
-	Complex                          // Multi-package or multi-repo
-	Chaotic                          // Emergency: inverted cascade
+	Complicated                       // Bounded: 1 package
+	Complex                           // Multi-package or multi-repo
+	Chaotic                           // Emergency: inverted cascade
 )
 
 func (b ComplexityBand) String() string {

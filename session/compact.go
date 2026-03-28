@@ -12,8 +12,8 @@ const DefaultKeepRecent = 4
 
 // Compact summarizes old entries and keeps the most recent ones.
 // Returns (before, after) entry counts. No-op if history is too short.
-func Compact(sess *Session, keepRecent int) (int, int) {
-	before := sess.History.Len()
+func Compact(sess *Session, keepRecent int) (before, after int) {
+	before = sess.History.Len()
 	if before <= keepRecent {
 		return before, before
 	}

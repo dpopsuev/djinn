@@ -26,8 +26,8 @@ type options struct {
 	cmdFactory acp.CommandFactory
 }
 
-func WithModel(m string) Option              { return func(o *options) { o.model = m } }
-func WithLogger(l *slog.Logger) Option       { return func(o *options) { o.logger = l } }
+func WithModel(m string) Option                      { return func(o *options) { o.model = m } }
+func WithLogger(l *slog.Logger) Option               { return func(o *options) { o.logger = l } }
 func WithCommandFactory(f acp.CommandFactory) Option { return func(o *options) { o.cmdFactory = f } }
 
 // New creates an ACP driver for the named agent.

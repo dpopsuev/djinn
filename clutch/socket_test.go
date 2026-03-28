@@ -39,7 +39,7 @@ func TestSocketTransport_RoundTrip(t *testing.T) {
 	defer backend.Close()
 
 	// Shell → Backend
-	shell.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "hello"}) //nolint:errcheck
+	shell.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "hello"}) //nolint:errcheck // best-effort send, error logged by receiver
 	msg, err := backend.RecvFromShell()
 	if err != nil {
 		t.Fatal(err)
@@ -49,7 +49,7 @@ func TestSocketTransport_RoundTrip(t *testing.T) {
 	}
 
 	// Backend → Shell
-	backend.SendToShell(BackendMsg{Type: BackendText, Text: "world"}) //nolint:errcheck
+	backend.SendToShell(BackendMsg{Type: BackendText, Text: "world"}) //nolint:errcheck // best-effort send, error logged by receiver
 	resp, err := shell.RecvFromBackend()
 	if err != nil {
 		t.Fatal(err)
@@ -80,7 +80,7 @@ func TestSocketTransport_ToolCallWithInput(t *testing.T) {
 	defer backend.Close()
 
 	// Send a tool call with JSON input through the socket.
-	backend.SendToShell(BackendMsg{ //nolint:errcheck
+	backend.SendToShell(BackendMsg{ //nolint:errcheck // best-effort send, error logged by receiver
 		Type: BackendToolCall,
 		ToolCall: &driver.ToolCall{
 			ID:    "call-1",
@@ -153,7 +153,7 @@ func TestSocketTransport_Reconnect(t *testing.T) {
 	<-done
 
 	// Exchange a message.
-	backend1.SendToShell(BackendMsg{Type: BackendReady, Version: ProtocolVersion}) //nolint:errcheck
+	backend1.SendToShell(BackendMsg{Type: BackendReady, Version: ProtocolVersion}) //nolint:errcheck // best-effort send, error logged by receiver
 	msg, _ := shell1.RecvFromBackend()
 	if msg.Type != BackendReady {
 		t.Fatal("first connection should work")
@@ -176,7 +176,7 @@ func TestSocketTransport_Reconnect(t *testing.T) {
 	defer backend2.Close()
 
 	// Second connection should work.
-	backend2.SendToShell(BackendMsg{Type: BackendReady, Version: ProtocolVersion}) //nolint:errcheck
+	backend2.SendToShell(BackendMsg{Type: BackendReady, Version: ProtocolVersion}) //nolint:errcheck // best-effort send, error logged by receiver
 	msg2, err := shell2.RecvFromBackend()
 	if err != nil {
 		t.Fatal(err)
@@ -210,11 +210,11 @@ func TestSocketTransport_ConcurrentSend(t *testing.T) {
 	const n = 10
 	var wg sync.WaitGroup
 	wg.Add(n)
-	for i := range n {
-		go func(idx int) {
+	for range n {
+		go func() {
 			defer wg.Done()
-			backend.SendToShell(BackendMsg{Type: BackendText, Text: "msg"}) //nolint:errcheck
-		}(i)
+			backend.SendToShell(BackendMsg{Type: BackendText, Text: "msg"}) //nolint:errcheck // best-effort send, error logged by receiver
+		}()
 	}
 
 	// Receive all.

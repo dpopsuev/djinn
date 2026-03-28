@@ -102,7 +102,7 @@ func TestRun_WithToolCalls(t *testing.T) {
 func TestExecuteTools_Success(t *testing.T) {
 	dir := t.TempDir()
 	testFile := filepath.Join(dir, "test.txt")
-	os.WriteFile(testFile, []byte("hello world\n"), 0644)
+	os.WriteFile(testFile, []byte("hello world\n"), 0o644)
 
 	input, _ := json.Marshal(map[string]string{"path": testFile})
 	calls := []driver.ToolCall{
@@ -238,9 +238,9 @@ type testHandler struct {
 	doneReceived bool
 }
 
-func (h *testHandler) OnText(text string)                { h.textReceived += text }
-func (h *testHandler) OnThinking(string)                 {}
-func (h *testHandler) OnToolCall(call driver.ToolCall)    { h.toolCalls = append(h.toolCalls, call) }
+func (h *testHandler) OnText(text string)              { h.textReceived += text }
+func (h *testHandler) OnThinking(string)               {}
+func (h *testHandler) OnToolCall(call driver.ToolCall) { h.toolCalls = append(h.toolCalls, call) }
 func (h *testHandler) OnToolResult(id, name, output string, _ bool) {
 	h.toolResults = append(h.toolResults, name+": "+output)
 }

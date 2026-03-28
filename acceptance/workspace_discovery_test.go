@@ -18,8 +18,8 @@ import (
 func TestWorkspace_UpwardWalkFindsParent(t *testing.T) {
 	parent := t.TempDir()
 	child := filepath.Join(parent, "src", "agent")
-	os.MkdirAll(child, 0755)
-	os.WriteFile(filepath.Join(parent, "CLAUDE.md"), []byte("project rules"), 0644)
+	os.MkdirAll(child, 0o755)
+	os.WriteFile(filepath.Join(parent, "CLAUDE.md"), []byte("project rules"), 0o644)
 
 	ctx := djinnctx.LoadProjectContext(child)
 	if ctx.ClaudeMD != "project rules" {
@@ -31,7 +31,7 @@ func TestWorkspace_WalkStopsAtHome(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	subdir := filepath.Join(home, "projects", "test")
-	os.MkdirAll(subdir, 0755)
+	os.MkdirAll(subdir, 0o755)
 
 	ctx := djinnctx.LoadProjectContext(subdir)
 	// Should not find anything above home
@@ -50,8 +50,8 @@ func TestWorkspace_NoFileNoError(t *testing.T) {
 func TestWorkspace_MultiDirMerge(t *testing.T) {
 	dir1 := t.TempDir()
 	dir2 := t.TempDir()
-	os.WriteFile(filepath.Join(dir1, "CLAUDE.md"), []byte("claude from dir1"), 0644)
-	os.WriteFile(filepath.Join(dir2, "AGENTS.md"), []byte("agents from dir2"), 0644)
+	os.WriteFile(filepath.Join(dir1, "CLAUDE.md"), []byte("claude from dir1"), 0o644)
+	os.WriteFile(filepath.Join(dir2, "AGENTS.md"), []byte("agents from dir2"), 0o644)
 
 	ctx := djinnctx.LoadProjectContext(dir1, dir2)
 	if ctx.ClaudeMD != "claude from dir1" {
@@ -69,12 +69,12 @@ func TestWorkspace_MemoryFromClaudePath(t *testing.T) {
 	t.Setenv("HOME", home)
 
 	workDir := filepath.Join(home, "Workspace", "djinn")
-	os.MkdirAll(workDir, 0755)
+	os.MkdirAll(workDir, 0o755)
 
 	slug := strings.ReplaceAll(workDir, "/", "-")
 	memDir := filepath.Join(home, ".claude", "projects", slug, "memory")
-	os.MkdirAll(memDir, 0755)
-	os.WriteFile(filepath.Join(memDir, "MEMORY.md"), []byte("# Memory\nDjinn context"), 0644)
+	os.MkdirAll(memDir, 0o755)
+	os.WriteFile(filepath.Join(memDir, "MEMORY.md"), []byte("# Memory\nDjinn context"), 0o644)
 
 	ctx := djinnctx.LoadProjectContext(workDir)
 	if !strings.Contains(ctx.MemoryMD, "Memory") {
@@ -89,16 +89,16 @@ func TestWorkspace_MultiMemory_AllReposLoaded(t *testing.T) {
 	// Create two repos with their own Claude memory
 	djinnDir := filepath.Join(home, "Workspace", "djinn")
 	misbahDir := filepath.Join(home, "Workspace", "misbah")
-	os.MkdirAll(djinnDir, 0755)
-	os.MkdirAll(misbahDir, 0755)
+	os.MkdirAll(djinnDir, 0o755)
+	os.MkdirAll(misbahDir, 0o755)
 
 	// Create MEMORY.md for each
 	for _, dir := range []string{djinnDir, misbahDir} {
 		slug := strings.ReplaceAll(dir, "/", "-")
 		memDir := filepath.Join(home, ".claude", "projects", slug, "memory")
-		os.MkdirAll(memDir, 0755)
+		os.MkdirAll(memDir, 0o755)
 		name := filepath.Base(dir)
-		os.WriteFile(filepath.Join(memDir, "MEMORY.md"), []byte("# "+name+" Memory\n"+name+" is important."), 0644)
+		os.WriteFile(filepath.Join(memDir, "MEMORY.md"), []byte("# "+name+" Memory\n"+name+" is important."), 0o644)
 	}
 
 	ctx := djinnctx.LoadProjectContext(djinnDir, misbahDir)
@@ -144,7 +144,7 @@ repos:
     role: dependency
 driver: claude
 model: claude-opus-4-6
-`), 0644)
+`), 0o644)
 
 	ws, err := workspace.Load(manifest)
 	if err != nil {

@@ -286,7 +286,6 @@ func TestModel_View_Welcome(t *testing.T) {
 	}
 }
 
-
 func TestModel_View_StatusBar(t *testing.T) {
 	m := testModel()
 	if m.sess.Model != "test-model" {
@@ -598,10 +597,10 @@ type mockChatDriver struct {
 	systemPrompt string
 }
 
-func (d *mockChatDriver) Start(_ context.Context, _ driver.SandboxHandle) error   { return nil }
-func (d *mockChatDriver) Stop(_ context.Context) error                             { return nil }
-func (d *mockChatDriver) Send(_ context.Context, _ driver.Message) error           { return nil }
-func (d *mockChatDriver) SendRich(_ context.Context, _ driver.RichMessage) error   { return nil }
+func (d *mockChatDriver) Start(_ context.Context, _ driver.SandboxHandle) error  { return nil }
+func (d *mockChatDriver) Stop(_ context.Context) error                           { return nil }
+func (d *mockChatDriver) Send(_ context.Context, _ driver.Message) error         { return nil }
+func (d *mockChatDriver) SendRich(_ context.Context, _ driver.RichMessage) error { return nil }
 func (d *mockChatDriver) Chat(_ context.Context) (<-chan driver.StreamEvent, error) {
 	ch := make(chan driver.StreamEvent)
 	close(ch)

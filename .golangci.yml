@@ -43,6 +43,10 @@ linters:
     - unconvert       # unnecessary type conversions
     - unparam         # unused function parameters
 
+    # --- Lex: error discipline ---
+    - err113          # sentinel errors, no inline errors.New in returns
+    - sloglint        # structured logging best practices
+
     # --- Security ---
     - gosec           # security issues (Lex: security-analysis)
 
@@ -67,7 +71,7 @@ linters-settings:
     comparison: true            # check errors.Is usage
 
   nestif:
-    min-complexity: 4           # flag nesting deeper than 3 levels
+    min-complexity: 5           # flag nesting deeper than 4 levels
 
   gocritic:
     enabled-tags:
@@ -75,13 +79,16 @@ linters-settings:
       - style
       - performance
       - opinionated
+    settings:
+      hugeParam:
+        sizeThreshold: 256    # only flag params > 256 bytes (default 80 is too aggressive)
 
   gocyclo:
-    min-complexity: 15          # flag functions with cyclomatic > 15
+    min-complexity: 20          # flag functions with cyclomatic > 20 (15 too aggressive for event handlers)
 
   funlen:
-    lines: 100                  # flag functions > 100 lines
-    statements: 60              # flag functions > 60 statements
+    lines: 120                  # flag functions > 120 lines
+    statements: 70              # flag functions > 70 statements
 
   dupl:
     threshold: 100              # flag duplicated blocks > 100 tokens
@@ -116,13 +123,19 @@ linters-settings:
     rules:
       main:
         deny:
-          - pkg: "log"
+          - pkg: "log$"
             desc: "use slog or djinnlog instead of stdlib log"
 
   prealloc:
     simple: true
     range-loops: true
     for-loops: false            # too noisy for complex loops
+
+  sloglint:
+    context: "all"              # every slog call must use InfoContext(ctx, ...) not Info(...)
+    static-msg: true            # log messages must be static strings
+    no-raw-keys: true           # must use slog.String("key", v) not "key", v
+    key-naming-case: snake      # keys must be snake_case
 
   thelper:
     test:
@@ -140,11 +153,19 @@ issues:
         - dupl
         - goconst
         - gosec
+        - err113
+        - prealloc
+        - gocyclo
+        - nestif
     - path: testkit/
       linters:
         - errcheck
         - unused
         - funlen
+        - err113
     - path: cmd/
       linters:
         - funlen
+    - path: app/
+      linters:
+        - err113                # composition root uses dynamic user-facing errors

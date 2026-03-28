@@ -23,8 +23,13 @@ import (
 	"sync"
 )
 
-// ErrUnsupported is returned when fuse-overlayfs is not available.
-var ErrUnsupported = errors.New("namespace: fuse-overlayfs not available")
+// Sentinel errors.
+var (
+	ErrUnsupported  = errors.New("namespace: fuse-overlayfs not available")
+	ErrNotDirectory = errors.New("namespace: not a directory")
+	ErrNotMounted   = errors.New("namespace: overlay not mounted")
+	ErrUnmount      = errors.New("namespace: unmount failed")
+)
 
 // Overlay represents a mounted overlayfs instance.
 type Overlay struct {
@@ -47,7 +52,7 @@ func Mount(lower string) (*Overlay, error) {
 		return nil, fmt.Errorf("namespace: lower dir: %w", err)
 	}
 	if !info.IsDir() {
-		return nil, fmt.Errorf("namespace: not a directory: %s", lower)
+		return nil, fmt.Errorf("%w: %s", ErrNotDirectory, lower)
 	}
 
 	if _, err := exec.LookPath("fuse-overlayfs"); err != nil {
@@ -64,13 +69,13 @@ func Mount(lower string) (*Overlay, error) {
 	merged := filepath.Join(tempDir, "merged")
 
 	for _, d := range []string{upper, work, merged} {
-		if err := os.MkdirAll(d, 0755); err != nil {
+		if err := os.MkdirAll(d, 0o755); err != nil {
 			os.RemoveAll(tempDir)
 			return nil, fmt.Errorf("namespace: mkdir %s: %w", d, err)
 		}
 	}
 
-	cmd := exec.Command("fuse-overlayfs",
+	cmd := exec.Command("fuse-overlayfs", //nolint:gosec // paths are sandbox-controlled, not user input
 		"-o", fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lower, upper, work),
 		merged)
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -100,10 +105,10 @@ func (o *Overlay) Unmount() error {
 	o.mounted = false
 
 	// fusermount3 is the standard FUSE unmount tool.
-	if out, err := exec.Command("fusermount3", "-u", o.Merged).CombinedOutput(); err != nil {
+	if out, err := exec.Command("fusermount3", "-u", o.Merged).CombinedOutput(); err != nil { //nolint:gosec // path is sandbox-controlled
 		// Try fusermount (older systems).
-		if out2, err2 := exec.Command("fusermount", "-u", o.Merged).CombinedOutput(); err2 != nil {
-			return fmt.Errorf("namespace: unmount: %s / %s", out, out2)
+		if out2, err2 := exec.Command("fusermount", "-u", o.Merged).CombinedOutput(); err2 != nil { //nolint:gosec // path is sandbox-controlled
+			return fmt.Errorf("%w: %s / %s", ErrUnmount, out, out2)
 		}
 	}
 
@@ -117,7 +122,7 @@ func (o *Overlay) Diff() ([]string, error) {
 	defer o.mu.Unlock()
 
 	if !o.mounted {
-		return nil, errors.New("namespace: overlay not mounted")
+		return nil, ErrNotMounted
 	}
 
 	var changed []string
@@ -145,7 +150,7 @@ func (o *Overlay) Commit(paths []string) error {
 	defer o.mu.Unlock()
 
 	if !o.mounted {
-		return errors.New("namespace: overlay not mounted")
+		return ErrNotMounted
 	}
 
 	for _, p := range paths {
@@ -157,7 +162,7 @@ func (o *Overlay) Commit(paths []string) error {
 			return fmt.Errorf("namespace: commit read %s: %w", p, err)
 		}
 
-		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return fmt.Errorf("namespace: commit mkdir: %w", err)
 		}
 

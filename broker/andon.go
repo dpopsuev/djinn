@@ -18,9 +18,9 @@ func ComputeAndon(health map[string]signal.WorkstreamHealth, cordons []Cordon) A
 		Cordons:     cordons,
 	}
 
-	for _, h := range health {
-		if h.Level > board.Level {
-			board.Level = h.Level
+	for i := range health {
+		if health[i].Level > board.Level {
+			board.Level = health[i].Level
 		}
 	}
 

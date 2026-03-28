@@ -13,7 +13,8 @@ import (
 
 // TestSession_SaveLoadReplay_ToolCallRoundTrip is the E2E acceptance test
 // for the entire session lifecycle with tool calls:
-//   save → load → sanitize → replay → verify proper pairing
+//
+//	save → load → sanitize → replay → verify proper pairing
 //
 // This test would have caught BUG-12 (nil tool_use.input), BUG-14 (no sanitize),
 // BUG-16 (orphaned tool_use), and BUG-17 (replay drops tool_result blocks).
@@ -86,7 +87,7 @@ func TestSession_SaveLoadReplay_ToolCallRoundTrip(t *testing.T) {
 
 	// === REPLAY into stub driver ===
 	stub := &stubs.StubChatDriver{}
-	stub.Start(context.Background(), "") //nolint:errcheck
+	stub.Start(context.Background(), "") //nolint:errcheck // error intentionally ignored
 
 	app.ReplayHistory(context.Background(), stub, loaded)
 
@@ -167,7 +168,7 @@ func TestSession_SaveLoadReplay_CorruptToolUse(t *testing.T) {
 
 	// === REPLAY into stub driver ===
 	stub := &stubs.StubChatDriver{}
-	stub.Start(context.Background(), "") //nolint:errcheck
+	stub.Start(context.Background(), "") //nolint:errcheck // error intentionally ignored
 
 	app.ReplayHistory(context.Background(), stub, loaded)
 

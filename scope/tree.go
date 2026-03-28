@@ -140,7 +140,7 @@ func (t *ScopeTree) Navigate(path string) (*ScopeNode, error) {
 			}
 		}
 		if !found {
-			return nil, fmt.Errorf("scope %q not found under %s", part, node.Path)
+			return nil, fmt.Errorf("%w: %q under %s", ErrScopeNotFound, part, node.Path)
 		}
 	}
 	return node, nil

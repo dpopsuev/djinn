@@ -9,7 +9,10 @@
 // and Origami circuit integration.
 package composition
 
-import "fmt"
+import "errors"
+
+// Sentinel errors for routing.
+var ErrNoBackends = errors.New("no backends available")
 
 // WorkUnit represents a single piece of work to be routed to a backend.
 type WorkUnit struct {
@@ -44,7 +47,7 @@ type FlatStrategy struct {
 
 func (s *FlatStrategy) Route(_ WorkUnit, backends []Backend) (Backend, error) {
 	if len(backends) == 0 {
-		return Backend{}, fmt.Errorf("no backends available")
+		return Backend{}, ErrNoBackends
 	}
 	b := backends[s.next%len(backends)]
 	s.next++
@@ -59,7 +62,7 @@ type ChainStrategy struct{}
 
 func (s *ChainStrategy) Route(_ WorkUnit, backends []Backend) (Backend, error) {
 	if len(backends) == 0 {
-		return Backend{}, fmt.Errorf("no backends available")
+		return Backend{}, ErrNoBackends
 	}
 	// Always route to the first backend — sequential execution.
 	return backends[0], nil

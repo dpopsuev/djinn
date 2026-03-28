@@ -35,8 +35,8 @@ const (
 
 // HTTP error messages.
 const (
-	errMethodNotAllowed = "method not allowed"
-	errInvalidBody      = "invalid request body"
+	errMethodNotAllowed     = "method not allowed"
+	errInvalidBody          = "invalid request body"
 	errStreamingUnsupported = "streaming not supported"
 )
 
@@ -55,19 +55,19 @@ const (
 // It implements OperatorPort: operators send intents and receive events
 // via HTTP + Server-Sent Events.
 type Server struct {
-	runtime  Runtime
-	mux      *http.ServeMux
-	server   *http.Server
+	runtime Runtime
+	mux     *http.ServeMux
+	server  *http.Server
 
-	mu          sync.Mutex
+	mu            sync.Mutex
 	intentHandler func(Intent)
-	eventCh     chan serverEvent
-	permRespCh  chan PermissionResponse
+	eventCh       chan serverEvent
+	permRespCh    chan PermissionResponse
 }
 
 type serverEvent struct {
-	Type string      `json:"type"`
-	Data any `json:"data"`
+	Type string `json:"type"`
+	Data any    `json:"data"`
 }
 
 // NewServer creates a new ARI HTTP server.
@@ -76,7 +76,7 @@ func NewServer(rt Runtime) *Server {
 	s := &Server{
 		runtime:    rt,
 		mux:        mux,
-		server:     &http.Server{Handler: mux},
+		server:     &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}, //nolint:mnd // reasonable default
 		eventCh:    make(chan serverEvent, 100),
 		permRespCh: make(chan PermissionResponse, 10),
 	}

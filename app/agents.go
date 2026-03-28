@@ -10,11 +10,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// BridgeStaffToTUI subscribes to a Staff's signal bus and forwards
-// agent lifecycle events to the Bubbletea program as TUI messages.
-// Uses the facade — no raw signal.Meta parsing needed.
-func BridgeStaffToTUI(staff *bugleport.Staff, program *tea.Program) {
-	staff.OnSignal(func(sig bugleport.Signal) {
+// bridgeSignalHandler returns a signal handler that forwards agent lifecycle
+// events to the Bubbletea program as TUI messages.
+func bridgeSignalHandler(program *tea.Program) func(bugleport.Signal) {
+	return func(sig bugleport.Signal) {
 		switch sig.Event {
 		case bugleport.EventWorkerStarted:
 			program.Send(tui.AgentStatusMsg{
@@ -38,35 +37,18 @@ func BridgeStaffToTUI(staff *bugleport.Staff, program *tea.Program) {
 				State:   "done",
 			})
 		}
-	})
+	}
+}
+
+// BridgeStaffToTUI subscribes to a Staff's signal bus and forwards
+// agent lifecycle events to the Bubbletea program as TUI messages.
+// Uses the facade — no raw signal.Meta parsing needed.
+func BridgeStaffToTUI(staff *bugleport.Staff, program *tea.Program) {
+	staff.OnSignal(bridgeSignalHandler(program))
 }
 
 // BridgeAgentPoolToTUI is the legacy bridge using raw Bus.
 // Deprecated: use BridgeStaffToTUI with the facade instead.
 func BridgeAgentPoolToTUI(bus bugleport.Bus, program *tea.Program) {
-	bus.OnEmit(func(sig bugleport.Signal) {
-		switch sig.Event {
-		case bugleport.EventWorkerStarted:
-			program.Send(tui.AgentStatusMsg{
-				AgentID: sig.Meta[bugleport.MetaKeyWorkerID],
-				Role:    sig.Meta["role"],
-				State:   "idle",
-			})
-		case bugleport.EventWorkerStopped:
-			program.Send(tui.AgentStatusMsg{
-				AgentID: sig.Meta[bugleport.MetaKeyWorkerID],
-				State:   "done",
-			})
-		case bugleport.EventWorkerError:
-			program.Send(tui.AgentStatusMsg{
-				AgentID: sig.Meta[bugleport.MetaKeyWorkerID],
-				State:   "error",
-			})
-		case bugleport.EventWorkerDone:
-			program.Send(tui.AgentStatusMsg{
-				AgentID: sig.Meta[bugleport.MetaKeyWorkerID],
-				State:   "done",
-			})
-		}
-	})
+	bus.OnEmit(bridgeSignalHandler(program))
 }

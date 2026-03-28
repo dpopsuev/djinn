@@ -9,9 +9,9 @@ import (
 
 // SearchResultKind identifies the type of search result.
 const (
-	ResultKindSignal    = "signal"
+	ResultKindSignal     = "signal"
 	ResultKindWorkstream = "workstream"
-	ResultKindCordon    = "cordon"
+	ResultKindCordon     = "cordon"
 )
 
 // SearchResult is a single item from a federated search.
@@ -39,13 +39,14 @@ func (b *Broker) Search(query string) []SearchResult {
 
 func (b *Broker) searchSignals(q string) []SearchResult {
 	var results []SearchResult
-	for _, s := range b.bus.Signals() {
-		if matchesQuery(q, s.Workstream, s.Message, s.Source, s.Category) {
+	signals := b.bus.Signals()
+	for i := range signals {
+		if matchesQuery(q, signals[i].Workstream, signals[i].Message, signals[i].Source, signals[i].Category) {
 			results = append(results, SearchResult{
 				Kind:      ResultKindSignal,
-				ID:        s.Workstream,
-				Summary:   formatSignalSummary(s),
-				Timestamp: s.Timestamp,
+				ID:        signals[i].Workstream,
+				Summary:   formatSignalSummary(signals[i]),
+				Timestamp: signals[i].Timestamp,
 			})
 		}
 	}
@@ -54,13 +55,14 @@ func (b *Broker) searchSignals(q string) []SearchResult {
 
 func (b *Broker) searchWorkstreams(q string) []SearchResult {
 	var results []SearchResult
-	for _, ws := range b.workstreams.All() {
-		if matchesQuery(q, ws.ID, ws.IntentID, ws.Action, string(ws.Status)) {
+	all := b.workstreams.All()
+	for i := range all {
+		if matchesQuery(q, all[i].ID, all[i].IntentID, all[i].Action, string(all[i].Status)) {
 			results = append(results, SearchResult{
 				Kind:      ResultKindWorkstream,
-				ID:        ws.ID,
-				Summary:   ws.Action + " [" + string(ws.Status) + "]",
-				Timestamp: ws.StartedAt,
+				ID:        all[i].ID,
+				Summary:   all[i].Action + " [" + string(all[i].Status) + "]",
+				Timestamp: all[i].StartedAt,
 			})
 		}
 	}

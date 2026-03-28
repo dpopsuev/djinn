@@ -15,11 +15,15 @@ package staff
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
+
+// Sentinel errors for ToolClearance.
+var ErrToolNotAllowed = errors.New("tool not available for role")
 
 // ToolClearance wraps a tool registry with role-based capability filtering.
 // The agent sees only the tools that belong to the current role's capabilities.
@@ -61,16 +65,16 @@ func (r *ToolClearance) SetRole(role string) {
 
 	capMap := r.config.ToolCapabilityMap()
 	for _, capName := range roleDef.ToolCapabilities {
-		cap, ok := capMap[capName]
+		tc, ok := capMap[capName]
 		if !ok {
 			continue
 		}
 		// Each capability declares which tools from its backend are exposed.
-		for _, toolName := range cap.Tools {
+		for _, toolName := range tc.Tools {
 			r.allowed[toolName] = true
 			// Also allow the MCP-prefixed form: mcp__<backend>__<tool>
-			if cap.Backend != "" && cap.Backend != "builtin" {
-				r.allowed[fmt.Sprintf("mcp__%s__%s", cap.Backend, toolName)] = true
+			if tc.Backend != "" && tc.Backend != "builtin" {
+				r.allowed[fmt.Sprintf("mcp__%s__%s", tc.Backend, toolName)] = true
 			}
 		}
 	}
@@ -84,7 +88,7 @@ func (r *ToolClearance) Execute(ctx context.Context, name string, input json.Raw
 	r.mu.RUnlock()
 
 	if !allowed {
-		return "", fmt.Errorf("tool %q not available for role %q", name, r.role)
+		return "", fmt.Errorf("%w: %q for %q", ErrToolNotAllowed, name, r.role)
 	}
 	return r.registry.Execute(ctx, name, input)
 }

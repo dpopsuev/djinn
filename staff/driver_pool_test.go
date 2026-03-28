@@ -26,7 +26,7 @@ func (d *mockChatDriver) Stop(_ context.Context) error {
 	return nil
 }
 
-func (d *mockChatDriver) Send(_ context.Context, _ driver.Message) error        { return nil }
+func (d *mockChatDriver) Send(_ context.Context, _ driver.Message) error         { return nil }
 func (d *mockChatDriver) SendRich(_ context.Context, _ driver.RichMessage) error { return nil }
 
 func (d *mockChatDriver) Chat(_ context.Context) (<-chan driver.StreamEvent, error) {
@@ -35,9 +35,9 @@ func (d *mockChatDriver) Chat(_ context.Context) (<-chan driver.StreamEvent, err
 	return ch, nil
 }
 
-func (d *mockChatDriver) AppendAssistant(_ driver.RichMessage)  {}
-func (d *mockChatDriver) SetSystemPrompt(_ string)              {}
-func (d *mockChatDriver) ContextWindow() int                    { return 100_000 }
+func (d *mockChatDriver) AppendAssistant(_ driver.RichMessage) {}
+func (d *mockChatDriver) SetSystemPrompt(_ string)             {}
+func (d *mockChatDriver) ContextWindow() int                   { return 100_000 }
 
 var _ driver.ChatDriver = (*mockChatDriver)(nil)
 
@@ -142,8 +142,8 @@ func TestDriverPool_StopAll(t *testing.T) {
 	pool := NewDriverPool(factory)
 	ctx := context.Background()
 
-	pool.GetOrCreate(ctx, "claude", "opus-4", "")   //nolint:errcheck
-	pool.GetOrCreate(ctx, "claude", "sonnet-4", "") //nolint:errcheck
+	pool.GetOrCreate(ctx, "claude", "opus-4", "")   //nolint:errcheck // error intentionally ignored
+	pool.GetOrCreate(ctx, "claude", "sonnet-4", "") //nolint:errcheck // error intentionally ignored
 
 	pool.StopAll(ctx)
 

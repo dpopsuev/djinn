@@ -1,4 +1,4 @@
-// police.go — AgentPolice observes agent behaviour and flags violations.
+// police.go — AgentPolice observes agent behavior and flags violations.
 // Works alongside the Cordon system: Cordon halts, Police records evidence.
 package staff
 
@@ -10,7 +10,7 @@ import (
 	"github.com/dpopsuev/djinn/tools"
 )
 
-// Violation records a single policy or behavioural violation.
+// Violation records a single policy or behavioral violation.
 type Violation struct {
 	Kind      string // "sandbox_breach", "budget_exceeded", "tool_spam", "dangerous_output"
 	AgentID   string

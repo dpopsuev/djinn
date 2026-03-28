@@ -18,7 +18,7 @@ import (
 )
 
 // mockMCPHandler handles JSON-RPC requests for testing.
-func mockMCPHandler(t *testing.T) http.HandlerFunc {
+func mockMCPHandler(t *testing.T) http.HandlerFunc { //nolint:thelper // returns handler, not a test helper
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req jsonRPCRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -206,7 +206,7 @@ mcp:
   lex:
     command: misbah-lex
     args: ["serve"]
-`), 0644)
+`), 0o644)
 
 	configs := LoadMCPConfig(dir)
 	if len(configs) < 2 {
@@ -224,10 +224,10 @@ func TestLoadMCPConfig_NoCursorFallback(t *testing.T) {
 	// Djinn should NOT read from ~/.cursor/mcp.json.
 	home := t.TempDir()
 	cursorDir := filepath.Join(home, ".cursor")
-	os.MkdirAll(cursorDir, 0755)
+	os.MkdirAll(cursorDir, 0o755)
 	os.WriteFile(filepath.Join(cursorDir, "mcp.json"), []byte(`{
 		"mcpServers": {"leaked": {"url": "http://cursor:8080/"}}
-	}`), 0644)
+	}`), 0o644)
 
 	t.Setenv("HOME", home)
 	configs := LoadMCPConfig(t.TempDir()) // no djinn.yaml in temp dir
@@ -420,7 +420,7 @@ func TestConnectHTTP_SSE_RequiresAcceptHeader(t *testing.T) {
 }
 
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && stringContains(s, substr))
+	return len(s) >= len(substr) && (s == substr || s != "" && stringContains(s, substr))
 }
 
 func stringContains(s, sub string) bool {
@@ -438,7 +438,7 @@ func TestExtractSSEData(t *testing.T) {
 		want  string
 	}{
 		{"event: message\ndata: {\"id\":1}\n\n", `{"id":1}`},
-		{"{\"id\":1}", ""},  // no SSE prefix — extractSSEData returns empty, direct JSON handled elsewhere
+		{"{\"id\":1}", ""}, // no SSE prefix — extractSSEData returns empty, direct JSON handled elsewhere
 		{"data: {\"result\":\"ok\"}\n", `{"result":"ok"}`},
 		{"event: error\ndata: not json\n", ""},
 		{"", ""},
@@ -467,7 +467,7 @@ func TestConnectHTTP_SessionHeader(t *testing.T) {
 		receivedSessionID = r.Header.Get("Mcp-Session-Id")
 
 		var req jsonRPCRequest
-		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck
+		json.NewDecoder(r.Body).Decode(&req) //nolint:errcheck // error intentionally ignored
 
 		// Set session ID on initialize response.
 		if req.Method == "initialize" {
@@ -534,12 +534,12 @@ func TestStdioTransport_SendTimesOut(t *testing.T) {
 	// when the server doesn't respond (simulated by a stalled pipe).
 
 	// Create a pipe where the reader side never writes back.
-	serverIn, clientOut, err := os.Pipe()  // client writes → server reads
+	serverIn, clientOut, err := os.Pipe() // client writes → server reads
 	if err != nil {
 		t.Fatal(err)
 	}
-	clientIn, serverOut, err := os.Pipe()  // server writes → client reads (but server never writes)
-	_ = serverOut // server never writes — simulates stalled MCP server
+	clientIn, serverOut, err := os.Pipe() // server writes → client reads (but server never writes)
+	_ = serverOut                         // server never writes — simulates stalled MCP server
 	if err != nil {
 		t.Fatal(err)
 	}

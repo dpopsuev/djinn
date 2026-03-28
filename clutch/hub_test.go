@@ -34,7 +34,7 @@ func TestHub_FrontendHotSwap(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	defer hub.Close()
-	go hub.Run(ctx) //nolint:errcheck
+	go hub.Run(ctx) //nolint:errcheck // test helper, error checked elsewhere
 
 	// Give hub a moment to start accepting.
 	time.Sleep(50 * time.Millisecond)
@@ -42,7 +42,7 @@ func TestHub_FrontendHotSwap(t *testing.T) {
 	// Backend registers and sends BackendReady.
 	backend := connectToHub(t, sock, "backend")
 	defer backend.Close()
-	backend.SendToShell(BackendMsg{Type: BackendReady, Model: "test-model"}) //nolint:errcheck
+	backend.SendToShell(BackendMsg{Type: BackendReady, Model: "test-model"}) //nolint:errcheck // best-effort send, error logged by receiver
 
 	// Frontend 1 registers and receives BackendReady.
 	fe1 := connectToHub(t, sock, "shell")
@@ -55,7 +55,7 @@ func TestHub_FrontendHotSwap(t *testing.T) {
 	}
 
 	// Frontend 1 sends a prompt, backend receives it.
-	fe1.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "hello from fe1"}) //nolint:errcheck
+	fe1.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "hello from fe1"}) //nolint:errcheck // best-effort send, error logged by receiver
 	shellMsg, err := backend.RecvFromShell()
 	if err != nil {
 		t.Fatalf("backend recv: %v", err)
@@ -69,7 +69,7 @@ func TestHub_FrontendHotSwap(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Backend sends a message while shell is disconnected — should be queued.
-	backend.SendToShell(BackendMsg{Type: BackendText, Text: "queued response"}) //nolint:errcheck
+	backend.SendToShell(BackendMsg{Type: BackendText, Text: "queued response"}) //nolint:errcheck // best-effort send, error logged by receiver
 	time.Sleep(50 * time.Millisecond)
 
 	// Frontend 2 registers and receives the queued message.
@@ -85,7 +85,7 @@ func TestHub_FrontendHotSwap(t *testing.T) {
 	}
 
 	// Frontend 2 sends a prompt, backend receives it.
-	fe2.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "hello from fe2"}) //nolint:errcheck
+	fe2.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "hello from fe2"}) //nolint:errcheck // best-effort send, error logged by receiver
 	shellMsg2, err := backend.RecvFromShell()
 	if err != nil {
 		t.Fatalf("backend recv 2: %v", err)
@@ -105,7 +105,7 @@ func TestHub_DaemonHotSwap(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	defer hub.Close()
-	go hub.Run(ctx) //nolint:errcheck
+	go hub.Run(ctx) //nolint:errcheck // test helper, error checked elsewhere
 	time.Sleep(50 * time.Millisecond)
 
 	// Shell registers first.
@@ -113,7 +113,7 @@ func TestHub_DaemonHotSwap(t *testing.T) {
 	defer shell.Close()
 
 	// Shell sends a prompt — should be queued (no backend yet).
-	shell.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "prompt-1"}) //nolint:errcheck
+	shell.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "prompt-1"}) //nolint:errcheck // best-effort send, error logged by receiver
 	time.Sleep(50 * time.Millisecond)
 
 	// Backend 1 registers and receives the queued prompt.
@@ -127,7 +127,7 @@ func TestHub_DaemonHotSwap(t *testing.T) {
 	}
 
 	// Backend 1 responds.
-	be1.SendToShell(BackendMsg{Type: BackendText, Text: "response-1"}) //nolint:errcheck
+	be1.SendToShell(BackendMsg{Type: BackendText, Text: "response-1"}) //nolint:errcheck // best-effort send, error logged by receiver
 	resp1, err := shell.RecvFromBackend()
 	if err != nil {
 		t.Fatalf("shell recv: %v", err)
@@ -141,7 +141,7 @@ func TestHub_DaemonHotSwap(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Shell sends another prompt — should be queued.
-	shell.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "prompt-2"}) //nolint:errcheck
+	shell.SendToBackend(ShellMsg{Type: ShellPrompt, Text: "prompt-2"}) //nolint:errcheck // best-effort send, error logged by receiver
 	time.Sleep(50 * time.Millisecond)
 
 	// Backend 2 registers and receives the queued prompt.
@@ -156,7 +156,7 @@ func TestHub_DaemonHotSwap(t *testing.T) {
 	}
 
 	// Backend 2 responds.
-	be2.SendToShell(BackendMsg{Type: BackendText, Text: "response-2"}) //nolint:errcheck
+	be2.SendToShell(BackendMsg{Type: BackendText, Text: "response-2"}) //nolint:errcheck // best-effort send, error logged by receiver
 	resp2, err := shell.RecvFromBackend()
 	if err != nil {
 		t.Fatalf("shell recv 2: %v", err)
@@ -176,7 +176,7 @@ func TestHub_BothHotSwap(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	defer hub.Close()
-	go hub.Run(ctx) //nolint:errcheck
+	go hub.Run(ctx) //nolint:errcheck // test helper, error checked elsewhere
 	time.Sleep(50 * time.Millisecond)
 
 	// Both connect and exchange a message.
@@ -184,7 +184,7 @@ func TestHub_BothHotSwap(t *testing.T) {
 	be1 := connectToHub(t, sock, "backend")
 	time.Sleep(50 * time.Millisecond)
 
-	be1.SendToShell(BackendMsg{Type: BackendReady, Model: "m1", HistoryLen: 3}) //nolint:errcheck
+	be1.SendToShell(BackendMsg{Type: BackendReady, Model: "m1", HistoryLen: 3}) //nolint:errcheck // best-effort send, error logged by receiver
 	ready, err := shell1.RecvFromBackend()
 	if err != nil {
 		t.Fatalf("shell1 recv: %v", err)
@@ -205,7 +205,7 @@ func TestHub_BothHotSwap(t *testing.T) {
 	defer be2.Close()
 	time.Sleep(50 * time.Millisecond)
 
-	be2.SendToShell(BackendMsg{Type: BackendReady, Model: "m2", HistoryLen: 5}) //nolint:errcheck
+	be2.SendToShell(BackendMsg{Type: BackendReady, Model: "m2", HistoryLen: 5}) //nolint:errcheck // best-effort send, error logged by receiver
 	ready2, err := shell2.RecvFromBackend()
 	if err != nil {
 		t.Fatalf("shell2 recv: %v", err)
@@ -225,7 +225,7 @@ func TestHub_DaemonOnly_NoFrontend(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	defer hub.Close()
-	go hub.Run(ctx) //nolint:errcheck
+	go hub.Run(ctx) //nolint:errcheck // test helper, error checked elsewhere
 	time.Sleep(50 * time.Millisecond)
 
 	// Backend registers first — no shell yet.
@@ -233,7 +233,7 @@ func TestHub_DaemonOnly_NoFrontend(t *testing.T) {
 	defer backend.Close()
 
 	// Backend sends BackendReady — should be queued for shell.
-	backend.SendToShell(BackendMsg{Type: BackendReady, Model: "early-model"}) //nolint:errcheck
+	backend.SendToShell(BackendMsg{Type: BackendReady, Model: "early-model"}) //nolint:errcheck // best-effort send, error logged by receiver
 	time.Sleep(50 * time.Millisecond)
 
 	// Shell registers later and receives the queued BackendReady.

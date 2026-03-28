@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -9,14 +10,20 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 )
 
+// Sentinel errors for RelayManager operations.
+var (
+	ErrNoDriverFactory = errors.New("no driver factory configured")
+	ErrNoBackup        = errors.New("no backup available")
+)
+
 // RelayManager orchestrates context relay: monitors usage, spawns a background
 // session when approaching the limit, and seamlessly swaps when the limit hits.
 type RelayManager struct {
-	mu           sync.Mutex
-	monitor      *ContextMonitor
-	store        *Store
+	mu            sync.Mutex
+	monitor       *ContextMonitor
+	store         *Store
 	driverFactory func() (driver.ChatDriver, error)
-	log          *slog.Logger
+	log           *slog.Logger
 
 	// Active session state (owned by caller, swapped atomically).
 	activeSession *Session
@@ -133,7 +140,7 @@ func (r *RelayManager) DrainQueue() []string {
 // Must be called with r.mu held.
 func (r *RelayManager) spawnBackground(ctx context.Context) error {
 	if r.driverFactory == nil {
-		return fmt.Errorf("no driver factory configured")
+		return ErrNoDriverFactory
 	}
 
 	// Extract summary from old entries (all except recent).
@@ -166,7 +173,7 @@ func (r *RelayManager) spawnBackground(ctx context.Context) error {
 	for _, e := range r.backupSession.Entries() {
 		if e.Role == driver.RoleUser {
 			if err := newDriver.Send(ctx, driver.Message{Role: e.Role, Content: e.Content}); err != nil {
-				newDriver.Stop(ctx) //nolint:errcheck
+				newDriver.Stop(ctx) //nolint:errcheck // best-effort shutdown
 				return fmt.Errorf("seed replay: %w", err)
 			}
 		}
@@ -185,7 +192,7 @@ func (r *RelayManager) spawnBackground(ctx context.Context) error {
 // Must be called with r.mu held.
 func (r *RelayManager) executeSwap(ctx context.Context) error {
 	if r.backupDriver == nil || r.backupSession == nil {
-		return fmt.Errorf("no backup available")
+		return ErrNoBackup
 	}
 
 	// Archive old session.

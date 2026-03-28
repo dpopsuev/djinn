@@ -14,10 +14,18 @@ package remote
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net"
 
 	"github.com/dpopsuev/djinn/sandbox"
+)
+
+// Sentinel errors for remote sandbox providers.
+var (
+	ErrRemoteExecNotImpl = errors.New("remote exec not implemented")
+	ErrAWSNotImpl        = errors.New("AWS Firecracker provider not implemented")
+	ErrGCPNotImpl        = errors.New("GCP gVisor provider not implemented")
+	ErrK8sNotImpl        = errors.New("K8s agent-sandbox provider not implemented")
 )
 
 // VMID identifies a remote VM instance.
@@ -84,7 +92,7 @@ func (r *RemoteSandbox) Destroy(ctx context.Context, handle sandbox.Handle) erro
 }
 
 func (r *RemoteSandbox) Exec(_ context.Context, _ sandbox.Handle, _ []string, _ int64) (sandbox.ExecResult, error) {
-	return sandbox.ExecResult{}, fmt.Errorf("remote exec not implemented")
+	return sandbox.ExecResult{}, ErrRemoteExecNotImpl
 }
 
 func (r *RemoteSandbox) Name() string {
@@ -97,16 +105,16 @@ func (r *RemoteSandbox) Name() string {
 type AWSFirecrackerProvider struct{}
 
 func (p *AWSFirecrackerProvider) CreateVM(_ context.Context, _ VMSpec) (VMID, error) {
-	return "", fmt.Errorf("AWS Firecracker provider not implemented")
+	return "", ErrAWSNotImpl
 }
 func (p *AWSFirecrackerProvider) DestroyVM(_ context.Context, _ VMID) error {
-	return fmt.Errorf("AWS Firecracker provider not implemented")
+	return ErrAWSNotImpl
 }
 func (p *AWSFirecrackerProvider) StatusVM(_ context.Context, _ VMID) (VMStatus, error) {
-	return VMError, fmt.Errorf("AWS Firecracker provider not implemented")
+	return VMError, ErrAWSNotImpl
 }
 func (p *AWSFirecrackerProvider) ConnectVM(_ context.Context, _ VMID) (net.Conn, error) {
-	return nil, fmt.Errorf("AWS Firecracker provider not implemented")
+	return nil, ErrAWSNotImpl
 }
 func (p *AWSFirecrackerProvider) Name() string { return "aws-firecracker" }
 
@@ -114,16 +122,16 @@ func (p *AWSFirecrackerProvider) Name() string { return "aws-firecracker" }
 type GCPGVisorProvider struct{}
 
 func (p *GCPGVisorProvider) CreateVM(_ context.Context, _ VMSpec) (VMID, error) {
-	return "", fmt.Errorf("GCP gVisor provider not implemented")
+	return "", ErrGCPNotImpl
 }
 func (p *GCPGVisorProvider) DestroyVM(_ context.Context, _ VMID) error {
-	return fmt.Errorf("GCP gVisor provider not implemented")
+	return ErrGCPNotImpl
 }
 func (p *GCPGVisorProvider) StatusVM(_ context.Context, _ VMID) (VMStatus, error) {
-	return VMError, fmt.Errorf("GCP gVisor provider not implemented")
+	return VMError, ErrGCPNotImpl
 }
 func (p *GCPGVisorProvider) ConnectVM(_ context.Context, _ VMID) (net.Conn, error) {
-	return nil, fmt.Errorf("GCP gVisor provider not implemented")
+	return nil, ErrGCPNotImpl
 }
 func (p *GCPGVisorProvider) Name() string { return "gcp-gvisor" }
 
@@ -131,23 +139,23 @@ func (p *GCPGVisorProvider) Name() string { return "gcp-gvisor" }
 type K8sAgentSandboxProvider struct{}
 
 func (p *K8sAgentSandboxProvider) CreateVM(_ context.Context, _ VMSpec) (VMID, error) {
-	return "", fmt.Errorf("K8s agent-sandbox provider not implemented")
+	return "", ErrK8sNotImpl
 }
 func (p *K8sAgentSandboxProvider) DestroyVM(_ context.Context, _ VMID) error {
-	return fmt.Errorf("K8s agent-sandbox provider not implemented")
+	return ErrK8sNotImpl
 }
 func (p *K8sAgentSandboxProvider) StatusVM(_ context.Context, _ VMID) (VMStatus, error) {
-	return VMError, fmt.Errorf("K8s agent-sandbox provider not implemented")
+	return VMError, ErrK8sNotImpl
 }
 func (p *K8sAgentSandboxProvider) ConnectVM(_ context.Context, _ VMID) (net.Conn, error) {
-	return nil, fmt.Errorf("K8s agent-sandbox provider not implemented")
+	return nil, ErrK8sNotImpl
 }
 func (p *K8sAgentSandboxProvider) Name() string { return "k8s-agent-sandbox" }
 
 // Interface compliance.
 var (
-	_ CloudProvider  = (*AWSFirecrackerProvider)(nil)
-	_ CloudProvider  = (*GCPGVisorProvider)(nil)
-	_ CloudProvider  = (*K8sAgentSandboxProvider)(nil)
+	_ CloudProvider   = (*AWSFirecrackerProvider)(nil)
+	_ CloudProvider   = (*GCPGVisorProvider)(nil)
+	_ CloudProvider   = (*K8sAgentSandboxProvider)(nil)
 	_ sandbox.Sandbox = (*RemoteSandbox)(nil)
 )

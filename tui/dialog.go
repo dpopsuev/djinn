@@ -47,8 +47,7 @@ func (p *DialogPanel) SelectedAction() string {
 
 // Update handles key input: Tab cycles actions, Enter confirms, Esc cancels.
 func (p *DialogPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	if msg, ok := msg.(tea.KeyMsg); ok {
 		if !p.focused {
 			return p, nil
 		}

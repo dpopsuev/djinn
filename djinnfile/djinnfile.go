@@ -13,9 +13,17 @@ import (
 	"github.com/dpopsuev/djinn/gate"
 )
 
+// Tier name constants.
+const (
+	TierEco = "eco"
+	TierSys = "sys"
+	TierCom = "com"
+	TierMod = "mod"
+)
+
 // Sentinel errors for Djinnfile parsing.
 var (
-	ErrNoStages   = errors.New("djinnfile: at least one stage is required")
+	ErrNoStages    = errors.New("djinnfile: at least one stage is required")
 	ErrNoStageName = errors.New("djinnfile: stage name is required")
 )
 
@@ -28,7 +36,7 @@ const (
 	DefaultModel         = "claude-sonnet-4-6"
 
 	defaultVersion = "1"
-	defaultTier    = "mod"
+	defaultTier    = TierMod
 	gateSuffix     = "-gate"
 )
 
@@ -42,13 +50,13 @@ type Djinnfile struct {
 
 // StageConfig represents a single stage in the Djinnfile.
 type StageConfig struct {
-	Name        string        `json:"name"`
-	Tier        string        `json:"tier"`   // "eco", "sys", "com", "mod"
-	Scope       string        `json:"scope"`  // scope name
-	Prompt      string        `json:"prompt"`
-	TimeBudget  string        `json:"time_budget,omitempty"`  // Go duration string
-	TokenBudget int           `json:"token_budget,omitempty"`
-	Gate        GateConfig    `json:"gate"`
+	Name        string     `json:"name"`
+	Tier        string     `json:"tier"`  // "eco", "sys", "com", "mod"
+	Scope       string     `json:"scope"` // scope name
+	Prompt      string     `json:"prompt"`
+	TimeBudget  string     `json:"time_budget,omitempty"` // Go duration string
+	TokenBudget int        `json:"token_budget,omitempty"`
+	Gate        GateConfig `json:"gate"`
 
 	parsedTimeBudget time.Duration
 }
@@ -62,8 +70,8 @@ type DriverConfig struct {
 
 // GateConfig holds gate validation configuration.
 type GateConfig struct {
-	Name     string             `json:"name"`
-	Severity string             `json:"severity"` // "warning" or "blocking"
+	Name     string `json:"name"`
+	Severity string `json:"severity"` // "warning" or "blocking"
 }
 
 // Parse reads a Djinnfile from a reader and validates it.
@@ -137,11 +145,11 @@ func (df *Djinnfile) applyDefaults() {
 
 func defaultTimeBudgetForTier(t string) time.Duration {
 	switch t {
-	case "eco":
+	case TierEco:
 		return DefaultTimeBudgetEco
-	case "sys":
+	case TierSys:
 		return DefaultTimeBudgetSys
-	case "com":
+	case TierCom:
 		return DefaultTimeBudgetCom
 	default:
 		return DefaultTimeBudgetMod

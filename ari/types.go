@@ -31,7 +31,7 @@ type Result struct {
 
 // Alert represents an event from an external monitoring system.
 type Alert struct {
-	Source  string
+	Source string
 	Metric string
 	Value  float64
 	Level  string

@@ -13,8 +13,8 @@ type AgentMetrics struct {
 	AgentID    string
 	Role       string
 	RoundTrips int
-	TotalIn    int             // input tokens
-	TotalOut   int             // output tokens
+	TotalIn    int // input tokens
+	TotalOut   int // output tokens
 	Cost       float64
 	GatePasses int
 	GateFails  int

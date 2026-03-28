@@ -4,24 +4,24 @@ package tui
 import (
 	"fmt"
 
-	"github.com/charmbracelet/lipgloss"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // DashboardPanel is the bottom status line.
 type DashboardPanel struct {
 	BasePanel
-	workspace string
-	driver    string
-	model     string
-	mode      string
-	tokensIn    int
-	tokensOut   int
-	turns       int
-	agentCount  int
-	activeRole  string
-	health      []HealthReport
-	uiState     string // "INSERT", "STREAMING", "APPROVAL"
+	workspace  string
+	driver     string
+	model      string
+	mode       string
+	tokensIn   int
+	tokensOut  int
+	turns      int
+	agentCount int
+	activeRole string
+	health     []HealthReport
+	uiState    string // "INSERT", "STREAMING", "APPROVAL"
 }
 
 const panelIDDashboard = "dashboard"

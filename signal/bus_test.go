@@ -74,12 +74,12 @@ func TestSignalBus_ConcurrentSafety(t *testing.T) {
 
 	bus.OnSignal(func(s Signal) {})
 
-	for i := range 100 {
+	for range 100 {
 		wg.Add(1)
-		go func(n int) {
+		go func() {
 			defer wg.Done()
 			bus.Emit(Signal{Workstream: "w", Level: Green, Message: "concurrent"})
-		}(i)
+		}()
 	}
 	wg.Wait()
 

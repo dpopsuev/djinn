@@ -121,7 +121,7 @@ func TestACPDriver_FullLifecycle(t *testing.T) {
 		t.Fatalf("content = %q", msgs[1].Content)
 	}
 
-	d.Stop(ctx) //nolint:errcheck
+	d.Stop(ctx) //nolint:errcheck // best-effort shutdown
 }
 
 func TestACPDriver_ChatNoMessages(t *testing.T) {

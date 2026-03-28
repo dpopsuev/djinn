@@ -32,10 +32,10 @@ func (a *RuntimeAdapter) ClearCordon(paths []string) {
 func (a *RuntimeAdapter) Andon() ari.AndonSnapshot {
 	board := a.broker.Andon()
 	ws := make([]ari.WorkstreamSnapshot, 0, len(board.Workstreams))
-	for _, h := range board.Workstreams {
+	for i := range board.Workstreams {
 		ws = append(ws, ari.WorkstreamSnapshot{
-			ID:     h.Workstream,
-			Health: h.Level.String(),
+			ID:     board.Workstreams[i].Workstream,
+			Health: board.Workstreams[i].Level.String(),
 		})
 	}
 	return ari.AndonSnapshot{
@@ -48,13 +48,13 @@ func (a *RuntimeAdapter) Andon() ari.AndonSnapshot {
 func (a *RuntimeAdapter) ListWorkstreams() []ari.WorkstreamSnapshot {
 	all := a.broker.Workstreams().All()
 	out := make([]ari.WorkstreamSnapshot, len(all))
-	for i, ws := range all {
+	for i := range all {
 		out[i] = ari.WorkstreamSnapshot{
-			ID:       ws.ID,
-			IntentID: ws.IntentID,
-			Action:   ws.Action,
-			Status:   string(ws.Status),
-			Health:   ws.Health.String(),
+			ID:       all[i].ID,
+			IntentID: all[i].IntentID,
+			Action:   all[i].Action,
+			Status:   string(all[i].Status),
+			Health:   all[i].Health.String(),
 		}
 	}
 	return out

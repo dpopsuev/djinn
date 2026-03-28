@@ -3,6 +3,7 @@
 package namespace
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,7 +12,7 @@ import (
 func TestOverlayMount_ReadThrough(t *testing.T) {
 	// Given a workspace with a file
 	lower := t.TempDir()
-	if err := os.WriteFile(filepath.Join(lower, "hello.txt"), []byte("original"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(lower, "hello.txt"), []byte("original"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -37,7 +38,7 @@ func TestOverlayMount_ReadThrough(t *testing.T) {
 func TestOverlayMount_WriteCaptured(t *testing.T) {
 	// Given a workspace with a file
 	lower := t.TempDir()
-	if err := os.WriteFile(filepath.Join(lower, "main.go"), []byte("original"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(lower, "main.go"), []byte("original"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -49,14 +50,14 @@ func TestOverlayMount_WriteCaptured(t *testing.T) {
 	defer ov.Unmount()
 
 	// When writing through the merged view
-	if err := os.WriteFile(filepath.Join(ov.Merged, "main.go"), []byte("modified"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(ov.Merged, "main.go"), []byte("modified"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Then the real file is untouched
-	real, _ := os.ReadFile(filepath.Join(lower, "main.go"))
-	if string(real) != "original" {
-		t.Fatalf("real file modified: got %q, want %q", real, "original")
+	// Then the actual file is untouched
+	actual, _ := os.ReadFile(filepath.Join(lower, "main.go"))
+	if string(actual) != "original" {
+		t.Fatalf("real file modified: got %q, want %q", actual, "original")
 	}
 
 	// And the upper dir has the modified version
@@ -77,7 +78,7 @@ func TestOverlayMount_NewFileCaptured(t *testing.T) {
 	defer ov.Unmount()
 
 	// When creating a new file
-	if err := os.WriteFile(filepath.Join(ov.Merged, "new.go"), []byte("new content"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(ov.Merged, "new.go"), []byte("new content"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -95,7 +96,7 @@ func TestOverlayMount_NewFileCaptured(t *testing.T) {
 
 func TestOverlayMount_ReadOwnWrite(t *testing.T) {
 	lower := t.TempDir()
-	if err := os.WriteFile(filepath.Join(lower, "foo.go"), []byte("v1"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(lower, "foo.go"), []byte("v1"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -107,7 +108,7 @@ func TestOverlayMount_ReadOwnWrite(t *testing.T) {
 	defer ov.Unmount()
 
 	// Write modified version
-	if err := os.WriteFile(filepath.Join(ov.Merged, "foo.go"), []byte("v2"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(ov.Merged, "foo.go"), []byte("v2"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -153,7 +154,7 @@ func TestOverlayMount_FailsGracefullyOnBadLower(t *testing.T) {
 
 func skipIfUnsupported(t *testing.T, err error) {
 	t.Helper()
-	if err == ErrUnsupported {
+	if errors.Is(err, ErrUnsupported) {
 		t.Skip("overlayfs not supported on this system")
 	}
 }

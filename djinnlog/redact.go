@@ -31,7 +31,7 @@ func (h *RedactHandler) Enabled(ctx context.Context, level slog.Level) bool {
 	return h.next.Enabled(ctx, level)
 }
 
-func (h *RedactHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *RedactHandler) Handle(ctx context.Context, r slog.Record) error { //nolint:gocritic // slog.Handler interface requires value receiver
 	// Clone and redact attributes
 	clean := slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
 	r.Attrs(func(a slog.Attr) bool {

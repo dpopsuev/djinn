@@ -10,8 +10,8 @@ import (
 // Entry is a single message in role memory.
 type Entry struct {
 	ID        string    `json:"id"`
-	Speaker   string    `json:"speaker"`   // role name that produced this
-	Role      string    `json:"role"`      // user or assistant
+	Speaker   string    `json:"speaker"` // role name that produced this
+	Role      string    `json:"role"`    // user or assistant
 	Content   string    `json:"content"`
 	Timestamp time.Time `json:"timestamp"`
 }
@@ -22,7 +22,7 @@ type RoleMemory struct {
 	slices   map[string][]Entry // per-role conversation history
 	briefing []Entry            // shared channel visible to all roles
 	nextID   int
-	allByID  map[string]*Entry  // index for Get()
+	allByID  map[string]*Entry // index for Get()
 }
 
 // NewRoleMemory creates an empty role memory store.

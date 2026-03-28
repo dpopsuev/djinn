@@ -1,6 +1,6 @@
 // triage.go — GenSec queue triage engine (GOL-24, TSK-231-234).
 //
-// TriagePrompt analyses an incoming prompt, classifies its complexity,
+// TriagePrompt analyzes an incoming prompt, classifies its complexity,
 // checks budget constraints, and decides which gear to recommend.
 // DotForState maps triage state to a colored dot indicator for the TUI.
 package staff
@@ -22,7 +22,7 @@ type TriageDecision struct {
 	Reason        string // e.g. "complex refactor -> E2"
 }
 
-// TriagePrompt analyses a prompt and returns a triage decision.
+// TriagePrompt analyzes a prompt and returns a triage decision.
 //
 // Process:
 //  1. ClassifyPromptComplexity determines the ideal gear.

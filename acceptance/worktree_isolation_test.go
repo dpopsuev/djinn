@@ -32,13 +32,13 @@ func initAcceptanceRepo(t *testing.T) string {
 		}
 	}
 	// Create a file and commit so we have a HEAD.
-	os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644) //nolint:errcheck
+	os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0o644) //nolint:errcheck // best-effort write
 	cmd := exec.Command("git", "add", ".")
 	cmd.Dir = dir
-	cmd.Run() //nolint:errcheck
+	cmd.Run() //nolint:errcheck // test helper, error checked elsewhere
 	cmd = exec.Command("git", "commit", "-m", "initial")
 	cmd.Dir = dir
-	cmd.Run() //nolint:errcheck
+	cmd.Run() //nolint:errcheck // test helper, error checked elsewhere
 	return dir
 }
 
@@ -51,10 +51,10 @@ func TestWorktree_CreateWriteVerifyMainUnaffected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	defer mgr.Remove("TSK-200") //nolint:errcheck
+	defer mgr.Remove("TSK-200") //nolint:errcheck // best-effort cleanup
 
 	// Write a new file in the worktree.
-	os.WriteFile(filepath.Join(wtPath, "new-feature.go"), []byte("package feature\n"), 0644) //nolint:errcheck
+	os.WriteFile(filepath.Join(wtPath, "new-feature.go"), []byte("package feature\n"), 0o644) //nolint:errcheck // best-effort write
 
 	// Verify the file exists in the worktree.
 	if _, err := os.Stat(filepath.Join(wtPath, "new-feature.go")); err != nil {
@@ -83,17 +83,17 @@ func TestWorktree_ParallelWorktreesDontConflict(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create 1: %v", err)
 	}
-	defer mgr.Remove("TSK-201") //nolint:errcheck
+	defer mgr.Remove("TSK-201") //nolint:errcheck // best-effort cleanup
 
 	wt2, err := mgr.Create("TSK-202")
 	if err != nil {
 		t.Fatalf("Create 2: %v", err)
 	}
-	defer mgr.Remove("TSK-202") //nolint:errcheck
+	defer mgr.Remove("TSK-202") //nolint:errcheck // best-effort cleanup
 
 	// Write different files in each worktree.
-	os.WriteFile(filepath.Join(wt1, "from-201.txt"), []byte("hello from 201"), 0644) //nolint:errcheck
-	os.WriteFile(filepath.Join(wt2, "from-202.txt"), []byte("hello from 202"), 0644) //nolint:errcheck
+	os.WriteFile(filepath.Join(wt1, "from-201.txt"), []byte("hello from 201"), 0o644) //nolint:errcheck // best-effort write
+	os.WriteFile(filepath.Join(wt2, "from-202.txt"), []byte("hello from 202"), 0o644) //nolint:errcheck // best-effort write
 
 	// Each worktree should only see its own file.
 	if _, err := os.Stat(filepath.Join(wt1, "from-202.txt")); !os.IsNotExist(err) {

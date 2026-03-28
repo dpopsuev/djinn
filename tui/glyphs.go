@@ -16,7 +16,7 @@ type Glyphs struct {
 	Shell       string `yaml:"shell"`
 	Approved    string `yaml:"approved"`
 	Denied      string `yaml:"denied"`
-	Cancelled   string `yaml:"cancelled"`
+	Canceled    string `yaml:"canceled"`
 	Queued      string `yaml:"queued"`
 }
 
@@ -34,7 +34,7 @@ func DefaultGlyphs() Glyphs {
 		Shell:       "$",
 		Approved:    "approved",
 		Denied:      "denied",
-		Cancelled:   "(cancelled)",
+		Canceled:    "(canceled)",
 		Queued:      "queued:",
 	}
 }

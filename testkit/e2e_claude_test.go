@@ -60,7 +60,7 @@ func TestE2E_CrossEcosystem_ClaudeInMisbah(t *testing.T) {
 func hello() string {
 	return "hello"
 }
-`), 0644)
+`), 0o644)
 
 	// Wire: real Misbah sandbox + Claude Code driver + always-pass gate
 	sandbox := msbsandbox.New(socketPath, workspace)
@@ -95,7 +95,7 @@ func hello() string {
 		func(s signal.Signal) { bus.Emit(s) },
 	)
 
-	b := broker.NewBroker(broker.BrokerConfig{
+	b := broker.NewBroker(&broker.BrokerConfig{
 		Orchestrator: orch,
 		Bus:          bus,
 		Cordons:      cordons,

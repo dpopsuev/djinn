@@ -5,6 +5,11 @@ import "fmt"
 const (
 	templateScopeVar     = "${task.scope}"
 	defaultWorkspacePath = "/workspace"
+
+	// Formation template names.
+	TemplateNameSolo  = "solo"
+	TemplateNameDuo   = "duo"
+	TemplateNameSquad = "squad"
 )
 
 // Sentinel error for template lookup.
@@ -13,11 +18,11 @@ var ErrTemplateNotFound = fmt.Errorf("formation template not found")
 // TemplateSolo returns a single-executor formation.
 func TemplateSolo() Formation {
 	return Formation{
-		Name: "solo",
+		Name: TemplateNameSolo,
 		Units: []Unit{
 			{
-				Role:  RoleExecutor,
-				Scope: UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar}},
+				Role:           RoleExecutor,
+				Scope:          UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar}},
 				TerminatesWhen: Termination{Type: TermTestsPass, Target: templateScopeVar},
 			},
 		},
@@ -27,16 +32,16 @@ func TemplateSolo() Formation {
 // TemplateDuo returns a reviewer + executor formation.
 func TemplateDuo() Formation {
 	return Formation{
-		Name: "duo",
+		Name: TemplateNameDuo,
 		Units: []Unit{
 			{
-				Role:  RoleReviewer,
-				Scope: UnitScope{RO: []string{templateScopeVar}},
+				Role:           RoleReviewer,
+				Scope:          UnitScope{RO: []string{templateScopeVar}},
 				TerminatesWhen: Termination{Type: TermReviewerApproves},
 			},
 			{
-				Role:  RoleExecutor,
-				Scope: UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar}},
+				Role:           RoleExecutor,
+				Scope:          UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar}},
 				TerminatesWhen: Termination{Type: TermTestsPass, Target: templateScopeVar},
 			},
 		},
@@ -49,26 +54,26 @@ func TemplateDuo() Formation {
 // TemplateSquad returns a lead + 3 executors formation.
 func TemplateSquad() Formation {
 	return Formation{
-		Name: "squad",
+		Name: TemplateNameSquad,
 		Units: []Unit{
 			{
-				Role:  RoleLead,
-				Scope: UnitScope{RO: []string{templateScopeVar}},
+				Role:           RoleLead,
+				Scope:          UnitScope{RO: []string{templateScopeVar}},
 				TerminatesWhen: Termination{Type: TermReviewerApproves},
 			},
 			{
-				Role:  RoleExecutor,
-				Scope: UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar + "/area-1"}},
+				Role:           RoleExecutor,
+				Scope:          UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar + "/area-1"}},
 				TerminatesWhen: Termination{Type: TermTestsPass},
 			},
 			{
-				Role:  RoleExecutor,
-				Scope: UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar + "/area-2"}},
+				Role:           RoleExecutor,
+				Scope:          UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar + "/area-2"}},
 				TerminatesWhen: Termination{Type: TermTestsPass},
 			},
 			{
-				Role:  RoleExecutor,
-				Scope: UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar + "/area-3"}},
+				Role:           RoleExecutor,
+				Scope:          UnitScope{RO: []string{defaultWorkspacePath}, RW: []string{templateScopeVar + "/area-3"}},
 				TerminatesWhen: Termination{Type: TermTestsPass},
 			},
 		},
@@ -83,11 +88,11 @@ func TemplateSquad() Formation {
 // TemplateByName returns a formation template by name.
 func TemplateByName(name string) (Formation, error) {
 	switch name {
-	case "solo":
+	case TemplateNameSolo:
 		return TemplateSolo(), nil
-	case "duo":
+	case TemplateNameDuo:
 		return TemplateDuo(), nil
-	case "squad":
+	case TemplateNameSquad:
 		return TemplateSquad(), nil
 	default:
 		return Formation{}, fmt.Errorf("%w: %q", ErrTemplateNotFound, name)
