@@ -75,6 +75,25 @@ func (b *SignalBus) ForWorkstream(workstream string) []Signal {
 	return out
 }
 
+// EmitTrace is a convenience for the trace.Bridge to emit signals without importing signal types.
+func (b *SignalBus) EmitTrace(category, level, source, message string) {
+	flagLevel := Green
+	switch level {
+	case "yellow":
+		flagLevel = Yellow
+	case "red":
+		flagLevel = Red
+	case "black":
+		flagLevel = Black
+	}
+	b.Emit(Signal{
+		Category: category,
+		Level:    flagLevel,
+		Source:   source,
+		Message:  message,
+	})
+}
+
 // Since returns all signals recorded after the given time.
 func (b *SignalBus) Since(t time.Time) []Signal {
 	b.mu.RLock()
