@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/trace"
 )
 
 // Entry represents a single turn in a conversation.
@@ -39,6 +40,9 @@ type Session struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	History   *History  `json:"history"`
+
+	// Trace snapshot — persisted across session save/load for self-heal validation.
+	TraceSnapshot *trace.Archive `json:"trace_snapshot,omitempty"`
 }
 
 // New creates a new session.
