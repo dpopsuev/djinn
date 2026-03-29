@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/dpopsuev/djinn/sandbox"
+	"github.com/dpopsuev/mirage"
 )
 
 // NamespaceSandbox is not supported on non-Linux platforms.
@@ -28,11 +29,11 @@ func (s *NamespaceSandbox) Exec(_ context.Context, _ sandbox.Handle, _ []string,
 	return sandbox.ExecResult{}, ErrUnsupported
 }
 
-func (s *NamespaceSandbox) GetOverlay(_ sandbox.Handle) (*Overlay, error) {
+func (s *NamespaceSandbox) GetSpace(_ sandbox.Handle) (mirage.Space, error) {
 	return nil, ErrUnsupported
 }
 
-func (s *NamespaceSandbox) Diff(_ sandbox.Handle) ([]string, error) {
+func (s *NamespaceSandbox) Diff(_ sandbox.Handle) ([]mirage.Change, error) {
 	return nil, ErrUnsupported
 }
 
