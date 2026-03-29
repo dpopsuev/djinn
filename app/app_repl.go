@@ -22,6 +22,7 @@ import (
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/tools/builtin"
+	"github.com/dpopsuev/djinn/trace"
 	"github.com/dpopsuev/djinn/tui"
 	djinnws "github.com/dpopsuev/djinn/workspace"
 )
@@ -226,8 +227,12 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		sess.History.Clear()
 	}
 
+	// Trace ring — observable by default (Flywheel Tier 4).
+	traceRing := trace.NewRing(1000) //nolint:mnd // 1000 events is a sensible default
+
 	// Connect MCP servers
 	mcpClient := mcpclient.New(djinnlog.For(logResult.Logger, "mcp"))
+	mcpClient.Tracer = traceRing.For(trace.ComponentMCP)
 	defer mcpClient.Close()
 
 	// MCP config from djinn.yaml ONLY — Djinn owns MCP, agents get a mirror.
@@ -297,6 +302,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	// Build tool registry
 	registry := builtin.NewRegistry()
 	builtin.RegisterAeonShellTools(registry, ws.PrimaryPath(), HomeDir())
+	builtin.RegisterDebugTrace(registry, traceRing)
 	for _, tool := range mcpClient.MCPTools() {
 		registry.Register(tool)
 	}
@@ -443,6 +449,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		Router:         slotRouter,
 		Version:        Version,
 		TUIRecorder:    tuiRecorder,
+		TraceRing:      traceRing,
 		SandboxHandle:  sandboxHandle,
 		SandboxExec:    sandboxExecFn,
 		SandboxBackend: sandboxConf.Backend,

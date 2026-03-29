@@ -125,8 +125,10 @@ type Model struct {
 	filesEdited int  // count of files edited this session
 	isThinking  bool // true when agent is in thinking/reasoning mode
 
-	// Debug
+	// Debug / Observability
 	tuiRecorder *tui.TUIRecorder
+	debugPanel  *tui.DebugPanel
+	showDebug   bool
 
 	// Staff — role pipeline
 	currentRole string
@@ -232,6 +234,15 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	m.layout.Register(tui.PanelSlot{Panel: m.inputPanel, Border: tui.BorderFocusDepth, Focusable: true})
 	m.layout.Register(tui.PanelSlot{Panel: m.commandsPanel, Visible: func() bool { return m.commandsPanel.Active() }, Border: tui.BorderNone})
 	m.layout.Register(tui.PanelSlot{Panel: m.dashboard, Border: tui.BorderFocusDepth, Focusable: true})
+
+	// Debug panel — visible on :debug command.
+	if cfg.TraceRing != nil {
+		m.debugPanel = tui.NewDebugPanel(cfg.TraceRing)
+		m.layout.Register(tui.PanelSlot{
+			Panel: m.debugPanel, Visible: func() bool { return m.showDebug },
+			Weight: 1, MinHeight: 5, Border: tui.BorderFocusDepth, Focusable: true, //nolint:mnd // layout
+		})
+	}
 	m.dashboard.Update(tui.DashboardIdentityMsg{Workspace: cfg.Session.Workspace, Driver: cfg.Session.Driver, Model: cfg.Session.Model, Mode: cfg.Mode})
 	m.dashboard.Update(tui.DashboardHealthMsg{Reports: cfg.HealthReports})
 
@@ -838,6 +849,18 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) { //nolint:gocyclo,funlen //
 			execCmd := m.runShellInline(shellCmd)
 			return m, execCmd
 		}
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
+		return m, nil
+	}
+
+	// Handle /debug — toggle trace debug panel.
+	if cmd, ok := ParseCommand(input); ok && cmd.Name == cmdDebug {
+		m.showDebug = !m.showDebug
+		state := "off"
+		if m.showDebug {
+			state = "on"
+		}
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("debug panel: " + state)})
 		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
 		return m, nil
 	}
