@@ -13,6 +13,7 @@ import (
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/tools/builtin"
+	"github.com/dpopsuev/djinn/trace"
 	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/workspace"
 )
@@ -38,6 +39,7 @@ type Config struct {
 	HealthReports []tui.HealthReport // initial health from startup
 	Version       string             // app version for MOTD (set via ldflags)
 	TUIRecorder   *tui.TUIRecorder   // nil = disabled; captures rendered frames
+	TraceRing     *trace.Ring        // nil = disabled; enables live MCP debugging
 
 	// Sandbox: when set, all agents except GenSec run inside the sandbox.
 	SandboxHandle  string

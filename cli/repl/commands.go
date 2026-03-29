@@ -33,6 +33,7 @@ const (
 	cmdRole     = "/role"
 	cmdStaff    = "/staff"
 	cmdBriefing = "/briefing"
+	cmdDebug    = "/debug"
 )
 
 // CommandNames returns all slash command names in sorted order.
@@ -43,7 +44,7 @@ func CommandNames() []string {
 		cmdMemory, cmdCopy, cmdPermissions, cmdOutput, cmdResume,
 		cmdWorkspace, cmdWorkspaceSwitch, cmdWorkspaceAdd,
 		cmdWorkspaceRepos, cmdWorkspaceSave,
-		cmdRole, cmdStaff, cmdBriefing,
+		cmdRole, cmdStaff, cmdBriefing, cmdDebug,
 		cmdDiff, cmdLog, cmdConfig, cmdConfigSave, cmdMcp, cmdReview,
 	}
 	sort.Strings(names)
