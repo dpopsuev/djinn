@@ -9,9 +9,9 @@ func TestTracerBeginEnd(t *testing.T) {
 	r := NewRing(100)
 	tr := r.For(ComponentMCP)
 
-	span := tr.Begin("call", "artifact.list")
+	rt := tr.Begin("call", "artifact.list")
 	time.Sleep(5 * time.Millisecond)
-	span.End()
+	rt.End()
 
 	events := r.Last(10)
 	if len(events) != 2 {
@@ -43,7 +43,7 @@ func TestTracerAutoComponent(t *testing.T) {
 	}
 }
 
-func TestSpanChild(t *testing.T) {
+func TestRoundTripChild(t *testing.T) {
 	r := NewRing(100)
 	tr := r.For(ComponentAgent)
 
@@ -66,12 +66,12 @@ func TestSpanChild(t *testing.T) {
 	}
 }
 
-func TestSpanWithServerTool(t *testing.T) {
+func TestRoundTripWithServerTool(t *testing.T) {
 	r := NewRing(100)
 	tr := r.For(ComponentMCP)
 
-	span := tr.Begin("call", "scanning").WithServer("locus").WithTool("codograph.scan")
-	span.End()
+	rt := tr.Begin("call", "scanning").WithServer("locus").WithTool("codograph.scan")
+	rt.End()
 
 	events := r.Last(1)
 	if events[0].Server != "locus" {
@@ -82,16 +82,16 @@ func TestSpanWithServerTool(t *testing.T) {
 	}
 }
 
-func TestSpanEndWithError(t *testing.T) {
+func TestRoundTripEndWithError(t *testing.T) {
 	r := NewRing(100)
 	tr := r.For(ComponentMCP)
 
-	span := tr.Begin("call", "failing")
-	span.EndWithError()
+	rt := tr.Begin("call", "failing")
+	rt.EndWithError()
 
 	events := r.Last(1)
 	if !events[0].Error {
-		t.Error("error span should have Error=true")
+		t.Error("error round-trip should have Error=true")
 	}
 }
 
@@ -99,10 +99,10 @@ func TestNilTracerSafe(t *testing.T) {
 	var tr *Tracer
 
 	// All methods should be safe no-ops.
-	span := tr.Begin("call", "nothing")
-	span.End()
-	span.EndWithError()
-	child := span.Child("sub", "nothing")
+	rt := tr.Begin("call", "nothing")
+	rt.End()
+	rt.EndWithError()
+	child := rt.Child("sub", "nothing")
 	child.End()
 	tr.Event("emit", "nothing")
 
