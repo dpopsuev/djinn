@@ -1,9 +1,9 @@
-// tracer.go — Component-scoped tracer facade with auto-timed spans.
+// tracer.go — Component-scoped tracer facade with auto-timed round-trips.
 //
 // Each component gets a Tracer via Ring.For(component). The Tracer
-// auto-fills Component on every event and provides Begin() → Span
+// auto-fills Component on every event and provides Begin() → RoundTrip
 // for automatic latency measurement. Nil-safe — (*Tracer)(nil).Begin()
-// returns a no-op Span.
+// returns a no-op RoundTrip.
 package trace
 
 import "time"
@@ -21,18 +21,18 @@ func (r *Ring) For(component Component) *Tracer {
 	return &Tracer{ring: r, component: component}
 }
 
-// Begin starts a timed span. Call span.End() to record latency.
-// Nil-safe: (*Tracer)(nil).Begin() returns a no-op Span.
-func (t *Tracer) Begin(action, detail string) *Span {
+// Begin starts a timed round-trip. Call rt.End() to record latency.
+// Nil-safe: (*Tracer)(nil).Begin() returns a no-op RoundTrip.
+func (t *Tracer) Begin(action, detail string) *RoundTrip {
 	if t == nil {
-		return &nopSpan
+		return &nopRoundTrip
 	}
 	id := t.ring.Append(TraceEvent{
 		Component: t.component,
 		Action:    action,
 		Detail:    detail,
 	})
-	return &Span{
+	return &RoundTrip{
 		tracer: t,
 		id:     id,
 		start:  time.Now(),
@@ -54,8 +54,8 @@ func (t *Tracer) Event(action, detail string) {
 	})
 }
 
-// Span represents a timed operation. Call End() to record latency.
-type Span struct {
+// RoundTrip represents a timed operation. Call End() to record latency.
+type RoundTrip struct {
 	tracer   *Tracer
 	id       string
 	parentID string
@@ -67,23 +67,23 @@ type Span struct {
 	nop      bool
 }
 
-// nopSpan is returned by nil Tracer.Begin() — all methods are safe no-ops.
-var nopSpan = Span{nop: true}
+// nopRoundTrip is returned by nil Tracer.Begin() \u2014 all methods are safe no-ops.
+var nopRoundTrip = RoundTrip{nop: true}
 
-// WithServer sets the MCP server name on the span.
-func (s *Span) WithServer(server string) *Span {
+// WithServer sets the MCP server name on the round-trip.
+func (s *RoundTrip) WithServer(server string) *RoundTrip {
 	s.server = server
 	return s
 }
 
-// WithTool sets the tool name on the span.
-func (s *Span) WithTool(tool string) *Span {
+// WithTool sets the tool name on the round-trip.
+func (s *RoundTrip) WithTool(tool string) *RoundTrip {
 	s.tool = tool
 	return s
 }
 
-// End records the span's latency and appends a result event to the ring.
-func (s *Span) End() {
+// End records the round-trip's latency and appends a result event to the ring.
+func (s *RoundTrip) End() {
 	if s.nop {
 		return
 	}
@@ -98,8 +98,8 @@ func (s *Span) End() {
 	})
 }
 
-// EndWithError records the span with an error flag.
-func (s *Span) EndWithError() {
+// EndWithError records the round-trip with an error flag.
+func (s *RoundTrip) EndWithError() {
 	if s.nop {
 		return
 	}
@@ -115,10 +115,10 @@ func (s *Span) EndWithError() {
 	})
 }
 
-// Child creates a child span correlated to this span via ParentID.
-func (s *Span) Child(action, detail string) *Span {
+// Child creates a child round-trip correlated to this one via ParentID.
+func (s *RoundTrip) Child(action, detail string) *RoundTrip {
 	if s.nop {
-		return &nopSpan
+		return &nopRoundTrip
 	}
 	id := s.tracer.ring.Append(TraceEvent{
 		ParentID:  s.id,
@@ -126,7 +126,7 @@ func (s *Span) Child(action, detail string) *Span {
 		Action:    action,
 		Detail:    detail,
 	})
-	return &Span{
+	return &RoundTrip{
 		tracer:   s.tracer,
 		id:       id,
 		parentID: s.id,
@@ -136,7 +136,7 @@ func (s *Span) Child(action, detail string) *Span {
 	}
 }
 
-// ID returns the span's trace event ID.
-func (s *Span) ID() string {
+// ID returns the round-trip's trace event ID.
+func (s *RoundTrip) ID() string {
 	return s.id
 }
