@@ -37,7 +37,7 @@ type Config struct {
 	Token         policy.CapabilityToken
 	HealthReports []tui.HealthReport // initial health from startup
 	Version       string             // app version for MOTD (set via ldflags)
-	DebugTap      *tui.DebugTap      // nil = disabled; captures rendered frames
+	TUIRecorder   *tui.TUIRecorder   // nil = disabled; captures rendered frames
 
 	// Sandbox: when set, all agents except GenSec run inside the sandbox.
 	SandboxHandle  string

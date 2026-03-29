@@ -11,8 +11,8 @@ import (
 
 // --- Unit Tests ---
 
-func TestDebugTap_CaptureAndLast(t *testing.T) {
-	dt, err := NewDebugTap(10, "")
+func TestTUIRecorder_CaptureAndLast(t *testing.T) {
+	dt, err := NewTUIRecorder(10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,8 +35,8 @@ func TestDebugTap_CaptureAndLast(t *testing.T) {
 	}
 }
 
-func TestDebugTap_RingBuffer(t *testing.T) {
-	dt, err := NewDebugTap(3, "")
+func TestTUIRecorder_RingBuffer(t *testing.T) {
+	dt, err := NewTUIRecorder(3, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,8 +55,8 @@ func TestDebugTap_RingBuffer(t *testing.T) {
 	}
 }
 
-func TestDebugTap_LastN(t *testing.T) {
-	dt, err := NewDebugTap(10, "")
+func TestTUIRecorder_LastN(t *testing.T) {
+	dt, err := NewTUIRecorder(10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,8 +74,8 @@ func TestDebugTap_LastN(t *testing.T) {
 	}
 }
 
-func TestDebugTap_Empty(t *testing.T) {
-	dt, err := NewDebugTap(10, "")
+func TestTUIRecorder_Empty(t *testing.T) {
+	dt, err := NewTUIRecorder(10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,11 +91,11 @@ func TestDebugTap_Empty(t *testing.T) {
 	}
 }
 
-func TestDebugTap_JSONLFile(t *testing.T) {
+func TestTUIRecorder_JSONLFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "frames.jsonl")
 
-	dt, err := NewDebugTap(10, path)
+	dt, err := NewTUIRecorder(10, path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestDebugTap_JSONLFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var frame DebugFrame
+	var frame RecordingFrame
 	if err := json.Unmarshal(data[:len(data)-1], &frame); err != nil {
 		t.Fatalf("invalid JSONL: %v\ndata: %s", err, data)
 	}
@@ -117,19 +117,19 @@ func TestDebugTap_JSONLFile(t *testing.T) {
 	}
 }
 
-func TestDebugTap_NilIsDisabled(t *testing.T) {
-	// A nil DebugTap should never be created — but if passed as nil
+func TestTUIRecorder_NilIsDisabled(t *testing.T) {
+	// A nil TUIRecorder should never be created — but if passed as nil
 	// to Model, View() should not panic.
-	var dt *DebugTap
+	var dt *TUIRecorder
 	if dt != nil {
-		t.Fatal("nil DebugTap should be nil")
+		t.Fatal("nil TUIRecorder should be nil")
 	}
 }
 
 // --- Search & Analysis Tests ---
 
-func TestDebugFrames_SearchPattern(t *testing.T) {
-	dt, err := NewDebugTap(10, "")
+func TestRecordingFrames_SearchPattern(t *testing.T) {
+	dt, err := NewTUIRecorder(10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,8 +148,8 @@ func TestDebugFrames_SearchPattern(t *testing.T) {
 	}
 }
 
-func TestDebugFrames_SearchNoMatch(t *testing.T) {
-	dt, err := NewDebugTap(10, "")
+func TestRecordingFrames_SearchNoMatch(t *testing.T) {
+	dt, err := NewTUIRecorder(10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestDebugFrames_SearchNoMatch(t *testing.T) {
 }
 
 func TestDebugTransitions_DetectsStateChanges(t *testing.T) {
-	dt, err := NewDebugTap(10, "")
+	dt, err := NewTUIRecorder(10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +200,7 @@ func TestDebugTransitions_DetectsStateChanges(t *testing.T) {
 }
 
 func TestDebugTransitions_NoChanges(t *testing.T) {
-	dt, err := NewDebugTap(10, "")
+	dt, err := NewTUIRecorder(10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,9 +217,9 @@ func TestDebugTransitions_NoChanges(t *testing.T) {
 
 // --- HTTP Server Tests ---
 
-func TestDebugTap_HTTPServer_RequiresExplicitStart(t *testing.T) {
-	// Creating a DebugTap does NOT start the HTTP server.
-	dt, err := NewDebugTap(10, "")
+func TestTUIRecorder_HTTPServer_RequiresExplicitStart(t *testing.T) {
+	// Creating a TUIRecorder does NOT start the HTTP server.
+	dt, err := NewTUIRecorder(10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,8 +231,8 @@ func TestDebugTap_HTTPServer_RequiresExplicitStart(t *testing.T) {
 	// No panic, no server — just ring buffer.
 }
 
-func TestDebugTap_HTTPServer_ViewEndpoint(t *testing.T) {
-	dt, err := NewDebugTap(10, "")
+func TestTUIRecorder_HTTPServer_ViewEndpoint(t *testing.T) {
+	dt, err := NewTUIRecorder(10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,8 +258,8 @@ func TestDebugTap_HTTPServer_ViewEndpoint(t *testing.T) {
 	}
 }
 
-func TestDebugTap_HTTPServer_StateEndpoint(t *testing.T) {
-	dt, err := NewDebugTap(10, "")
+func TestTUIRecorder_HTTPServer_StateEndpoint(t *testing.T) {
+	dt, err := NewTUIRecorder(10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,8 +290,8 @@ func TestDebugTap_HTTPServer_StateEndpoint(t *testing.T) {
 	}
 }
 
-func TestDebugTap_HTTPServer_FramesEndpoint(t *testing.T) {
-	dt, err := NewDebugTap(10, "")
+func TestTUIRecorder_HTTPServer_FramesEndpoint(t *testing.T) {
+	dt, err := NewTUIRecorder(10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,7 +313,7 @@ func TestDebugTap_HTTPServer_FramesEndpoint(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	var frames []DebugFrame
+	var frames []RecordingFrame
 	json.NewDecoder(resp.Body).Decode(&frames) //nolint:errcheck // error intentionally ignored
 
 	if len(frames) != 2 {

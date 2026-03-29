@@ -1,4 +1,4 @@
-// debugtap.go — captures rendered TUI frames for replay and live inspection.
+// debugtap.go — TUIRecorder captures rendered TUI frames for replay and live inspection.
 package tui
 
 import (
@@ -19,19 +19,19 @@ func stripANSI(s string) string {
 	return ansiPattern.ReplaceAllString(s, "")
 }
 
-// DebugFrame is a single captured TUI render with component breakdown.
-type DebugFrame struct {
+// RecordingFrame is a single captured TUI render with component breakdown.
+type RecordingFrame struct {
 	Timestamp  time.Time        `json:"timestamp"`
 	Frame      string           `json:"frame"`
 	Width      int              `json:"width"`
 	Height     int              `json:"height"`
 	State      string           `json:"state"`
 	Role       string           `json:"role"`
-	Components *DebugComponents `json:"components,omitempty"`
+	Components *RecordingComponents `json:"components,omitempty"`
 }
 
-// DebugComponents captures individual panel state for component-level inspection.
-type DebugComponents struct {
+// RecordingComponents captures individual panel state for component-level inspection.
+type RecordingComponents struct {
 	Transcript []string `json:"transcript,omitempty"` // output panel lines
 	Overlay    string   `json:"overlay,omitempty"`    // ephemeral overlay text
 	InputValue string   `json:"input_value,omitempty"`
@@ -40,10 +40,10 @@ type DebugComponents struct {
 	Dashboard  string   `json:"dashboard,omitempty"` // rendered dashboard line
 }
 
-// DebugTap captures TUI frames to a ring buffer and optionally a JSONL file.
-type DebugTap struct {
+// TUIRecorder captures TUI frames to a ring buffer and optionally a JSONL file.
+type TUIRecorder struct {
 	mu     sync.RWMutex
-	frames []DebugFrame
+	frames []RecordingFrame
 	max    int // ring buffer capacity
 	file   *os.File
 	enc    *json.Encoder
@@ -55,11 +55,11 @@ type DebugTap struct {
 	height int
 }
 
-// NewDebugTap creates a debug tap with the given ring buffer capacity.
+// NewTUIRecorder creates a debug tap with the given ring buffer capacity.
 // If path is non-empty, frames are also written to a JSONL file.
-func NewDebugTap(capacity int, path string) (*DebugTap, error) {
-	dt := &DebugTap{
-		frames: make([]DebugFrame, 0, capacity),
+func NewTUIRecorder(capacity int, path string) (*TUIRecorder, error) {
+	dt := &TUIRecorder{
+		frames: make([]RecordingFrame, 0, capacity),
 		max:    capacity,
 	}
 	if path != "" {
@@ -74,11 +74,11 @@ func NewDebugTap(capacity int, path string) (*DebugTap, error) {
 }
 
 // Capture records a rendered frame with optional component breakdown.
-func (dt *DebugTap) Capture(frame, state, role string, width, height int, components ...*DebugComponents) {
+func (dt *TUIRecorder) Capture(frame, state, role string, width, height int, components ...*RecordingComponents) {
 	dt.mu.Lock()
 	defer dt.mu.Unlock()
 
-	df := DebugFrame{
+	df := RecordingFrame{
 		Timestamp: time.Now(),
 		Frame:     frame,
 		Width:     width,
@@ -108,33 +108,33 @@ func (dt *DebugTap) Capture(frame, state, role string, width, height int, compon
 }
 
 // Last returns the most recent frame.
-func (dt *DebugTap) Last() (DebugFrame, bool) {
+func (dt *TUIRecorder) Last() (RecordingFrame, bool) {
 	dt.mu.RLock()
 	defer dt.mu.RUnlock()
 	if len(dt.frames) == 0 {
-		return DebugFrame{}, false
+		return RecordingFrame{}, false
 	}
 	return dt.frames[len(dt.frames)-1], true
 }
 
 // LastN returns the most recent N frames.
-func (dt *DebugTap) LastN(n int) []DebugFrame {
+func (dt *TUIRecorder) LastN(n int) []RecordingFrame {
 	dt.mu.RLock()
 	defer dt.mu.RUnlock()
 	if n > len(dt.frames) {
 		n = len(dt.frames)
 	}
-	result := make([]DebugFrame, n)
+	result := make([]RecordingFrame, n)
 	copy(result, dt.frames[len(dt.frames)-n:])
 	return result
 }
 
 // SearchFrames returns frames whose content matches the pattern.
-func (dt *DebugTap) SearchFrames(pattern string) []DebugFrame {
+func (dt *TUIRecorder) SearchFrames(pattern string) []RecordingFrame {
 	dt.mu.RLock()
 	defer dt.mu.RUnlock()
 
-	var results []DebugFrame
+	var results []RecordingFrame
 	for _, f := range dt.frames {
 		if strings.Contains(f.Frame, pattern) {
 			results = append(results, f)
@@ -155,7 +155,7 @@ type Transition struct {
 }
 
 // DetectTransitions returns state/role changes between consecutive frames.
-func (dt *DebugTap) DetectTransitions() []Transition {
+func (dt *TUIRecorder) DetectTransitions() []Transition {
 	dt.mu.RLock()
 	defer dt.mu.RUnlock()
 
@@ -179,7 +179,7 @@ func (dt *DebugTap) DetectTransitions() []Transition {
 }
 
 // Close closes the JSONL file if open.
-func (dt *DebugTap) Close() error {
+func (dt *TUIRecorder) Close() error {
 	if dt.file != nil {
 		return dt.file.Close()
 	}
@@ -189,7 +189,7 @@ func (dt *DebugTap) Close() error {
 // ServeHTTP starts a debug HTTP server on a random port.
 // Returns the listener (caller can get the port from ln.Addr()).
 // ServeHTTP starts a debug HTTP server. Pass "" for random port.
-func (dt *DebugTap) ServeHTTP(addr string) (net.Listener, error) {
+func (dt *TUIRecorder) ServeHTTP(addr string) (net.Listener, error) {
 	if addr == "" {
 		addr = "127.0.0.1:0"
 	}
