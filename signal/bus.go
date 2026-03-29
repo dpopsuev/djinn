@@ -15,7 +15,7 @@ type SignalBus struct {
 	mu       sync.RWMutex
 	signals  []Signal
 	handlers []Handler
-	Trace    *trace.Ring // optional: set to enable signal tracing
+	Tracer   *trace.Tracer // optional: set to enable signal tracing
 }
 
 // NewSignalBus creates a new signal bus.
@@ -34,14 +34,7 @@ func (b *SignalBus) Emit(s Signal) {
 	copy(handlers, b.handlers)
 	b.mu.Unlock()
 
-	if b.Trace != nil {
-		b.Trace.Append(trace.TraceEvent{
-			Component: trace.ComponentSignal,
-			Action:    "emit",
-			Detail:    s.Category + " " + s.Level.String() + " from " + s.Source,
-			Metadata:  map[string]string{"category": s.Category, "level": s.Level.String(), "source": s.Source},
-		})
-	}
+	b.Tracer.Event("emit", s.Category+" "+s.Level.String()+" from "+s.Source)
 
 	for _, h := range handlers {
 		h(s)

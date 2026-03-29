@@ -35,7 +35,7 @@ type Client struct {
 	mu      sync.RWMutex
 	servers map[string]*ServerConn
 	log     *slog.Logger
-	Trace   *trace.Ring // optional: set to enable MCP call tracing
+	Tracer  *trace.Tracer // optional: set to enable MCP call tracing
 }
 
 // New creates an MCP client.
@@ -232,17 +232,7 @@ const DefaultCallTimeout = 30 * time.Second
 // Call executes a tool on the specified server with a timeout.
 // If the call fails with a session/connection error, auto-reinitializes and retries once.
 func (c *Client) Call(ctx context.Context, serverName, toolName string, input json.RawMessage) (string, error) {
-	var traceID string
-	if c.Trace != nil {
-		traceID = c.Trace.Append(trace.TraceEvent{
-			Component: trace.ComponentMCP,
-			Action:    "call",
-			Server:    serverName,
-			Tool:      toolName,
-			Detail:    toolName + " on " + serverName,
-		})
-	}
-	start := time.Now()
+	rt := c.Tracer.Begin("call", toolName+" on "+serverName).WithServer(serverName).WithTool(toolName)
 
 	result, err := c.callOnce(ctx, serverName, toolName, input)
 	if err != nil && isSessionError(err) {
@@ -259,17 +249,10 @@ func (c *Client) Call(ctx context.Context, serverName, toolName string, input js
 		}
 	}
 
-	if c.Trace != nil {
-		c.Trace.Append(trace.TraceEvent{
-			ParentID:  traceID,
-			Component: trace.ComponentMCP,
-			Action:    "result",
-			Server:    serverName,
-			Tool:      toolName,
-			Detail:    toolName + " on " + serverName,
-			Latency:   time.Since(start),
-			Error:     err != nil,
-		})
+	if err != nil {
+		rt.EndWithError()
+	} else {
+		rt.End()
 	}
 	return result, err
 }
