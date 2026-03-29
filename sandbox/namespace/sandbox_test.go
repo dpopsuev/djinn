@@ -204,10 +204,10 @@ func TestSandbox_DiffShowsChanges(t *testing.T) {
 
 	found := false
 	for _, f := range diff {
-		if f == "a.go" {
+		if f.Path == "a.go" {
 			found = true
 		}
-		if f == "b.go" {
+		if f.Path == "b.go" {
 			t.Fatal("b.go should not be in diff — it wasn't modified")
 		}
 	}
@@ -227,7 +227,7 @@ func TestSandbox_DiffShowsNewFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(diff) != 1 || diff[0] != "created.go" {
+	if len(diff) != 1 || diff[0].Path != "created.go" {
 		t.Fatalf("diff = %v, want [created.go]", diff)
 	}
 }
@@ -429,7 +429,7 @@ func TestE2E_UniversalSevenRoundTrip(t *testing.T) {
 	}
 	diffMap := make(map[string]bool)
 	for _, f := range diff {
-		diffMap[f] = true
+		diffMap[f.Path] = true
 	}
 	if !diffMap["main.go"] {
 		t.Fatalf("DIFF: missing main.go: %v", diff)

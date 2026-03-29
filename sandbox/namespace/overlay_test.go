@@ -7,154 +7,131 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/dpopsuev/mirage"
 )
 
-func TestOverlayMount_ReadThrough(t *testing.T) {
-	// Given a workspace with a file
-	lower := t.TempDir()
-	if err := os.WriteFile(filepath.Join(lower, "hello.txt"), []byte("original"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	ov, err := Mount(lower)
+func createSpace(t *testing.T, workspace string) mirage.Space {
+	t.Helper()
+	builder := mirage.NewOverlayBuilder()
+	space, err := builder.Create(workspace)
 	if err != nil {
 		skipIfUnsupported(t, err)
 		t.Fatal(err)
 	}
-	defer ov.Unmount()
+	t.Cleanup(func() { space.Destroy() })
+	return space
+}
 
-	// When reading through the merged view
-	got, err := os.ReadFile(filepath.Join(ov.Merged, "hello.txt"))
+func TestMirageSpace_ReadThrough(t *testing.T) {
+	lower := t.TempDir()
+	os.WriteFile(filepath.Join(lower, "hello.txt"), []byte("original"), 0o644)
+
+	space := createSpace(t, lower)
+	got, err := os.ReadFile(filepath.Join(space.WorkDir(), "hello.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// Then the content matches the original
 	if string(got) != "original" {
 		t.Fatalf("got %q, want %q", got, "original")
 	}
 }
 
-func TestOverlayMount_WriteCaptured(t *testing.T) {
-	// Given a workspace with a file
+func TestMirageSpace_WriteCaptured(t *testing.T) {
 	lower := t.TempDir()
-	if err := os.WriteFile(filepath.Join(lower, "main.go"), []byte("original"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	os.WriteFile(filepath.Join(lower, "main.go"), []byte("original"), 0o644)
 
-	ov, err := Mount(lower)
-	if err != nil {
-		skipIfUnsupported(t, err)
-		t.Fatal(err)
-	}
-	defer ov.Unmount()
+	space := createSpace(t, lower)
+	os.WriteFile(filepath.Join(space.WorkDir(), "main.go"), []byte("modified"), 0o644)
 
-	// When writing through the merged view
-	if err := os.WriteFile(filepath.Join(ov.Merged, "main.go"), []byte("modified"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Then the actual file is untouched
 	actual, _ := os.ReadFile(filepath.Join(lower, "main.go"))
 	if string(actual) != "original" {
-		t.Fatalf("real file modified: got %q, want %q", actual, "original")
-	}
-
-	// And the upper dir has the modified version
-	upper, _ := os.ReadFile(filepath.Join(ov.Upper, "main.go"))
-	if string(upper) != "modified" {
-		t.Fatalf("upper missing write: got %q, want %q", upper, "modified")
+		t.Fatalf("real file modified: got %q", actual)
 	}
 }
 
-func TestOverlayMount_NewFileCaptured(t *testing.T) {
+func TestMirageSpace_Diff(t *testing.T) {
 	lower := t.TempDir()
+	os.WriteFile(filepath.Join(lower, "existing.go"), []byte("v1"), 0o644)
 
-	ov, err := Mount(lower)
+	space := createSpace(t, lower)
+	os.WriteFile(filepath.Join(space.WorkDir(), "existing.go"), []byte("v2"), 0o644)
+	os.WriteFile(filepath.Join(space.WorkDir(), "new.go"), []byte("new"), 0o644)
+
+	changes, err := space.Diff()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) != 2 {
+		t.Fatalf("expected 2 changes, got %d", len(changes))
+	}
+
+	kinds := make(map[string]mirage.ChangeKind)
+	for _, c := range changes {
+		kinds[c.Path] = c.Kind
+	}
+	if kinds["existing.go"] != mirage.Modified {
+		t.Errorf("existing.go kind = %s, want modified", kinds["existing.go"])
+	}
+	if kinds["new.go"] != mirage.Created {
+		t.Errorf("new.go kind = %s, want created", kinds["new.go"])
+	}
+}
+
+func TestMirageSpace_Commit(t *testing.T) {
+	lower := t.TempDir()
+	space := createSpace(t, lower)
+
+	os.WriteFile(filepath.Join(space.WorkDir(), "promoted.go"), []byte("promoted"), 0o644)
+	if err := space.Commit([]string{"promoted.go"}); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(lower, "promoted.go"))
+	if err != nil {
+		t.Fatal("committed file not in workspace")
+	}
+	if string(got) != "promoted" {
+		t.Errorf("content = %q", got)
+	}
+}
+
+func TestMirageSpace_Reset(t *testing.T) {
+	lower := t.TempDir()
+	space := createSpace(t, lower)
+
+	os.WriteFile(filepath.Join(space.WorkDir(), "discard.go"), []byte("gone"), 0o644)
+	if err := space.Reset(); err != nil {
+		t.Fatal(err)
+	}
+
+	changes, _ := space.Diff()
+	if len(changes) != 0 {
+		t.Errorf("expected 0 changes after reset, got %d", len(changes))
+	}
+}
+
+func TestMirageSpace_Destroy(t *testing.T) {
+	lower := t.TempDir()
+	builder := mirage.NewOverlayBuilder()
+	space, err := builder.Create(lower)
 	if err != nil {
 		skipIfUnsupported(t, err)
 		t.Fatal(err)
 	}
-	defer ov.Unmount()
 
-	// When creating a new file
-	if err := os.WriteFile(filepath.Join(ov.Merged, "new.go"), []byte("new content"), 0o644); err != nil {
+	workDir := space.WorkDir()
+	if err := space.Destroy(); err != nil {
 		t.Fatal(err)
 	}
-
-	// Then it doesn't exist in the real workspace
-	if _, err := os.Stat(filepath.Join(lower, "new.go")); !os.IsNotExist(err) {
-		t.Fatal("new file leaked to real workspace")
-	}
-
-	// But it does exist in upper
-	got, _ := os.ReadFile(filepath.Join(ov.Upper, "new.go"))
-	if string(got) != "new content" {
-		t.Fatalf("upper missing new file: got %q", got)
-	}
-}
-
-func TestOverlayMount_ReadOwnWrite(t *testing.T) {
-	lower := t.TempDir()
-	if err := os.WriteFile(filepath.Join(lower, "foo.go"), []byte("v1"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	ov, err := Mount(lower)
-	if err != nil {
-		skipIfUnsupported(t, err)
-		t.Fatal(err)
-	}
-	defer ov.Unmount()
-
-	// Write modified version
-	if err := os.WriteFile(filepath.Join(ov.Merged, "foo.go"), []byte("v2"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Read back — should see own write (from upper), not original (from lower)
-	got, _ := os.ReadFile(filepath.Join(ov.Merged, "foo.go"))
-	if string(got) != "v2" {
-		t.Fatalf("should see own write: got %q, want %q", got, "v2")
-	}
-}
-
-func TestOverlayUnmount_CleansUp(t *testing.T) {
-	lower := t.TempDir()
-
-	ov, err := Mount(lower)
-	if err != nil {
-		skipIfUnsupported(t, err)
-		t.Fatal(err)
-	}
-
-	// Capture paths before unmount
-	merged := ov.Merged
-	upper := ov.Upper
-
-	if err := ov.Unmount(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Temp dirs should be gone
-	if _, err := os.Stat(merged); !os.IsNotExist(err) {
-		t.Fatal("merged dir not cleaned up")
-	}
-	if _, err := os.Stat(upper); !os.IsNotExist(err) {
-		t.Fatal("upper dir not cleaned up")
-	}
-}
-
-func TestOverlayMount_FailsGracefullyOnBadLower(t *testing.T) {
-	_, err := Mount("/nonexistent/path")
-	if err == nil {
-		t.Fatal("should error on nonexistent lower dir")
+	if _, err := os.Stat(workDir); !os.IsNotExist(err) {
+		t.Fatal("workdir not cleaned up after destroy")
 	}
 }
 
 func skipIfUnsupported(t *testing.T, err error) {
 	t.Helper()
-	if errors.Is(err, ErrUnsupported) {
-		t.Skip("overlayfs not supported on this system")
+	if errors.Is(err, ErrUnsupported) || errors.Is(err, mirage.ErrFuseNotAvailable) {
+		t.Skip("fuse-overlayfs not available")
 	}
 }
