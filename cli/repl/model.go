@@ -126,7 +126,7 @@ type Model struct {
 	isThinking  bool // true when agent is in thinking/reasoning mode
 
 	// Debug
-	debugTap *tui.DebugTap
+	tuiRecorder *tui.TUIRecorder
 
 	// Staff — role pipeline
 	currentRole string
@@ -199,7 +199,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		version:        cfg.Version,
 		router:         cfg.Router,
 		worktreeMgr:    vcs.NewWorktreeManager(cfg.Session.WorkDir),
-		debugTap:       cfg.DebugTap,
+		tuiRecorder:    cfg.TUIRecorder,
 		chunkedBuf:     &strings.Builder{},
 		rawStreamLine:  &strings.Builder{},
 		agentsPanel:    tui.NewAgentsPanel(),
@@ -534,8 +534,8 @@ func (m Model) View() string { //nolint:gocritic // tea.Model interface requires
 	m.layout.Resize(m.width, m.height)
 	result := m.layout.Render()
 
-	// DebugTap: capture every rendered frame.
-	if m.debugTap != nil {
+	// TUIRecorder: capture every rendered frame.
+	if m.tuiRecorder != nil {
 		stateStr := stateStrInput
 		switch m.state {
 		case stateStreaming:
@@ -544,7 +544,7 @@ func (m Model) View() string { //nolint:gocritic // tea.Model interface requires
 			stateStr = "approval"
 		}
 		innerWidth := m.width - 2
-		m.debugTap.Capture(result, stateStr, m.currentRole, m.width, m.height, &tui.DebugComponents{
+		m.tuiRecorder.Capture(result, stateStr, m.currentRole, m.width, m.height, &tui.RecordingComponents{
 			Transcript: m.outputPanel.Lines(),
 			Overlay:    m.overlayContent(),
 			InputValue: m.inputPanel.Value(),

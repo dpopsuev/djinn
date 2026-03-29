@@ -400,20 +400,20 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		}()
 	}
 
-	// DebugTap: configured via debug.tap_file and debug.live_debug in djinn.yaml.
-	var debugTap *tui.DebugTap
+	// TUIRecorder: configured via debug.tap_file and debug.live_debug in djinn.yaml.
+	var tuiRecorder *tui.TUIRecorder
 	if debugConf.TapFile != "" || debugConf.LiveDebug != "" { //nolint:nestif // debug tap setup with file and live server
 		var tapErr error
-		debugTap, tapErr = tui.NewDebugTap(100, debugConf.TapFile)
+		tuiRecorder, tapErr = tui.NewTUIRecorder(100, debugConf.TapFile)
 		if tapErr != nil {
 			fmt.Fprintf(stderr, "djinn: debug tap: %v\n", tapErr)
 		} else {
-			defer debugTap.Close() //nolint:errcheck // best-effort cleanup
+			defer tuiRecorder.Close() //nolint:errcheck // best-effort cleanup
 			if debugConf.TapFile != "" {
 				fmt.Fprintf(stderr, "djinn: debug tap writing to %s\n", debugConf.TapFile)
 			}
 			if debugConf.LiveDebug != "" {
-				ln, srvErr := debugTap.ServeHTTP(debugConf.LiveDebug)
+				ln, srvErr := tuiRecorder.ServeHTTP(debugConf.LiveDebug)
 				if srvErr != nil {
 					fmt.Fprintf(stderr, "djinn: debug server: %v\n", srvErr)
 				} else {
@@ -442,7 +442,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		HealthReports:  healthReports,
 		Router:         slotRouter,
 		Version:        Version,
-		DebugTap:       debugTap,
+		TUIRecorder:    tuiRecorder,
 		SandboxHandle:  sandboxHandle,
 		SandboxExec:    sandboxExecFn,
 		SandboxBackend: sandboxConf.Backend,

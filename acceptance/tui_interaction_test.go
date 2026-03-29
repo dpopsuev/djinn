@@ -299,10 +299,10 @@ func TestTUI_ViewRender_NoPanic(t *testing.T) {
 	}
 }
 
-// --- DebugTap Acceptance Tests ---
+// --- TUIRecorder Acceptance Tests ---
 
-func TestTUI_DebugTap_CapturesFrames(t *testing.T) {
-	dt, err := tui.NewDebugTap(10, "")
+func TestTUI_TUIRecorder_CapturesFrames(t *testing.T) {
+	dt, err := tui.NewTUIRecorder(10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +312,7 @@ func TestTUI_DebugTap_CapturesFrames(t *testing.T) {
 		Tools:    builtin.NewRegistry(),
 		Session:  sess,
 		Mode:     "agent",
-		DebugTap: dt,
+		TUIRecorder: dt,
 	})
 	m2, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	model := toModelPtr(m2)
@@ -322,7 +322,7 @@ func TestTUI_DebugTap_CapturesFrames(t *testing.T) {
 
 	last, ok := dt.Last()
 	if !ok {
-		t.Fatal("DebugTap should have captured a frame from View()")
+		t.Fatal("TUIRecorder should have captured a frame from View()")
 	}
 	if last.Width != 80 {
 		t.Fatalf("width = %d", last.Width)
@@ -332,8 +332,8 @@ func TestTUI_DebugTap_CapturesFrames(t *testing.T) {
 	}
 }
 
-func TestTUI_DebugTap_Nil_NoPanic(t *testing.T) {
-	// With nil DebugTap, View() should not panic
+func TestTUI_TUIRecorder_Nil_NoPanic(t *testing.T) {
+	// With nil TUIRecorder, View() should not panic
 	m := testTUIModel(t, "agent")
 	view := m.View()
 	if view == "" {
@@ -341,10 +341,10 @@ func TestTUI_DebugTap_Nil_NoPanic(t *testing.T) {
 	}
 }
 
-func TestTUI_DebugTap_NotStartedWithoutFlag(t *testing.T) {
-	// Creating a DebugTap does NOT start the HTTP server.
+func TestTUI_TUIRecorder_NotStartedWithoutFlag(t *testing.T) {
+	// Creating a TUIRecorder does NOT start the HTTP server.
 	// ServeHTTP must be called explicitly (--live-debug).
-	dt, err := tui.NewDebugTap(10, "")
+	dt, err := tui.NewTUIRecorder(10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
