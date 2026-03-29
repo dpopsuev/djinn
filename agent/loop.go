@@ -61,7 +61,7 @@ type Config struct {
 	Log          *slog.Logger
 
 	// Tracing: when set, agent loop emits TraceEvents for round-trip correlation.
-	Trace *trace.Ring
+	Tracer *trace.Tracer
 
 	// Sandbox: when set, Bash routes through SandboxExec and file paths are translated.
 	SandboxHandle  string // empty = unsandboxed
@@ -115,15 +115,8 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) { /
 		}
 
 		turnStart := time.Now()
-		var turnTraceID string
-		if cfg.Trace != nil {
-			turnTraceID = cfg.Trace.Append(trace.TraceEvent{
-				Component: trace.ComponentAgent,
-				Action:    "turn",
-				Detail:    fmt.Sprintf("turn %d/%d", turn+1, cfg.MaxTurns),
-			})
-		}
-		_ = turnTraceID // used by child events when tool tracing is wired
+		turnRT := cfg.Tracer.Begin("turn", fmt.Sprintf("turn %d/%d", turn+1, cfg.MaxTurns))
+		_ = turnRT // child round-trips will use turnRT.Child() when tool tracing is wired
 		cfg.Log.Info("turn start", "turn", turn+1, "max", cfg.MaxTurns)
 
 		// Get streaming response
