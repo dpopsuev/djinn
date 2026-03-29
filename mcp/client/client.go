@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/trace"
 )
 
 // Sentinel errors.
@@ -34,6 +35,7 @@ type Client struct {
 	mu      sync.RWMutex
 	servers map[string]*ServerConn
 	log     *slog.Logger
+	Trace   *trace.Ring // optional: set to enable MCP call tracing
 }
 
 // New creates an MCP client.
@@ -230,6 +232,18 @@ const DefaultCallTimeout = 30 * time.Second
 // Call executes a tool on the specified server with a timeout.
 // If the call fails with a session/connection error, auto-reinitializes and retries once.
 func (c *Client) Call(ctx context.Context, serverName, toolName string, input json.RawMessage) (string, error) {
+	var traceID string
+	if c.Trace != nil {
+		traceID = c.Trace.Append(trace.TraceEvent{
+			Component: trace.ComponentMCP,
+			Action:    "call",
+			Server:    serverName,
+			Tool:      toolName,
+			Detail:    toolName + " on " + serverName,
+		})
+	}
+	start := time.Now()
+
 	result, err := c.callOnce(ctx, serverName, toolName, input)
 	if err != nil && isSessionError(err) {
 		// MCP invisible reconnect — auto-reinitialize and retry
@@ -240,9 +254,22 @@ func (c *Client) Call(ctx context.Context, serverName, toolName string, input js
 			c.log.Info("MCP reconnecting", "server", serverName)
 			if reinitErr := c.initializeServer(conn); reinitErr == nil {
 				c.log.Info("MCP reconnected", "server", serverName)
-				return c.callOnce(ctx, serverName, toolName, input)
+				result, err = c.callOnce(ctx, serverName, toolName, input)
 			}
 		}
+	}
+
+	if c.Trace != nil {
+		c.Trace.Append(trace.TraceEvent{
+			ParentID:  traceID,
+			Component: trace.ComponentMCP,
+			Action:    "result",
+			Server:    serverName,
+			Tool:      toolName,
+			Detail:    toolName + " on " + serverName,
+			Latency:   time.Since(start),
+			Error:     err != nil,
+		})
 	}
 	return result, err
 }
