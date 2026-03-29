@@ -22,6 +22,7 @@ type DiffSnapshot struct {
 	DeletedFiles []string // removed files
 	LOCDelta     int      // net lines changed
 	PackagesHit  []string // unique directories touched
+	WorkDir      string   // repo root for file content access + LSP
 }
 
 // BudgetHeuristic evaluates a diff against a specific quality dimension.
