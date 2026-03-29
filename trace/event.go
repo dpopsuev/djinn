@@ -34,6 +34,9 @@ type TraceEvent struct {
 	Metadata  map[string]string `json:"metadata,omitempty"`
 }
 
+// ActionDoneSuffix is appended to action names when a RoundTrip completes.
+const ActionDoneSuffix = "_done"
+
 // RingStats summarizes ring buffer state.
 type RingStats struct {
 	Capacity int       `json:"capacity"`

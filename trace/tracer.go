@@ -90,7 +90,7 @@ func (s *RoundTrip) End() {
 	s.tracer.ring.Append(TraceEvent{
 		ParentID:  s.id,
 		Component: s.tracer.component,
-		Action:    s.action + "_done",
+		Action:    s.action + ActionDoneSuffix,
 		Server:    s.server,
 		Tool:      s.tool,
 		Detail:    s.detail,
@@ -106,7 +106,7 @@ func (s *RoundTrip) EndWithError() {
 	s.tracer.ring.Append(TraceEvent{
 		ParentID:  s.id,
 		Component: s.tracer.component,
-		Action:    s.action + "_done",
+		Action:    s.action + ActionDoneSuffix,
 		Server:    s.server,
 		Tool:      s.tool,
 		Detail:    s.detail,
