@@ -63,7 +63,7 @@ func TestRegisterTheme_RoundTrip(t *testing.T) {
 		FocusDim:  lipgloss.AdaptiveColor{Light: "#abcdef", Dark: "#abcdef"},
 	}
 	RegisterTheme("neon", custom)
-	defer delete(themeRegistry, "neon") // cleanup
+	defer RegisterTheme("neon", Theme{}) // cleanup: overwrite with zero value
 
 	got := ThemeByName("neon")
 	if got.User != custom.User {

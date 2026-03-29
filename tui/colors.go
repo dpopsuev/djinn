@@ -1,91 +1,89 @@
-// colors.go — Red Hat brand color palette for TUI.
-//
-// Based on https://www.redhat.com/en/about/brand/standards/color
-// All hex values from the official Red Hat Design System.
-// Use these constants everywhere — never hardcode hex colors.
+// colors.go — Re-exports Red Hat palette from tui/design for backward compatibility.
 package tui
 
-// Red family — Red Hat's primary brand color.
+import "github.com/dpopsuev/djinn/tui/design"
+
+// Red family.
 const (
-	Red05 = "#fef0f0"
-	Red10 = "#fce3e3"
-	Red20 = "#fbc5c5"
-	Red30 = "#f9a8a8"
-	Red40 = "#f56e6e"
-	Red50 = "#ee0000" // Red Hat Red — primary brand
-	Red60 = "#a60000"
-	Red70 = "#5f0000"
-	Red80 = "#3f0000"
+	Red05 = design.Red05
+	Red10 = design.Red10
+	Red20 = design.Red20
+	Red30 = design.Red30
+	Red40 = design.Red40
+	Red50 = design.Red50
+	Red60 = design.Red60
+	Red70 = design.Red70
+	Red80 = design.Red80
 )
 
-// Gray family — neutral palette.
+// Gray family.
 const (
-	White  = "#ffffff"
-	Gray10 = "#f2f2f2"
-	Gray20 = "#e0e0e0"
-	Gray30 = "#c7c7c7"
-	Gray40 = "#a3a3a3"
-	Gray45 = "#8c8c8c"
-	Gray50 = "#707070"
-	Gray60 = "#4d4d4d"
-	Gray70 = "#383838"
-	Gray80 = "#292929"
-	Gray90 = "#1f1f1f"
-	Gray95 = "#151515" // UX black — use instead of #000000
+	White  = design.White
+	Gray10 = design.Gray10
+	Gray20 = design.Gray20
+	Gray30 = design.Gray30
+	Gray40 = design.Gray40
+	Gray45 = design.Gray45
+	Gray50 = design.Gray50
+	Gray60 = design.Gray60
+	Gray70 = design.Gray70
+	Gray80 = design.Gray80
+	Gray90 = design.Gray90
+	Gray95 = design.Gray95
 )
 
-// Blue family — interactive elements.
+// Blue family.
 const (
-	Blue10 = "#e7f1ff"
-	Blue20 = "#bee1f4"
-	Blue30 = "#73bcf7"
-	Blue40 = "#2b9af3"
-	Blue50 = "#0066cc"
-	Blue60 = "#004080"
-	Blue70 = "#002952"
+	Blue10 = design.Blue10
+	Blue20 = design.Blue20
+	Blue30 = design.Blue30
+	Blue40 = design.Blue40
+	Blue50 = design.Blue50
+	Blue60 = design.Blue60
+	Blue70 = design.Blue70
 )
 
-// Green family — success, positive.
+// Green family.
 const (
-	Green10 = "#f3faf2"
-	Green20 = "#bde5b8"
-	Green30 = "#5ba352"
-	Green40 = "#3e8635"
-	Green50 = "#1e4f18"
+	Green10 = design.Green10
+	Green20 = design.Green20
+	Green30 = design.Green30
+	Green40 = design.Green40
+	Green50 = design.Green50
 )
 
-// Orange family — warning.
+// Orange family.
 const (
-	Orange10 = "#fff3e7"
-	Orange20 = "#f4b678"
-	Orange30 = "#ec7a08"
-	Orange40 = "#c46100"
-	Orange50 = "#8f4700"
+	Orange10 = design.Orange10
+	Orange20 = design.Orange20
+	Orange30 = design.Orange30
+	Orange40 = design.Orange40
+	Orange50 = design.Orange50
 )
 
-// Purple family — accent, decoration.
+// Purple family.
 const (
-	Purple10 = "#f2f0fc"
-	Purple20 = "#b2a3e6"
-	Purple30 = "#6753ac"
-	Purple40 = "#40199a"
-	Purple50 = "#1f0066"
+	Purple10 = design.Purple10
+	Purple20 = design.Purple20
+	Purple30 = design.Purple30
+	Purple40 = design.Purple40
+	Purple50 = design.Purple50
 )
 
-// Teal family — secondary interactive.
+// Teal family.
 const (
-	Teal10 = "#f2f9f9"
-	Teal20 = "#a2d9d9"
-	Teal30 = "#009596"
-	Teal40 = "#005f60"
-	Teal50 = "#003737"
+	Teal10 = design.Teal10
+	Teal20 = design.Teal20
+	Teal30 = design.Teal30
+	Teal40 = design.Teal40
+	Teal50 = design.Teal50
 )
 
-// Yellow family — caution.
+// Yellow family.
 const (
-	Yellow10 = "#fdf7e7"
-	Yellow20 = "#f9e0a2"
-	Yellow30 = "#f0ab00"
-	Yellow40 = "#c58c00"
-	Yellow50 = "#795600"
+	Yellow10 = design.Yellow10
+	Yellow20 = design.Yellow20
+	Yellow30 = design.Yellow30
+	Yellow40 = design.Yellow40
+	Yellow50 = design.Yellow50
 )
