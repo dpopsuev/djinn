@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/dpopsuev/djinn/trace"
@@ -141,7 +142,7 @@ func (s *Server) handleHealth() (string, error) {
 
 	for i := range events {
 		e := &events[i]
-		if e.Action != "result" {
+		if !strings.HasSuffix(e.Action, trace.ActionDoneSuffix) {
 			continue
 		}
 		s, ok := serverMap[e.Server]
