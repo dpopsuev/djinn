@@ -21,6 +21,7 @@ type SignalContext struct {
 	RecentSignals  []signal.Signal
 	DriftScore     float64 // 0-100 for structure pillar
 	DriftViolation string  // most severe violation
+	TraceEvidence  string  // formatted recent trace events (from health analyzer)
 }
 
 // FormatSignalPrompt creates a structured prompt for GenSec based on a signal and context.
@@ -44,6 +45,12 @@ func FormatSignalPrompt(s signal.Signal, ctx SignalContext) string {
 		formatLifecyclePrompt(&b, ctx)
 	default:
 		formatGenericPrompt(&b, ctx)
+	}
+
+	if ctx.TraceEvidence != "" {
+		b.WriteString("\nTRACE EVIDENCE:\n")
+		b.WriteString(ctx.TraceEvidence)
+		b.WriteByte('\n')
 	}
 
 	b.WriteString("\nRespond with JSON only: {\"action\": \"<action>\", \"reason\": \"<reason>\", \"confidence\": <0.0-1.0>}")
