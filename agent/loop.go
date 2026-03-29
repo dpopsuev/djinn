@@ -17,6 +17,7 @@ import (
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
+	"github.com/dpopsuev/djinn/trace"
 )
 
 // Defaults.
@@ -58,6 +59,9 @@ type Config struct {
 	Token        policy.CapabilityToken    // immutable capability token
 	Handler      EventHandler
 	Log          *slog.Logger
+
+	// Tracing: when set, agent loop emits TraceEvents for round-trip correlation.
+	Trace *trace.Ring
 
 	// Sandbox: when set, Bash routes through SandboxExec and file paths are translated.
 	SandboxHandle  string // empty = unsandboxed
@@ -111,6 +115,15 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) { /
 		}
 
 		turnStart := time.Now()
+		var turnTraceID string
+		if cfg.Trace != nil {
+			turnTraceID = cfg.Trace.Append(trace.TraceEvent{
+				Component: trace.ComponentAgent,
+				Action:    "turn",
+				Detail:    fmt.Sprintf("turn %d/%d", turn+1, cfg.MaxTurns),
+			})
+		}
+		_ = turnTraceID // used by child events when tool tracing is wired
 		cfg.Log.Info("turn start", "turn", turn+1, "max", cfg.MaxTurns)
 
 		// Get streaming response
