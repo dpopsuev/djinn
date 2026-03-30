@@ -20,6 +20,8 @@ type DashboardPanel struct {
 	turns      int
 	agentCount int
 	activeRole string
+	operation  string // ask/plan/agent
+	agentCap   int    // max concurrent agents
 	health     []HealthReport
 	uiState    string // "INSERT", "STREAMING", "APPROVAL"
 }
@@ -74,6 +76,8 @@ func (p *DashboardPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 		p.turns = msg.Turns
 		p.agentCount = msg.AgentCount
 		p.activeRole = msg.ActiveRole
+		p.operation = msg.Operation
+		p.agentCap = msg.AgentCap
 	case DashboardHealthMsg:
 		p.health = msg.Reports
 	case DashboardUIStateMsg:
@@ -105,8 +109,20 @@ func (p *DashboardPanel) View(width int) string {
 	statusLine := RenderStatusLine(p.workspace, p.driver, p.model, p.mode,
 		p.tokensIn, p.tokensOut, p.turns, p.health)
 
-	// Multi-agent: prepend agent count to status line.
-	if p.agentCount > 1 {
+	// Operation indicator (only if set).
+	if p.operation != "" {
+		opInfo := StatusStyle.Render(fmt.Sprintf("[%s] ", p.operation))
+		statusLine = opInfo + statusLine
+	}
+
+	// Multi-agent: prepend agent count/capacity to status line.
+	if p.agentCap > 0 {
+		agentInfo := StatusStyle.Render(fmt.Sprintf("agents:%d/%d ", p.agentCount, p.agentCap))
+		if p.activeRole != "" {
+			agentInfo = StatusStyle.Render(fmt.Sprintf("agents:%d/%d active:%s ", p.agentCount, p.agentCap, p.activeRole))
+		}
+		statusLine = agentInfo + statusLine
+	} else if p.agentCount > 1 {
 		agentInfo := StatusStyle.Render(fmt.Sprintf("agents:%d active:%s | ", p.agentCount, p.activeRole))
 		statusLine = agentInfo + statusLine
 	}

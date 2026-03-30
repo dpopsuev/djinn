@@ -98,6 +98,8 @@ type DashboardMetricsMsg struct {
 	Turns      int
 	AgentCount int    // 0 = single agent (legacy)
 	ActiveRole string // which agent is currently focused
+	Operation  string // current operation (ask/plan/agent)
+	AgentCap   int    // max concurrent agents (0 = not set)
 }
 type DashboardHealthMsg struct{ Reports []HealthReport }
 type DashboardUIStateMsg struct{ State string }

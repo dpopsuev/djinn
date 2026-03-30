@@ -138,6 +138,8 @@ type Model struct {
 	roleMemory  *staff.RoleMemory
 	roles       map[string]staff.Role
 	staffCfg    *staff.StaffConfig
+	operation   staff.Operation      // current operation (ask/plan/agent)
+	capacity    *staff.AgentCapacity // agent len/cap tracker
 
 	// Multi-agent monitoring
 	agentsPanel  *tui.AgentsPanel
@@ -214,6 +216,8 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		sandboxBackend: cfg.SandboxBackend,
 		sandboxLevel:   cfg.SandboxLevel,
 		hubRegistry:    cfg.HubRegistry,
+		operation:      staff.DefaultOperation(),
+		capacity:       staff.NewAgentCapacity(1),
 	}
 
 	// Use driver's context window for the monitor if available.
@@ -564,6 +568,8 @@ func (m Model) View() string { //nolint:gocritic // tea.Model interface requires
 		Turns:      m.sess.History.Len(),
 		AgentCount: m.agentsPanel.Count(),
 		ActiveRole: m.currentRole,
+		Operation:  m.operation.String(),
+		AgentCap:   m.capacity.Cap(),
 	})
 
 	// LayoutEngine handles: visibility, heights, borders, focus sync.
@@ -767,12 +773,17 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) { //nolint:gocyclo,funlen //
 	m.inputPanel.Update(tui.InputAddHistoryMsg{Value: input})
 	m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.UserStyle.Render(tui.LabelUser) + input})
 
-	// Handle ! shell inline execution.
-	if strings.HasPrefix(input, "!") {
-		shellCmd := strings.TrimSpace(strings.TrimPrefix(input, "!"))
-		if shellCmd != "" {
-			cmd := m.runShellInline(shellCmd)
+	// Route input by prefix: ! shell, : command, / slash, default prompt.
+	kind, payload := ClassifyInput(input)
+	switch kind {
+	case InputShell:
+		if payload != "" {
+			cmd := m.runShellInline(payload)
 			return m, cmd
+		}
+	case InputCommand:
+		if payload != "" {
+			return m.handleColonCommand(payload)
 		}
 	}
 
@@ -1160,4 +1171,98 @@ func (m *Model) runShellInline(cmd string) tea.Cmd {
 		globalHandler.OnText(tui.DimStyle.Render(output))
 		return tui.AgentDoneMsg{}
 	}
+}
+
+// handleColonCommand dispatches : prefixed commands.
+func (m *Model) handleColonCommand(payload string) (tea.Model, tea.Cmd) {
+	parts := strings.Fields(payload)
+	if len(parts) == 0 {
+		return m, nil
+	}
+	cmd := parts[0]
+	args := parts[1:]
+
+	switch {
+	// :op — operation switching
+	case cmd == "op":
+		if len(args) == 0 {
+			m.outputPanel.Update(tui.OutputAppendMsg{
+				Line: fmt.Sprintf("operation: %s", m.operation),
+			})
+		} else if op, ok := staff.ParseOperation(args[0]); ok {
+			m.operation = op
+			m.outputPanel.Update(tui.OutputAppendMsg{
+				Line: fmt.Sprintf("operation → %s", m.operation),
+			})
+		} else {
+			m.outputPanel.Update(tui.OutputAppendMsg{
+				Line: tui.ErrorStyle.Render(fmt.Sprintf("unknown operation %q (ask, plan, agent)", args[0])),
+			})
+		}
+
+	// :ac — capacity management
+	case cmd == "ac" && len(args) == 0:
+		m.outputPanel.Update(tui.OutputAppendMsg{
+			Line: fmt.Sprintf("agents: %s", m.capacity),
+		})
+	case cmd == "ac+":
+		m.capacity.Inc()
+		m.outputPanel.Update(tui.OutputAppendMsg{
+			Line: fmt.Sprintf("capacity → %s", m.capacity),
+		})
+	case cmd == "ac-":
+		if err := m.capacity.Dec(); err != nil {
+			m.outputPanel.Update(tui.OutputAppendMsg{
+				Line: tui.ErrorStyle.Render(err.Error()),
+			})
+		} else {
+			m.outputPanel.Update(tui.OutputAppendMsg{
+				Line: fmt.Sprintf("capacity → %s", m.capacity),
+			})
+		}
+	case cmd == "ac" && len(args) > 0:
+		var n int
+		if _, err := fmt.Sscanf(args[0], "%d", &n); err != nil {
+			m.outputPanel.Update(tui.OutputAppendMsg{
+				Line: tui.ErrorStyle.Render(fmt.Sprintf("invalid capacity: %s", args[0])),
+			})
+		} else if err := m.capacity.SetCap(n); err != nil {
+			m.outputPanel.Update(tui.OutputAppendMsg{
+				Line: tui.ErrorStyle.Render(err.Error()),
+			})
+		} else {
+			m.outputPanel.Update(tui.OutputAppendMsg{
+				Line: fmt.Sprintf("capacity → %s", m.capacity),
+			})
+		}
+
+	// :q — quit alias
+	case cmd == "q":
+		m.quitting = true
+		return m, tea.Quit
+
+	default:
+		// Forward to slash command system for backward compat.
+		slashInput := "/" + payload
+		if slashCmd, ok := ParseCommand(slashInput); ok {
+			result := ExecuteCommand(slashCmd, m.sess)
+			if result.Output != "" {
+				m.outputPanel.Update(tui.OutputAppendMsg{Line: result.Output})
+			}
+			if result.Exit {
+				m.quitting = true
+				return m, tea.Quit
+			}
+			if result.Cleared {
+				m.outputPanel.Update(tui.OutputClearMsg{})
+			}
+		} else {
+			m.outputPanel.Update(tui.OutputAppendMsg{
+				Line: tui.ErrorStyle.Render(fmt.Sprintf("unknown command: %s", cmd)),
+			})
+		}
+	}
+
+	m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
+	return m, nil
 }
