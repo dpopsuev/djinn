@@ -141,6 +141,49 @@ func formatDuration(d time.Duration) string {
 	}
 }
 
+// FocusContext returns the currently focused trace event's context.
+// The focused event is the newest visible event (bottom of scroll window).
+func (p *DebugPanel) FocusContext() FocusContext {
+	if p.ring == nil {
+		return FocusContext{PanelID: p.id}
+	}
+
+	events := p.ring.Last(p.limit + p.scroll)
+	if p.scroll > 0 && len(events) > p.limit {
+		events = events[:len(events)-p.scroll]
+	}
+	if len(events) == 0 {
+		return FocusContext{PanelID: p.id}
+	}
+
+	// Focus is on the newest visible event.
+	e := &events[len(events)-1]
+	meta := map[string]string{
+		"component": string(e.Component),
+		"action":    e.Action,
+	}
+	if e.Server != "" {
+		meta["server"] = e.Server
+	}
+	if e.Tool != "" {
+		meta["tool"] = e.Tool
+	}
+	if e.Latency > 0 {
+		meta["latency"] = formatDuration(e.Latency)
+	}
+
+	return FocusContext{
+		PanelID:      p.id,
+		ElementID:    e.ID,
+		ElementTitle: e.Detail,
+		Kind:         string(e.Component),
+		Metadata:     meta,
+	}
+}
+
+// Compile-time check.
+var _ FocusContextProvider = (*DebugPanel)(nil)
+
 func padRight(s string, width int) string {
 	if len(s) >= width {
 		return s[:width]
