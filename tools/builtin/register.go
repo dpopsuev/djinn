@@ -8,6 +8,7 @@ package builtin
 import (
 	"path/filepath"
 
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/debug"
 	"github.com/dpopsuev/djinn/tools"
 	"github.com/dpopsuev/djinn/trace"
@@ -17,7 +18,7 @@ import (
 // workDir is the primary workspace directory (used for git, arch, test, etc.).
 // dataDir is the data persistence directory (used for plan, discourse JSON files).
 func RegisterAeonShellTools(reg *Registry, workDir, dataDir string) {
-	planStore := tools.NewTaskStore(filepath.Join(dataDir, "tasks.json"))
+	planStore := artifact.NewGraph("tasks", artifact.DefaultRegistry())
 	discourse := tools.NewDiscourseStore(filepath.Join(dataDir, "discourse.json"))
 	gitRepo := tools.NewGitRepo(workDir)
 	tracker := tools.NewToolLatencyTracker()

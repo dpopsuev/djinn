@@ -110,12 +110,6 @@ func Secretary(scope AssignmentScope) Assignment {
 	}
 }
 
-// ToRoleAssignment converts to legacy RoleAssignment for backward compat
-// with existing SupportScheduler consumers.
-func (a Assignment) ToRoleAssignment() RoleAssignment {
-	return RoleAssignment{Role: a.Role}
-}
-
 // ToUnit converts to composition.Unit for formation instantiation.
 func (a Assignment) ToUnit() composition.Unit {
 	return composition.Unit{

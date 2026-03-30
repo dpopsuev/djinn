@@ -1,6 +1,5 @@
 // artifact.go — Universal work-unit primitive with template-enforced sections (GOL-59).
 //
-// Artifact is the single type that subsumes plan.Segment and tools.Task.
 // Every work unit in Djinn is an Artifact: plans, tasks, delegations, bugs.
 // The Kind field selects a Template from the TemplateRegistry, which validates
 // required sections and status transitions. Zero external dependencies (domain layer).
@@ -11,7 +10,7 @@ import "time"
 // Status is the lifecycle state of an artifact.
 type Status string
 
-// Status constants — superset of plan.SegmentStatus and tools task statuses.
+// Status constants for all artifact kinds.
 const (
 	StatusDraft       Status = "draft"
 	StatusReady       Status = "ready"

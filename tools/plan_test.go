@@ -4,19 +4,32 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/dpopsuev/djinn/artifact"
 )
 
-func TestTaskStore_Create(t *testing.T) {
-	store := NewTaskStore("")
-	task := store.Create("implement feature X")
+func TestGraph_CreateTask(t *testing.T) {
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	id, err := g.Add(artifact.Artifact{
+		Kind:   artifact.KindTask,
+		Title:  "implement feature X",
+		Status: artifact.StatusPending,
+	})
+	if err != nil {
+		t.Fatalf("Add: %v", err)
+	}
 
+	task, err := g.Get(id)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
 	if task.ID != "T-001" {
 		t.Fatalf("ID = %q, want T-001", task.ID)
 	}
 	if task.Title != "implement feature X" {
 		t.Fatalf("Title = %q, want 'implement feature X'", task.Title)
 	}
-	if task.Status != StatusPending {
+	if task.Status != artifact.StatusPending {
 		t.Fatalf("Status = %q, want pending", task.Status)
 	}
 	if task.Created.IsZero() {
@@ -24,57 +37,57 @@ func TestTaskStore_Create(t *testing.T) {
 	}
 }
 
-func TestTaskStore_CreateIncrements(t *testing.T) {
-	store := NewTaskStore("")
-	t1 := store.Create("first")
-	t2 := store.Create("second")
-	t3 := store.Create("third")
+func TestGraph_CreateTaskIncrements(t *testing.T) {
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	id1, _ := g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "first", Status: artifact.StatusPending})
+	id2, _ := g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "second", Status: artifact.StatusPending})
+	id3, _ := g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "third", Status: artifact.StatusPending})
 
-	if t1.ID != "T-001" || t2.ID != "T-002" || t3.ID != "T-003" {
-		t.Fatalf("IDs = %s, %s, %s — want T-001, T-002, T-003", t1.ID, t2.ID, t3.ID)
+	if id1 != "T-001" || id2 != "T-002" || id3 != "T-003" {
+		t.Fatalf("IDs = %s, %s, %s — want T-001, T-002, T-003", id1, id2, id3)
 	}
 }
 
-func TestTaskStore_GetAndUpdate(t *testing.T) {
-	store := NewTaskStore("")
-	task := store.Create("task A")
+func TestGraph_GetAndUpdateStatus(t *testing.T) {
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	id, _ := g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "task A", Status: artifact.StatusPending})
 
-	got, ok := store.Get(task.ID)
-	if !ok || got.Title != "task A" {
+	got, err := g.Get(id)
+	if err != nil || got.Title != "task A" {
 		t.Fatal("Get returned wrong task or not found")
 	}
 
-	if err := store.Update(task.ID, StatusActive); err != nil {
-		t.Fatalf("Update: %v", err)
+	if err := g.UpdateStatus(id, artifact.StatusActive); err != nil {
+		t.Fatalf("UpdateStatus: %v", err)
 	}
-	got, _ = store.Get(task.ID)
-	if got.Status != StatusActive {
+	got, _ = g.Get(id)
+	if got.Status != artifact.StatusActive {
 		t.Fatalf("Status = %q, want active", got.Status)
 	}
 }
 
-func TestTaskStore_UpdateNotFound(t *testing.T) {
-	store := NewTaskStore("")
-	if err := store.Update("T-999", StatusDone); err == nil {
+func TestGraph_UpdateStatusNotFound(t *testing.T) {
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	if err := g.UpdateStatus("T-999", artifact.StatusDone); err == nil {
 		t.Fatal("expected error for missing task")
 	}
 }
 
-func TestTaskStore_UpdateInvalidStatus(t *testing.T) {
-	store := NewTaskStore("")
-	task := store.Create("task")
-	if err := store.Update(task.ID, "invalid"); err == nil {
+func TestGraph_UpdateStatusInvalid(t *testing.T) {
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	id, _ := g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "task", Status: artifact.StatusPending})
+	if err := g.UpdateStatus(id, "invalid"); err == nil {
 		t.Fatal("expected error for invalid status")
 	}
 }
 
-func TestTaskStore_List(t *testing.T) {
-	store := NewTaskStore("")
-	store.Create("alpha")
-	store.Create("beta")
-	store.Create("gamma")
+func TestGraph_ListSorted(t *testing.T) {
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "alpha", Status: artifact.StatusPending})
+	g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "beta", Status: artifact.StatusPending})
+	g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "gamma", Status: artifact.StatusPending})
 
-	list := store.List()
+	list := g.ListSorted()
 	if len(list) != 3 {
 		t.Fatalf("len = %d, want 3", len(list))
 	}
@@ -84,29 +97,25 @@ func TestTaskStore_List(t *testing.T) {
 	}
 }
 
-func TestTaskStore_TopoSort_NoDeps(t *testing.T) {
-	store := NewTaskStore("")
-	store.Create("a")
-	store.Create("b")
-	store.Create("c")
+func TestGraph_TopoSort_NoDeps(t *testing.T) {
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "a", Status: artifact.StatusPending})
+	g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "b", Status: artifact.StatusPending})
+	g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "c", Status: artifact.StatusPending})
 
-	sorted := store.TopoSort()
+	sorted := g.TopoSort()
 	if len(sorted) != 3 {
 		t.Fatalf("len = %d, want 3", len(sorted))
 	}
 }
 
-func TestTaskStore_TopoSort_WithDeps(t *testing.T) {
-	store := NewTaskStore("")
-	t1 := store.Create("write spec")
-	t2 := store.Create("implement")
-	t3 := store.Create("test")
+func TestGraph_TopoSort_WithDeps(t *testing.T) {
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	id1, _ := g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "write spec", Status: artifact.StatusPending})
+	id2, _ := g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "implement", Status: artifact.StatusPending, DependsOn: []string{id1}})
+	id3, _ := g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "test", Status: artifact.StatusPending, DependsOn: []string{id2}})
 
-	// implement depends on write spec; test depends on implement
-	t2.DependsOn = []string{t1.ID}
-	t3.DependsOn = []string{t2.ID}
-
-	sorted := store.TopoSort()
+	sorted := g.TopoSort()
 	if len(sorted) != 3 {
 		t.Fatalf("len = %d, want 3", len(sorted))
 	}
@@ -117,41 +126,38 @@ func TestTaskStore_TopoSort_WithDeps(t *testing.T) {
 		idx[task.ID] = i
 	}
 
-	if idx[t1.ID] >= idx[t2.ID] {
-		t.Fatalf("spec (%d) should come before implement (%d)", idx[t1.ID], idx[t2.ID])
+	if idx[id1] >= idx[id2] {
+		t.Fatalf("spec (%d) should come before implement (%d)", idx[id1], idx[id2])
 	}
-	if idx[t2.ID] >= idx[t3.ID] {
-		t.Fatalf("implement (%d) should come before test (%d)", idx[t2.ID], idx[t3.ID])
+	if idx[id2] >= idx[id3] {
+		t.Fatalf("implement (%d) should come before test (%d)", idx[id2], idx[id3])
 	}
 }
 
-func TestTaskStore_TopoSort_CycleDoesNotPanic(t *testing.T) {
-	store := NewTaskStore("")
-	t1 := store.Create("a")
-	t2 := store.Create("b")
+func TestGraph_TopoSort_CycleDoesNotPanic(t *testing.T) {
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	id1, _ := g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "a", Status: artifact.StatusPending, DependsOn: []string{"T-002"}})
+	id2, _ := g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "b", Status: artifact.StatusPending, DependsOn: []string{id1}})
+	_ = id2
 
-	// Circular dependency.
-	t1.DependsOn = []string{t2.ID}
-	t2.DependsOn = []string{t1.ID}
-
-	sorted := store.TopoSort()
+	sorted := g.TopoSort()
 	if len(sorted) != 2 {
 		t.Fatalf("len = %d, want 2 (cycle should still return all tasks)", len(sorted))
 	}
 }
 
-func TestTaskStore_SaveAndLoad(t *testing.T) {
+func TestGraph_SaveAndLoad(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "tasks.json")
 
 	// Save.
-	store := NewTaskStore(path)
-	store.Create("first task")
-	store.Create("second task")
-	if err := store.Update("T-001", StatusDone); err != nil {
-		t.Fatalf("Update: %v", err)
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "first task", Status: artifact.StatusPending})
+	g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "second task", Status: artifact.StatusPending})
+	if err := g.UpdateStatus("T-001", artifact.StatusDone); err != nil {
+		t.Fatalf("UpdateStatus: %v", err)
 	}
-	if err := store.Save(); err != nil {
+	if err := g.Save(path); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 
@@ -160,33 +166,33 @@ func TestTaskStore_SaveAndLoad(t *testing.T) {
 		t.Fatalf("file should exist: %v", err)
 	}
 
-	// Load into fresh store.
-	store2 := NewTaskStore(path)
-	if err := store2.Load(); err != nil {
+	// Load into fresh graph.
+	g2 := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	if err := g2.Load(path); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 
-	list := store2.List()
+	list := g2.ListSorted()
 	if len(list) != 2 {
 		t.Fatalf("loaded %d tasks, want 2", len(list))
 	}
-	if list[0].Status != StatusDone {
+	if list[0].Status != artifact.StatusDone {
 		t.Fatalf("T-001 status = %q, want done", list[0].Status)
 	}
-	if list[1].Status != StatusPending {
+	if list[1].Status != artifact.StatusPending {
 		t.Fatalf("T-002 status = %q, want pending", list[1].Status)
 	}
 
-	// NextID preserved — next create should be T-003.
-	t3 := store2.Create("third task")
-	if t3.ID != "T-003" {
-		t.Fatalf("ID = %q, want T-003 (nextID should be preserved)", t3.ID)
+	// Counter preserved — next create should be T-003.
+	id3, _ := g2.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "third task", Status: artifact.StatusPending})
+	if id3 != "T-003" {
+		t.Fatalf("ID = %q, want T-003 (counter should be preserved)", id3)
 	}
 }
 
-func TestTaskStore_LoadMissing(t *testing.T) {
-	store := NewTaskStore("/nonexistent/path/tasks.json")
-	if err := store.Load(); err == nil {
+func TestGraph_LoadMissing(t *testing.T) {
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	if err := g.Load("/nonexistent/path/tasks.json"); err == nil {
 		t.Fatal("expected error loading nonexistent file")
 	}
 }

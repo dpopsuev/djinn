@@ -1,7 +1,7 @@
 // plan_hub.go — PlanHub mediates planning operations (GOL-58).
 //
-// Wraps plan.PlanGraph with five-step mediation: execute -> trace -> signal -> render -> sync.
-// Day 1: internal PlanGraph only. Day 2: ExecutionPlannerPort for external sync.
+// Wraps artifact.Graph with five-step mediation: execute -> trace -> signal -> render -> sync.
+// Day 1: internal artifact.Graph only. Day 2: ExecutionPlannerPort for external sync.
 package hub
 
 import (

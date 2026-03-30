@@ -3,19 +3,21 @@ package tools
 import (
 	"math"
 	"testing"
+
+	"github.com/dpopsuev/djinn/artifact"
 )
 
 func TestComputeDrift_AllDone(t *testing.T) {
-	ts := NewTaskStore("")
-	t1 := ts.Create("task one")
-	t2 := ts.Create("task two")
-	ts.Update(t1.ID, StatusDone)
-	ts.Update(t2.ID, StatusDone)
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	id1, _ := g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "task one", Status: artifact.StatusPending})
+	id2, _ := g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "task two", Status: artifact.StatusPending})
+	g.UpdateStatus(id1, artifact.StatusDone)
+	g.UpdateStatus(id2, artifact.StatusDone)
 
 	arch := &ArchReport{}
 	test := &TestResult{Passed: 5, Failed: 0}
 
-	dr := ComputeDrift(ts, arch, test)
+	dr := ComputeDrift(g, arch, test)
 
 	if dr.Functionality.Score != 100 {
 		t.Errorf("Functionality score = %.1f, want 100", dr.Functionality.Score)
@@ -32,12 +34,12 @@ func TestComputeDrift_AllDone(t *testing.T) {
 }
 
 func TestComputeDrift_HalfDone(t *testing.T) {
-	ts := NewTaskStore("")
-	t1 := ts.Create("done task")
-	ts.Create("pending task")
-	ts.Update(t1.ID, StatusDone)
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	id1, _ := g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "done task", Status: artifact.StatusPending})
+	g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: "pending task", Status: artifact.StatusPending})
+	g.UpdateStatus(id1, artifact.StatusDone)
 
-	dr := ComputeDrift(ts, &ArchReport{}, &TestResult{Passed: 1})
+	dr := ComputeDrift(g, &ArchReport{}, &TestResult{Passed: 1})
 
 	if dr.Functionality.Score != 50 {
 		t.Errorf("Functionality score = %.1f, want 50", dr.Functionality.Score)
@@ -135,9 +137,9 @@ func TestComputeDrift_NilInputs(t *testing.T) {
 	}
 }
 
-func TestComputeDrift_EmptyTaskStore(t *testing.T) {
-	ts := NewTaskStore("")
-	dr := ComputeDrift(ts, nil, nil)
+func TestComputeDrift_EmptyGraph(t *testing.T) {
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	dr := ComputeDrift(g, nil, nil)
 
 	if dr.Functionality.Score != 100 {
 		t.Errorf("Functionality score = %.1f, want 100 for empty store", dr.Functionality.Score)
@@ -178,18 +180,17 @@ func TestClampScore(t *testing.T) {
 }
 
 func TestReconcile_FunctionalitySummary(t *testing.T) {
-	ts := NewTaskStore("")
-	ts.Create("one")
-	ts.Create("two")
-	ts.Create("three")
-	ts.Create("four")
-	ts.Create("five")
-
-	for _, task := range ts.List()[:4] {
-		ts.Update(task.ID, StatusDone)
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
+	for _, title := range []string{"one", "two", "three", "four", "five"} {
+		g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: title, Status: artifact.StatusPending})
 	}
 
-	dr := ComputeDrift(ts, nil, nil)
+	all := g.ListSorted()
+	for _, task := range all[:4] {
+		g.UpdateStatus(task.ID, artifact.StatusDone)
+	}
+
+	dr := ComputeDrift(g, nil, nil)
 
 	if dr.Functionality.Summary != "4/5 specs" {
 		t.Errorf("Functionality summary = %q, want %q", dr.Functionality.Summary, "4/5 specs")

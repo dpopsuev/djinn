@@ -9,7 +9,7 @@ import (
 )
 
 // atomicSaveJSON marshals data as indented JSON and writes it atomically
-// (write to temp then rename). Used by TaskStore and DiscourseStore.
+// (write to temp then rename). Used by DiscourseStore.
 func atomicSaveJSON(path string, data any, label string) error {
 	raw, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {

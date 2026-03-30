@@ -1,7 +1,7 @@
 // graph.go — ArtifactGraph: DAG operations, cascade, claims, HITL, persistence (GOL-59).
 //
-// Generalizes plan.PlanGraph and tools.TaskStore into one graph that works
-// with any artifact kind. Template validation on Add. Thread-safe.
+// Universal graph that works with any artifact kind.
+// Template validation on Add. Thread-safe.
 package artifact
 
 import (

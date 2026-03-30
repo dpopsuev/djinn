@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/tools"
 )
 
@@ -24,9 +25,9 @@ var (
 
 // ── PlanTool ────────────────────────────────────────────────────────────
 
-// PlanTool wraps tools.TaskStore for in-process task tracking.
+// PlanTool wraps artifact.Graph for in-process task tracking.
 type PlanTool struct {
-	Store *tools.TaskStore
+	Store *artifact.Graph
 }
 
 func (t *PlanTool) Name() string        { return "plan" }
@@ -60,7 +61,12 @@ func (t *PlanTool) Execute(_ context.Context, input json.RawMessage) (string, er
 		if req.Title == "" {
 			return "", fmt.Errorf("plan create: title required")
 		}
-		task := t.Store.Create(req.Title)
+		id, _ := t.Store.Add(artifact.Artifact{
+			Kind:   artifact.KindTask,
+			Title:  req.Title,
+			Status: artifact.StatusPending,
+		})
+		task, _ := t.Store.Get(id)
 		out, _ := json.Marshal(task)
 		return string(out), nil
 
@@ -68,8 +74,8 @@ func (t *PlanTool) Execute(_ context.Context, input json.RawMessage) (string, er
 		if req.ID == "" {
 			return "", fmt.Errorf("plan get: id required")
 		}
-		task, ok := t.Store.Get(req.ID)
-		if !ok {
+		task, err := t.Store.Get(req.ID)
+		if err != nil {
 			return "", fmt.Errorf("plan get: task %q not found", req.ID)
 		}
 		out, _ := json.Marshal(task)
@@ -79,13 +85,13 @@ func (t *PlanTool) Execute(_ context.Context, input json.RawMessage) (string, er
 		if req.ID == "" || req.Status == "" {
 			return "", fmt.Errorf("plan update: id and status required")
 		}
-		if err := t.Store.Update(req.ID, tools.Status(req.Status)); err != nil {
+		if err := t.Store.UpdateStatus(req.ID, artifact.Status(req.Status)); err != nil {
 			return "", fmt.Errorf("plan update: %w", err)
 		}
 		return fmt.Sprintf("updated %s to %s", req.ID, req.Status), nil
 
 	case "list":
-		tasks := t.Store.List()
+		tasks := t.Store.ListSorted()
 		out, _ := json.Marshal(tasks)
 		return string(out), nil
 
@@ -405,7 +411,7 @@ func (t *DiscourseTool) Execute(_ context.Context, input json.RawMessage) (strin
 
 // ReconcileTool wraps tools.ComputeDrift for three-pillar reconciliation.
 type ReconcileTool struct {
-	PlanStore *tools.TaskStore
+	PlanStore *artifact.Graph
 	WorkDir   string
 }
 

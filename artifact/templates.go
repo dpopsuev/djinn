@@ -11,7 +11,7 @@ const (
 )
 
 // PlanSegmentTemplate returns the template for plan segments.
-// Matches the lifecycle of the original plan.Segment.
+// Defines the lifecycle for plan segments.
 func PlanSegmentTemplate() Template {
 	return Template{
 		Kind: KindPlanSegment,
@@ -26,7 +26,7 @@ func PlanSegmentTemplate() Template {
 }
 
 // TaskTemplate returns the template for tasks.
-// Matches the lifecycle of the original tools.Task.
+// Defines the lifecycle for tasks.
 func TaskTemplate() Template {
 	return Template{
 		Kind:          KindTask,

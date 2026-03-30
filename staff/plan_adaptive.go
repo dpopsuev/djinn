@@ -8,22 +8,22 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dpopsuev/djinn/tools"
+	"github.com/dpopsuev/djinn/artifact"
 )
 
 // AdaptiveStrategy wraps an inner PlanStrategy with checkpoint logic.
-// After each task completion, it checks the task store for drift and
+// After each task completion, it checks the artifact graph for drift and
 // proposes re-planning if the drift exceeds a threshold.
 type AdaptiveStrategy struct {
 	inner     PlanStrategy
-	store     *tools.TaskStore
+	store     *artifact.Graph
 	asker     GenSecAgent
 	threshold float64 // re-plan if completed/total ratio diverges by this much
 }
 
 // NewAdaptiveStrategy creates an adaptive planning strategy.
 // Threshold is the drift tolerance (0.0-1.0). Default: 0.2 (20% drift triggers re-plan).
-func NewAdaptiveStrategy(inner PlanStrategy, store *tools.TaskStore, asker GenSecAgent, threshold float64) *AdaptiveStrategy {
+func NewAdaptiveStrategy(inner PlanStrategy, store *artifact.Graph, asker GenSecAgent, threshold float64) *AdaptiveStrategy {
 	if threshold <= 0 {
 		threshold = 0.2 //nolint:mnd // 20% drift tolerance
 	}
@@ -49,7 +49,7 @@ func (a *AdaptiveStrategy) Checkpoint(ctx context.Context, currentPlan string) (
 		return "", false, nil
 	}
 
-	tasks := a.store.List()
+	tasks := a.store.ListSorted()
 	if len(tasks) == 0 {
 		return "", false, nil
 	}

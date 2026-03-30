@@ -16,39 +16,41 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dpopsuev/djinn/artifact"
 )
 
 // djinnRoot is Djinn's own source tree — the benchmark target.
 const djinnRoot = ".."
 
 func BenchmarkPlanTool(b *testing.B) {
-	store := NewTaskStore(b.TempDir() + "/tasks.json")
-	ctx := context.Background()
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
 
 	b.Run("create", func(b *testing.B) {
 		for i := range b.N {
-			store.Create(fmt.Sprintf("task-%d", i))
+			g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: fmt.Sprintf("task-%d", i), Status: artifact.StatusPending})
 		}
 	})
 
-	// Seed some tasks.
+	// Seed some tasks with dependencies.
 	for i := range 20 {
-		t := store.Create(fmt.Sprintf("seed-%d", i))
+		var deps []string
 		if i > 0 {
-			t.DependsOn = []string{fmt.Sprintf("T-%03d", i)}
+			deps = []string{fmt.Sprintf("T-%03d", i)}
 		}
+		g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: fmt.Sprintf("seed-%d", i), Status: artifact.StatusPending, DependsOn: deps})
 	}
 
 	b.Run("list", func(b *testing.B) {
 		for range b.N {
-			tasks := store.List()
+			tasks := g.ListSorted()
 			_ = len(tasks)
 		}
 	})
 
 	b.Run("topo_sort", func(b *testing.B) {
 		for range b.N {
-			tasks := store.TopoSort()
+			tasks := g.TopoSort()
 			_ = len(tasks)
 		}
 	})
@@ -218,12 +220,13 @@ func BenchmarkDiscourseTool(b *testing.B) {
 }
 
 func BenchmarkReconcileTool(b *testing.B) {
-	store := NewTaskStore(b.TempDir() + "/tasks.json")
+	g := artifact.NewGraph("tasks", artifact.DefaultRegistry())
 	for i := range 10 {
-		t := store.Create(fmt.Sprintf("task-%d", i))
+		status := artifact.StatusPending
 		if i%3 == 0 {
-			t.Status = StatusDone
+			status = artifact.StatusDone
 		}
+		g.Add(artifact.Artifact{Kind: artifact.KindTask, Title: fmt.Sprintf("task-%d", i), Status: status})
 	}
 
 	ctx := context.Background()
@@ -235,7 +238,7 @@ func BenchmarkReconcileTool(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		report := ComputeDrift(store, arch, &TestResult{Passed: 10, Failed: 1})
+		report := ComputeDrift(g, arch, &TestResult{Passed: 10, Failed: 1})
 		_ = report.TasksToConvergence
 		b.ReportMetric(float64(time.Since(start).Milliseconds()), "ms/op")
 	}

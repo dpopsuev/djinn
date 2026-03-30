@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/tools"
 )
 
@@ -31,7 +32,7 @@ func TestRegisterAeonShellTools(t *testing.T) {
 }
 
 func TestPlanTool_CreateGetRoundtrip(t *testing.T) {
-	store := tools.NewTaskStore(filepath.Join(t.TempDir(), "tasks.json"))
+	store := artifact.NewGraph("tasks", artifact.DefaultRegistry())
 	tool := &PlanTool{Store: store}
 	ctx := context.Background()
 
@@ -46,7 +47,7 @@ func TestPlanTool_CreateGetRoundtrip(t *testing.T) {
 	}
 
 	// Extract ID.
-	var created tools.Task
+	var created artifact.Artifact
 	json.Unmarshal([]byte(out), &created)
 
 	// Get.
@@ -91,7 +92,7 @@ func TestPlanTool_CreateGetRoundtrip(t *testing.T) {
 }
 
 func TestPlanTool_InvalidAction(t *testing.T) {
-	store := tools.NewTaskStore(filepath.Join(t.TempDir(), "tasks.json"))
+	store := artifact.NewGraph("tasks", artifact.DefaultRegistry())
 	tool := &PlanTool{Store: store}
 
 	input, _ := json.Marshal(map[string]string{"action": "nope"})
@@ -350,7 +351,7 @@ func TestLatencyTool_InvalidAction(t *testing.T) {
 }
 
 func TestAllShellTools_NameDescription(t *testing.T) {
-	store := tools.NewTaskStore(filepath.Join(t.TempDir(), "tasks.json"))
+	store := artifact.NewGraph("tasks", artifact.DefaultRegistry())
 	discourse := tools.NewDiscourseStore(filepath.Join(t.TempDir(), "discourse.json"))
 	repo := tools.NewGitRepo(t.TempDir())
 	tracker := tools.NewToolLatencyTracker()

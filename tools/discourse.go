@@ -2,7 +2,7 @@
 //
 // DiscourseStore manages forums (one per scope), topics, threads, and messages.
 // Thread-safe, file-backed with atomic writes (temp + rename), following the
-// same pattern as TaskStore.
+// same pattern as artifact.Graph.
 package tools
 
 import (

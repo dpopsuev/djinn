@@ -47,8 +47,4 @@ func BridgeStaffToTUI(staff *bugleport.Staff, program *tea.Program) {
 	staff.OnSignal(bridgeSignalHandler(program))
 }
 
-// BridgeAgentPoolToTUI is the legacy bridge using raw Bus.
-// Deprecated: use BridgeStaffToTUI with the facade instead.
-func BridgeAgentPoolToTUI(bus bugleport.Bus, program *tea.Program) {
-	bus.OnEmit(bridgeSignalHandler(program))
-}
+

@@ -112,23 +112,6 @@ func TestSecretary(t *testing.T) {
 	}
 }
 
-func TestToRoleAssignment(t *testing.T) {
-	tests := []struct {
-		name string
-		a    Assignment
-	}{
-		{"gensec", PrimordialGenSec()},
-		{"broker", Broker()},
-		{"secretary", Secretary(AssignmentScope{ReadPaths: []string{"/tmp"}})},
-	}
-	for _, tt := range tests {
-		ra := tt.a.ToRoleAssignment()
-		if ra.Role != tt.a.Role {
-			t.Errorf("%s: ToRoleAssignment().Role = %q, want %q", tt.name, ra.Role, tt.a.Role)
-		}
-	}
-}
-
 func TestToUnit(t *testing.T) {
 	a := Assignment{
 		Role: RoleExecutor,

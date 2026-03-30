@@ -5,7 +5,11 @@
 // The resulting DriftReport drives the TUI drift gauge.
 package tools
 
-import "math"
+import (
+	"math"
+
+	"github.com/dpopsuev/djinn/artifact"
+)
 
 // PillarScore captures a single pillar's health.
 type PillarScore struct {
@@ -29,7 +33,7 @@ type DriftReport struct {
 //   - Structure: 100 minus penalty (10 per cycle, 5 per violation), clamped 0-100.
 //   - Performance: test pass rate — passed / (passed + failed) * 100.
 //   - TasksToConvergence: count of tasks whose status is not "done".
-func ComputeDrift(tasks *TaskStore, arch *ArchReport, test *TestResult) *DriftReport {
+func ComputeDrift(tasks *artifact.Graph, arch *ArchReport, test *TestResult) *DriftReport {
 	dr := &DriftReport{}
 
 	// --- Functionality pillar ---
@@ -48,7 +52,7 @@ func ComputeDrift(tasks *TaskStore, arch *ArchReport, test *TestResult) *DriftRe
 }
 
 // computeFunctionality scores based on task completion percentage.
-func computeFunctionality(tasks *TaskStore) PillarScore {
+func computeFunctionality(tasks *artifact.Graph) PillarScore {
 	ps := PillarScore{Name: "functionality"}
 	if tasks == nil {
 		ps.Score = 100
@@ -56,7 +60,7 @@ func computeFunctionality(tasks *TaskStore) PillarScore {
 		return ps
 	}
 
-	all := tasks.List()
+	all := tasks.ListSorted()
 	total := len(all)
 	if total == 0 {
 		ps.Score = 100
@@ -66,7 +70,7 @@ func computeFunctionality(tasks *TaskStore) PillarScore {
 
 	done := 0
 	for _, t := range all {
-		if t.Status == StatusDone {
+		if t.Status == artifact.StatusDone {
 			done++
 		}
 	}
@@ -75,7 +79,7 @@ func computeFunctionality(tasks *TaskStore) PillarScore {
 	ps.Summary = formatFraction(done, total, "specs")
 
 	for _, t := range all {
-		if t.Status != StatusDone {
+		if t.Status != artifact.StatusDone {
 			ps.Details = append(ps.Details, t.ID+": "+string(t.Status))
 		}
 	}
@@ -164,13 +168,14 @@ func computePerformance(test *TestResult) PillarScore {
 }
 
 // countNonDone counts tasks not in "done" status.
-func countNonDone(tasks *TaskStore) int {
+func countNonDone(tasks *artifact.Graph) int {
 	if tasks == nil {
 		return 0
 	}
 	count := 0
-	for _, t := range tasks.List() {
-		if t.Status != StatusDone {
+	sorted := tasks.ListSorted()
+	for i := range sorted {
+		if sorted[i].Status != artifact.StatusDone {
 			count++
 		}
 	}
