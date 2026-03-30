@@ -7,7 +7,7 @@ package hub
 import (
 	"context"
 
-	"github.com/dpopsuev/djinn/plan"
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/signal"
 )
 
@@ -22,12 +22,12 @@ const (
 // PlanHub mediates between the plan tool, trace ring, signal bus, and display.
 type PlanHub struct {
 	HubCore
-	Graph   *plan.PlanGraph
+	Graph   *artifact.Graph
 	Planner ExecutionPlannerPort // nil on Day 1
 }
 
-// NewPlanHub creates a plan hub backed by the given graph.
-func NewPlanHub(core HubCore, graph *plan.PlanGraph) *PlanHub {
+// NewPlanHub creates a plan hub backed by the given artifact graph.
+func NewPlanHub(core HubCore, graph *artifact.Graph) *PlanHub {
 	return &PlanHub{HubCore: core, Graph: graph}
 }
 
@@ -37,9 +37,10 @@ func (h *PlanHub) Name() string { return planHubName }
 // Phase returns the DevOps phase.
 func (h *PlanHub) Phase() string { return planPhase }
 
-// AddSegment wraps PlanGraph.AddSegment with five-step mediation.
-func (h *PlanHub) AddSegment(s plan.Segment) string {
-	id := h.Graph.AddSegment(s)
+// AddSegment wraps Graph.Add with five-step mediation.
+func (h *PlanHub) AddSegment(s artifact.Artifact) string { //nolint:gocritic // value copy intentional
+	s.Kind = artifact.KindPlanSegment
+	id, _ := h.Graph.Add(s) //nolint:errcheck // mediation layer, errors traced
 
 	h.Trace("segment-add", s.Title)
 
@@ -112,7 +113,7 @@ func (h *PlanHub) Complete(segmentID string) error {
 }
 
 // Ready returns segments whose dependencies are all complete.
-func (h *PlanHub) Ready() []plan.Segment {
+func (h *PlanHub) Ready() []artifact.Artifact {
 	return h.Graph.Ready()
 }
 

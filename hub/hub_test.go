@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/dpopsuev/djinn/plan"
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/review"
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/trace"
@@ -141,8 +141,8 @@ func TestPlanHub_AddSegment_Mediation(t *testing.T) {
 		Display: spy,
 	}
 
-	ph := NewPlanHub(core, plan.NewPlanGraph("test"))
-	id := ph.AddSegment(plan.Segment{Title: "implement auth"})
+	ph := NewPlanHub(core, artifact.NewGraph("test", artifact.DefaultRegistry()))
+	id := ph.AddSegment(artifact.Artifact{Title: "implement auth"})
 
 	if id == "" {
 		t.Fatal("AddSegment returned empty ID")
@@ -182,10 +182,10 @@ func TestPlanHub_AddSegment_Mediation(t *testing.T) {
 func TestPlanHub_Complete_Mediation(t *testing.T) {
 	bus := signal.NewSignalBus()
 	core := HubCore{Signals: bus, Display: NopDisplaySender{}}
-	graph := plan.NewPlanGraph("test")
+	graph := artifact.NewGraph("test", artifact.DefaultRegistry())
 	ph := NewPlanHub(core, graph)
 
-	id := graph.AddSegment(plan.Segment{Title: "task", Status: plan.StatusReady})
+	id, _ := graph.Add(artifact.Artifact{Kind: artifact.KindPlanSegment, Title: "task", Status: artifact.StatusReady})
 	if err := graph.Claim(id, "executor"); err != nil {
 		t.Fatal(err)
 	}
@@ -206,10 +206,10 @@ func TestPlanHub_Complete_Mediation(t *testing.T) {
 func TestPlanHub_WithExternalPlanner(t *testing.T) {
 	spy := &spyPlanner{}
 	core := HubCore{Display: NopDisplaySender{}}
-	ph := NewPlanHub(core, plan.NewPlanGraph("test"))
+	ph := NewPlanHub(core, artifact.NewGraph("test", artifact.DefaultRegistry()))
 	ph.Planner = spy
 
-	ph.AddSegment(plan.Segment{Title: "synced segment"})
+	ph.AddSegment(artifact.Artifact{Title: "synced segment"})
 
 	if spy.syncCount != 1 {
 		t.Errorf("syncCount = %d, want 1", spy.syncCount)

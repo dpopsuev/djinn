@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/dpopsuev/djinn/plan"
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/trace"
 )
@@ -16,11 +16,11 @@ func TestPlanHub_SyncOnAdd(t *testing.T) {
 		Signals: signal.NewSignalBus(),
 		Display: NopDisplaySender{},
 	}
-	ph := NewPlanHub(core, plan.NewPlanGraph("sync-test"))
+	ph := NewPlanHub(core, artifact.NewGraph("sync-test", artifact.DefaultRegistry()))
 	ph.Planner = spy
 
-	ph.AddSegment(plan.Segment{Title: "segment A"})
-	ph.AddSegment(plan.Segment{Title: "segment B"})
+	ph.AddSegment(artifact.Artifact{Title: "segment A"})
+	ph.AddSegment(artifact.Artifact{Title: "segment B"})
 
 	if spy.syncCount != 2 { //nolint:mnd // expected 2 syncs
 		t.Errorf("syncCount = %d, want 2", spy.syncCount)
@@ -34,11 +34,11 @@ func TestPlanHub_SyncOnComplete(t *testing.T) {
 		Signals: signal.NewSignalBus(),
 		Display: NopDisplaySender{},
 	}
-	graph := plan.NewPlanGraph("sync-test")
+	graph := artifact.NewGraph("sync-test", artifact.DefaultRegistry())
 	ph := NewPlanHub(core, graph)
 	ph.Planner = spy
 
-	id := graph.AddSegment(plan.Segment{Title: "task", Status: plan.StatusReady})
+	id, _ := graph.Add(artifact.Artifact{Kind: artifact.KindPlanSegment, Title: "task", Status: artifact.StatusReady})
 	if err := graph.Claim(id, "executor"); err != nil {
 		t.Fatal(err)
 	}
@@ -58,9 +58,9 @@ func TestPlanHub_SyncOnComplete(t *testing.T) {
 
 func TestPlanHub_NoSyncWithoutPlanner(t *testing.T) {
 	core := HubCore{Display: NopDisplaySender{}}
-	ph := NewPlanHub(core, plan.NewPlanGraph("no-sync"))
+	ph := NewPlanHub(core, artifact.NewGraph("no-sync", artifact.DefaultRegistry()))
 	// Planner is nil — should not panic.
-	ph.AddSegment(plan.Segment{Title: "orphan segment"})
+	ph.AddSegment(artifact.Artifact{Title: "orphan segment"})
 }
 
 func TestPlanHub_FetchPopulatesGraph(t *testing.T) {
@@ -72,7 +72,7 @@ func TestPlanHub_FetchPopulatesGraph(t *testing.T) {
 	}
 
 	core := HubCore{Display: NopDisplaySender{}}
-	graph := plan.NewPlanGraph("fetch-test")
+	graph := artifact.NewGraph("fetch-test", artifact.DefaultRegistry())
 	ph := NewPlanHub(core, graph)
 	ph.Planner = stub
 
@@ -84,7 +84,7 @@ func TestPlanHub_FetchPopulatesGraph(t *testing.T) {
 
 	// Populate local graph from fetched DTOs.
 	for _, dto := range dtos {
-		graph.AddSegment(plan.Segment{
+		graph.Add(artifact.Artifact{Kind: artifact.KindPlanSegment,
 			ID:    dto.ID,
 			Title: dto.Title,
 		})

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/cli/repl"
 	"github.com/dpopsuev/djinn/clutch"
 	djinnconfig "github.com/dpopsuev/djinn/config"
@@ -18,7 +19,6 @@ import (
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/hub"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
-	"github.com/dpopsuev/djinn/plan"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/sandbox"
 	"github.com/dpopsuev/djinn/session"
@@ -239,7 +239,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		Tracer:  traceRing.For(trace.ComponentTool),
 		Display: hub.NopDisplaySender{},
 	}
-	planHub := hub.NewPlanHub(hubCore, plan.NewPlanGraph("session"))
+	planHub := hub.NewPlanHub(hubCore, artifact.NewGraph("session", artifact.DefaultRegistry()))
 	hubRegistry.Register(planHub)
 
 	// Connect MCP servers
