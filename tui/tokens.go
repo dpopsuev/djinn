@@ -5,11 +5,7 @@
 // function that rebuilds all lipgloss.Style variables across the TUI package.
 package tui
 
-import (
-	"github.com/charmbracelet/lipgloss"
-
-	"github.com/dpopsuev/djinn/tui/design"
-)
+import "github.com/dpopsuev/djinn/tui/design"
 
 // TokenSet is the semantic token type.
 type TokenSet = design.TokenSet
@@ -29,64 +25,64 @@ func init() {
 
 // ApplyTokens rebuilds all global style variables from the given token set.
 // This is the SINGLE WRITER of style vars — no other code should assign them.
-func ApplyTokens(ts TokenSet) { //nolint:gocritic // TokenSet is stored as global, copy is intentional
+// Uses design.BuildStyles() for the canonical computation, then unpacks to
+// tui-level vars (both public and private) for backward compat.
+func ApplyTokens(ts TokenSet) { //nolint:gocritic,funlen // TokenSet stored as global; unpacking is inherently long
 	ActiveTokens = ts
 
+	// Build all styles via design package (pure function, single source of truth).
+	ss := design.BuildStyles(ts)
+	design.ActiveStyles = ss
+
 	// Core styles (styles.go vars)
-	RedHatRed = ts.AccentFg
-	UserStyle = lipgloss.NewStyle().Foreground(ts.UserFg).Bold(true)
-	AssistStyle = lipgloss.NewStyle().Foreground(ts.AssistantFg).Bold(true)
-	ToolNameStyle = lipgloss.NewStyle().Foreground(ts.ToolNameFg)
-	ToolArgStyle = lipgloss.NewStyle().Foreground(ts.ToolArgFg)
-	ToolSuccessStyle = lipgloss.NewStyle().Foreground(ts.SuccessFg)
-	ErrorStyle = lipgloss.NewStyle().Foreground(ts.ErrorFg)
-	LogoStyle = lipgloss.NewStyle().Foreground(ts.AccentFg).Bold(true)
+	RedHatRed = ss.AccentFg
+	UserStyle = ss.User
+	AssistStyle = ss.Assistant
+	ToolNameStyle = ss.ToolName
+	ToolArgStyle = ss.ToolArg
+	ToolSuccessStyle = ss.ToolSuccess
+	ErrorStyle = ss.Error
+	LogoStyle = ss.Logo
 
 	// Diff styles (diff.go vars)
-	diffAddStyle = lipgloss.NewStyle().Foreground(ts.DiffAddFg)
-	diffDelStyle = lipgloss.NewStyle().Foreground(ts.DiffDelFg)
-	diffHeaderStyle = lipgloss.NewStyle().Foreground(ts.DiffHeaderFg)
+	diffAddStyle = ss.DiffAdd
+	diffDelStyle = ss.DiffDel
+	diffHeaderStyle = ss.DiffHeader
 
 	// Health styles (statusline.go vars)
-	healthGreen = lipgloss.NewStyle().Foreground(ts.HealthGreenFg)
-	healthYellow = lipgloss.NewStyle().Foreground(ts.HealthYellowFg)
-	healthRed = lipgloss.NewStyle().Foreground(ts.HealthRedFg)
+	healthGreen = ss.HealthGreen
+	healthYellow = ss.HealthYellow
+	healthRed = ss.HealthRed
 
 	// Budget styles (budget.go vars)
-	budgetOKStyle = lipgloss.NewStyle().Foreground(ts.HealthGreenFg)
-	budgetWarnStyle = lipgloss.NewStyle().Foreground(ts.HealthYellowFg)
-	budgetOverStyle = lipgloss.NewStyle().Foreground(ts.HealthRedFg)
+	budgetOKStyle = ss.BudgetOK
+	budgetWarnStyle = ss.BudgetWarn
+	budgetOverStyle = ss.BudgetOver
 
 	// Coherence zone styles (coherence.go vars)
-	zoneColdStyle = lipgloss.NewStyle().Foreground(ts.ZoneColdFg)
-	zoneWarmStyle = lipgloss.NewStyle().Foreground(ts.SuccessFg)
-	zoneFocusedStyle = lipgloss.NewStyle().Foreground(ts.ZoneFocusedFg)
-	zoneHotStyle = lipgloss.NewStyle().Foreground(ts.HealthYellowFg)
-	zoneRedlineStyle = lipgloss.NewStyle().Foreground(ts.HealthRedFg)
+	zoneColdStyle = ss.ZoneCold
+	zoneWarmStyle = ss.ZoneWarm
+	zoneFocusedStyle = ss.ZoneFocused
+	zoneHotStyle = ss.ZoneHot
+	zoneRedlineStyle = ss.ZoneRedline
 
 	// Drift styles (drift.go vars)
-	driftGoodStyle = lipgloss.NewStyle().Foreground(ts.SuccessFg)
-	driftMidStyle = lipgloss.NewStyle().Foreground(ts.WarningFg)
-	driftBadStyle = lipgloss.NewStyle().Foreground(ts.ErrorFg)
+	driftGoodStyle = ss.DriftGood
+	driftMidStyle = ss.DriftMid
+	driftBadStyle = ss.DriftBad
 
 	// Dashboard mode indicators (dashboard.go vars)
-	modeInsertStyle = lipgloss.NewStyle().Bold(true).Foreground(ts.UserFg)
-	modeStreamStyle = lipgloss.NewStyle().Bold(true).Foreground(ts.AssistantFg)
-	modeApprovalStyle = lipgloss.NewStyle().Bold(true).Foreground(ts.WarningFg)
+	modeInsertStyle = ss.ModeInsert
+	modeStreamStyle = ss.ModeStream
+	modeApprovalStyle = ss.ModeApproval
 
 	// Focus border (focus.go vars)
-	focusBorder = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(ts.AccentFg)
-	unfocusedBorder = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(ts.FocusDimFg)
+	focusBorder = ss.FocusBorder
+	unfocusedBorder = ss.UnfocusedBorder
 
 	// Turn envelope border (turn_envelope.go vars)
-	turnBorder = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(ts.FocusDimFg)
+	turnBorder = ss.TurnBorder
 
 	// Separator focus (separator.go vars)
-	sepFocusStyle = lipgloss.NewStyle().Foreground(ts.AssistantFg)
+	sepFocusStyle = ss.SepFocus
 }
