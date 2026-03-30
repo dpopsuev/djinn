@@ -22,7 +22,7 @@ import (
 // Config configures the REPL.
 type Config struct {
 	Driver        driver.ChatDriver
-	Tools         *builtin.Registry
+	Tools         builtin.ToolExecutor
 	Session       *session.Session
 	SystemPrompt  string
 	MaxTurns      int

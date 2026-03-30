@@ -65,7 +65,7 @@ const (
 type Model struct {
 	// Dependencies
 	chatDriver   driver.ChatDriver
-	tools        *builtin.Registry
+	tools        builtin.ToolExecutor
 	sess         *session.Session
 	systemPrompt string
 	maxTurns     int
@@ -995,7 +995,7 @@ func approvalForMode(mode agent.Mode, ch chan bool) agent.ApprovalFunc {
 
 // renderMOTD builds the welcome banner with logo and workspace info
 // inside a lipgloss rounded border box.
-func renderMOTD(sess *session.Session, tools *builtin.Registry, version, currentRole string) string {
+func renderMOTD(sess *session.Session, tools builtin.ToolExecutor, version, currentRole string) string {
 	logo := tui.LogoStyle.Render(tui.DjinnLogo)
 
 	wsName := sess.Workspace

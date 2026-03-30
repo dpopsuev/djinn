@@ -23,6 +23,7 @@ import (
 	"github.com/dpopsuev/djinn/sandbox"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/staff"
+	"github.com/dpopsuev/djinn/tools"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/trace"
 	"github.com/dpopsuev/djinn/tui"
@@ -319,6 +320,11 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	}
 	log.Info("tools registered", "builtin", len(registry.Names())-len(mcpClient.MCPTools()), "mcp", len(mcpClient.MCPTools()), "total", len(registry.Names()))
 
+	// Wrap registry in ToolHub for mediated execution (GOL-37).
+	toolTracker := tools.NewToolLatencyTracker()
+	toolHub := hub.NewToolHub(hubCore, registry, toolTracker)
+	hubRegistry.Register(toolHub)
+
 	// Load staff config: built-in defaults → user config → workspace config.
 	staffCfg := staff.LoadConfigChain(
 		filepath.Join(HomeDir(), "staff.yaml"),
@@ -362,7 +368,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	// backendCfg is shared across hub and in-process modes.
 	backendCfg := clutch.BackendConfig{
 		Driver:       chatDriver,
-		Tools:        registry,
+		Tools:        toolHub,
 		Session:      sess,
 		SystemPrompt: assembledPrompt,
 		MaxTurns:     sessConf.MaxTurns,
@@ -442,7 +448,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 
 	replErr := repl.Run(ctx, repl.Config{
 		Driver:         chatDriver,
-		Tools:          registry,
+		Tools:          toolHub,
 		Session:        sess,
 		SystemPrompt:   assembledPrompt,
 		MaxTurns:       sessConf.MaxTurns,
