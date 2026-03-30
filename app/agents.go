@@ -20,6 +20,7 @@ func bridgeSignalHandler(program *tea.Program) func(bugleport.Signal) {
 				AgentID: sig.Meta[bugleport.MetaKeyWorkerID],
 				Role:    sig.Meta["role"],
 				State:   "idle",
+				Color:   sig.Meta["color"], // hex from Display, empty = TUI uses default
 			})
 		case bugleport.EventWorkerStopped:
 			program.Send(tui.AgentStatusMsg{

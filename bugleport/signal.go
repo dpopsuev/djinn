@@ -35,6 +35,7 @@ const (
 const (
 	MetaKeyWorkerID = signal.MetaKeyWorkerID
 	MetaKeyError    = signal.MetaKeyError
+	MetaKeyColor    = "color" // hex color from Display, set by Djinn at spawn time
 )
 
 // Constructors.

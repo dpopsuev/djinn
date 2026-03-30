@@ -54,7 +54,8 @@ func (p *AgentsPanel) RemoveAgent(agentID string) {
 	}
 }
 
-// UpdateAgent updates an agent's status.
+// UpdateAgent updates an agent's status. If the agent is not yet registered,
+// it is auto-added using the Color from the message (or a default).
 func (p *AgentsPanel) UpdateAgent(msg AgentStatusMsg) {
 	for _, a := range p.agents {
 		if a.AgentID == msg.AgentID {
@@ -62,6 +63,13 @@ func (p *AgentsPanel) UpdateAgent(msg AgentStatusMsg) {
 			return
 		}
 	}
+	// Auto-register on first status message.
+	color := lipgloss.Color("7") // default: white
+	if msg.Color != "" {
+		color = lipgloss.Color(msg.Color)
+	}
+	p.AddAgent(msg.AgentID, msg.Role, color)
+	p.UpdateAgent(msg) // apply the status update
 }
 
 // GetAgent returns the agent panel for the given ID.

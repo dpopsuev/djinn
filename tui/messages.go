@@ -111,6 +111,7 @@ type AgentStatusMsg struct {
 	State     string // "idle", "streaming", "tool-wait", "done", "error"
 	TokensIn  int
 	TokensOut int
+	Color     string // hex color from Bugle Display (e.g., "#50C878"), empty = use default
 }
 
 type AgentOutputMsg struct {

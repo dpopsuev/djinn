@@ -18,6 +18,7 @@ type (
 	Hierarchy     = world.Hierarchy
 	Budget        = world.Budget
 	Progress      = world.Progress
+	Display       = world.Display
 )
 
 // Agent state constants.

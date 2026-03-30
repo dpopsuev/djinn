@@ -28,3 +28,17 @@ func NewStaffWorld(launcher bugleport.Launcher) *StaffWorld {
 		Registry: bugleport.NewRegistry(),
 	}
 }
+
+// AssignDisplay creates a Display identity for an agent using the heraldic
+// color system. Registry.Assign() generates a unique color+name pair.
+// The Display can be attached to an agent handle via SetDisplay().
+func (sw *StaffWorld) AssignDisplay(role, scope string) (bugleport.Display, error) {
+	ci, err := sw.Registry.Assign(role, scope)
+	if err != nil {
+		return bugleport.Display{}, err
+	}
+	return bugleport.Display{
+		Name:  ci.Short(), // heraldic color name (e.g., "Denim")
+		Color: ci.Hex,     // CSS hex (e.g., "#6F8FAF")
+	}, nil
+}

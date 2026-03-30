@@ -51,6 +51,9 @@ func (p *AgentStatusPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 			p.Role = msg.Role
 			p.TokensIn = msg.TokensIn
 			p.TokensOut = msg.TokensOut
+			if msg.Color != "" {
+				p.Color = lipgloss.Color(msg.Color)
+			}
 		}
 	case AgentOutputMsg:
 		if msg.AgentID == p.AgentID {
