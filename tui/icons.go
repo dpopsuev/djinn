@@ -1,44 +1,29 @@
-// icons.go — Nerd Font icon registry with ASCII fallback.
-//
-// Auto-detects Nerd Font support via DJINN_NERD_FONTS=1 env var.
-// Falls back to ASCII glyphs when Nerd Fonts aren't available.
+// icons.go — Re-exports from tui/icons/ for backward compatibility.
 package tui
 
-import "os"
+import "github.com/dpopsuev/djinn/tui/icons"
 
 // NerdFontsAvailable is true when Nerd Font glyphs can be rendered.
-// Set via DJINN_NERD_FONTS=1 environment variable.
-var NerdFontsAvailable = os.Getenv("DJINN_NERD_FONTS") == "1"
+var NerdFontsAvailable = icons.NerdFontsAvailable
 
 // Icon holds a Nerd Font glyph and its ASCII fallback.
-type Icon struct {
-	Nerd  string
-	ASCII string
-}
+type Icon = icons.Icon
 
-// String returns the appropriate glyph for the current terminal.
-func (i Icon) String() string {
-	if NerdFontsAvailable {
-		return i.Nerd
-	}
-	return i.ASCII
-}
-
-// Semantic icon registry.
+// Semantic icon registry — re-exports from tui/icons/.
 var (
-	IconFile    = Icon{"\uf15b", "F"}
-	IconFolder  = Icon{"\uf07b", "D"}
-	IconGit     = Icon{"\ue725", "G"}
-	IconBranch  = Icon{"\ue725", "B"}
-	IconTag     = Icon{"\uf02b", "T"}
-	IconCheck   = Icon{"\uf00c", "✓"}
-	IconCross   = Icon{"\uf00d", "✗"}
-	IconWarning = Icon{"\uf071", "!"}
-	IconInfo    = Icon{"\uf05a", "i"}
-	IconError   = Icon{"\uf06a", "E"}
-	IconSpinner = Icon{"\uf110", "*"}
-	IconAgent   = Icon{"\uf2bd", "A"}
-	IconTool    = Icon{"\uf0ad", "λ"}
-	IconClock   = Icon{"\uf017", "⏱"}
-	IconBudget  = Icon{"\uf155", "$"}
+	IconFile    = icons.File
+	IconFolder  = icons.Folder
+	IconGit     = icons.Git
+	IconBranch  = icons.Branch
+	IconTag     = icons.Tag
+	IconCheck   = icons.Check
+	IconCross   = icons.Cross
+	IconWarning = icons.Warning
+	IconInfo    = icons.Info
+	IconError   = icons.Error
+	IconSpinner = icons.Spinner
+	IconAgent   = icons.Agent
+	IconTool    = icons.Tool
+	IconClock   = icons.Clock
+	IconBudget  = icons.Budget
 )

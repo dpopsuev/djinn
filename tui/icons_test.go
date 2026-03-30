@@ -1,15 +1,19 @@
 package tui
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/dpopsuev/djinn/tui/icons"
+)
 
 // ═══════════════════════════════════════════════════════════════════════
 // RED: Fallback behavior
 // ═══════════════════════════════════════════════════════════════════════
 
 func TestIcon_ASCIIFallback(t *testing.T) {
-	old := NerdFontsAvailable
-	NerdFontsAvailable = false
-	defer func() { NerdFontsAvailable = old }()
+	old := icons.NerdFontsAvailable
+	icons.NerdFontsAvailable = false
+	defer func() { icons.NerdFontsAvailable = old }()
 
 	if IconCheck.String() != "✓" {
 		t.Fatalf("IconCheck ASCII = %q, want ✓", IconCheck.String())
@@ -24,9 +28,9 @@ func TestIcon_ASCIIFallback(t *testing.T) {
 // ═══════════════════════════════════════════════════════════════════════
 
 func TestIcon_NerdFontEnabled(t *testing.T) {
-	old := NerdFontsAvailable
-	NerdFontsAvailable = true
-	defer func() { NerdFontsAvailable = old }()
+	old := icons.NerdFontsAvailable
+	icons.NerdFontsAvailable = true
+	defer func() { icons.NerdFontsAvailable = old }()
 
 	// Should return Nerd glyph, not ASCII.
 	if IconCheck.String() == "✓" {
@@ -42,12 +46,12 @@ func TestIcon_NerdFontEnabled(t *testing.T) {
 // ═══════════════════════════════════════════════════════════════════════
 
 func TestIcon_AllIconsHaveValues(t *testing.T) {
-	icons := []Icon{
+	allIcons := []Icon{
 		IconFile, IconFolder, IconGit, IconBranch, IconTag,
 		IconCheck, IconCross, IconWarning, IconInfo, IconError,
 		IconSpinner, IconAgent, IconTool, IconClock, IconBudget,
 	}
-	for _, icon := range icons {
+	for _, icon := range allIcons {
 		if icon.Nerd == "" {
 			t.Fatalf("icon has empty Nerd glyph: %+v", icon)
 		}
@@ -58,13 +62,13 @@ func TestIcon_AllIconsHaveValues(t *testing.T) {
 }
 
 func TestIcon_StringRoutes(t *testing.T) {
-	old := NerdFontsAvailable
-	defer func() { NerdFontsAvailable = old }()
+	old := icons.NerdFontsAvailable
+	defer func() { icons.NerdFontsAvailable = old }()
 
-	NerdFontsAvailable = false
+	icons.NerdFontsAvailable = false
 	ascii := IconGit.String()
 
-	NerdFontsAvailable = true
+	icons.NerdFontsAvailable = true
 	nerd := IconGit.String()
 
 	if ascii == nerd {
