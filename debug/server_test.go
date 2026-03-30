@@ -26,7 +26,7 @@ func seedRing() *trace.Ring {
 	r.Append(trace.TraceEvent{
 		ParentID:  parentID,
 		Component: trace.ComponentMCP,
-		Action:    "result",
+		Action:    "call_done",
 		Server:    "scribe",
 		Tool:      "artifact.list",
 		Latency:   42 * time.Millisecond,
@@ -41,7 +41,7 @@ func seedRing() *trace.Ring {
 	r.Append(trace.TraceEvent{
 		ParentID:  parentID,
 		Component: trace.ComponentMCP,
-		Action:    "result",
+		Action:    "call_done",
 		Server:    "locus",
 		Tool:      "codograph.scan",
 		Latency:   1200 * time.Millisecond,
