@@ -32,7 +32,18 @@ var validRenderTypes = map[string]bool{
 type RenderTool struct{}
 
 func (t *RenderTool) Name() string        { return "render" }
-func (t *RenderTool) Description() string { return "Create visual panels: table, tree, progress, chart, diff, diagram, timeline, code" }
+func (t *RenderTool) Description() string {
+	return "Create visual panels. Use proactively for plans, progress, dependencies.\n\n" +
+		"Types and data formats:\n" +
+		"- diagram: {\"nodes\":[{\"id\":\"a\",\"label\":\"Auth\"}],\"edges\":[{\"from\":\"a\",\"to\":\"b\"}]}\n" +
+		"- progress: {\"done\":3,\"total\":5,\"items\":[\"step1\",\"step2\"]}\n" +
+		"- tree: {\"root\":{\"label\":\"Plan\",\"children\":[{\"label\":\"Phase 1\"}]}}\n" +
+		"- timeline: {\"events\":[{\"label\":\"Build\",\"state\":\"done\"},{\"label\":\"Test\",\"state\":\"active\"}]}\n" +
+		"- table: {\"columns\":[\"Name\",\"Status\"],\"rows\":[[\"auth\",\"done\"]]}\n" +
+		"- chart: {\"kind\":\"bar\",\"values\":[10,20],\"labels\":[\"p50\",\"p95\"]}\n" +
+		"- code: {\"language\":\"go\",\"source\":\"func main() {...}\"}\n" +
+		"- diff: {\"file\":\"main.go\",\"hunks\":[\"@@ -1,3 +1,4 @@\\n...\"]}"
+}
 func (t *RenderTool) InputSchema() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
