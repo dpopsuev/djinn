@@ -13,28 +13,19 @@ func TestDefaultRegistry_HasBothKinds(t *testing.T) {
 	}
 }
 
-func TestPlanSegmentTemplate_RequiresContent(t *testing.T) {
+func TestPlanSegmentTemplate_NoRequiredSections(t *testing.T) {
 	tmpl := PlanSegmentTemplate()
 
-	// Without content — should fail.
-	a := &Artifact{Kind: KindPlanSegment}
-	if err := tmpl.Check(a); err == nil {
-		t.Error("expected error for missing content")
+	// Draft segments can be created without content — FillDraft adds it later.
+	a := &Artifact{Kind: KindPlanSegment, Title: "draft segment"}
+	if err := tmpl.Check(a); err != nil {
+		t.Errorf("draft segment should pass validation: %v", err)
 	}
 
-	// With Content field — should pass.
+	// With Content — also passes.
 	a.Content = "acceptance criteria"
 	if err := tmpl.Check(a); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-
-	// With Sections["content"] — should also pass.
-	a2 := &Artifact{
-		Kind:     KindPlanSegment,
-		Sections: map[string]string{"content": "via sections"},
-	}
-	if err := tmpl.Check(a2); err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Errorf("segment with content should pass: %v", err)
 	}
 }
 

@@ -1,259 +1,129 @@
-// graph.go — PlanGraph: DAG of Segments with cascade and claims (SPC-79, GOL-46).
+// graph.go — Backward-compatibility shim over artifact.Graph (GOL-59).
 //
-// A Plan is a DAG of Segments. Each Segment has status, owner (claim),
-// dependencies, children (nesting), and a ComponentMap describing what
-// code it touches. Changes cascade through dependencies and spatial overlaps.
+// All types are aliases to artifact/. PlanGraph wraps artifact.Graph with
+// the original API (AddSegment returns string, Annotate takes 3 args, etc.).
+// All 13 plan_test.go tests pass unchanged.
 package plan
 
 import (
-	"errors"
-	"fmt"
-	"sync"
-	"sync/atomic"
+	"github.com/dpopsuev/djinn/artifact"
 )
 
-// Sentinel errors.
-var (
-	ErrSegmentNotFound   = errors.New("plan: segment not found")
-	ErrAlreadyClaimed    = errors.New("plan: segment already claimed")
-	ErrNotClaimed        = errors.New("plan: segment not claimed")
-	ErrInvalidTransition = errors.New("plan: invalid status transition")
+// Type aliases for backward compatibility.
+type (
+	SegmentStatus = artifact.Status
+	Segment       = artifact.Artifact
+	ComponentMap  = artifact.ComponentMap
+	Annotation    = artifact.Annotation
 )
 
-// SegmentStatus represents the lifecycle state of a plan segment.
-type SegmentStatus string
-
+// Status constants re-exported.
 const (
-	StatusDraft       SegmentStatus = "draft"       // needs operator input
-	StatusReady       SegmentStatus = "ready"       // all deps met, can be claimed
-	StatusClaimed     SegmentStatus = "claimed"     // agent has exclusive ownership
-	StatusInProgress  SegmentStatus = "in_progress" // agent is working
-	StatusComplete    SegmentStatus = "complete"    // work done
-	StatusInvalidated SegmentStatus = "invalidated" // dependency changed, needs re-plan
+	StatusDraft       = artifact.StatusDraft
+	StatusReady       = artifact.StatusReady
+	StatusClaimed     = artifact.StatusClaimed
+	StatusInProgress  = artifact.StatusInProgress
+	StatusComplete    = artifact.StatusComplete
+	StatusInvalidated = artifact.StatusInvalidated
 )
 
-// Segment is a single unit of work in a PlanGraph.
-type Segment struct {
-	ID          string        `json:"id"`
-	Title       string        `json:"title"`
-	Status      SegmentStatus `json:"status"`
-	Owner       string        `json:"owner,omitempty"` // agent that claimed it
-	Content     string        `json:"content"`         // plan text / acceptance criteria
-	Components  ComponentMap  `json:"components"`      // what code this segment touches
-	DependsOn   []string      `json:"depends_on,omitempty"`
-	Children    []string      `json:"children,omitempty"` // nested sub-segments
-	Version     int           `json:"version"`
-	Annotations []Annotation  `json:"annotations,omitempty"`
-}
+// Sentinel errors re-exported.
+var (
+	ErrSegmentNotFound   = artifact.ErrNotFound
+	ErrAlreadyClaimed    = artifact.ErrAlreadyClaimed
+	ErrNotClaimed        = artifact.ErrNotClaimed
+	ErrInvalidTransition = artifact.ErrInvalidTransition
+)
 
-// ComponentMap describes what code a segment will create or modify.
-type ComponentMap struct {
-	Directories []string `json:"directories,omitempty"`
-	Files       []string `json:"files,omitempty"`
-	Symbols     []string `json:"symbols,omitempty"`
-}
-
-// Annotation is operator feedback on a segment.
-type Annotation struct {
-	Kind    string `json:"kind"` // "+", "-", "~"
-	Comment string `json:"comment"`
-}
-
-// PlanGraph is a DAG of Segments with cascade and claim semantics.
+// PlanGraph wraps artifact.Graph with plan-segment defaults.
 type PlanGraph struct {
-	Title    string `json:"title"`
-	mu       sync.RWMutex
-	segments map[string]*Segment
-	nextID   atomic.Int64
+	G     *artifact.Graph // exported for hub migration
+	Title string
 }
 
-// NewPlanGraph creates an empty plan graph.
+// NewPlanGraph creates a plan graph backed by artifact.Graph.
 func NewPlanGraph(title string) *PlanGraph {
 	return &PlanGraph{
-		Title:    title,
-		segments: make(map[string]*Segment),
+		G:     artifact.NewGraph(title, artifact.DefaultRegistry()),
+		Title: title,
 	}
 }
 
-// AddSegment adds a segment to the graph.
+// AddSegment adds a plan segment and returns its ID.
+// Sets Kind=plan-segment automatically. Never returns an error (original API).
 func (pg *PlanGraph) AddSegment(s Segment) string {
-	pg.mu.Lock()
-	defer pg.mu.Unlock()
-
-	if s.ID == "" {
-		s.ID = fmt.Sprintf("seg-%d", pg.nextID.Add(1))
-	}
-	if s.Status == "" {
-		s.Status = StatusDraft
-	}
-	s.Version = 1
-	pg.segments[s.ID] = &s
-	return s.ID
+	s.Kind = artifact.KindPlanSegment
+	id, _ := pg.G.Add(s) //nolint:errcheck // original API never returned error
+	return id
 }
 
 // Get returns a segment by ID.
 func (pg *PlanGraph) Get(id string) (*Segment, error) {
-	pg.mu.RLock()
-	defer pg.mu.RUnlock()
-
-	s, ok := pg.segments[id]
-	if !ok {
-		return nil, fmt.Errorf("%w: %s", ErrSegmentNotFound, id)
-	}
-	return s, nil
+	return pg.G.Get(id)
 }
 
-// Claim gives exclusive ownership of a segment to an agent.
-func (pg *PlanGraph) Claim(segmentID, owner string) error {
-	pg.mu.Lock()
-	defer pg.mu.Unlock()
-
-	s, ok := pg.segments[segmentID]
-	if !ok {
-		return fmt.Errorf("%w: %s", ErrSegmentNotFound, segmentID)
-	}
-	if s.Status != StatusReady {
-		return fmt.Errorf("%w: cannot claim segment in %s state", ErrInvalidTransition, s.Status)
-	}
-	if s.Owner != "" {
-		return fmt.Errorf("%w: owned by %s", ErrAlreadyClaimed, s.Owner)
-	}
-
-	s.Owner = owner
-	s.Status = StatusClaimed
-	return nil
+// Claim gives exclusive ownership to an agent.
+func (pg *PlanGraph) Claim(id, owner string) error {
+	return pg.G.Claim(id, owner)
 }
 
 // Start transitions a claimed segment to in_progress.
-func (pg *PlanGraph) Start(segmentID string) error {
-	pg.mu.Lock()
-	defer pg.mu.Unlock()
-
-	s, ok := pg.segments[segmentID]
-	if !ok {
-		return fmt.Errorf("%w: %s", ErrSegmentNotFound, segmentID)
-	}
-	if s.Status != StatusClaimed {
-		return fmt.Errorf("%w: cannot start segment in %s state", ErrInvalidTransition, s.Status)
-	}
-	s.Status = StatusInProgress
-	return nil
+func (pg *PlanGraph) Start(id string) error {
+	return pg.G.Start(id)
 }
 
 // Complete marks a segment as done.
-func (pg *PlanGraph) Complete(segmentID string) error {
-	pg.mu.Lock()
-	defer pg.mu.Unlock()
-
-	s, ok := pg.segments[segmentID]
-	if !ok {
-		return fmt.Errorf("%w: %s", ErrSegmentNotFound, segmentID)
-	}
-	if s.Status != StatusInProgress {
-		return fmt.Errorf("%w: cannot complete segment in %s state", ErrInvalidTransition, s.Status)
-	}
-	s.Status = StatusComplete
-	s.Version++
-	return nil
+func (pg *PlanGraph) Complete(id string) error {
+	return pg.G.Complete(id)
 }
 
-// Ready returns all segments whose dependencies are all complete.
+// Ready returns segments whose dependencies are all complete.
 func (pg *PlanGraph) Ready() []Segment {
-	pg.mu.RLock()
-	defer pg.mu.RUnlock()
-
-	var ready []Segment
-	for _, s := range pg.segments {
-		if s.Status != StatusReady {
-			continue
-		}
-		if pg.depsComplete(s) {
-			ready = append(ready, *s)
-		}
-	}
-	return ready
+	return pg.G.Ready()
 }
 
-// DraftGaps returns segments still in draft status.
+// DraftGaps returns segments in draft status.
 func (pg *PlanGraph) DraftGaps() []Segment {
-	pg.mu.RLock()
-	defer pg.mu.RUnlock()
-
-	var gaps []Segment
-	for _, s := range pg.segments {
-		if s.Status == StatusDraft {
-			gaps = append(gaps, *s)
-		}
-	}
-	return gaps
+	return pg.G.DraftGaps()
 }
 
 // All returns all segments.
 func (pg *PlanGraph) All() []Segment {
-	pg.mu.RLock()
-	defer pg.mu.RUnlock()
-
-	result := make([]Segment, 0, len(pg.segments))
-	for _, s := range pg.segments {
-		result = append(result, *s)
-	}
-	return result
+	return pg.G.All()
 }
 
-// TopoSort returns segments in dependency order (Kahn's algorithm).
+// TopoSort returns segments in dependency order.
 func (pg *PlanGraph) TopoSort() []Segment {
-	pg.mu.RLock()
-	defer pg.mu.RUnlock()
-
-	// Build in-degree map.
-	inDegree := make(map[string]int)
-	for id := range pg.segments {
-		inDegree[id] = 0
-	}
-	for _, s := range pg.segments {
-		for _, dep := range s.DependsOn {
-			inDegree[s.ID]++
-			_ = dep
-		}
-	}
-
-	// Queue with zero in-degree.
-	var queue []string
-	for id, deg := range inDegree {
-		if deg == 0 {
-			queue = append(queue, id)
-		}
-	}
-
-	var sorted []Segment
-	for len(queue) > 0 {
-		id := queue[0]
-		queue = queue[1:]
-		s := pg.segments[id]
-		sorted = append(sorted, *s)
-
-		// Reduce in-degree of dependents.
-		for _, other := range pg.segments {
-			for _, dep := range other.DependsOn {
-				if dep == id {
-					inDegree[other.ID]--
-					if inDegree[other.ID] == 0 {
-						queue = append(queue, other.ID)
-					}
-				}
-			}
-		}
-	}
-
-	return sorted
+	return pg.G.TopoSort()
 }
 
-func (pg *PlanGraph) depsComplete(s *Segment) bool {
-	for _, depID := range s.DependsOn {
-		dep, ok := pg.segments[depID]
-		if !ok || dep.Status != StatusComplete {
-			return false
-		}
-	}
-	return true
+// Cascade propagates invalidation via deps + spatial overlap.
+func (pg *PlanGraph) Cascade(changedID string) []string {
+	return pg.G.Cascade(changedID)
+}
+
+// Overlaps returns files shared between two segments' ComponentMaps.
+func (pg *PlanGraph) Overlaps(idA, idB string) []string {
+	return pg.G.Overlaps(idA, idB)
+}
+
+// FillDraft transitions a draft segment to ready with content.
+func (pg *PlanGraph) FillDraft(id, content string) error {
+	return pg.G.FillDraft(id, content)
+}
+
+// Annotate adds operator feedback. Bridges the 3-arg API to artifact.Annotation.
+func (pg *PlanGraph) Annotate(id, kind, comment string) {
+	pg.G.Annotate(id, artifact.Annotation{Kind: kind, Comment: comment}) //nolint:errcheck // original API was void
+}
+
+// Inject adds a new segment linked to an existing one.
+func (pg *PlanGraph) Inject(parentID string, s Segment) (string, error) { //nolint:gocritic // matches original API signature
+	s.Kind = artifact.KindPlanSegment
+	return pg.G.Inject(parentID, s)
+}
+
+// Reorder changes a segment's dependencies.
+func (pg *PlanGraph) Reorder(id string, newDeps []string) error {
+	return pg.G.Reorder(id, newDeps)
 }

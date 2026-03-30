@@ -14,8 +14,9 @@ const (
 // Matches the lifecycle of the original plan.Segment.
 func PlanSegmentTemplate() Template {
 	return Template{
-		Kind:             KindPlanSegment,
-		RequiredSections: []string{"content"},
+		Kind: KindPlanSegment,
+		// Content is NOT required at creation — drafts start empty,
+		// FillDraft adds content and transitions to ready.
 		ValidStatuses: []Status{
 			StatusDraft, StatusReady, StatusClaimed,
 			StatusInProgress, StatusComplete, StatusInvalidated,

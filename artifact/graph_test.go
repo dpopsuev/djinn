@@ -46,18 +46,15 @@ func TestAdd_IDIncrements(t *testing.T) {
 
 func TestAdd_ValidatesTemplate(t *testing.T) {
 	g := testGraph()
-	// Plan-segment without content should fail.
-	_, err := g.Add(Artifact{Kind: KindPlanSegment, Title: "no content"})
-	if !errors.Is(err, ErrMissingSection) {
-		t.Errorf("err = %v, want ErrMissingSection", err)
-	}
-}
-
-func TestAdd_RejectsUnknownKind(t *testing.T) {
-	g := testGraph()
+	// Unknown kind should fail.
 	_, err := g.Add(Artifact{Kind: "alien", Title: "unknown"})
 	if !errors.Is(err, ErrTemplateNotFound) {
 		t.Errorf("err = %v, want ErrTemplateNotFound", err)
+	}
+	// Plan-segment without content is OK (drafts start empty).
+	_, err = g.Add(Artifact{Kind: KindPlanSegment, Title: "draft"})
+	if err != nil {
+		t.Errorf("draft plan-segment should pass: %v", err)
 	}
 }
 
