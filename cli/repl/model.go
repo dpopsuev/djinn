@@ -131,6 +131,7 @@ type Model struct {
 	debugPanel  *tui.DebugPanel
 	showDebug   bool
 	hubRegistry *hub.HubRegistry
+	planPanel   *tui.PlanPanel
 
 	// Staff — role pipeline
 	currentRole string
@@ -246,6 +247,19 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 			Weight: 1, MinHeight: 5, Border: tui.BorderFocusDepth, Focusable: true, //nolint:mnd // layout
 		})
 	}
+	// Plan panel — visible when plan artifacts exist.
+	if cfg.HubRegistry != nil {
+		if ph, ok := cfg.HubRegistry.Get("plan"); ok {
+			if planHub, ok := ph.(*hub.PlanHub); ok {
+				m.planPanel = tui.NewPlanPanel(planHub.Graph)
+				m.layout.Register(tui.PanelSlot{
+					Panel: m.planPanel, Visible: func() bool { return len(m.planPanel.View(1)) > 20 }, //nolint:mnd // non-empty check
+					Weight: 1, MinHeight: 5, Border: tui.BorderFocusDepth, Focusable: true, //nolint:mnd // layout
+				})
+			}
+		}
+	}
+
 	m.dashboard.Update(tui.DashboardIdentityMsg{Workspace: cfg.Session.Workspace, Driver: cfg.Session.Driver, Model: cfg.Session.Model, Mode: cfg.Mode})
 	m.dashboard.Update(tui.DashboardHealthMsg{Reports: cfg.HealthReports})
 
