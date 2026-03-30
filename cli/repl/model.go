@@ -19,6 +19,7 @@ import (
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/hub"
 	"github.com/dpopsuev/djinn/keybind"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
@@ -129,6 +130,7 @@ type Model struct {
 	tuiRecorder *tui.TUIRecorder
 	debugPanel  *tui.DebugPanel
 	showDebug   bool
+	hubRegistry *hub.HubRegistry
 
 	// Staff — role pipeline
 	currentRole string
@@ -210,6 +212,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		sandboxExec:    cfg.SandboxExec,
 		sandboxBackend: cfg.SandboxBackend,
 		sandboxLevel:   cfg.SandboxLevel,
+		hubRegistry:    cfg.HubRegistry,
 	}
 
 	// Use driver's context window for the monitor if available.

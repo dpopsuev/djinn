@@ -9,6 +9,7 @@ import (
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/hub"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/staff"
@@ -40,6 +41,7 @@ type Config struct {
 	Version       string             // app version for MOTD (set via ldflags)
 	TUIRecorder   *tui.TUIRecorder   // nil = disabled; captures rendered frames
 	TraceRing     *trace.Ring        // nil = disabled; enables live MCP debugging
+	HubRegistry   *hub.HubRegistry   // nil = disabled; DevOps phase mediation
 
 	// Sandbox: when set, all agents except GenSec run inside the sandbox.
 	SandboxHandle  string
