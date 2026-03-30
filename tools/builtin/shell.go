@@ -79,7 +79,7 @@ func (t *PlanTool) Execute(_ context.Context, input json.RawMessage) (string, er
 		if req.ID == "" || req.Status == "" {
 			return "", fmt.Errorf("plan update: id and status required")
 		}
-		if err := t.Store.Update(req.ID, req.Status); err != nil {
+		if err := t.Store.Update(req.ID, tools.Status(req.Status)); err != nil {
 			return "", fmt.Errorf("plan update: %w", err)
 		}
 		return fmt.Sprintf("updated %s to %s", req.ID, req.Status), nil

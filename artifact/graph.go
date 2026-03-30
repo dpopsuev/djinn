@@ -502,6 +502,30 @@ func (g *Graph) TopoSort() []Artifact {
 	return sorted
 }
 
+// --- Counter access ---
+
+// CounterValue returns the current ID counter value for a kind.
+func (g *Graph) CounterValue(kind string) int64 {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	if c, ok := g.counters[kind]; ok {
+		return c.Load()
+	}
+	return 0
+}
+
+// SetCounter sets the ID counter for a kind (used by Load for backward compat).
+func (g *Graph) SetCounter(kind string, val int64) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	c, ok := g.counters[kind]
+	if !ok {
+		c = &atomic.Int64{}
+		g.counters[kind] = c
+	}
+	c.Store(val)
+}
+
 // --- Persistence ---
 
 type graphState struct {

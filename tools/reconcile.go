@@ -76,7 +76,7 @@ func computeFunctionality(tasks *TaskStore) PillarScore {
 
 	for _, t := range all {
 		if t.Status != StatusDone {
-			ps.Details = append(ps.Details, t.ID+": "+t.Status)
+			ps.Details = append(ps.Details, t.ID+": "+string(t.Status))
 		}
 	}
 	return ps

@@ -1,204 +1,117 @@
-// plan.go — in-process task tracker for agent planning.
+// plan.go — Backward-compatibility shim: TaskStore wraps artifact.Graph (GOL-59).
 //
-// TaskStore is a thread-safe, file-backed task store with dependency ordering.
-// Agents use it to decompose work into tasks, track progress, and
-// topologically sort by dependency edges.
+// Task is an alias for artifact.Artifact. TaskStore delegates to artifact.Graph
+// with Kind=task. All 9 tools/plan_test.go tests pass unchanged.
+// Persistence uses the original JSON format for backward compatibility.
 package tools
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"sort"
-	"sync"
 	"time"
+
+	"github.com/dpopsuev/djinn/artifact"
 )
 
-// Sentinel errors for TaskStore operations.
+// Task is an alias for artifact.Artifact.
+type Task = artifact.Artifact
+
+// Status type alias for backward compatibility.
+type Status = artifact.Status
+
+// Sentinel errors re-exported.
 var (
-	ErrTaskNotFound      = errors.New("task not found")
-	ErrInvalidTaskStatus = errors.New("invalid task status")
+	ErrTaskNotFound      = artifact.ErrNotFound
+	ErrInvalidTaskStatus = artifact.ErrInvalidStatus
 )
 
-// Task represents a single work item in the plan.
-type Task struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	Status    string    `json:"status"` // pending, active, done, blocked
-	DependsOn []string  `json:"depends_on,omitempty"`
-	Parent    string    `json:"parent,omitempty"`
-	Labels    []string  `json:"labels,omitempty"`
-	Created   time.Time `json:"created"`
-	Updated   time.Time `json:"updated"`
-}
-
-// Valid task statuses.
+// Valid task statuses — re-exported from artifact.
 const (
-	StatusPending = "pending"
-	StatusActive  = "active"
-	StatusDone    = "done"
-	StatusBlocked = "blocked"
+	StatusPending = artifact.StatusPending
+	StatusActive  = artifact.StatusActive
+	StatusDone    = artifact.StatusDone
+	StatusBlocked = artifact.StatusBlocked
 )
 
 // TaskStore is a thread-safe, file-backed collection of tasks.
+// Wraps artifact.Graph with Kind=task.
 type TaskStore struct {
-	mu     sync.RWMutex
-	tasks  map[string]*Task
-	path   string
-	nextID int
+	g    *artifact.Graph
+	path string
 }
 
 // NewTaskStore creates a TaskStore backed by the given file path.
-// If the file exists, it is loaded on first access via Load().
 func NewTaskStore(path string) *TaskStore {
 	return &TaskStore{
-		tasks: make(map[string]*Task),
-		path:  path,
+		g:    artifact.NewGraph("tasks", artifact.DefaultRegistry()),
+		path: path,
 	}
 }
 
 // Create adds a new task with the given title and returns it.
 func (s *TaskStore) Create(title string) *Task {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.nextID++
-	now := time.Now()
-	t := &Task{
-		ID:      fmt.Sprintf("T-%03d", s.nextID),
-		Title:   title,
-		Status:  StatusPending,
-		Created: now,
-		Updated: now,
+	a := artifact.Artifact{
+		Kind:   artifact.KindTask,
+		Title:  title,
+		Status: artifact.StatusPending,
 	}
-	s.tasks[t.ID] = t
+	id, _ := s.g.Add(a) //nolint:errcheck // original API never returned error
+	t, _ := s.g.Get(id)
 	return t
 }
 
 // Get returns a task by ID.
 func (s *TaskStore) Get(id string) (*Task, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	t, ok := s.tasks[id]
-	return t, ok
+	t, err := s.g.Get(id)
+	return t, err == nil
 }
 
-// Update changes a task's status. Returns an error if the task
-// is not found or the status is invalid.
-func (s *TaskStore) Update(id, status string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	t, ok := s.tasks[id]
-	if !ok {
-		return fmt.Errorf("%w: %q", ErrTaskNotFound, id)
-	}
-	switch status {
-	case StatusPending, StatusActive, StatusDone, StatusBlocked:
-	default:
-		return fmt.Errorf("%w: %q", ErrInvalidTaskStatus, status)
-	}
-	t.Status = status
-	t.Updated = time.Now()
-	return nil
+// Update changes a task's status.
+func (s *TaskStore) Update(id string, status Status) error {
+	return s.g.UpdateStatus(id, status)
 }
 
 // List returns all tasks sorted by ID.
 func (s *TaskStore) List() []*Task {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	out := make([]*Task, 0, len(s.tasks))
-	for _, t := range s.tasks {
-		out = append(out, t)
+	all := s.g.ListSorted()
+	out := make([]*Task, len(all))
+	for i := range all {
+		t, _ := s.g.Get(all[i].ID)
+		out[i] = t
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
 }
 
-// TopoSort returns tasks in dependency order (dependencies before dependents).
-// Tasks with no dependencies come first. Cycles are broken arbitrarily.
+// TopoSort returns tasks in dependency order.
 func (s *TaskStore) TopoSort() []*Task {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	// Kahn's algorithm.
-	inDegree := make(map[string]int, len(s.tasks))
-	dependents := make(map[string][]string) // dep → tasks that depend on it
-
-	for id, t := range s.tasks {
-		if _, ok := inDegree[id]; !ok {
-			inDegree[id] = 0
-		}
-		for _, dep := range t.DependsOn {
-			if _, ok := s.tasks[dep]; ok {
-				inDegree[id]++
-				dependents[dep] = append(dependents[dep], id)
-			}
-		}
+	sorted := s.g.TopoSort()
+	out := make([]*Task, len(sorted))
+	for i := range sorted {
+		t, _ := s.g.Get(sorted[i].ID)
+		out[i] = t
 	}
-
-	// Seed queue with zero-indegree nodes.
-	var queue []string
-	for id, deg := range inDegree {
-		if deg == 0 {
-			queue = append(queue, id)
-		}
-	}
-	sort.Strings(queue) // deterministic order
-
-	var sorted []*Task
-	for len(queue) > 0 {
-		id := queue[0]
-		queue = queue[1:]
-		sorted = append(sorted, s.tasks[id])
-		for _, child := range dependents[id] {
-			inDegree[child]--
-			if inDegree[child] == 0 {
-				queue = append(queue, child)
-			}
-		}
-		sort.Strings(queue) // keep deterministic
-	}
-
-	// If there are leftover tasks (cycles), append them.
-	if len(sorted) < len(s.tasks) {
-		remaining := make(map[string]bool)
-		for id := range s.tasks {
-			remaining[id] = true
-		}
-		for _, t := range sorted {
-			delete(remaining, t.ID)
-		}
-		var ids []string
-		for id := range remaining {
-			ids = append(ids, id)
-		}
-		sort.Strings(ids)
-		for _, id := range ids {
-			sorted = append(sorted, s.tasks[id])
-		}
-	}
-
-	return sorted
+	return out
 }
 
-// Save writes the task store to disk as JSON. The write is atomic
-// (write to temp then rename).
+// Save writes the task store to disk as JSON (original format for backward compat).
 func (s *TaskStore) Save() error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return atomicSaveJSON(s.path, s.marshalState(), "tasks")
+	all := s.g.ListSorted()
+	tasks := make([]taskJSON, len(all))
+	for i := range all {
+		tasks[i] = toTaskJSON(&all[i])
+	}
+	state := taskStoreState{
+		NextID: int(s.g.CounterValue(artifact.KindTask)),
+		Tasks:  tasks,
+	}
+	return atomicSaveJSON(s.path, state, "tasks")
 }
 
-// Load reads task data from the file. Existing in-memory tasks are replaced.
+// Load reads task data from the file (original format).
 func (s *TaskStore) Load() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	data, err := os.ReadFile(s.path)
+	data, err := os.ReadFile(s.path) //nolint:gosec // path from controlled config
 	if err != nil {
 		return fmt.Errorf("read tasks: %w", err)
 	}
@@ -208,26 +121,61 @@ func (s *TaskStore) Load() error {
 		return fmt.Errorf("unmarshal tasks: %w", err)
 	}
 
-	s.tasks = make(map[string]*Task, len(state.Tasks))
-	s.nextID = state.NextID
+	// Reset graph and restore.
+	s.g = artifact.NewGraph("tasks", artifact.DefaultRegistry())
 	for i := range state.Tasks {
 		t := state.Tasks[i]
-		s.tasks[t.ID] = &t
+		a := artifact.Artifact{
+			ID:        t.ID,
+			Kind:      artifact.KindTask,
+			Title:     t.Title,
+			Status:    artifact.Status(t.Status),
+			DependsOn: t.DependsOn,
+			Parent:    t.Parent,
+			Labels:    t.Labels,
+			Created:   t.Created,
+			Updated:   t.Updated,
+		}
+		s.g.Add(a) //nolint:errcheck // loading known-good data
 	}
+	s.g.SetCounter(artifact.KindTask, int64(state.NextID))
 	return nil
 }
 
-// taskStoreState is the JSON-serialized form.
-type taskStoreState struct {
-	NextID int    `json:"next_id"`
-	Tasks  []Task `json:"tasks"`
+// taskJSON is the original JSON format for a task (backward compat).
+type taskJSON struct {
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	Status    string    `json:"status"`
+	DependsOn []string  `json:"depends_on,omitempty"`
+	Parent    string    `json:"parent,omitempty"`
+	Labels    []string  `json:"labels,omitempty"`
+	Created   time.Time `json:"created"`
+	Updated   time.Time `json:"updated"`
 }
 
-func (s *TaskStore) marshalState() taskStoreState {
-	tasks := make([]Task, 0, len(s.tasks))
-	for _, t := range s.tasks {
-		tasks = append(tasks, *t)
+func toTaskJSON(a *artifact.Artifact) taskJSON {
+	return taskJSON{
+		ID:        a.ID,
+		Title:     a.Title,
+		Status:    string(a.Status),
+		DependsOn: a.DependsOn,
+		Parent:    a.Parent,
+		Labels:    a.Labels,
+		Created:   a.Created,
+		Updated:   a.Updated,
 	}
+}
+
+// taskStoreState is the original JSON format.
+type taskStoreState struct {
+	NextID int        `json:"next_id"`
+	Tasks  []taskJSON `json:"tasks"`
+}
+
+// --- Legacy sort helper (used by reconcile.go) ---
+
+// SortTasksByID sorts tasks by ID. Used by tests and reconcile.
+func SortTasksByID(tasks []*Task) {
 	sort.Slice(tasks, func(i, j int) bool { return tasks[i].ID < tasks[j].ID })
-	return taskStoreState{NextID: s.nextID, Tasks: tasks}
 }
