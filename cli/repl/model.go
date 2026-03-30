@@ -140,6 +140,7 @@ type Model struct {
 	staffCfg    *staff.StaffConfig
 	operation   staff.Operation      // current operation (ask/plan/agent)
 	capacity    *staff.AgentCapacity // agent len/cap tracker
+	envelopeCfg staff.EnvelopeConfig // lifecycle envelope config
 
 	// Multi-agent monitoring
 	agentsPanel  *tui.AgentsPanel
@@ -218,6 +219,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		hubRegistry:    cfg.HubRegistry,
 		operation:      staff.DefaultOperation(),
 		capacity:       staff.NewAgentCapacity(1),
+		envelopeCfg:    staff.DefaultEnvelopeConfig(),
 	}
 
 	// Use driver's context window for the monitor if available.
@@ -1233,6 +1235,48 @@ func (m *Model) handleColonCommand(payload string) (tea.Model, tea.Cmd) {
 		} else {
 			m.outputPanel.Update(tui.OutputAppendMsg{
 				Line: fmt.Sprintf("capacity → %s", m.capacity),
+			})
+		}
+
+	// :envelope — lifecycle envelope control
+	case cmd == "envelope" && len(args) == 0:
+		status := "off"
+		if m.envelopeCfg.Enabled {
+			status = "on"
+		}
+		m.outputPanel.Update(tui.OutputAppendMsg{
+			Line: fmt.Sprintf("envelope: %s (checkpoint every %d tasks, drift threshold %.0f%%)",
+				status, m.envelopeCfg.CheckpointEvery, m.envelopeCfg.DriftThreshold*100),
+		})
+	case cmd == "envelope" && len(args) > 0:
+		switch args[0] {
+		case "on":
+			m.envelopeCfg.Enabled = true
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: "envelope → on"})
+		case "off":
+			m.envelopeCfg.Enabled = false
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: "envelope → off"})
+		case "every":
+			if len(args) < 2 {
+				m.outputPanel.Update(tui.OutputAppendMsg{
+					Line: tui.ErrorStyle.Render("usage: :envelope every N"),
+				})
+			} else {
+				var n int
+				if _, err := fmt.Sscanf(args[1], "%d", &n); err != nil || n < 1 {
+					m.outputPanel.Update(tui.OutputAppendMsg{
+						Line: tui.ErrorStyle.Render(fmt.Sprintf("invalid frequency: %s", args[1])),
+					})
+				} else {
+					m.envelopeCfg.CheckpointEvery = n
+					m.outputPanel.Update(tui.OutputAppendMsg{
+						Line: fmt.Sprintf("envelope checkpoint every %d tasks", n),
+					})
+				}
+			}
+		default:
+			m.outputPanel.Update(tui.OutputAppendMsg{
+				Line: tui.ErrorStyle.Render(fmt.Sprintf("unknown envelope subcommand %q (on, off, every N)", args[0])),
 			})
 		}
 
