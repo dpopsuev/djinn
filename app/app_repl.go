@@ -110,9 +110,9 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 			}
 			fmt.Fprintln(stderr)
 
-			// Generate djinn.yaml for future runs.
+			// Generate global config for future runs.
 			if err := GenerateConfig(Getwd(), best); err == nil {
-				fmt.Fprintf(stderr, "djinn: created djinn.yaml — edit to customize\n")
+				fmt.Fprintf(stderr, "djinn: created ~/.djinn/config.yaml — edit to customize\n")
 			}
 		} else {
 			return fmt.Errorf("%w\n\n%s", ErrNoDriverDetected, FriendlyNoDriverError())

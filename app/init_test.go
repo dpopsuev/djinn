@@ -8,14 +8,17 @@ import (
 )
 
 func TestGenerateConfig_WritesValidYAML(t *testing.T) {
-	dir := t.TempDir()
+	// Set HOME to temp dir so GenerateConfig writes to a controlled location.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
 	drv := DetectedDriver{Name: "cursor"}
 
-	if err := GenerateConfig(dir, drv); err != nil {
+	if err := GenerateConfig("", drv); err != nil {
 		t.Fatalf("GenerateConfig: %v", err)
 	}
 
-	path := filepath.Join(dir, "djinn.yaml")
+	path := filepath.Join(home, ".djinn", "config.yaml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read: %v", err)
@@ -34,13 +37,17 @@ func TestGenerateConfig_WritesValidYAML(t *testing.T) {
 }
 
 func TestGenerateConfig_DoesNotOverwrite(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "djinn.yaml")
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	dir := filepath.Join(home, ".djinn")
+	os.MkdirAll(dir, 0o755)
+	path := filepath.Join(dir, "config.yaml")
 	os.WriteFile(path, []byte("existing"), 0o644)
 
-	err := GenerateConfig(dir, DetectedDriver{Name: "cursor"})
+	err := GenerateConfig("", DetectedDriver{Name: "cursor"})
 	if err == nil {
-		t.Fatal("should error when djinn.yaml exists")
+		t.Fatal("should error when config.yaml exists")
 	}
 
 	// Original content preserved.
