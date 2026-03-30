@@ -316,7 +316,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocy
 		m.lastError = ""
 		m.spinnerActive = true
 		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
-		return m, tea.Batch(m.runAgent(msg.Value), m.spin.Tick, tickCmd())
+
+		// Inject focus context into prompt if the active panel supports it (GOL-62).
+		prompt := msg.Value
+		if provider, ok := m.focus.Active().(tui.FocusContextProvider); ok {
+			if fc := provider.FocusContext(); !fc.IsEmpty() {
+				prompt = fc.FormatPrompt() + "\n\n" + prompt
+			}
+		}
+		return m, tea.Batch(m.runAgent(prompt), m.spin.Tick, tickCmd())
 
 	case spinner.TickMsg:
 		if m.spinnerActive {
