@@ -37,6 +37,17 @@ Djinn consists of:
 
 Pre-implementation. Djinn will be built once Misbah Layer 1 PoC is complete.
 
+## Ecosystem Dependency Rules (JRC-SPC-2)
+
+**CRITICAL: Djinn NEVER imports origami/.**
+
+- Djinn -> Jericho (via bugleport/ adapter). This is the ONLY Jericho import path.
+- Djinn NEVER imports origami/ — use Bugle Protocol (bugle MCP tool) to execute circuits
+- Djinn has its own workflow engine (broker, workstreams, orchestrator). Do NOT import origami/engine.
+- If Djinn needs circuit execution, call bugle(action="start") on the Origami endpoint.
+
+Dependency direction: `Origami -> Jericho <- Djinn` (lateral via Bugle Protocol)
+
 ## Working with Djinn
 
 Use absolute paths to work across both repos:
