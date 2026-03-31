@@ -73,6 +73,23 @@ func TestCheckSLA_ExactBoundary(t *testing.T) {
 	}
 }
 
+func TestDefaultSLAs_ReasonableValues(t *testing.T) {
+	for name, sla := range DefaultSLAs() {
+		if sla.P50Target >= sla.P95Target {
+			t.Errorf("%s: P50 (%v) should be < P95 (%v)", name, sla.P50Target, sla.P95Target)
+		}
+		if sla.MaxErrorPct <= 0 {
+			t.Errorf("%s: MaxErrorPct should be > 0, got %f", name, sla.MaxErrorPct)
+		}
+		if sla.MaxErrorPct > 0.1 {
+			t.Errorf("%s: MaxErrorPct should be <= 10%%, got %f", name, sla.MaxErrorPct)
+		}
+		if sla.Name != name {
+			t.Errorf("SLA Name = %q, map key = %q", sla.Name, name)
+		}
+	}
+}
+
 func TestDefaultSLAs_AllToolsCovered(t *testing.T) {
 	slas := DefaultSLAs()
 	expected := []string{"plan", "test", "git", "arch", "discourse", "reconcile", "latency", "render"}

@@ -442,3 +442,34 @@ func TestImport_NilToolUseInputDefaultsToEmptyObject(t *testing.T) {
 		}
 	}
 }
+
+// TSK-518: Security A08 — malformed session files must not panic.
+func TestStore_Load_MalformedJSON(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{"empty", ""},
+		{"truncated", `{"name":"test","id":"x`},
+		{"garbage", `not json at all !!!`},
+		{"null_value", `null`},
+		{"array_not_object", `[1,2,3]`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(dir, tt.name+".session.json")
+			os.WriteFile(path, []byte(tt.content), 0o644)
+
+			// Must not panic — error is acceptable.
+			_, loadErr := store.Load(tt.name)
+			_ = loadErr // error expected for corrupt files, panic is the bug
+		})
+	}
+}
