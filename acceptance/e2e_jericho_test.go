@@ -1,9 +1,9 @@
 // e2e_bugle_test.go — E2E tests for Bugle v0.9.0+v0.10.0 features
-// through Djinn's bugleport/ adapter layer.
+// through Djinn's jerichoport/ adapter layer.
 //
 // Tests: RoleRegistry, Ask, SendToRole, Broadcast, Staff facade,
 // AgentHandle lifecycle, process supervision via facade.
-// All through bugleport re-exports — proves the adapter layer works.
+// All through jerichoport re-exports — proves the adapter layer works.
 package acceptance
 
 import (
@@ -14,50 +14,50 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/bugleport"
+	"github.com/dpopsuev/djinn/jerichoport"
 )
 
 // mockLauncherBugle tracks Start/Stop calls for Bugle E2E tests.
 type mockLauncherBugle struct {
 	mu      sync.Mutex
-	started map[bugleport.EntityID]bool
-	stopped map[bugleport.EntityID]bool
+	started map[jerichoport.EntityID]bool
+	stopped map[jerichoport.EntityID]bool
 }
 
 func newMockLauncherBugle() *mockLauncherBugle {
 	return &mockLauncherBugle{
-		started: make(map[bugleport.EntityID]bool),
-		stopped: make(map[bugleport.EntityID]bool),
+		started: make(map[jerichoport.EntityID]bool),
+		stopped: make(map[jerichoport.EntityID]bool),
 	}
 }
 
-func (m *mockLauncherBugle) Start(_ context.Context, id bugleport.EntityID, _ bugleport.LaunchConfig) error {
+func (m *mockLauncherBugle) Start(_ context.Context, id jerichoport.EntityID, _ jerichoport.LaunchConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.started[id] = true
 	return nil
 }
 
-func (m *mockLauncherBugle) Stop(_ context.Context, id bugleport.EntityID) error {
+func (m *mockLauncherBugle) Stop(_ context.Context, id jerichoport.EntityID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.stopped[id] = true
 	return nil
 }
 
-func (m *mockLauncherBugle) Healthy(_ context.Context, id bugleport.EntityID) bool {
+func (m *mockLauncherBugle) Healthy(_ context.Context, id jerichoport.EntityID) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.started[id] && !m.stopped[id]
 }
 
-// === v0.9.0: Inter-Agent Messaging through bugleport ===
+// === v0.9.0: Inter-Agent Messaging through jerichoport ===
 
 func TestE2E_Bugle_AskThroughBugleport(t *testing.T) {
-	staff := bugleport.NewStaff(newMockLauncherBugle())
+	staff := jerichoport.NewStaff(newMockLauncherBugle())
 	ctx := context.Background()
 
-	agent, err := staff.Spawn(ctx, "worker", bugleport.LaunchConfig{})
+	agent, err := staff.Spawn(ctx, "worker", jerichoport.LaunchConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,13 +78,13 @@ func TestE2E_Bugle_AskThroughBugleport(t *testing.T) {
 }
 
 func TestE2E_Bugle_BroadcastThroughBugleport(t *testing.T) {
-	staff := bugleport.NewStaff(newMockLauncherBugle())
+	staff := jerichoport.NewStaff(newMockLauncherBugle())
 	ctx := context.Background()
 
 	var received atomic.Int32
 
 	for i := range 3 {
-		agent, _ := staff.Spawn(ctx, "executor", bugleport.LaunchConfig{})
+		agent, _ := staff.Spawn(ctx, "executor", jerichoport.LaunchConfig{})
 		_ = i
 		agent.Listen(func(content string) string {
 			received.Add(1)
@@ -114,12 +114,12 @@ func TestE2E_Bugle_BroadcastThroughBugleport(t *testing.T) {
 }
 
 func TestE2E_Bugle_TellFireAndForget(t *testing.T) {
-	staff := bugleport.NewStaff(newMockLauncherBugle())
+	staff := jerichoport.NewStaff(newMockLauncherBugle())
 	ctx := context.Background()
 
 	var got atomic.Value
 
-	agent, _ := staff.Spawn(ctx, "worker", bugleport.LaunchConfig{})
+	agent, _ := staff.Spawn(ctx, "worker", jerichoport.LaunchConfig{})
 	agent.Listen(func(content string) string {
 		got.Store(content)
 		return ""
@@ -139,15 +139,15 @@ func TestE2E_Bugle_TellFireAndForget(t *testing.T) {
 	staff.KillAll(ctx)
 }
 
-// === v0.10.0: Facade through bugleport ===
+// === v0.10.0: Facade through jerichoport ===
 
 func TestE2E_Bugle_FacadeSpawnHierarchy(t *testing.T) {
-	staff := bugleport.NewStaff(newMockLauncherBugle())
+	staff := jerichoport.NewStaff(newMockLauncherBugle())
 	ctx := context.Background()
 
-	gensec, _ := staff.Spawn(ctx, "gensec", bugleport.LaunchConfig{})
-	executor, _ := gensec.Spawn(ctx, "executor", bugleport.LaunchConfig{})
-	inspector, _ := gensec.Spawn(ctx, "inspector", bugleport.LaunchConfig{})
+	gensec, _ := staff.Spawn(ctx, "gensec", jerichoport.LaunchConfig{})
+	executor, _ := gensec.Spawn(ctx, "executor", jerichoport.LaunchConfig{})
+	inspector, _ := gensec.Spawn(ctx, "inspector", jerichoport.LaunchConfig{})
 
 	// Verify hierarchy.
 	if executor.Parent() == nil || executor.Parent().ID() != gensec.ID() {
@@ -189,22 +189,22 @@ func TestE2E_Bugle_FacadeSpawnHierarchy(t *testing.T) {
 }
 
 func TestE2E_Bugle_FacadeKillWaitExitStatus(t *testing.T) {
-	staff := bugleport.NewStaff(newMockLauncherBugle())
+	staff := jerichoport.NewStaff(newMockLauncherBugle())
 	ctx := context.Background()
 
-	gensec, _ := staff.Spawn(ctx, "gensec", bugleport.LaunchConfig{})
+	gensec, _ := staff.Spawn(ctx, "gensec", jerichoport.LaunchConfig{})
 	staff.Pool().SetAutoReap(gensec.ID(), false)
 
-	executor, _ := gensec.Spawn(ctx, "executor", bugleport.LaunchConfig{})
+	executor, _ := gensec.Spawn(ctx, "executor", jerichoport.LaunchConfig{})
 
-	executor.KillWithReason(ctx, bugleport.ExitBudget)
+	executor.KillWithReason(ctx, jerichoport.ExitBudget)
 
 	status, err := executor.Wait(ctx)
 	if err != nil {
 		t.Fatalf("Wait: %v", err)
 	}
-	if status.Code != bugleport.ExitBudget {
-		t.Fatalf("exit code = %d, want ExitBudget(%d)", status.Code, bugleport.ExitBudget)
+	if status.Code != jerichoport.ExitBudget {
+		t.Fatalf("exit code = %d, want ExitBudget(%d)", status.Code, jerichoport.ExitBudget)
 	}
 	if status.Duration <= 0 {
 		t.Fatal("duration should be positive")
@@ -214,15 +214,15 @@ func TestE2E_Bugle_FacadeKillWaitExitStatus(t *testing.T) {
 }
 
 func TestE2E_Bugle_FacadeOrphanReparenting(t *testing.T) {
-	staff := bugleport.NewStaff(newMockLauncherBugle())
+	staff := jerichoport.NewStaff(newMockLauncherBugle())
 	ctx := context.Background()
 
-	gensec, _ := staff.Spawn(ctx, "gensec", bugleport.LaunchConfig{})
+	gensec, _ := staff.Spawn(ctx, "gensec", jerichoport.LaunchConfig{})
 	staff.SetSubreaper(gensec)
 
-	scheduler, _ := gensec.Spawn(ctx, "scheduler", bugleport.LaunchConfig{})
-	exec1, _ := scheduler.Spawn(ctx, "executor", bugleport.LaunchConfig{})
-	exec2, _ := scheduler.Spawn(ctx, "executor", bugleport.LaunchConfig{})
+	scheduler, _ := gensec.Spawn(ctx, "scheduler", jerichoport.LaunchConfig{})
+	exec1, _ := scheduler.Spawn(ctx, "executor", jerichoport.LaunchConfig{})
+	exec2, _ := scheduler.Spawn(ctx, "executor", jerichoport.LaunchConfig{})
 
 	// Kill scheduler — orphans should be reparented to gensec.
 	scheduler.Kill(ctx)
@@ -244,10 +244,10 @@ func TestE2E_Bugle_FacadeOrphanReparenting(t *testing.T) {
 }
 
 func TestE2E_Bugle_FacadeProgressTracking(t *testing.T) {
-	staff := bugleport.NewStaff(newMockLauncherBugle())
+	staff := jerichoport.NewStaff(newMockLauncherBugle())
 	ctx := context.Background()
 
-	agent, _ := staff.Spawn(ctx, "executor", bugleport.LaunchConfig{})
+	agent, _ := staff.Spawn(ctx, "executor", jerichoport.LaunchConfig{})
 
 	agent.SetProgress(3, 10)
 
@@ -263,16 +263,16 @@ func TestE2E_Bugle_FacadeProgressTracking(t *testing.T) {
 }
 
 func TestE2E_Bugle_FacadeSignalObservation(t *testing.T) {
-	staff := bugleport.NewStaff(newMockLauncherBugle())
+	staff := jerichoport.NewStaff(newMockLauncherBugle())
 	ctx := context.Background()
 
 	var signals atomic.Int32
-	staff.OnSignal(func(sig bugleport.Signal) {
+	staff.OnSignal(func(sig jerichoport.Signal) {
 		signals.Add(1)
 	})
 
-	staff.Spawn(ctx, "worker", bugleport.LaunchConfig{})
-	staff.Spawn(ctx, "worker", bugleport.LaunchConfig{})
+	staff.Spawn(ctx, "worker", jerichoport.LaunchConfig{})
+	staff.Spawn(ctx, "worker", jerichoport.LaunchConfig{})
 
 	// Each spawn emits EventWorkerStarted.
 	if signals.Load() < 2 {
@@ -283,7 +283,7 @@ func TestE2E_Bugle_FacadeSignalObservation(t *testing.T) {
 }
 
 func TestE2E_Bugle_FacadeConcurrent(t *testing.T) {
-	staff := bugleport.NewStaff(newMockLauncherBugle())
+	staff := jerichoport.NewStaff(newMockLauncherBugle())
 	ctx := context.Background()
 
 	var wg sync.WaitGroup
@@ -291,7 +291,7 @@ func TestE2E_Bugle_FacadeConcurrent(t *testing.T) {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
-			agent, err := staff.Spawn(ctx, fmt.Sprintf("worker-%d", n), bugleport.LaunchConfig{})
+			agent, err := staff.Spawn(ctx, fmt.Sprintf("worker-%d", n), jerichoport.LaunchConfig{})
 			if err != nil {
 				t.Error(err)
 				return

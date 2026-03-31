@@ -6,33 +6,33 @@ package clutch
 import (
 	"context"
 
-	"github.com/dpopsuev/djinn/bugleport"
+	"github.com/dpopsuev/djinn/jerichoport"
 )
 
 // BugleTransportBridge wraps Bugle's LocalTransport as a Clutch-compatible layer.
 // Registers "shell" and "backend" handlers in the Bugle transport.
 type BugleTransportBridge struct {
-	transport *bugleport.LocalTransport
+	transport *jerichoport.LocalTransport
 }
 
 // NewBugleTransportBridge creates a bridge.
-func NewBugleTransportBridge(t *bugleport.LocalTransport) *BugleTransportBridge {
+func NewBugleTransportBridge(t *jerichoport.LocalTransport) *BugleTransportBridge {
 	return &BugleTransportBridge{transport: t}
 }
 
 // RegisterShell registers a handler for shell-bound messages.
-func (b *BugleTransportBridge) RegisterShell(handler bugleport.Handler) {
+func (b *BugleTransportBridge) RegisterShell(handler jerichoport.Handler) {
 	b.transport.Register("shell", handler)
 }
 
 // RegisterBackend registers a handler for backend-bound messages.
-func (b *BugleTransportBridge) RegisterBackend(handler bugleport.Handler) {
+func (b *BugleTransportBridge) RegisterBackend(handler jerichoport.Handler) {
 	b.transport.Register("backend", handler)
 }
 
 // SendToBackend sends a message to the backend agent.
-func (b *BugleTransportBridge) SendToBackend(ctx context.Context, content string) (*bugleport.Task, error) {
-	return b.transport.SendMessage(ctx, "backend", bugleport.Message{
+func (b *BugleTransportBridge) SendToBackend(ctx context.Context, content string) (*jerichoport.Task, error) {
+	return b.transport.SendMessage(ctx, "backend", jerichoport.Message{
 		From:    "shell",
 		To:      "backend",
 		Content: content,
@@ -40,8 +40,8 @@ func (b *BugleTransportBridge) SendToBackend(ctx context.Context, content string
 }
 
 // SendToShell sends a message to the shell agent.
-func (b *BugleTransportBridge) SendToShell(ctx context.Context, content string) (*bugleport.Task, error) {
-	return b.transport.SendMessage(ctx, "shell", bugleport.Message{
+func (b *BugleTransportBridge) SendToShell(ctx context.Context, content string) (*jerichoport.Task, error) {
+	return b.transport.SendMessage(ctx, "shell", jerichoport.Message{
 		From:    "backend",
 		To:      "shell",
 		Content: content,
@@ -49,8 +49,8 @@ func (b *BugleTransportBridge) SendToShell(ctx context.Context, content string) 
 }
 
 // SendToAgent sends a message to any named agent.
-func (b *BugleTransportBridge) SendToAgent(ctx context.Context, from, to, content string) (*bugleport.Task, error) {
-	return b.transport.SendMessage(ctx, to, bugleport.Message{
+func (b *BugleTransportBridge) SendToAgent(ctx context.Context, from, to, content string) (*jerichoport.Task, error) {
+	return b.transport.SendMessage(ctx, to, jerichoport.Message{
 		From:    from,
 		To:      to,
 		Content: content,
@@ -58,6 +58,6 @@ func (b *BugleTransportBridge) SendToAgent(ctx context.Context, from, to, conten
 }
 
 // Transport returns the underlying Bugle transport for direct access.
-func (b *BugleTransportBridge) Transport() *bugleport.LocalTransport {
+func (b *BugleTransportBridge) Transport() *jerichoport.LocalTransport {
 	return b.transport
 }

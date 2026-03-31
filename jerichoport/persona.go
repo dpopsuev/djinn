@@ -1,6 +1,6 @@
-package bugleport
+package jerichoport
 
-import "github.com/dpopsuev/bugle/persona"
+import "github.com/dpopsuev/jericho/persona"
 
 // Persona lookup functions.
 var (

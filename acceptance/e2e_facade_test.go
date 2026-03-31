@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/dpopsuev/djinn/bugleport"
+	"github.com/dpopsuev/djinn/jerichoport"
 )
 
 // TestE2E_FacadeLifecycle is the canonical example for Bugle's facade API.
@@ -15,10 +15,10 @@ func TestE2E_FacadeLifecycle(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. Create staff with mock launcher.
-	staff := bugleport.NewStaff(newMockLauncher())
+	staff := jerichoport.NewStaff(newMockLauncher())
 
 	// 2. Spawn GenSec as root agent.
-	gensec, err := staff.Spawn(ctx, "gensec", bugleport.LaunchConfig{
+	gensec, err := staff.Spawn(ctx, "gensec", jerichoport.LaunchConfig{
 		Role:  "gensec",
 		Model: "haiku",
 	})
@@ -36,7 +36,7 @@ func TestE2E_FacadeLifecycle(t *testing.T) {
 	}
 
 	// 3. Spawn Executor under GenSec (parent-child relationship).
-	executor, err := gensec.Spawn(ctx, "executor", bugleport.LaunchConfig{
+	executor, err := gensec.Spawn(ctx, "executor", jerichoport.LaunchConfig{
 		Role:  "executor",
 		Model: "opus",
 	})
@@ -96,8 +96,8 @@ func TestE2E_FacadeLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Wait executor: %v", err)
 	}
-	if status.Code != bugleport.ExitSuccess {
-		t.Fatalf("executor exit code = %d, want ExitSuccess (%d)", status.Code, bugleport.ExitSuccess)
+	if status.Code != jerichoport.ExitSuccess {
+		t.Fatalf("executor exit code = %d, want ExitSuccess (%d)", status.Code, jerichoport.ExitSuccess)
 	}
 
 	// 8. Clean shutdown — KillAll stops remaining agents.

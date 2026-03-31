@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dpopsuev/bugle/acp"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/jericho/acp"
 
 	"go.uber.org/goleak"
 )

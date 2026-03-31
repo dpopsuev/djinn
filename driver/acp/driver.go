@@ -8,8 +8,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/dpopsuev/bugle/acp"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/jericho/acp"
 )
 
 // ACPDriver wraps bugle/acp.Client as a driver.ChatDriver.

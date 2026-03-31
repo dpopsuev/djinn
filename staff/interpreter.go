@@ -15,7 +15,7 @@ import (
 )
 
 // GenSecAgent is the interface the interpreter uses to communicate with GenSec.
-// Satisfied by bugleport.AgentHandle and any mock.
+// Satisfied by jerichoport.AgentHandle and any mock.
 type GenSecAgent interface {
 	Ask(ctx context.Context, content string) (string, error)
 }

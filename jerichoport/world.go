@@ -1,8 +1,8 @@
-package bugleport
+package jerichoport
 
 import (
-	"github.com/dpopsuev/bugle/palette"
-	"github.com/dpopsuev/bugle/world"
+	"github.com/dpopsuev/jericho/palette"
+	"github.com/dpopsuev/jericho/world"
 )
 
 // Type aliases — definitions live in bugle/world.

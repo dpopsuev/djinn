@@ -4,7 +4,7 @@
 package app
 
 import (
-	"github.com/dpopsuev/djinn/bugleport"
+	"github.com/dpopsuev/djinn/jerichoport"
 	"github.com/dpopsuev/djinn/tui"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -12,29 +12,29 @@ import (
 
 // bridgeSignalHandler returns a signal handler that forwards agent lifecycle
 // events to the Bubbletea program as TUI messages.
-func bridgeSignalHandler(program *tea.Program) func(bugleport.Signal) {
-	return func(sig bugleport.Signal) {
+func bridgeSignalHandler(program *tea.Program) func(jerichoport.Signal) {
+	return func(sig jerichoport.Signal) {
 		switch sig.Event {
-		case bugleport.EventWorkerStarted:
+		case jerichoport.EventWorkerStarted:
 			program.Send(tui.AgentStatusMsg{
-				AgentID: sig.Meta[bugleport.MetaKeyWorkerID],
+				AgentID: sig.Meta[jerichoport.MetaKeyWorkerID],
 				Role:    sig.Meta["role"],
 				State:   "idle",
 				Color:   sig.Meta["color"], // hex from Display, empty = TUI uses default
 			})
-		case bugleport.EventWorkerStopped:
+		case jerichoport.EventWorkerStopped:
 			program.Send(tui.AgentStatusMsg{
-				AgentID: sig.Meta[bugleport.MetaKeyWorkerID],
+				AgentID: sig.Meta[jerichoport.MetaKeyWorkerID],
 				State:   "done",
 			})
-		case bugleport.EventWorkerError:
+		case jerichoport.EventWorkerError:
 			program.Send(tui.AgentStatusMsg{
-				AgentID: sig.Meta[bugleport.MetaKeyWorkerID],
+				AgentID: sig.Meta[jerichoport.MetaKeyWorkerID],
 				State:   "error",
 			})
-		case bugleport.EventWorkerDone:
+		case jerichoport.EventWorkerDone:
 			program.Send(tui.AgentStatusMsg{
-				AgentID: sig.Meta[bugleport.MetaKeyWorkerID],
+				AgentID: sig.Meta[jerichoport.MetaKeyWorkerID],
 				State:   "done",
 			})
 		}
@@ -44,7 +44,7 @@ func bridgeSignalHandler(program *tea.Program) func(bugleport.Signal) {
 // BridgeStaffToTUI subscribes to a Staff's signal bus and forwards
 // agent lifecycle events to the Bubbletea program as TUI messages.
 // Uses the facade — no raw signal.Meta parsing needed.
-func BridgeStaffToTUI(staff *bugleport.Staff, program *tea.Program) {
+func BridgeStaffToTUI(staff *jerichoport.Staff, program *tea.Program) {
 	staff.OnSignal(bridgeSignalHandler(program))
 }
 

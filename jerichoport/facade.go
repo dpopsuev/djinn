@@ -1,6 +1,6 @@
-package bugleport
+package jerichoport
 
-import "github.com/dpopsuev/bugle/facade"
+import "github.com/dpopsuev/jericho/facade"
 
 // Facade type aliases — API for Humans layer over ECS internals.
 type (

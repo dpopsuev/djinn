@@ -2,7 +2,7 @@
 // Each role gets a stable persona identity that persists across LLM hotswap.
 package staff
 
-import "github.com/dpopsuev/djinn/bugleport"
+import "github.com/dpopsuev/djinn/jerichoport"
 
 // RolePersona maps a Djinn staff role to a Bugle persona name.
 // Persona provides: element, color, position, alignment, step affinity.
@@ -19,19 +19,19 @@ var RolePersona = map[string]string{
 
 // ResolvePersona returns the Bugle persona for a Djinn role.
 // Returns the persona and true if found, zero value and false otherwise.
-func ResolvePersona(role string) (bugleport.Persona, bool) {
+func ResolvePersona(role string) (jerichoport.Persona, bool) {
 	personaName, ok := RolePersona[role]
 	if !ok {
-		return bugleport.Persona{}, false
+		return jerichoport.Persona{}, false
 	}
-	return bugleport.PersonaByName(personaName)
+	return jerichoport.PersonaByName(personaName)
 }
 
 // AllRolePersonas returns all role→persona mappings that resolve.
-func AllRolePersonas() map[string]bugleport.Persona {
-	out := make(map[string]bugleport.Persona, len(RolePersona))
+func AllRolePersonas() map[string]jerichoport.Persona {
+	out := make(map[string]jerichoport.Persona, len(RolePersona))
 	for role, name := range RolePersona {
-		if p, ok := bugleport.PersonaByName(name); ok {
+		if p, ok := jerichoport.PersonaByName(name); ok {
 			out[role] = p
 		}
 		_ = name

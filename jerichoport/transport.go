@@ -1,6 +1,6 @@
-package bugleport
+package jerichoport
 
-import "github.com/dpopsuev/bugle/transport"
+import "github.com/dpopsuev/jericho/transport"
 
 // Type aliases — definitions live in bugle/transport.
 type (

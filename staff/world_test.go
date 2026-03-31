@@ -3,12 +3,12 @@ package staff
 import (
 	"testing"
 
-	"github.com/dpopsuev/djinn/bugleport"
+	"github.com/dpopsuev/djinn/jerichoport"
 )
 
 func TestAssignDisplay(t *testing.T) {
 	sw := &StaffWorld{
-		Registry: bugleport.NewRegistry(),
+		Registry: jerichoport.NewRegistry(),
 	}
 
 	d, err := sw.AssignDisplay("executor", "refactor")
@@ -28,7 +28,7 @@ func TestAssignDisplay(t *testing.T) {
 
 func TestAssignDisplay_Unique(t *testing.T) {
 	sw := &StaffWorld{
-		Registry: bugleport.NewRegistry(),
+		Registry: jerichoport.NewRegistry(),
 	}
 
 	d1, err := sw.AssignDisplay("executor", "auth")

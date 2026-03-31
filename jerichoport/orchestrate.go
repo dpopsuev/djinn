@@ -1,6 +1,6 @@
-package bugleport
+package jerichoport
 
-import "github.com/dpopsuev/bugle/orchestrate"
+import "github.com/dpopsuev/jericho/orchestrate"
 
 // Type aliases — definitions live in bugle/orchestrate.
 type (

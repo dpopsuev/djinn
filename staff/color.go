@@ -1,9 +1,9 @@
 // color.go — assigns Bugle ColorIdentity to staff roles for TUI rendering.
 package staff
 
-import "github.com/dpopsuev/djinn/bugleport"
+import "github.com/dpopsuev/djinn/jerichoport"
 
 // AssignColor creates a ColorIdentity for a role within a scope.
-func AssignColor(registry *bugleport.Registry, role, scope string) (bugleport.ColorIdentity, error) {
+func AssignColor(registry *jerichoport.Registry, role, scope string) (jerichoport.ColorIdentity, error) {
 	return registry.Assign(role, scope)
 }

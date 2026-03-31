@@ -1,6 +1,6 @@
-package bugleport
+package jerichoport
 
-import "github.com/dpopsuev/bugle/billing"
+import "github.com/dpopsuev/jericho/billing"
 
 // Type aliases — definitions live in bugle/billing.
 type (

@@ -1,4 +1,4 @@
-package bugleport_test
+package jerichoport_test
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/bugle/world"
-	"github.com/dpopsuev/djinn/bugleport"
+	"github.com/dpopsuev/djinn/jerichoport"
+	"github.com/dpopsuev/jericho/world"
 )
 
 // ---------------------------------------------------------------------------
@@ -23,7 +23,7 @@ func newStubLauncher() *stubLauncher {
 	return &stubLauncher{started: make(map[world.EntityID]bool)}
 }
 
-func (s *stubLauncher) Start(_ context.Context, id world.EntityID, _ bugleport.LaunchConfig) error {
+func (s *stubLauncher) Start(_ context.Context, id world.EntityID, _ jerichoport.LaunchConfig) error {
 	s.started[id] = true
 	return nil
 }
@@ -39,21 +39,21 @@ func (s *stubLauncher) Healthy(_ context.Context, id world.EntityID) bool {
 // ---------------------------------------------------------------------------
 
 func TestNewWorld_NonNil(t *testing.T) {
-	w := bugleport.NewWorld()
+	w := jerichoport.NewWorld()
 	if w == nil {
 		t.Fatal("NewWorld returned nil")
 	}
 }
 
 func TestNewLocalTransport_NonNil(t *testing.T) {
-	tr := bugleport.NewLocalTransport()
+	tr := jerichoport.NewLocalTransport()
 	if tr == nil {
 		t.Fatal("NewLocalTransport returned nil")
 	}
 }
 
 func TestNewMemBus_NonNil(t *testing.T) {
-	bus := bugleport.NewMemBus()
+	bus := jerichoport.NewMemBus()
 	if bus == nil {
 		t.Fatal("NewMemBus returned nil")
 	}
@@ -61,7 +61,7 @@ func TestNewMemBus_NonNil(t *testing.T) {
 
 func TestNewDurableBus_NonNil(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "signals.jsonl")
-	bus, err := bugleport.NewDurableBus(path)
+	bus, err := jerichoport.NewDurableBus(path)
 	if err != nil {
 		t.Fatalf("NewDurableBus error: %v", err)
 	}
@@ -72,60 +72,60 @@ func TestNewDurableBus_NonNil(t *testing.T) {
 }
 
 func TestNewTracker_NonNil(t *testing.T) {
-	tr := bugleport.NewTracker()
+	tr := jerichoport.NewTracker()
 	if tr == nil {
 		t.Fatal("NewTracker returned nil")
 	}
 }
 
 func TestNewRegistry_NonNil(t *testing.T) {
-	reg := bugleport.NewRegistry()
+	reg := jerichoport.NewRegistry()
 	if reg == nil {
 		t.Fatal("NewRegistry returned nil")
 	}
 }
 
 func TestNewAgentPool_NonNil(t *testing.T) {
-	w := bugleport.NewWorld()
-	tr := bugleport.NewLocalTransport()
-	bus := bugleport.NewMemBus()
+	w := jerichoport.NewWorld()
+	tr := jerichoport.NewLocalTransport()
+	bus := jerichoport.NewMemBus()
 	launcher := newStubLauncher()
 
-	pool := bugleport.NewAgentPool(w, tr, bus, launcher)
+	pool := jerichoport.NewAgentPool(w, tr, bus, launcher)
 	if pool == nil {
 		t.Fatal("NewAgentPool returned nil")
 	}
 }
 
 // ---------------------------------------------------------------------------
-// Type alias usability tests — types from bugle are usable through bugleport
+// Type alias usability tests — types from bugle are usable through jerichoport
 // ---------------------------------------------------------------------------
 
 func TestEntityID_Usable(t *testing.T) {
-	var id bugleport.EntityID
+	var id jerichoport.EntityID
 	if id != 0 {
 		t.Fatal("zero EntityID should be 0")
 	}
 }
 
 func TestSignal_Usable(t *testing.T) {
-	sig := bugleport.Signal{
+	sig := jerichoport.Signal{
 		Timestamp: time.Now().Format(time.RFC3339),
-		Event:     bugleport.EventWorkerStarted,
+		Event:     jerichoport.EventWorkerStarted,
 		Agent:     "test",
 		Meta: map[string]string{
-			bugleport.MetaKeyWorkerID: "w-1",
+			jerichoport.MetaKeyWorkerID: "w-1",
 		},
 	}
-	if sig.Event != bugleport.EventWorkerStarted {
-		t.Fatalf("event = %q, want %q", sig.Event, bugleport.EventWorkerStarted)
+	if sig.Event != jerichoport.EventWorkerStarted {
+		t.Fatalf("event = %q, want %q", sig.Event, jerichoport.EventWorkerStarted)
 	}
 }
 
 func TestBus_Interface(t *testing.T) {
-	// MemBus satisfies the Bus interface via bugleport alias.
-	var bus bugleport.Bus = bugleport.NewMemBus()
-	idx := bus.Emit(&bugleport.Signal{Event: "test"})
+	// MemBus satisfies the Bus interface via jerichoport alias.
+	var bus jerichoport.Bus = jerichoport.NewMemBus()
+	idx := bus.Emit(&jerichoport.Signal{Event: "test"})
 	if idx != 0 {
 		t.Fatalf("first emit index = %d, want 0", idx)
 	}
@@ -139,10 +139,10 @@ func TestBus_Interface(t *testing.T) {
 }
 
 func TestMessage_Usable(t *testing.T) {
-	msg := bugleport.Message{
+	msg := jerichoport.Message{
 		From:         "agent-1",
 		To:           "agent-2",
-		Performative: bugleport.Inform,
+		Performative: jerichoport.Inform,
 		Content:      "hello",
 	}
 	if msg.From != "agent-1" {
@@ -151,17 +151,17 @@ func TestMessage_Usable(t *testing.T) {
 }
 
 func TestTask_Usable(t *testing.T) {
-	task := bugleport.Task{
+	task := jerichoport.Task{
 		ID:    "task-1",
-		State: bugleport.TaskSubmitted,
+		State: jerichoport.TaskSubmitted,
 	}
-	if task.State != bugleport.TaskSubmitted {
+	if task.State != jerichoport.TaskSubmitted {
 		t.Fatalf("state = %q", task.State)
 	}
 }
 
 func TestAgentCard_Usable(t *testing.T) {
-	card := bugleport.AgentCard{
+	card := jerichoport.AgentCard{
 		ID:        "agent-1",
 		Name:      "Test Agent",
 		Role:      "executor",
@@ -173,10 +173,10 @@ func TestAgentCard_Usable(t *testing.T) {
 }
 
 func TestHandler_Usable(t *testing.T) {
-	var h bugleport.Handler = func(_ context.Context, msg bugleport.Message) (bugleport.Message, error) {
-		return bugleport.Message{From: msg.To, Content: "ack"}, nil
+	var h jerichoport.Handler = func(_ context.Context, msg jerichoport.Message) (jerichoport.Message, error) {
+		return jerichoport.Message{From: msg.To, Content: "ack"}, nil
 	}
-	resp, err := h(context.Background(), bugleport.Message{To: "test"})
+	resp, err := h(context.Background(), jerichoport.Message{To: "test"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,21 +186,21 @@ func TestHandler_Usable(t *testing.T) {
 }
 
 func TestEvent_Usable(t *testing.T) {
-	ev := bugleport.Event{
+	ev := jerichoport.Event{
 		TaskID: "task-1",
-		State:  bugleport.TaskWorking,
+		State:  jerichoport.TaskWorking,
 	}
-	if ev.State != bugleport.TaskWorking {
+	if ev.State != jerichoport.TaskWorking {
 		t.Fatalf("state = %q", ev.State)
 	}
 }
 
 func TestAgentIdentity_Usable(t *testing.T) {
-	ai := bugleport.AgentIdentity{
+	ai := jerichoport.AgentIdentity{
 		PersonaName: "Herald",
-		Role:        bugleport.RoleWorker,
+		Role:        jerichoport.RoleWorker,
 	}
-	if !ai.IsRole(bugleport.RoleWorker) {
+	if !ai.IsRole(jerichoport.RoleWorker) {
 		t.Fatal("IsRole(RoleWorker) should be true")
 	}
 	if !ai.HasRole() {
@@ -209,7 +209,7 @@ func TestAgentIdentity_Usable(t *testing.T) {
 }
 
 func TestModelIdentity_Usable(t *testing.T) {
-	mi := bugleport.ModelIdentity{
+	mi := jerichoport.ModelIdentity{
 		ModelName: "sonnet-4",
 		Provider:  "anthropic",
 	}
@@ -220,8 +220,8 @@ func TestModelIdentity_Usable(t *testing.T) {
 }
 
 func TestPersona_Usable(t *testing.T) {
-	p := bugleport.Persona{
-		Identity:    bugleport.AgentIdentity{PersonaName: "TestBot"},
+	p := jerichoport.Persona{
+		Identity:    jerichoport.AgentIdentity{PersonaName: "TestBot"},
 		Description: "A test persona",
 	}
 	if p.Identity.PersonaName != "TestBot" {
@@ -230,7 +230,7 @@ func TestPersona_Usable(t *testing.T) {
 }
 
 func TestColorIdentity_Usable(t *testing.T) {
-	ci := bugleport.ColorIdentity{
+	ci := jerichoport.ColorIdentity{
 		Shade:      "Azure",
 		Color:      "Cerulean",
 		Role:       "Writer",
@@ -248,7 +248,7 @@ func TestColorIdentity_Usable(t *testing.T) {
 }
 
 func TestTokenRecord_Usable(t *testing.T) {
-	rec := bugleport.TokenRecord{
+	rec := jerichoport.TokenRecord{
 		CaseID:       "case-1",
 		Step:         "triage",
 		PromptTokens: 100,
@@ -259,8 +259,8 @@ func TestTokenRecord_Usable(t *testing.T) {
 }
 
 func TestTokenSummary_Usable(t *testing.T) {
-	tracker := bugleport.NewTracker()
-	tracker.Record(&bugleport.TokenRecord{
+	tracker := jerichoport.NewTracker()
+	tracker.Record(&jerichoport.TokenRecord{
 		CaseID:         "c1",
 		Step:           "s1",
 		PromptTokens:   500,
@@ -273,8 +273,8 @@ func TestTokenSummary_Usable(t *testing.T) {
 }
 
 func TestCostBill_Usable(t *testing.T) {
-	// Verify CostBill type is usable through bugleport.
-	bill := bugleport.CostBill{
+	// Verify CostBill type is usable through jerichoport.
+	bill := jerichoport.CostBill{
 		Title:       "Test",
 		TotalTokens: 1500,
 	}
@@ -284,7 +284,7 @@ func TestCostBill_Usable(t *testing.T) {
 }
 
 func TestLaunchConfig_Usable(t *testing.T) {
-	cfg := bugleport.LaunchConfig{
+	cfg := jerichoport.LaunchConfig{
 		Role:    "executor",
 		Prompt:  "system prompt",
 		Model:   "sonnet-4",
@@ -302,13 +302,13 @@ func TestLaunchConfig_Usable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestPerformativeConstants(t *testing.T) {
-	consts := []bugleport.Signal{
-		{Performative: bugleport.Inform},
-		{Performative: bugleport.Request},
-		{Performative: bugleport.Confirm},
-		{Performative: bugleport.Refuse},
-		{Performative: bugleport.Handoff},
-		{Performative: bugleport.Directive},
+	consts := []jerichoport.Signal{
+		{Performative: jerichoport.Inform},
+		{Performative: jerichoport.Request},
+		{Performative: jerichoport.Confirm},
+		{Performative: jerichoport.Refuse},
+		{Performative: jerichoport.Handoff},
+		{Performative: jerichoport.Directive},
 	}
 	for i, s := range consts {
 		if s.Performative == "" {
@@ -319,13 +319,13 @@ func TestPerformativeConstants(t *testing.T) {
 
 func TestEventConstants(t *testing.T) {
 	events := []string{
-		bugleport.EventWorkerStarted,
-		bugleport.EventWorkerStopped,
-		bugleport.EventWorkerDone,
-		bugleport.EventWorkerError,
-		bugleport.EventShouldStop,
-		bugleport.EventBudgetUpdate,
-		bugleport.EventDispatchRouted,
+		jerichoport.EventWorkerStarted,
+		jerichoport.EventWorkerStopped,
+		jerichoport.EventWorkerDone,
+		jerichoport.EventWorkerError,
+		jerichoport.EventShouldStop,
+		jerichoport.EventBudgetUpdate,
+		jerichoport.EventDispatchRouted,
 	}
 	for i, e := range events {
 		if e == "" {
@@ -336,8 +336,8 @@ func TestEventConstants(t *testing.T) {
 
 func TestMetaKeyConstants(t *testing.T) {
 	keys := []string{
-		bugleport.MetaKeyWorkerID,
-		bugleport.MetaKeyError,
+		jerichoport.MetaKeyWorkerID,
+		jerichoport.MetaKeyError,
 	}
 	for i, k := range keys {
 		if k == "" {
@@ -347,11 +347,11 @@ func TestMetaKeyConstants(t *testing.T) {
 }
 
 func TestRoleConstants(t *testing.T) {
-	roles := []bugleport.Role{
-		bugleport.RoleWorker,
-		bugleport.RoleManager,
-		bugleport.RoleEnforcer,
-		bugleport.RoleBroker,
+	roles := []jerichoport.Role{
+		jerichoport.RoleWorker,
+		jerichoport.RoleManager,
+		jerichoport.RoleEnforcer,
+		jerichoport.RoleBroker,
 	}
 	for i, r := range roles {
 		if r == "" {
@@ -361,11 +361,11 @@ func TestRoleConstants(t *testing.T) {
 }
 
 func TestTaskStateConstants(t *testing.T) {
-	states := []bugleport.TaskState{
-		bugleport.TaskSubmitted,
-		bugleport.TaskWorking,
-		bugleport.TaskCompleted,
-		bugleport.TaskFailed,
+	states := []jerichoport.TaskState{
+		jerichoport.TaskSubmitted,
+		jerichoport.TaskWorking,
+		jerichoport.TaskCompleted,
+		jerichoport.TaskFailed,
 	}
 	for i, s := range states {
 		if s == "" {
@@ -375,12 +375,12 @@ func TestTaskStateConstants(t *testing.T) {
 }
 
 func TestAgentStateConstants(t *testing.T) {
-	states := []bugleport.AgentState{
-		bugleport.Active,
-		bugleport.Idle,
-		bugleport.Stale,
-		bugleport.Errored,
-		bugleport.Done,
+	states := []jerichoport.AgentState{
+		jerichoport.Active,
+		jerichoport.Idle,
+		jerichoport.Stale,
+		jerichoport.Errored,
+		jerichoport.Done,
 	}
 	for i, s := range states {
 		if s == "" {
@@ -391,7 +391,7 @@ func TestAgentStateConstants(t *testing.T) {
 
 func TestDiffKindConstants(t *testing.T) {
 	// DiffKind is a type alias, verify world.DiffAttached etc. are accessible.
-	var dk bugleport.DiffKind = "attached"
+	var dk jerichoport.DiffKind = "attached"
 	if dk == "" {
 		t.Fatal("DiffKind should not be empty")
 	}
@@ -402,21 +402,21 @@ func TestDiffKindConstants(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAllPersonas_ReturnsEight(t *testing.T) {
-	all := bugleport.AllPersonas()
+	all := jerichoport.AllPersonas()
 	if len(all) != 8 {
 		t.Fatalf("AllPersonas() = %d, want 8", len(all))
 	}
 }
 
 func TestThesisPersonas_ReturnsFour(t *testing.T) {
-	thesis := bugleport.ThesisPersonas()
+	thesis := jerichoport.ThesisPersonas()
 	if len(thesis) != 4 {
 		t.Fatalf("ThesisPersonas() = %d, want 4", len(thesis))
 	}
 }
 
 func TestAntithesisPersonas_ReturnsFour(t *testing.T) {
-	anti := bugleport.AntithesisPersonas()
+	anti := jerichoport.AntithesisPersonas()
 	if len(anti) != 4 {
 		t.Fatalf("AntithesisPersonas() = %d, want 4", len(anti))
 	}
@@ -425,7 +425,7 @@ func TestAntithesisPersonas_ReturnsFour(t *testing.T) {
 func TestPersonaByName_Known(t *testing.T) {
 	names := []string{"Herald", "Seeker", "Sentinel", "Weaver", "Challenger", "Abyss", "Bulwark", "Specter"}
 	for _, name := range names {
-		p, ok := bugleport.PersonaByName(name)
+		p, ok := jerichoport.PersonaByName(name)
 		if !ok {
 			t.Fatalf("PersonaByName(%q) not found", name)
 		}
@@ -436,7 +436,7 @@ func TestPersonaByName_Known(t *testing.T) {
 }
 
 func TestPersonaByName_CaseInsensitive(t *testing.T) {
-	p, ok := bugleport.PersonaByName("herald")
+	p, ok := jerichoport.PersonaByName("herald")
 	if !ok {
 		t.Fatal("PersonaByName(herald) should be case-insensitive")
 	}
@@ -446,17 +446,17 @@ func TestPersonaByName_CaseInsensitive(t *testing.T) {
 }
 
 func TestPersonaByName_Unknown(t *testing.T) {
-	_, ok := bugleport.PersonaByName("nonexistent")
+	_, ok := jerichoport.PersonaByName("nonexistent")
 	if ok {
 		t.Fatal("PersonaByName(nonexistent) should return false")
 	}
 }
 
 func TestDefaultPersonaResolver_Set(t *testing.T) {
-	if bugleport.DefaultPersonaResolver == nil {
+	if jerichoport.DefaultPersonaResolver == nil {
 		t.Fatal("DefaultPersonaResolver should not be nil (persona init sets it)")
 	}
-	p, ok := bugleport.DefaultPersonaResolver("Herald")
+	p, ok := jerichoport.DefaultPersonaResolver("Herald")
 	if !ok {
 		t.Fatal("DefaultPersonaResolver(Herald) not found")
 	}
@@ -470,36 +470,36 @@ func TestDefaultPersonaResolver_Set(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestWorld_AttachGetTryGet(t *testing.T) {
-	w := bugleport.NewWorld()
+	w := jerichoport.NewWorld()
 	id := w.Spawn()
 
-	// Attach Health component via bugleport wrapper.
-	bugleport.Attach(w, id, bugleport.Health{State: bugleport.Active})
+	// Attach Health component via jerichoport wrapper.
+	jerichoport.Attach(w, id, jerichoport.Health{State: jerichoport.Active})
 
-	// Get via bugleport wrapper.
-	h := bugleport.Get[bugleport.Health](w, id)
-	if h.State != bugleport.Active {
+	// Get via jerichoport wrapper.
+	h := jerichoport.Get[jerichoport.Health](w, id)
+	if h.State != jerichoport.Active {
 		t.Fatalf("state = %q, want active", h.State)
 	}
 
-	// TryGet via bugleport wrapper.
-	h2, ok := bugleport.TryGet[bugleport.Health](w, id)
+	// TryGet via jerichoport wrapper.
+	h2, ok := jerichoport.TryGet[jerichoport.Health](w, id)
 	if !ok {
 		t.Fatal("TryGet should find Health")
 	}
-	if h2.State != bugleport.Active {
+	if h2.State != jerichoport.Active {
 		t.Fatalf("state = %q", h2.State)
 	}
 
 	// TryGet for unattached component.
-	_, ok = bugleport.TryGet[bugleport.Budget](w, id)
+	_, ok = jerichoport.TryGet[jerichoport.Budget](w, id)
 	if ok {
 		t.Fatal("TryGet should return false for Budget not attached")
 	}
 }
 
 func TestWorld_SpawnDespawn(t *testing.T) {
-	w := bugleport.NewWorld()
+	w := jerichoport.NewWorld()
 	id := w.Spawn()
 	if !w.Alive(id) {
 		t.Fatal("entity should be alive")
@@ -515,7 +515,7 @@ func TestWorld_SpawnDespawn(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRegistry_Assign(t *testing.T) {
-	reg := bugleport.NewRegistry()
+	reg := jerichoport.NewRegistry()
 	ci, err := reg.Assign("Writer", "Refactor")
 	if err != nil {
 		t.Fatalf("Assign error: %v", err)
@@ -536,9 +536,9 @@ func TestRegistry_Assign(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMemBus_EmitSince(t *testing.T) {
-	bus := bugleport.NewMemBus()
-	bus.Emit(&bugleport.Signal{Event: "first"})
-	bus.Emit(&bugleport.Signal{Event: "second"})
+	bus := jerichoport.NewMemBus()
+	bus.Emit(&jerichoport.Signal{Event: "first"})
+	bus.Emit(&jerichoport.Signal{Event: "second"})
 
 	all := bus.Since(0)
 	if len(all) != 2 {
@@ -557,16 +557,16 @@ func TestDurableBus_EmitReplay(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bus.jsonl")
 
-	bus, err := bugleport.NewDurableBus(path)
+	bus, err := jerichoport.NewDurableBus(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	bus.Emit(&bugleport.Signal{Event: "alpha"})
-	bus.Emit(&bugleport.Signal{Event: "beta"})
+	bus.Emit(&jerichoport.Signal{Event: "alpha"})
+	bus.Emit(&jerichoport.Signal{Event: "beta"})
 	bus.Close()
 
 	// Replay into a fresh bus.
-	bus2, err := bugleport.NewDurableBus(path)
+	bus2, err := jerichoport.NewDurableBus(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -585,8 +585,8 @@ func TestDurableBus_EmitReplay(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestTracker_RecordSummary(t *testing.T) {
-	tr := bugleport.NewTracker()
-	tr.Record(&bugleport.TokenRecord{
+	tr := jerichoport.NewTracker()
+	tr.Record(&jerichoport.TokenRecord{
 		CaseID:         "c1",
 		Step:           "triage",
 		PromptTokens:   1000,
@@ -611,15 +611,15 @@ func TestTracker_RecordSummary(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBuildCostBill_NonNil(t *testing.T) {
-	tr := bugleport.NewTracker()
-	tr.Record(&bugleport.TokenRecord{
+	tr := jerichoport.NewTracker()
+	tr.Record(&jerichoport.TokenRecord{
 		CaseID:         "c1",
 		Step:           "triage",
 		PromptTokens:   1000,
 		ArtifactTokens: 500,
 	})
 	summary := tr.Summary()
-	bill := bugleport.BuildCostBill(&summary)
+	bill := jerichoport.BuildCostBill(&summary)
 	if bill == nil {
 		t.Fatal("BuildCostBill returned nil")
 	}
@@ -629,18 +629,18 @@ func TestBuildCostBill_NonNil(t *testing.T) {
 }
 
 func TestFormatCostBill_NonEmpty(t *testing.T) {
-	bill := &bugleport.CostBill{
+	bill := &jerichoport.CostBill{
 		Title:       "Test Bill",
 		TotalTokens: 100,
 	}
-	out := bugleport.FormatCostBill(bill)
+	out := jerichoport.FormatCostBill(bill)
 	if out == "" {
 		t.Fatal("FormatCostBill returned empty string")
 	}
 }
 
 func TestFormatCostBill_NilReturnsEmpty(t *testing.T) {
-	out := bugleport.FormatCostBill(nil)
+	out := jerichoport.FormatCostBill(nil)
 	if out != "" {
 		t.Fatal("FormatCostBill(nil) should return empty string")
 	}
@@ -651,14 +651,14 @@ func TestFormatCostBill_NilReturnsEmpty(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestLocalTransport_SendReceive(t *testing.T) {
-	tr := bugleport.NewLocalTransport()
+	tr := jerichoport.NewLocalTransport()
 	defer tr.Close()
 
-	tr.Register("echo", func(_ context.Context, msg bugleport.Message) (bugleport.Message, error) {
-		return bugleport.Message{From: "echo", Content: msg.Content + " echoed"}, nil
+	tr.Register("echo", func(_ context.Context, msg jerichoport.Message) (jerichoport.Message, error) {
+		return jerichoport.Message{From: "echo", Content: msg.Content + " echoed"}, nil
 	})
 
-	task, err := tr.SendMessage(context.Background(), "echo", bugleport.Message{
+	task, err := tr.SendMessage(context.Background(), "echo", jerichoport.Message{
 		From:    "caller",
 		Content: "hello",
 	})
@@ -677,7 +677,7 @@ func TestLocalTransport_SendReceive(t *testing.T) {
 
 	var completed bool
 	for ev := range ch {
-		if ev.State == bugleport.TaskCompleted {
+		if ev.State == jerichoport.TaskCompleted {
 			completed = true
 			if ev.Data == nil {
 				t.Fatal("completed event should have data")
@@ -697,14 +697,14 @@ func TestLocalTransport_SendReceive(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAgentPool_ForkCount(t *testing.T) {
-	w := bugleport.NewWorld()
-	tr := bugleport.NewLocalTransport()
-	bus := bugleport.NewMemBus()
+	w := jerichoport.NewWorld()
+	tr := jerichoport.NewLocalTransport()
+	bus := jerichoport.NewMemBus()
 	launcher := newStubLauncher()
-	pool := bugleport.NewAgentPool(w, tr, bus, launcher)
+	pool := jerichoport.NewAgentPool(w, tr, bus, launcher)
 
 	ctx := context.Background()
-	id, err := pool.Fork(ctx, "executor", bugleport.LaunchConfig{
+	id, err := pool.Fork(ctx, "executor", jerichoport.LaunchConfig{
 		Role:  "executor",
 		Model: "test-model",
 	}, 0)
@@ -726,7 +726,7 @@ func TestAgentPool_ForkCount(t *testing.T) {
 	if len(signals) == 0 {
 		t.Fatal("no signals emitted after Fork")
 	}
-	if signals[0].Event != bugleport.EventWorkerStarted {
+	if signals[0].Event != jerichoport.EventWorkerStarted {
 		t.Fatalf("event = %q, want worker_started", signals[0].Event)
 	}
 }
