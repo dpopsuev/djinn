@@ -1,6 +1,10 @@
 package session
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/dpopsuev/djinn/driver"
+)
 
 // MonitorState tracks the relay lifecycle.
 type MonitorState int
@@ -58,6 +62,19 @@ func WithOnSpawn(fn func()) MonitorOption {
 // WithOnSwap sets the callback fired when swap threshold is reached.
 func WithOnSwap(fn func()) MonitorOption {
 	return func(m *ContextMonitor) { m.onSwap = fn }
+}
+
+// WithContextSizer sets the max token count from a ContextSizer.
+// Uses the sizer's ContextWindow() if positive, otherwise keeps the default.
+func WithContextSizer(cs driver.ContextSizer) MonitorOption {
+	return func(m *ContextMonitor) {
+		if cs == nil {
+			return
+		}
+		if cw := cs.ContextWindow(); cw > 0 {
+			m.maxTokens = cw
+		}
+	}
 }
 
 // NewContextMonitor creates a monitor with the given options.

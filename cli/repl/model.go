@@ -220,13 +220,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	}
 
 	// Use driver's context window for the monitor if available.
-	maxTokens := session.DefaultMaxTokens
-	if m.chatDriver != nil {
-		if cw := m.chatDriver.ContextWindow(); cw > 0 {
-			maxTokens = cw
-		}
-	}
-	m.monitor = session.NewContextMonitor(session.WithMaxTokens(maxTokens))
+	m.monitor = session.NewContextMonitor(session.WithContextSizer(m.chatDriver))
 
 	// Wire Terminal OnCommand handler for slash command backward compat.
 	m.term.OnCommand = func(_ context.Context, name string, args []string) (string, error) {

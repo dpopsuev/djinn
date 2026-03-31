@@ -32,6 +32,12 @@ type Driver interface {
 	Stop(ctx context.Context) error
 }
 
+// ContextSizer reports the model's context window size.
+// Consumers that only need context limits accept this instead of ChatDriver.
+type ContextSizer interface {
+	ContextWindow() int // returns model's context window in tokens (0 = unknown)
+}
+
 // ChatDriver is the interface for interactive REPL-style LLM communication.
 // Supports streaming, tool calling, rich messages, and conversation history.
 // Any model backend (Claude, OpenAI, Ollama, Gemini) implements this.
