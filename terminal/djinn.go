@@ -1,0 +1,344 @@
+package terminal
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/dpopsuev/djinn/staff"
+)
+
+// Sentinel errors.
+var (
+	ErrNoSubmitHandler  = errors.New("terminal: no submit handler configured")
+	ErrNoShellHandler   = errors.New("terminal: no shell handler configured")
+	ErrUnknownOperation = errors.New("terminal: unknown operation")
+	ErrInvalidCapacity  = errors.New("terminal: invalid capacity")
+	ErrUnknownCommand   = errors.New("terminal: unknown command")
+	ErrInvalidFrequency = errors.New("terminal: invalid frequency")
+	ErrUsage            = errors.New("terminal: usage error")
+	ErrUnknownSubcmd    = errors.New("terminal: unknown subcommand")
+)
+
+// Ensure Djinn implements Terminal.
+var _ Terminal = (*Djinn)(nil)
+
+// Djinn is the concrete Terminal implementation.
+// Holds domain state. TUI adapters delegate to this.
+type Djinn struct {
+	mu sync.RWMutex
+
+	// Domain state
+	operation   staff.Operation
+	capacity    *staff.AgentCapacity
+	envelopeCfg staff.EnvelopeConfig
+	scopePath   string
+	scopeType   string
+	startedAt   time.Time
+
+	// Subscriber management
+	subMu       sync.RWMutex
+	subscribers []chan<- ViewEvent
+
+	// Pluggable handlers — set by the adapter (TUI, headless, etc.)
+	// These allow Terminal to trigger actions without importing adapter packages.
+	OnSubmit   func(ctx context.Context, prompt string) error
+	OnShell    func(ctx context.Context, command string) (string, error)
+	OnCommand  func(ctx context.Context, name string, args []string) (string, error)
+	OnNavigate func(path string, scopeType string) error
+
+	// Observable state (written by adapter, read by Viewer)
+	tokensIn    int
+	tokensOut   int
+	turns       int
+	activeRole  string
+	agentCount  int
+	isStreaming bool
+}
+
+// NewDjinn creates a Terminal with default configuration.
+func NewDjinn() *Djinn {
+	return &Djinn{
+		operation:   staff.DefaultOperation(),
+		capacity:    staff.NewAgentCapacity(1),
+		envelopeCfg: staff.DefaultEnvelopeConfig(),
+		scopePath:   "/",
+	}
+}
+
+// --- Controller ---
+
+func (d *Djinn) Submit(ctx context.Context, prompt string) error {
+	if d.OnSubmit != nil {
+		return d.OnSubmit(ctx, prompt)
+	}
+	return ErrNoSubmitHandler
+}
+
+func (d *Djinn) Shell(ctx context.Context, command string) (string, error) {
+	if d.OnShell != nil {
+		return d.OnShell(ctx, command)
+	}
+	return "", ErrNoShellHandler
+}
+
+func (d *Djinn) Command(ctx context.Context, name string, args []string) (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	switch name {
+	case "op":
+		if len(args) == 0 {
+			return fmt.Sprintf("operation: %s", d.operation), nil
+		}
+		op, ok := staff.ParseOperation(args[0])
+		if !ok {
+			return "", fmt.Errorf("%w: %q (ask, plan, agent)", ErrUnknownOperation, args[0])
+		}
+		d.operation = op
+		return fmt.Sprintf("operation → %s", d.operation), nil
+
+	case "ac":
+		if len(args) == 0 {
+			return fmt.Sprintf("agents: %s", d.capacity), nil
+		}
+		var n int
+		if _, err := fmt.Sscanf(args[0], "%d", &n); err != nil {
+			return "", fmt.Errorf("%w: %s", ErrInvalidCapacity, args[0])
+		}
+		if err := d.capacity.SetCap(n); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("capacity → %s", d.capacity), nil
+
+	case "ac+":
+		d.capacity.Inc()
+		return fmt.Sprintf("capacity → %s", d.capacity), nil
+
+	case "ac-":
+		if err := d.capacity.Dec(); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("capacity → %s", d.capacity), nil
+
+	case "envelope":
+		return d.commandEnvelope(args)
+
+	default:
+		if d.OnCommand != nil {
+			return d.OnCommand(ctx, name, args)
+		}
+		return "", fmt.Errorf("%w: %s", ErrUnknownCommand, name)
+	}
+}
+
+// commandEnvelope handles :envelope subcommands.
+func (d *Djinn) commandEnvelope(args []string) (string, error) {
+	if len(args) == 0 {
+		status := "off"
+		if d.envelopeCfg.Enabled {
+			status = "on"
+		}
+		return fmt.Sprintf("envelope: %s (checkpoint every %d tasks, drift threshold %.0f%%)",
+			status, d.envelopeCfg.CheckpointEvery, d.envelopeCfg.DriftThreshold*100), nil
+	}
+	switch args[0] {
+	case "on":
+		d.envelopeCfg.Enabled = true
+		return "envelope → on", nil
+	case "off":
+		d.envelopeCfg.Enabled = false
+		return "envelope → off", nil
+	case "every":
+		if len(args) < 2 {
+			return "", fmt.Errorf("%w: :envelope every N", ErrUsage)
+		}
+		var n int
+		if _, err := fmt.Sscanf(args[1], "%d", &n); err != nil || n < 1 {
+			return "", fmt.Errorf("%w: %s", ErrInvalidFrequency, args[1])
+		}
+		d.envelopeCfg.CheckpointEvery = n
+		return fmt.Sprintf("envelope checkpoint every %d tasks", n), nil
+	default:
+		return "", fmt.Errorf("%w: %q (on, off, every N)", ErrUnknownSubcmd, args[0])
+	}
+}
+
+func (d *Djinn) SetOperation(op string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if parsed, ok := staff.ParseOperation(op); ok {
+		d.operation = parsed
+	}
+}
+
+func (d *Djinn) SetCapacity(n int) error {
+	return d.capacity.SetCap(n)
+}
+
+func (d *Djinn) NavigateScope(path, scopeType string) error {
+	d.mu.Lock()
+	d.scopePath = path
+	d.scopeType = scopeType
+	d.mu.Unlock()
+
+	if d.OnNavigate != nil {
+		return d.OnNavigate(path, scopeType)
+	}
+	return nil
+}
+
+func (d *Djinn) SetEnvelopeEnabled(enabled bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.envelopeCfg.Enabled = enabled
+}
+
+// --- Viewer ---
+
+func (d *Djinn) Subscribe(ch chan<- ViewEvent) {
+	d.subMu.Lock()
+	defer d.subMu.Unlock()
+	d.subscribers = append(d.subscribers, ch)
+}
+
+func (d *Djinn) Unsubscribe(ch chan<- ViewEvent) {
+	d.subMu.Lock()
+	defer d.subMu.Unlock()
+	for i, sub := range d.subscribers {
+		if sub == ch {
+			d.subscribers = append(d.subscribers[:i], d.subscribers[i+1:]...)
+			return
+		}
+	}
+}
+
+func (d *Djinn) Status() RunState {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return RunState{
+		Operation:   d.operation.String(),
+		AgentCount:  d.agentCount,
+		AgentCap:    d.capacity.Cap(),
+		Turns:       d.turns,
+		TokensIn:    d.tokensIn,
+		TokensOut:   d.tokensOut,
+		ActiveRole:  d.activeRole,
+		ScopePath:   d.scopePath,
+		ScopeType:   d.scopeType,
+		EnvelopeOn:  d.envelopeCfg.Enabled,
+		IsStreaming: d.isStreaming,
+	}
+}
+
+func (d *Djinn) Introspect() IntrospectionReport {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return IntrospectionReport{
+		RunState: RunState{
+			Operation:   d.operation.String(),
+			AgentCount:  d.agentCount,
+			AgentCap:    d.capacity.Cap(),
+			Turns:       d.turns,
+			TokensIn:    d.tokensIn,
+			TokensOut:   d.tokensOut,
+			ActiveRole:  d.activeRole,
+			ScopePath:   d.scopePath,
+			ScopeType:   d.scopeType,
+			EnvelopeOn:  d.envelopeCfg.Enabled,
+			IsStreaming: d.isStreaming,
+		},
+		Uptime: time.Since(d.startedAt),
+	}
+}
+
+// --- Lifecycle ---
+
+func (d *Djinn) Start(ctx context.Context) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.startedAt = time.Now()
+	return nil
+}
+
+func (d *Djinn) Stop() {
+	// Notify subscribers that we're done.
+	d.Emit(ViewEvent{Kind: EventDone, Timestamp: time.Now()})
+}
+
+// --- Event emission (used by adapters to push output to subscribers) ---
+
+// Emit sends a ViewEvent to all subscribers. Non-blocking.
+func (d *Djinn) Emit(ev ViewEvent) {
+	if ev.Timestamp.IsZero() {
+		ev.Timestamp = time.Now()
+	}
+	d.subMu.RLock()
+	defer d.subMu.RUnlock()
+	for _, ch := range d.subscribers {
+		select {
+		case ch <- ev:
+		default:
+			// Non-blocking: subscriber is slow, skip.
+		}
+	}
+}
+
+// --- State setters (called by adapters to update observable state) ---
+
+// SetTokens updates the cumulative token counts.
+func (d *Djinn) SetTokens(in, out int) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.tokensIn = in
+	d.tokensOut = out
+}
+
+// SetTurns updates the conversation turn count.
+func (d *Djinn) SetTurns(n int) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.turns = n
+}
+
+// SetActiveRole updates the currently active agent role.
+func (d *Djinn) SetActiveRole(role string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.activeRole = role
+}
+
+// SetAgentCount updates the number of running agents.
+func (d *Djinn) SetAgentCount(n int) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.agentCount = n
+}
+
+// SetStreaming updates the streaming state.
+func (d *Djinn) SetStreaming(v bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.isStreaming = v
+}
+
+// Operation returns the current operation.
+func (d *Djinn) Operation() staff.Operation {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.operation
+}
+
+// Capacity returns the agent capacity tracker.
+func (d *Djinn) Capacity() *staff.AgentCapacity {
+	return d.capacity
+}
+
+// EnvelopeConfig returns the current envelope configuration.
+func (d *Djinn) EnvelopeConfig() staff.EnvelopeConfig {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.envelopeCfg
+}

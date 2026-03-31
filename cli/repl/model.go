@@ -24,6 +24,7 @@ import (
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/staff"
+	"github.com/dpopsuev/djinn/terminal"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/vcs"
@@ -138,9 +139,7 @@ type Model struct {
 	roleMemory  *staff.RoleMemory
 	roles       map[string]staff.Role
 	staffCfg    *staff.StaffConfig
-	operation   staff.Operation      // current operation (ask/plan/agent)
-	capacity    *staff.AgentCapacity // agent len/cap tracker
-	envelopeCfg staff.EnvelopeConfig // lifecycle envelope config
+	term        *terminal.Djinn // Terminal facade — domain state + event stream
 
 	// Multi-agent monitoring
 	agentsPanel  *tui.AgentsPanel
@@ -217,9 +216,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		sandboxBackend: cfg.SandboxBackend,
 		sandboxLevel:   cfg.SandboxLevel,
 		hubRegistry:    cfg.HubRegistry,
-		operation:      staff.DefaultOperation(),
-		capacity:       staff.NewAgentCapacity(1),
-		envelopeCfg:    staff.DefaultEnvelopeConfig(),
+		term:           terminal.NewDjinn(),
 	}
 
 	// Use driver's context window for the monitor if available.
@@ -230,6 +227,25 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		}
 	}
 	m.monitor = session.NewContextMonitor(session.WithMaxTokens(maxTokens))
+
+	// Wire Terminal OnCommand handler for slash command backward compat.
+	m.term.OnCommand = func(_ context.Context, name string, args []string) (string, error) {
+		slashInput := "/" + name
+		if len(args) > 0 {
+			slashInput += " " + strings.Join(args, " ")
+		}
+		if slashCmd, ok := ParseCommand(slashInput); ok {
+			result := ExecuteCommand(slashCmd, m.sess)
+			if result.Exit {
+				m.quitting = true
+			}
+			if result.Cleared {
+				m.outputPanel.Update(tui.OutputClearMsg{})
+			}
+			return result.Output, nil
+		}
+		return "", fmt.Errorf("%w: %s", terminal.ErrUnknownCommand, name)
+	}
 
 	m.keys = keybind.NewModeTable()
 	m.focus = tui.NewFocusManager(m.outputPanel, m.inputPanel, m.dashboard)
@@ -570,8 +586,8 @@ func (m Model) View() string { //nolint:gocritic // tea.Model interface requires
 		Turns:      m.sess.History.Len(),
 		AgentCount: m.agentsPanel.Count(),
 		ActiveRole: m.currentRole,
-		Operation:  m.operation.String(),
-		AgentCap:   m.capacity.Cap(),
+		Operation:  m.term.Operation().String(),
+		AgentCap:   m.term.Capacity().Cap(),
 	})
 
 	// LayoutEngine handles: visibility, heights, borders, focus sync.
@@ -1184,127 +1200,21 @@ func (m *Model) handleColonCommand(payload string) (tea.Model, tea.Cmd) {
 	cmd := parts[0]
 	args := parts[1:]
 
-	switch {
-	// :op — operation switching
-	case cmd == "op":
-		if len(args) == 0 {
-			m.outputPanel.Update(tui.OutputAppendMsg{
-				Line: fmt.Sprintf("operation: %s", m.operation),
-			})
-		} else if op, ok := staff.ParseOperation(args[0]); ok {
-			m.operation = op
-			m.outputPanel.Update(tui.OutputAppendMsg{
-				Line: fmt.Sprintf("operation → %s", m.operation),
-			})
-		} else {
-			m.outputPanel.Update(tui.OutputAppendMsg{
-				Line: tui.ErrorStyle.Render(fmt.Sprintf("unknown operation %q (ask, plan, agent)", args[0])),
-			})
-		}
-
-	// :ac — capacity management
-	case cmd == "ac" && len(args) == 0:
-		m.outputPanel.Update(tui.OutputAppendMsg{
-			Line: fmt.Sprintf("agents: %s", m.capacity),
-		})
-	case cmd == "ac+":
-		m.capacity.Inc()
-		m.outputPanel.Update(tui.OutputAppendMsg{
-			Line: fmt.Sprintf("capacity → %s", m.capacity),
-		})
-	case cmd == "ac-":
-		if err := m.capacity.Dec(); err != nil {
-			m.outputPanel.Update(tui.OutputAppendMsg{
-				Line: tui.ErrorStyle.Render(err.Error()),
-			})
-		} else {
-			m.outputPanel.Update(tui.OutputAppendMsg{
-				Line: fmt.Sprintf("capacity → %s", m.capacity),
-			})
-		}
-	case cmd == "ac" && len(args) > 0:
-		var n int
-		if _, err := fmt.Sscanf(args[0], "%d", &n); err != nil {
-			m.outputPanel.Update(tui.OutputAppendMsg{
-				Line: tui.ErrorStyle.Render(fmt.Sprintf("invalid capacity: %s", args[0])),
-			})
-		} else if err := m.capacity.SetCap(n); err != nil {
-			m.outputPanel.Update(tui.OutputAppendMsg{
-				Line: tui.ErrorStyle.Render(err.Error()),
-			})
-		} else {
-			m.outputPanel.Update(tui.OutputAppendMsg{
-				Line: fmt.Sprintf("capacity → %s", m.capacity),
-			})
-		}
-
-	// :envelope — lifecycle envelope control
-	case cmd == "envelope" && len(args) == 0:
-		status := "off"
-		if m.envelopeCfg.Enabled {
-			status = "on"
-		}
-		m.outputPanel.Update(tui.OutputAppendMsg{
-			Line: fmt.Sprintf("envelope: %s (checkpoint every %d tasks, drift threshold %.0f%%)",
-				status, m.envelopeCfg.CheckpointEvery, m.envelopeCfg.DriftThreshold*100),
-		})
-	case cmd == "envelope" && len(args) > 0:
-		switch args[0] {
-		case "on":
-			m.envelopeCfg.Enabled = true
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: "envelope → on"})
-		case "off":
-			m.envelopeCfg.Enabled = false
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: "envelope → off"})
-		case "every":
-			if len(args) < 2 {
-				m.outputPanel.Update(tui.OutputAppendMsg{
-					Line: tui.ErrorStyle.Render("usage: :envelope every N"),
-				})
-			} else {
-				var n int
-				if _, err := fmt.Sscanf(args[1], "%d", &n); err != nil || n < 1 {
-					m.outputPanel.Update(tui.OutputAppendMsg{
-						Line: tui.ErrorStyle.Render(fmt.Sprintf("invalid frequency: %s", args[1])),
-					})
-				} else {
-					m.envelopeCfg.CheckpointEvery = n
-					m.outputPanel.Update(tui.OutputAppendMsg{
-						Line: fmt.Sprintf("envelope checkpoint every %d tasks", n),
-					})
-				}
-			}
-		default:
-			m.outputPanel.Update(tui.OutputAppendMsg{
-				Line: tui.ErrorStyle.Render(fmt.Sprintf("unknown envelope subcommand %q (on, off, every N)", args[0])),
-			})
-		}
-
-	// :q — quit alias
-	case cmd == "q":
+	// :q — quit (handled locally, not delegated to Terminal)
+	if cmd == "q" {
 		m.quitting = true
 		return m, tea.Quit
+	}
 
-	default:
-		// Forward to slash command system for backward compat.
-		slashInput := "/" + payload
-		if slashCmd, ok := ParseCommand(slashInput); ok {
-			result := ExecuteCommand(slashCmd, m.sess)
-			if result.Output != "" {
-				m.outputPanel.Update(tui.OutputAppendMsg{Line: result.Output})
-			}
-			if result.Exit {
-				m.quitting = true
-				return m, tea.Quit
-			}
-			if result.Cleared {
-				m.outputPanel.Update(tui.OutputClearMsg{})
-			}
-		} else {
-			m.outputPanel.Update(tui.OutputAppendMsg{
-				Line: tui.ErrorStyle.Render(fmt.Sprintf("unknown command: %s", cmd)),
-			})
-		}
+	// Delegate to Terminal.Command for domain commands (op, ac, envelope, etc.)
+	// Unknown commands fall through to slash command compat via OnCommand handler.
+	out, err := m.term.Command(m.ctx, cmd, args)
+	if err != nil {
+		m.outputPanel.Update(tui.OutputAppendMsg{
+			Line: tui.ErrorStyle.Render(err.Error()),
+		})
+	} else if out != "" {
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: out})
 	}
 
 	m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
