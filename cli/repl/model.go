@@ -24,6 +24,7 @@ import (
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/staff"
+	"github.com/dpopsuev/djinn/staff/memory"
 	"github.com/dpopsuev/djinn/terminal"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
@@ -136,7 +137,7 @@ type Model struct {
 
 	// Staff — role pipeline
 	currentRole string
-	roleMemory  *staff.RoleMemory
+	roleMemory  *memory.RoleMemory
 	roles       map[string]staff.Role
 	staffCfg    *staff.StaffConfig
 	term        *terminal.Djinn // Terminal facade — domain state + event stream
@@ -285,7 +286,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	staffCfg := staff.DefaultConfig()
 	m.staffCfg = staffCfg
 	m.roles = staffCfg.RoleMap()
-	m.roleMemory = staff.NewRoleMemory()
+	m.roleMemory = memory.NewRoleMemory()
 	m.currentRole = roleGensec
 	if defaultRole, ok := m.roles[roleGensec]; ok {
 		if newMode, err := agent.ParseMode(defaultRole.Mode); err == nil {
@@ -652,7 +653,7 @@ func (m *Model) switchRole(roleName string) {
 
 	m.dashboard.Update(tui.DashboardUIStateMsg{State: strings.ToUpper(roleName)})
 	m.dashboard.Update(tui.DashboardIdentityMsg{Workspace: m.sess.Workspace, Driver: m.sess.Driver, Model: m.sess.Model, Mode: m.mode.String()})
-	m.roleMemory.AppendBriefing(staff.Entry{
+	m.roleMemory.AppendBriefing(memory.Entry{
 		Content: fmt.Sprintf("→ switched to %s", roleName),
 	})
 	m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render(

@@ -1,4 +1,4 @@
-package staff
+package memory
 
 import (
 	"fmt"
