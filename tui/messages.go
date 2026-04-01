@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/tui/layout"
 )
 
 // Custom tea.Msg types for bridging agent events to Bubbletea.
@@ -196,6 +197,15 @@ type RenderPanelMsg struct {
 	Data  string // JSON payload, type-specific
 }
 
+// ListPanel messages.
+type ListSetItemsMsg struct{ Items []Panel }
+
+// Queue panel messages.
+type QueueAddMsg struct{ Prompt string }
+type QueueDrainMsg struct{} // remove first item
+type QueueClearMsg struct{} // clear all
+type QueueRemoveMsg struct{ Index int }
+
 // Layout messages.
-type ResizeMsg struct{ Width, Height int }
+type ResizeMsg = layout.ResizeMsg
 type FocusPanelMsg struct{ Index int }

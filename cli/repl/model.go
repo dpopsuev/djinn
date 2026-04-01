@@ -28,6 +28,7 @@ import (
 	"github.com/dpopsuev/djinn/terminal"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
+	"github.com/dpopsuev/djinn/tui/widgets"
 	"github.com/dpopsuev/djinn/vcs"
 )
 
@@ -82,9 +83,9 @@ type Model struct {
 
 	// UI state
 	state         State
-	inputPanel    *tui.InputPanel
+	inputPanel    *widgets.InputPanel
 	pendingTool   *driver.ToolCall
-	queuePanel    *tui.QueuePanel // visible queue between output and input
+	queuePanel    *widgets.QueuePanel // visible queue between output and input
 	lastUsage     *driver.Usage
 	totalIn       int // cumulative input tokens
 	totalOut      int // cumulative output tokens
@@ -98,11 +99,11 @@ type Model struct {
 	spin          spinner.Model
 	spinnerActive bool
 	activeToolIdx int                        // conversation index of active tool spinner (-1 = none)
-	envelopes     map[int]*tui.EnvelopePanel // tool envelopes keyed by output line index
-	outputPanel   *tui.OutputPanel
-	thinkingPanel *tui.ThinkingPanel
-	commandsPanel *tui.CommandsPanel
-	dashboard     *tui.DashboardPanel
+	envelopes     map[int]*widgets.EnvelopePanel // tool envelopes keyed by output line index
+	outputPanel   *widgets.OutputPanel
+	thinkingPanel *widgets.ThinkingPanel
+	commandsPanel *widgets.CommandsPanel
+	dashboard     *widgets.DashboardPanel
 	focus         *tui.FocusManager
 	layout        *tui.LayoutEngine
 	ready         bool
@@ -130,10 +131,10 @@ type Model struct {
 
 	// Debug / Observability
 	tuiRecorder *tui.TUIRecorder
-	debugPanel  *tui.DebugPanel
+	debugPanel  *widgets.DebugPanel
 	showDebug   bool
 	hubRegistry *hub.HubRegistry
-	planPanel   *tui.PlanPanel
+	planPanel   *widgets.PlanPanel
 
 	// Staff — role pipeline
 	currentRole string
@@ -143,8 +144,8 @@ type Model struct {
 	term        *terminal.Djinn // Terminal facade — domain state + event stream
 
 	// Multi-agent monitoring
-	agentsPanel  *tui.AgentsPanel
-	agentOutputs map[string]*tui.OutputPanel // per-agent output buffers
+	agentsPanel  *widgets.AgentsPanel
+	agentOutputs map[string]*widgets.OutputPanel // per-agent output buffers
 
 	// Sandbox
 	sandboxHandle  string
@@ -155,7 +156,7 @@ type Model struct {
 
 // NewModel creates a new REPL model.
 func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type used as constructor input
-	inputPanel := tui.NewInputPanel()
+	inputPanel := widgets.NewInputPanel()
 	inputPanel.SetCompletions(CommandNames())
 	if placeholder := pickPlaceholderFile(cfg.Session.WorkDirs); placeholder != "" {
 		inputPanel.Update(tui.InputSetPlaceholderMsg{Text: fmt.Sprintf("Try \"explain %s\"", placeholder)})
@@ -198,11 +199,11 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 			spinner.WithStyle(tui.LogoStyle),
 		),
 		activeToolIdx:  -1,
-		outputPanel:    tui.NewOutputPanel(),
-		thinkingPanel:  tui.NewThinkingPanel(),
-		queuePanel:     tui.NewQueuePanel(),
-		commandsPanel:  tui.NewCommandsPanel(CommandNames()),
-		dashboard:      tui.NewDashboardPanel(),
+		outputPanel:    widgets.NewOutputPanel(),
+		thinkingPanel:  widgets.NewThinkingPanel(),
+		queuePanel:     widgets.NewQueuePanel(),
+		commandsPanel:  widgets.NewCommandsPanel(CommandNames()),
+		dashboard:      widgets.NewDashboardPanel(),
 		initialPrompt:  cfg.InitialPrompt,
 		version:        cfg.Version,
 		router:         cfg.Router,
@@ -210,8 +211,8 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		tuiRecorder:    cfg.TUIRecorder,
 		chunkedBuf:     &strings.Builder{},
 		rawStreamLine:  &strings.Builder{},
-		agentsPanel:    tui.NewAgentsPanel(),
-		agentOutputs:   make(map[string]*tui.OutputPanel),
+		agentsPanel:    widgets.NewAgentsPanel(),
+		agentOutputs:   make(map[string]*widgets.OutputPanel),
 		sandboxHandle:  cfg.SandboxHandle,
 		sandboxExec:    cfg.SandboxExec,
 		sandboxBackend: cfg.SandboxBackend,
@@ -258,7 +259,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 
 	// Debug panel — visible on :debug command.
 	if cfg.TraceRing != nil {
-		m.debugPanel = tui.NewDebugPanel(cfg.TraceRing)
+		m.debugPanel = widgets.NewDebugPanel(cfg.TraceRing)
 		m.layout.Register(tui.PanelSlot{
 			Panel: m.debugPanel, Visible: func() bool { return m.showDebug },
 			Weight: 1, MinHeight: 5, Border: tui.BorderFocusDepth, Focusable: true, //nolint:mnd // layout
@@ -268,7 +269,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	if cfg.HubRegistry != nil {
 		if ph, ok := cfg.HubRegistry.Get("plan"); ok {
 			if planHub, ok := ph.(*hub.PlanHub); ok {
-				m.planPanel = tui.NewPlanPanel(planHub.Graph)
+				m.planPanel = widgets.NewPlanPanel(planHub.Graph)
 				m.layout.Register(tui.PanelSlot{
 					Panel: m.planPanel, Visible: func() bool { return len(m.planPanel.View(1)) > 20 }, //nolint:mnd // non-empty check
 					Weight: 1, MinHeight: 5, Border: tui.BorderFocusDepth, Focusable: true, //nolint:mnd // layout
@@ -383,11 +384,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocy
 
 	case tui.ToolCallMsg:
 		envID := fmt.Sprintf("tool-%d", m.outputPanel.LineCount())
-		env := tui.NewEnvelopePanel(envID, msg.Call.Name, string(msg.Call.Input))
+		env := widgets.NewEnvelopePanel(envID, msg.Call.Name, string(msg.Call.Input))
 		m.outputPanel.Update(tui.OutputAppendMsg{Line: env.View(m.width)})
 		m.activeToolIdx = m.outputPanel.LineCount() - 1
 		if m.envelopes == nil {
-			m.envelopes = make(map[int]*tui.EnvelopePanel)
+			m.envelopes = make(map[int]*widgets.EnvelopePanel)
 		}
 		m.envelopes[m.activeToolIdx] = env
 
@@ -521,7 +522,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocy
 		// Route to per-agent output buffer.
 		panel, ok := m.agentOutputs[msg.AgentID]
 		if !ok {
-			panel = tui.NewOutputPanel()
+			panel = widgets.NewOutputPanel()
 			m.agentOutputs[msg.AgentID] = panel
 		}
 		panel.Update(tui.OutputAppendMsg{Line: msg.Text})

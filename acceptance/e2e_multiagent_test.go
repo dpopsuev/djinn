@@ -14,12 +14,13 @@ import (
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
+	"github.com/dpopsuev/djinn/tui/widgets"
 )
 
 // TestE2E_MultiAgentRoster creates an AgentsPanel, adds 3 agents, sends
 // AgentStatusMsg updates, and verifies Count, Selected, and drill-down Children.
 func TestE2E_MultiAgentRoster(t *testing.T) {
-	panel := tui.NewAgentsPanel()
+	panel := widgets.NewAgentsPanel()
 
 	// Initially empty.
 	if panel.Count() != 0 {

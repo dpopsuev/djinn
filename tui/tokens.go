@@ -54,35 +54,11 @@ func ApplyTokens(ts TokenSet) { //nolint:gocritic,funlen // TokenSet stored as g
 	healthYellow = ss.HealthYellow
 	healthRed = ss.HealthRed
 
-	// Budget styles (budget.go vars)
-	budgetOKStyle = ss.BudgetOK
-	budgetWarnStyle = ss.BudgetWarn
-	budgetOverStyle = ss.BudgetOver
-
-	// Coherence zone styles (coherence.go vars)
-	zoneColdStyle = ss.ZoneCold
-	zoneWarmStyle = ss.ZoneWarm
-	zoneFocusedStyle = ss.ZoneFocused
-	zoneHotStyle = ss.ZoneHot
-	zoneRedlineStyle = ss.ZoneRedline
-
-	// Drift styles (drift.go vars)
-	driftGoodStyle = ss.DriftGood
-	driftMidStyle = ss.DriftMid
-	driftBadStyle = ss.DriftBad
-
-	// Dashboard mode indicators (dashboard.go vars)
-	modeInsertStyle = ss.ModeInsert
-	modeStreamStyle = ss.ModeStream
-	modeApprovalStyle = ss.ModeApproval
-
 	// Focus border (focus.go vars)
 	focusBorder = ss.FocusBorder
 	unfocusedBorder = ss.UnfocusedBorder
 
-	// Turn envelope border (turn_envelope.go vars)
-	turnBorder = ss.TurnBorder
-
-	// Separator focus (separator.go vars)
-	sepFocusStyle = ss.SepFocus
+	// Widget styles now read from design.ActiveStyles directly.
+	// No longer unpacked here — budget, coherence, drift, dashboard,
+	// turn_envelope, separator vars moved to tui/widgets/ package.
 }

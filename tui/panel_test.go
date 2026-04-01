@@ -1,4 +1,4 @@
-package tui
+package tui_test
 
 import (
 	"strings"
@@ -6,15 +6,19 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
+
+	"github.com/dpopsuev/djinn/tui"
+	"github.com/dpopsuev/djinn/tui/core"
+	"github.com/dpopsuev/djinn/tui/widgets"
 )
 
 func TestFocusManager_Cycle(t *testing.T) {
-	p1 := NewOutputPanel()
-	p2 := NewDashboardPanel()
-	p3 := NewOutputPanel()
-	p3.BasePanel = NewBasePanel("output2", 0)
+	p1 := widgets.NewOutputPanel()
+	p2 := widgets.NewDashboardPanel()
+	p3 := widgets.NewOutputPanel()
+	p3.BasePanel = core.NewBasePanel("output2", 0)
 
-	fm := NewFocusManager(p1, p2, p3)
+	fm := tui.NewFocusManager(p1, p2, p3)
 
 	if fm.Active().ID() != "output" {
 		t.Fatalf("initial focus should be output, got %s", fm.Active().ID())
@@ -37,9 +41,9 @@ func TestFocusManager_Cycle(t *testing.T) {
 }
 
 func TestFocusManager_FocusUp(t *testing.T) {
-	p1 := NewOutputPanel()
-	p2 := NewDashboardPanel()
-	fm := NewFocusManager(p1, p2)
+	p1 := widgets.NewOutputPanel()
+	p2 := widgets.NewDashboardPanel()
+	fm := tui.NewFocusManager(p1, p2)
 
 	fm.FocusUp()
 	if fm.Active().ID() != "dashboard" {
@@ -48,9 +52,9 @@ func TestFocusManager_FocusUp(t *testing.T) {
 }
 
 func TestFocusManager_SetFocusUpdatesPanel(t *testing.T) {
-	p1 := NewOutputPanel()
-	p2 := NewDashboardPanel()
-	fm := NewFocusManager(p1, p2)
+	p1 := widgets.NewOutputPanel()
+	p2 := widgets.NewDashboardPanel()
+	fm := tui.NewFocusManager(p1, p2)
 
 	if !p1.Focused() {
 		t.Fatal("output should be focused")
@@ -69,7 +73,7 @@ func TestFocusManager_SetFocusUpdatesPanel(t *testing.T) {
 }
 
 func TestOutputPanel_AppendAndView(t *testing.T) {
-	p := NewOutputPanel()
+	p := widgets.NewOutputPanel()
 	p.Append("hello")
 	p.Append("world")
 
@@ -84,7 +88,7 @@ func TestOutputPanel_AppendAndView(t *testing.T) {
 }
 
 func TestOutputPanel_SetLine(t *testing.T) {
-	p := NewOutputPanel()
+	p := widgets.NewOutputPanel()
 	p.Append("original")
 	p.SetLine(0, "replaced")
 
@@ -94,7 +98,7 @@ func TestOutputPanel_SetLine(t *testing.T) {
 }
 
 func TestEnvelopePanel_CollapsedView(t *testing.T) {
-	e := NewEnvelopePanel("e1", "Read", "test.go")
+	e := widgets.NewEnvelopePanel("e1", "Read", "test.go")
 	e.SetResult("file contents\nline 2\nline 3", false)
 
 	if !e.Collapsed() {
@@ -108,7 +112,7 @@ func TestEnvelopePanel_CollapsedView(t *testing.T) {
 }
 
 func TestEnvelopePanel_Toggle(t *testing.T) {
-	e := NewEnvelopePanel("e1", "Read", "test.go")
+	e := widgets.NewEnvelopePanel("e1", "Read", "test.go")
 	e.SetResult("output", false)
 
 	if !e.Collapsed() {
@@ -125,14 +129,14 @@ func TestEnvelopePanel_Toggle(t *testing.T) {
 }
 
 func TestEnvelopePanel_Collapsible(t *testing.T) {
-	e := NewEnvelopePanel("e1", "Read", "")
+	e := widgets.NewEnvelopePanel("e1", "Read", "")
 	if !e.Collapsible() {
 		t.Fatal("envelopes should be collapsible")
 	}
 }
 
 func TestDashboardPanel_View(t *testing.T) {
-	d := NewDashboardPanel()
+	d := widgets.NewDashboardPanel()
 	d.SetIdentity("aeon", "claude", "opus", "agent")
 	d.SetMetrics(100, 50, 3)
 
@@ -143,10 +147,10 @@ func TestDashboardPanel_View(t *testing.T) {
 }
 
 func TestSeparator_Depths(t *testing.T) {
-	s0 := Separator(20, 0, false)
-	s1 := Separator(20, 1, false)
-	s2 := Separator(20, 2, false)
-	s3 := Separator(20, 3, false)
+	s0 := widgets.Separator(20, 0, false)
+	s1 := widgets.Separator(20, 1, false)
+	s2 := widgets.Separator(20, 2, false)
+	s3 := widgets.Separator(20, 3, false)
 
 	// Each should produce non-empty output
 	for i, s := range []string{s0, s1, s2, s3} {
@@ -157,15 +161,15 @@ func TestSeparator_Depths(t *testing.T) {
 }
 
 func TestSeparator_ZeroWidth(t *testing.T) {
-	s := Separator(0, 0, false)
+	s := widgets.Separator(0, 0, false)
 	if s != "" {
 		t.Fatal("zero width should return empty")
 	}
 }
 
 func TestSeparator_Focused(t *testing.T) {
-	unfocused := Separator(10, 0, false)
-	focused := Separator(10, 0, true)
+	unfocused := widgets.Separator(10, 0, false)
+	focused := widgets.Separator(10, 0, true)
 
 	// Both should produce output, but different (focused has color)
 	if unfocused == "" || focused == "" {
@@ -174,7 +178,7 @@ func TestSeparator_Focused(t *testing.T) {
 }
 
 func TestInputPanel_History(t *testing.T) {
-	p := NewInputPanel()
+	p := widgets.NewInputPanel()
 	p.AddHistory("first")
 	p.AddHistory("second")
 
@@ -197,7 +201,7 @@ func TestInputPanel_History(t *testing.T) {
 // --- Focus depth dimming tests ---
 
 func TestFocusDepths_MiddleFocused(t *testing.T) {
-	depths := FocusDepths(5, 2)
+	depths := tui.FocusDepths(5, 2)
 	expected := []int{2, 1, 0, 1, 2}
 	for i, d := range depths {
 		if d != expected[i] {
@@ -207,14 +211,14 @@ func TestFocusDepths_MiddleFocused(t *testing.T) {
 }
 
 func TestFocusDepths_FirstFocused(t *testing.T) {
-	depths := FocusDepths(3, 0)
+	depths := tui.FocusDepths(3, 0)
 	if depths[0] != 0 || depths[1] != 1 || depths[2] != 2 {
 		t.Fatalf("depths = %v", depths)
 	}
 }
 
 func TestRenderWithDepth_Focused(t *testing.T) {
-	result := RenderWithDepth("hello", 0, 80)
+	result := tui.RenderWithDepth("hello", 0, 80)
 	if result == "hello" {
 		t.Fatal("depth 0 should wrap content in border (not return unchanged)")
 	}
@@ -228,8 +232,8 @@ func TestRenderWithDepth_Unfocused_HasBorder(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	defer lipgloss.SetColorProfile(termenv.Ascii)
 
-	focused := RenderWithDepth("hello", 0, 80)
-	unfocused := RenderWithDepth("hello", 1, 80)
+	focused := tui.RenderWithDepth("hello", 0, 80)
+	unfocused := tui.RenderWithDepth("hello", 1, 80)
 
 	// Both should have borders (contain rounded border chars)
 	if !strings.Contains(focused, "hello") || !strings.Contains(unfocused, "hello") {
@@ -246,8 +250,8 @@ func TestRenderWithDepth_Unfocused_HasBorder(t *testing.T) {
 }
 
 func TestRenderBorderOnly(t *testing.T) {
-	focused := RenderBorderOnly("hello", true, 80)
-	unfocused := RenderBorderOnly("hello", false, 80)
+	focused := tui.RenderBorderOnly("hello", true, 80)
+	unfocused := tui.RenderBorderOnly("hello", false, 80)
 
 	if !strings.Contains(focused, "hello") || !strings.Contains(unfocused, "hello") {
 		t.Fatal("both should contain content")
@@ -259,8 +263,8 @@ func TestRenderBorderOnly(t *testing.T) {
 
 func TestRenderWithDepth_HeightStable(t *testing.T) {
 	// BUG-28: focus switch must NOT change height.
-	focused := RenderWithDepth("line1\nline2", 0, 80)
-	unfocused := RenderWithDepth("line1\nline2", 1, 80)
+	focused := tui.RenderWithDepth("line1\nline2", 0, 80)
+	unfocused := tui.RenderWithDepth("line1\nline2", 1, 80)
 
 	focusedLines := strings.Count(focused, "\n")
 	unfocusedLines := strings.Count(unfocused, "\n")
@@ -271,15 +275,15 @@ func TestRenderWithDepth_HeightStable(t *testing.T) {
 
 func TestRenderFocusIndicator(t *testing.T) {
 	// Focus indicator is now empty — active panel uses a border instead.
-	focused := RenderFocusIndicator(true)
-	unfocused := RenderFocusIndicator(false)
+	focused := tui.RenderFocusIndicator(true)
+	unfocused := tui.RenderFocusIndicator(false)
 	if focused != "" || unfocused != "" {
 		t.Fatal("focus indicator should be empty (border handles focus now)")
 	}
 }
 
 func TestInputPanel_TabComplete_Prefix(t *testing.T) {
-	p := NewInputPanel()
+	p := widgets.NewInputPanel()
 	p.SetCompletions([]string{"/clear", "/compact", "/config", "/config-save", "/help"})
 
 	p.SetValue("/co")
@@ -293,7 +297,7 @@ func TestInputPanel_TabComplete_Prefix(t *testing.T) {
 }
 
 func TestInputPanel_TabComplete_NoSlash(t *testing.T) {
-	p := NewInputPanel()
+	p := widgets.NewInputPanel()
 	p.SetCompletions([]string{"/help"})
 
 	p.SetValue("hello")
@@ -303,7 +307,7 @@ func TestInputPanel_TabComplete_NoSlash(t *testing.T) {
 }
 
 func TestInputPanel_TabComplete_Cycle(t *testing.T) {
-	p := NewInputPanel()
+	p := widgets.NewInputPanel()
 	p.SetCompletions([]string{"/config", "/config-save", "/help"})
 
 	p.SetValue("/config")
@@ -319,7 +323,7 @@ func TestInputPanel_TabComplete_Cycle(t *testing.T) {
 }
 
 func TestInputPanel_TabComplete_ExactMatch_AutoExecutes(t *testing.T) {
-	p := NewInputPanel()
+	p := widgets.NewInputPanel()
 	p.SetCompletions([]string{"/help", "/history"})
 
 	p.SetValue("/help")
@@ -337,7 +341,7 @@ func TestInputPanel_TabComplete_ExactMatch_AutoExecutes(t *testing.T) {
 }
 
 func TestInputPanel_TabComplete_NoMatch(t *testing.T) {
-	p := NewInputPanel()
+	p := widgets.NewInputPanel()
 	p.SetCompletions([]string{"/help", "/config"})
 
 	p.SetValue("/zzz")
@@ -350,7 +354,7 @@ func TestInputPanel_TabComplete_NoMatch(t *testing.T) {
 }
 
 func TestInputPanel_Visible(t *testing.T) {
-	p := NewInputPanel()
+	p := widgets.NewInputPanel()
 	if !p.Visible() {
 		t.Fatal("should be visible by default")
 	}
@@ -364,7 +368,7 @@ func TestInputPanel_Visible(t *testing.T) {
 }
 
 func TestOutputPanel_Overlay(t *testing.T) {
-	p := NewOutputPanel()
+	p := widgets.NewOutputPanel()
 	p.Append("hello")
 	p.SetOverlay("thinking...")
 
@@ -384,7 +388,7 @@ func TestOutputPanel_Overlay(t *testing.T) {
 }
 
 func TestOutputPanel_AppendToLast(t *testing.T) {
-	p := NewOutputPanel()
+	p := widgets.NewOutputPanel()
 	p.Append("hello ")
 	p.AppendToLast("world")
 
@@ -394,34 +398,34 @@ func TestOutputPanel_AppendToLast(t *testing.T) {
 }
 
 func TestFocusManager_SetPanels_PreservesID(t *testing.T) {
-	p1 := NewOutputPanel()
-	p2 := NewDashboardPanel()
-	p3 := NewInputPanel()
-	fm := NewFocusManager(p1, p2, p3)
+	p1 := widgets.NewOutputPanel()
+	p2 := widgets.NewDashboardPanel()
+	p3 := widgets.NewInputPanel()
+	fm := tui.NewFocusManager(p1, p2, p3)
 	fm.FocusPanel(1) // focus dashboard
 
 	// Replace with new list that includes dashboard.
-	fm.SetPanels([]Panel{p1, p3, p2}) // dashboard moved to end
+	fm.SetPanels([]core.Panel{p1, p3, p2}) // dashboard moved to end
 	if fm.Active().ID() != "dashboard" {
 		t.Fatalf("focus should preserve dashboard, got %s", fm.Active().ID())
 	}
 }
 
 func TestFocusManager_SetPanels_FallsBack(t *testing.T) {
-	p1 := NewOutputPanel()
-	p2 := NewDashboardPanel()
-	fm := NewFocusManager(p1, p2)
+	p1 := widgets.NewOutputPanel()
+	p2 := widgets.NewDashboardPanel()
+	fm := tui.NewFocusManager(p1, p2)
 	fm.FocusPanel(1) // focus dashboard
 
 	// Replace with list that doesn't include dashboard.
-	fm.SetPanels([]Panel{p1})
+	fm.SetPanels([]core.Panel{p1})
 	if fm.Active().ID() != "output" {
 		t.Fatalf("should fall back to first panel, got %s", fm.Active().ID())
 	}
 }
 
 func TestBasePanel_Defaults(t *testing.T) {
-	b := NewBasePanel("test", 5)
+	b := core.NewBasePanel("test", 5)
 	if b.ID() != "test" {
 		t.Fatalf("id = %q", b.ID())
 	}

@@ -1,9 +1,9 @@
 // focus_context_integration_test.go — Integration: FocusContext aggregation from multiple providers.
 //
 // Verifies that FocusContext correctly aggregates context from multiple
-// FocusContextProvider implementations and produces prompt-injectable strings.
+// tui.FocusContextProvider implementations and produces prompt-injectable strings.
 // Uses real panel types (DebugPanel, PlanPanel) as providers.
-package tui
+package tui_test
 
 import (
 	"strings"
@@ -12,10 +12,12 @@ import (
 
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/trace"
+	"github.com/dpopsuev/djinn/tui"
+	"github.com/dpopsuev/djinn/tui/widgets"
 )
 
 // TestFocusContext_Integration_MultiProvider creates multiple real panels that
-// implement FocusContextProvider, collects their FocusContext values, and
+// implement tui.FocusContextProvider, collects their FocusContext values, and
 // verifies that each produces a valid, structured, prompt-injectable string.
 func TestFocusContext_Integration_MultiProvider(t *testing.T) {
 	// --- Provider 1: DebugPanel with trace events ---
@@ -36,7 +38,7 @@ func TestFocusContext_Integration_MultiProvider(t *testing.T) {
 		Detail:    "code health report",
 		Latency:   150 * time.Millisecond, //nolint:mnd // test latency
 	})
-	debugPanel := NewDebugPanel(ring)
+	debugPanel := widgets.NewDebugPanel(ring)
 	debugPanel.SetFocus(true)
 
 	// --- Provider 2: PlanPanel with artifacts ---
@@ -54,17 +56,17 @@ func TestFocusContext_Integration_MultiProvider(t *testing.T) {
 	_, err = graph.Add(artifact.Artifact{
 		Kind:    artifact.KindPlanSegment,
 		Title:   "Add DebugPanel Provider",
-		Content: "DebugPanel implements FocusContextProvider",
+		Content: "DebugPanel implements tui.FocusContextProvider",
 	})
 	if err != nil {
 		t.Fatalf("graph.Add seg-2: %v", err)
 	}
 
-	planPanel := NewPlanPanel(graph)
+	planPanel := widgets.NewPlanPanel(graph)
 	planPanel.SetFocus(true)
 
 	// Collect context from both providers.
-	providers := []FocusContextProvider{debugPanel, planPanel}
+	providers := []tui.FocusContextProvider{debugPanel, planPanel}
 
 	var combined strings.Builder
 	for _, p := range providers {
@@ -127,7 +129,7 @@ func TestFocusContext_Integration_MultiProvider(t *testing.T) {
 // and the result is minimal or empty.
 func TestFocusContext_Integration_EmptyProviders(t *testing.T) {
 	t.Run("no_providers", func(t *testing.T) {
-		var providers []FocusContextProvider
+		var providers []tui.FocusContextProvider
 
 		var combined strings.Builder
 		for _, p := range providers {
@@ -142,7 +144,7 @@ func TestFocusContext_Integration_EmptyProviders(t *testing.T) {
 
 	t.Run("debug_panel_nil_ring", func(t *testing.T) {
 		// DebugPanel with nil ring returns panel-only context (no element).
-		panel := NewDebugPanel(nil)
+		panel := widgets.NewDebugPanel(nil)
 		fc := panel.FocusContext()
 
 		if fc.PanelID != "debug" {
@@ -166,7 +168,7 @@ func TestFocusContext_Integration_EmptyProviders(t *testing.T) {
 	t.Run("debug_panel_empty_ring", func(t *testing.T) {
 		// DebugPanel with empty ring (no events appended).
 		ring := trace.NewRing(16) //nolint:mnd // small ring for test
-		panel := NewDebugPanel(ring)
+		panel := widgets.NewDebugPanel(ring)
 		fc := panel.FocusContext()
 
 		if fc.PanelID != "debug" {
@@ -181,7 +183,7 @@ func TestFocusContext_Integration_EmptyProviders(t *testing.T) {
 		// PlanPanel with an empty graph (no artifacts).
 		registry := artifact.DefaultRegistry()
 		graph := artifact.NewGraph("Empty", registry)
-		panel := NewPlanPanel(graph)
+		panel := widgets.NewPlanPanel(graph)
 		fc := panel.FocusContext()
 
 		if fc.PanelID != "plan" {
@@ -200,11 +202,11 @@ func TestFocusContext_Integration_EmptyProviders(t *testing.T) {
 
 	t.Run("all_empty_providers_aggregated", func(t *testing.T) {
 		// Multiple providers, all returning minimal context (panel-only, no element).
-		debugEmpty := NewDebugPanel(nil)
+		debugEmpty := widgets.NewDebugPanel(nil)
 		registry := artifact.DefaultRegistry()
-		planEmpty := NewPlanPanel(artifact.NewGraph("Empty", registry))
+		planEmpty := widgets.NewPlanPanel(artifact.NewGraph("Empty", registry))
 
-		providers := []FocusContextProvider{debugEmpty, planEmpty}
+		providers := []tui.FocusContextProvider{debugEmpty, planEmpty}
 
 		var combined strings.Builder
 		for _, p := range providers {

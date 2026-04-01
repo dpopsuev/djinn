@@ -1,15 +1,18 @@
-package tui
+package tui_test
 
 import (
 	"strings"
 	"testing"
+
+	"github.com/dpopsuev/djinn/tui"
+	"github.com/dpopsuev/djinn/tui/widgets"
 )
 
 func TestLayoutEngine_VisibleSlots_AllVisible(t *testing.T) {
-	fm := NewFocusManager()
-	e := NewLayoutEngine(fm)
-	e.Register(PanelSlot{Panel: NewOutputPanel(), Focusable: true})
-	e.Register(PanelSlot{Panel: NewInputPanel(), Focusable: true})
+	fm := tui.NewFocusManager()
+	e := tui.NewLayoutEngine(fm)
+	e.Register(tui.PanelSlot{Panel: widgets.NewOutputPanel(), Focusable: true})
+	e.Register(tui.PanelSlot{Panel: widgets.NewInputPanel(), Focusable: true})
 
 	if len(e.VisibleSlots()) != 2 {
 		t.Fatalf("visible = %d, want 2", len(e.VisibleSlots()))
@@ -17,12 +20,12 @@ func TestLayoutEngine_VisibleSlots_AllVisible(t *testing.T) {
 }
 
 func TestLayoutEngine_VisibleSlots_Conditional(t *testing.T) {
-	fm := NewFocusManager()
-	e := NewLayoutEngine(fm)
+	fm := tui.NewFocusManager()
+	e := tui.NewLayoutEngine(fm)
 	show := false
-	e.Register(PanelSlot{Panel: NewOutputPanel(), Focusable: true})
-	e.Register(PanelSlot{Panel: NewQueuePanel(), Visible: func() bool { return show }, Focusable: true})
-	e.Register(PanelSlot{Panel: NewInputPanel(), Focusable: true})
+	e.Register(tui.PanelSlot{Panel: widgets.NewOutputPanel(), Focusable: true})
+	e.Register(tui.PanelSlot{Panel: widgets.NewQueuePanel(), Visible: func() bool { return show }, Focusable: true})
+	e.Register(tui.PanelSlot{Panel: widgets.NewInputPanel(), Focusable: true})
 
 	if len(e.VisibleSlots()) != 2 {
 		t.Fatalf("visible = %d, want 2 (queue hidden)", len(e.VisibleSlots()))
@@ -35,11 +38,11 @@ func TestLayoutEngine_VisibleSlots_Conditional(t *testing.T) {
 }
 
 func TestLayoutEngine_FocusablePanels(t *testing.T) {
-	fm := NewFocusManager()
-	e := NewLayoutEngine(fm)
-	e.Register(PanelSlot{Panel: NewOutputPanel(), Focusable: true})
-	e.Register(PanelSlot{Panel: NewDashboardPanel(), Focusable: false}) // not focusable
-	e.Register(PanelSlot{Panel: NewInputPanel(), Focusable: true})
+	fm := tui.NewFocusManager()
+	e := tui.NewLayoutEngine(fm)
+	e.Register(tui.PanelSlot{Panel: widgets.NewOutputPanel(), Focusable: true})
+	e.Register(tui.PanelSlot{Panel: widgets.NewDashboardPanel(), Focusable: false}) // not focusable
+	e.Register(tui.PanelSlot{Panel: widgets.NewInputPanel(), Focusable: true})
 
 	panels := e.FocusablePanels()
 	if len(panels) != 2 {
@@ -48,11 +51,11 @@ func TestLayoutEngine_FocusablePanels(t *testing.T) {
 }
 
 func TestLayoutEngine_ComputeHeights_FixedOnly(t *testing.T) {
-	fm := NewFocusManager()
-	e := NewLayoutEngine(fm)
+	fm := tui.NewFocusManager()
+	e := tui.NewLayoutEngine(fm)
 	e.Resize(80, 24)
-	e.Register(PanelSlot{Panel: NewInputPanel(), Border: BorderFocusDepth})     // height=1
-	e.Register(PanelSlot{Panel: NewDashboardPanel(), Border: BorderFocusDepth}) // height=1
+	e.Register(tui.PanelSlot{Panel: widgets.NewInputPanel(), Border: tui.BorderFocusDepth})     // height=1
+	e.Register(tui.PanelSlot{Panel: widgets.NewDashboardPanel(), Border: tui.BorderFocusDepth}) // height=1
 
 	heights := e.ComputeHeights()
 	if heights["input"] != 1 || heights["dashboard"] != 1 {
@@ -61,11 +64,11 @@ func TestLayoutEngine_ComputeHeights_FixedOnly(t *testing.T) {
 }
 
 func TestLayoutEngine_ComputeHeights_FlexDistribution(t *testing.T) {
-	fm := NewFocusManager()
-	e := NewLayoutEngine(fm)
+	fm := tui.NewFocusManager()
+	e := tui.NewLayoutEngine(fm)
 	e.Resize(80, 30)
-	e.Register(PanelSlot{Panel: NewOutputPanel(), Weight: 1, MinHeight: 3, Border: BorderOnly})
-	e.Register(PanelSlot{Panel: NewDashboardPanel(), Border: BorderFocusDepth}) // fixed panel, single-line height
+	e.Register(tui.PanelSlot{Panel: widgets.NewOutputPanel(), Weight: 1, MinHeight: 3, Border: tui.BorderOnly})
+	e.Register(tui.PanelSlot{Panel: widgets.NewDashboardPanel(), Border: tui.BorderFocusDepth}) // fixed panel, single-line height
 
 	heights := e.ComputeHeights()
 	if heights["output"] < 3 {
@@ -74,10 +77,10 @@ func TestLayoutEngine_ComputeHeights_FlexDistribution(t *testing.T) {
 }
 
 func TestLayoutEngine_ComputeHeights_MinHeight(t *testing.T) {
-	fm := NewFocusManager()
-	e := NewLayoutEngine(fm)
+	fm := tui.NewFocusManager()
+	e := tui.NewLayoutEngine(fm)
 	e.Resize(80, 5) // very small terminal
-	e.Register(PanelSlot{Panel: NewOutputPanel(), Weight: 1, MinHeight: 3, Border: BorderOnly})
+	e.Register(tui.PanelSlot{Panel: widgets.NewOutputPanel(), Weight: 1, MinHeight: 3, Border: tui.BorderOnly})
 
 	heights := e.ComputeHeights()
 	if heights["output"] < 3 {
@@ -86,14 +89,14 @@ func TestLayoutEngine_ComputeHeights_MinHeight(t *testing.T) {
 }
 
 func TestLayoutEngine_Render_ProducesOutput(t *testing.T) {
-	fm := NewFocusManager()
-	e := NewLayoutEngine(fm)
+	fm := tui.NewFocusManager()
+	e := tui.NewLayoutEngine(fm)
 	e.Resize(80, 24)
 
-	op := NewOutputPanel()
+	op := widgets.NewOutputPanel()
 	op.Append("hello")
-	e.Register(PanelSlot{Panel: op, Weight: 1, MinHeight: 3, Border: BorderOnly, Focusable: true})
-	e.Register(PanelSlot{Panel: NewDashboardPanel(), Border: BorderFocusDepth, Focusable: true})
+	e.Register(tui.PanelSlot{Panel: op, Weight: 1, MinHeight: 3, Border: tui.BorderOnly, Focusable: true})
+	e.Register(tui.PanelSlot{Panel: widgets.NewDashboardPanel(), Border: tui.BorderFocusDepth, Focusable: true})
 
 	result := e.Render()
 	if result == "" {
@@ -105,14 +108,14 @@ func TestLayoutEngine_Render_ProducesOutput(t *testing.T) {
 }
 
 func TestLayoutEngine_Render_SkipsInvisible(t *testing.T) {
-	fm := NewFocusManager()
-	e := NewLayoutEngine(fm)
+	fm := tui.NewFocusManager()
+	e := tui.NewLayoutEngine(fm)
 	e.Resize(80, 24)
 
-	q := NewQueuePanel()
-	q.Update(QueueAddMsg{Prompt: "queued"})
-	e.Register(PanelSlot{Panel: NewOutputPanel(), Weight: 1, Border: BorderOnly, Focusable: true})
-	e.Register(PanelSlot{Panel: q, Visible: func() bool { return false }, Border: BorderFocusDepth, Focusable: true})
+	q := widgets.NewQueuePanel()
+	q.Update(tui.QueueAddMsg{Prompt: "queued"})
+	e.Register(tui.PanelSlot{Panel: widgets.NewOutputPanel(), Weight: 1, Border: tui.BorderOnly, Focusable: true})
+	e.Register(tui.PanelSlot{Panel: q, Visible: func() bool { return false }, Border: tui.BorderFocusDepth, Focusable: true})
 
 	result := e.Render()
 	if strings.Contains(result, "queued") {
@@ -121,12 +124,12 @@ func TestLayoutEngine_Render_SkipsInvisible(t *testing.T) {
 }
 
 func TestLayoutEngine_Render_SyncsFocusManager(t *testing.T) {
-	fm := NewFocusManager()
-	e := NewLayoutEngine(fm)
+	fm := tui.NewFocusManager()
+	e := tui.NewLayoutEngine(fm)
 	e.Resize(80, 24)
 
-	e.Register(PanelSlot{Panel: NewOutputPanel(), Weight: 1, Border: BorderOnly, Focusable: true})
-	e.Register(PanelSlot{Panel: NewInputPanel(), Border: BorderFocusDepth, Focusable: true})
+	e.Register(tui.PanelSlot{Panel: widgets.NewOutputPanel(), Weight: 1, Border: tui.BorderOnly, Focusable: true})
+	e.Register(tui.PanelSlot{Panel: widgets.NewInputPanel(), Border: tui.BorderFocusDepth, Focusable: true})
 
 	e.Render()
 	if fm.Count() != 2 {
@@ -135,12 +138,12 @@ func TestLayoutEngine_Render_SyncsFocusManager(t *testing.T) {
 }
 
 func TestLayoutEngine_BorderModes(t *testing.T) {
-	fm := NewFocusManager()
-	e := NewLayoutEngine(fm)
+	fm := tui.NewFocusManager()
+	e := tui.NewLayoutEngine(fm)
 	e.Resize(80, 24)
 
-	e.Register(PanelSlot{Panel: NewOutputPanel(), Weight: 1, Border: BorderOnly, Focusable: true})
-	e.Register(PanelSlot{Panel: NewDashboardPanel(), Border: BorderNone, Focusable: false})
+	e.Register(tui.PanelSlot{Panel: widgets.NewOutputPanel(), Weight: 1, Border: tui.BorderOnly, Focusable: true})
+	e.Register(tui.PanelSlot{Panel: widgets.NewDashboardPanel(), Border: tui.BorderNone, Focusable: false})
 
 	result := e.Render()
 	if result == "" {
@@ -149,30 +152,30 @@ func TestLayoutEngine_BorderModes(t *testing.T) {
 }
 
 func TestLayoutEngine_HorizontalGroup(t *testing.T) {
-	fm := NewFocusManager()
-	e := NewLayoutEngine(fm)
+	fm := tui.NewFocusManager()
+	e := tui.NewLayoutEngine(fm)
 	e.Resize(80, 24)
 
 	// Two panels in the same horizontal group.
-	p1 := NewOutputPanel()
+	p1 := widgets.NewOutputPanel()
 	p1.Append("LEFT_CONTENT")
-	p2 := NewThinkingPanel()
-	p2.Update(ThinkingMsg("RIGHT_CONTENT"))
+	p2 := widgets.NewThinkingPanel()
+	p2.Update(tui.ThinkingMsg("RIGHT_CONTENT"))
 
-	e.Register(PanelSlot{
+	e.Register(tui.PanelSlot{
 		Panel:     p1,
 		Weight:    1,
-		Border:    BorderOnly,
+		Border:    tui.BorderOnly,
 		Focusable: true,
-		Direction: DirHorizontal,
+		Direction: tui.DirHorizontal,
 		Group:     "pair",
 	})
-	e.Register(PanelSlot{
+	e.Register(tui.PanelSlot{
 		Panel:     p2,
 		Weight:    1,
-		Border:    BorderFocusDepth,
+		Border:    tui.BorderFocusDepth,
 		Focusable: true,
-		Direction: DirHorizontal,
+		Direction: tui.DirHorizontal,
 		Group:     "pair",
 	})
 
@@ -220,37 +223,37 @@ func TestLayoutEngine_HorizontalGroup(t *testing.T) {
 }
 
 func TestLayoutEngine_MixedGroups(t *testing.T) {
-	fm := NewFocusManager()
-	e := NewLayoutEngine(fm)
+	fm := tui.NewFocusManager()
+	e := tui.NewLayoutEngine(fm)
 	e.Resize(80, 24)
 
 	// Vertical panel above.
-	topPanel := NewOutputPanel()
+	topPanel := widgets.NewOutputPanel()
 	topPanel.Append("TOP_PANEL")
-	e.Register(PanelSlot{
+	e.Register(tui.PanelSlot{
 		Panel:     topPanel,
 		Weight:    1,
 		MinHeight: 3,
-		Border:    BorderOnly,
+		Border:    tui.BorderOnly,
 		Focusable: true,
 	})
 
 	// Horizontal group below.
-	left := NewDashboardPanel()
-	right := NewInputPanel()
+	left := widgets.NewDashboardPanel()
+	right := widgets.NewInputPanel()
 
-	e.Register(PanelSlot{
+	e.Register(tui.PanelSlot{
 		Panel:     left,
-		Border:    BorderFocusDepth,
+		Border:    tui.BorderFocusDepth,
 		Focusable: true,
-		Direction: DirHorizontal,
+		Direction: tui.DirHorizontal,
 		Group:     "bottom",
 	})
-	e.Register(PanelSlot{
+	e.Register(tui.PanelSlot{
 		Panel:     right,
-		Border:    BorderFocusDepth,
+		Border:    tui.BorderFocusDepth,
 		Focusable: true,
-		Direction: DirHorizontal,
+		Direction: tui.DirHorizontal,
 		Group:     "bottom",
 	})
 
