@@ -7,9 +7,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/dpopsuev/djinn/tui/core"
-
 	tui "github.com/dpopsuev/djinn/tui"
+	"github.com/dpopsuev/djinn/tui/core"
+	"github.com/dpopsuev/djinn/tui/elements"
 )
 
 // ServerPanel displays MCP server info with drillable tool children.
@@ -45,11 +45,11 @@ func (p *ServerPanel) View(width int) string {
 	var indicator string
 	switch p.status {
 	case tui.StatusGreen:
-		indicator = tui.Glyph(tui.StateDone)
+		indicator = elements.Glyph(elements.StateDone)
 	case tui.StatusYellow:
-		indicator = tui.Glyph(tui.StatePending)
+		indicator = elements.Glyph(elements.StatePending)
 	case tui.StatusRed:
-		indicator = tui.Glyph(tui.StateError)
+		indicator = elements.Glyph(elements.StateError)
 	default:
 		indicator = tui.DimStyle.Render("·")
 	}

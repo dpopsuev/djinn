@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/alecthomas/chroma/v2/quick"
+
+	"github.com/dpopsuev/djinn/tui/elements"
 )
 
 // Render panel type constants.
@@ -453,11 +455,11 @@ func renderTimeline(data string) string {
 	for _, e := range td.Events {
 		var marker string
 		switch e.State {
-		case StateDone:
+		case elements.StateDone:
 			marker = ToolSuccessStyle.Render("●")
-		case StateActive:
+		case elements.StateActive:
 			marker = ToolNameStyle.Render("●")
-		case StateError:
+		case elements.StateError:
 			marker = ErrorStyle.Render("●")
 		default:
 			marker = DimStyle.Render("○")

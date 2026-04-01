@@ -7,27 +7,18 @@ package tui
 
 import "github.com/dpopsuev/djinn/tui/design"
 
-// TokenSet is the semantic token type.
-type TokenSet = design.TokenSet
-
-// DefaultTokens returns tokens derived from DefaultTheme.
-func DefaultTokens() TokenSet { return design.DefaultTokens() }
-
-// TokensFromTheme maps a Theme to a full TokenSet.
-func TokensFromTheme(t Theme) TokenSet { return design.TokensFromTheme(t) } //nolint:gocritic // pass-through to design
-
 // ActiveTokens is the live token set. Rebuilt by ApplyTokens().
-var ActiveTokens TokenSet
+var ActiveTokens design.TokenSet
 
 func init() {
-	ApplyTokens(DefaultTokens())
+	ApplyTokens(design.DefaultTokens())
 }
 
 // ApplyTokens rebuilds all global style variables from the given token set.
 // This is the SINGLE WRITER of style vars — no other code should assign them.
 // Uses design.BuildStyles() for the canonical computation, then unpacks to
 // tui-level vars (both public and private) for backward compat.
-func ApplyTokens(ts TokenSet) { //nolint:gocritic,funlen // TokenSet stored as global; unpacking is inherently long
+func ApplyTokens(ts design.TokenSet) { //nolint:gocritic,funlen // TokenSet stored as global; unpacking is inherently long
 	ActiveTokens = ts
 
 	// Build all styles via design package (pure function, single source of truth).

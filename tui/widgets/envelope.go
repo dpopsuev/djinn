@@ -7,9 +7,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/dpopsuev/djinn/tui/core"
-
 	tui "github.com/dpopsuev/djinn/tui"
+	"github.com/dpopsuev/djinn/tui/core"
+	"github.com/dpopsuev/djinn/tui/elements"
 )
 
 // EnvelopePanel is a collapsible tool call + result.
@@ -59,24 +59,24 @@ func (p *EnvelopePanel) View(width int) string {
 
 func (p *EnvelopePanel) summaryView() string {
 	lines := strings.Count(p.output, "\n") + 1
-	state := tui.StateDone
+	state := elements.StateDone
 	if p.isError {
-		state = tui.StateError
+		state = elements.StateError
 	}
 	if !p.done {
-		state = tui.StateActive
+		state = elements.StateActive
 	}
 	return "  " + tui.ToolStatus(p.toolName, state, lines)
 }
 
 func (p *EnvelopePanel) expandedView(width int) string {
 	var sb strings.Builder
-	state := tui.StateActive
+	state := elements.StateActive
 	if p.done {
-		state = tui.StateDone
+		state = elements.StateDone
 	}
 	if p.isError {
-		state = tui.StateError
+		state = elements.StateError
 	}
 	fmt.Fprintf(&sb, "  %s %s\n",
 		tui.ToolStatus(p.toolName, state, 0),

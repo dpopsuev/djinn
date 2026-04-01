@@ -15,11 +15,11 @@ func TestIcon_ASCIIFallback(t *testing.T) {
 	icons.NerdFontsAvailable = false
 	defer func() { icons.NerdFontsAvailable = old }()
 
-	if IconCheck.String() != "✓" {
-		t.Fatalf("IconCheck ASCII = %q, want ✓", IconCheck.String())
+	if icons.Check.String() != "✓" {
+		t.Fatalf("icons.Check ASCII = %q, want ✓", icons.Check.String())
 	}
-	if IconFile.String() != "F" {
-		t.Fatalf("IconFile ASCII = %q, want F", IconFile.String())
+	if icons.File.String() != "F" {
+		t.Fatalf("icons.File ASCII = %q, want F", icons.File.String())
 	}
 }
 
@@ -33,10 +33,10 @@ func TestIcon_NerdFontEnabled(t *testing.T) {
 	defer func() { icons.NerdFontsAvailable = old }()
 
 	// Should return Nerd glyph, not ASCII.
-	if IconCheck.String() == "✓" {
+	if icons.Check.String() == "✓" {
 		t.Fatal("should return Nerd glyph when enabled")
 	}
-	if IconCheck.String() == "" {
+	if icons.Check.String() == "" {
 		t.Fatal("Nerd glyph should not be empty")
 	}
 }
@@ -46,10 +46,10 @@ func TestIcon_NerdFontEnabled(t *testing.T) {
 // ═══════════════════════════════════════════════════════════════════════
 
 func TestIcon_AllIconsHaveValues(t *testing.T) {
-	allIcons := []Icon{
-		IconFile, IconFolder, IconGit, IconBranch, IconTag,
-		IconCheck, IconCross, IconWarning, IconInfo, IconError,
-		IconSpinner, IconAgent, IconTool, IconClock, IconBudget,
+	allIcons := []icons.Icon{
+		icons.File, icons.Folder, icons.Git, icons.Branch, icons.Tag,
+		icons.Check, icons.Cross, icons.Warning, icons.Info, icons.Error,
+		icons.Spinner, icons.Agent, icons.Tool, icons.Clock, icons.Budget,
 	}
 	for _, icon := range allIcons {
 		if icon.Nerd == "" {
@@ -66,10 +66,10 @@ func TestIcon_StringRoutes(t *testing.T) {
 	defer func() { icons.NerdFontsAvailable = old }()
 
 	icons.NerdFontsAvailable = false
-	ascii := IconGit.String()
+	ascii := icons.Git.String()
 
 	icons.NerdFontsAvailable = true
-	nerd := IconGit.String()
+	nerd := icons.Git.String()
 
 	if ascii == nerd {
 		t.Fatal("ASCII and Nerd should be different strings")

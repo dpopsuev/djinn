@@ -18,7 +18,7 @@ func TestFocusManager_Cycle(t *testing.T) {
 	p3 := widgets.NewOutputPanel()
 	p3.BasePanel = core.NewBasePanel("output2", 0)
 
-	fm := tui.NewFocusManager(p1, p2, p3)
+	fm := core.NewFocusManager(p1, p2, p3)
 
 	if fm.Active().ID() != "output" {
 		t.Fatalf("initial focus should be output, got %s", fm.Active().ID())
@@ -43,7 +43,7 @@ func TestFocusManager_Cycle(t *testing.T) {
 func TestFocusManager_FocusUp(t *testing.T) {
 	p1 := widgets.NewOutputPanel()
 	p2 := widgets.NewDashboardPanel()
-	fm := tui.NewFocusManager(p1, p2)
+	fm := core.NewFocusManager(p1, p2)
 
 	fm.FocusUp()
 	if fm.Active().ID() != "dashboard" {
@@ -54,7 +54,7 @@ func TestFocusManager_FocusUp(t *testing.T) {
 func TestFocusManager_SetFocusUpdatesPanel(t *testing.T) {
 	p1 := widgets.NewOutputPanel()
 	p2 := widgets.NewDashboardPanel()
-	fm := tui.NewFocusManager(p1, p2)
+	fm := core.NewFocusManager(p1, p2)
 
 	if !p1.Focused() {
 		t.Fatal("output should be focused")
@@ -401,7 +401,7 @@ func TestFocusManager_SetPanels_PreservesID(t *testing.T) {
 	p1 := widgets.NewOutputPanel()
 	p2 := widgets.NewDashboardPanel()
 	p3 := widgets.NewInputPanel()
-	fm := tui.NewFocusManager(p1, p2, p3)
+	fm := core.NewFocusManager(p1, p2, p3)
 	fm.FocusPanel(1) // focus dashboard
 
 	// Replace with new list that includes dashboard.
@@ -414,7 +414,7 @@ func TestFocusManager_SetPanels_PreservesID(t *testing.T) {
 func TestFocusManager_SetPanels_FallsBack(t *testing.T) {
 	p1 := widgets.NewOutputPanel()
 	p2 := widgets.NewDashboardPanel()
-	fm := tui.NewFocusManager(p1, p2)
+	fm := core.NewFocusManager(p1, p2)
 	fm.FocusPanel(1) // focus dashboard
 
 	// Replace with list that doesn't include dashboard.

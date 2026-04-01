@@ -14,9 +14,9 @@ import (
 
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/render"
-	"github.com/dpopsuev/djinn/tui/core"
-
 	tui "github.com/dpopsuev/djinn/tui"
+	"github.com/dpopsuev/djinn/tui/core"
+	"github.com/dpopsuev/djinn/tui/elements"
 )
 
 const cursorPrefix = "▸ "
@@ -152,7 +152,7 @@ func (p *PlanPanel) renderOverview() string {
 	}
 
 	b.WriteString("\n")
-	b.WriteString(tui.Hint("j/k navigate", "enter drill", "q back"))
+	b.WriteString(elements.Hint("j/k navigate", "enter drill", "q back"))
 
 	return b.String()
 }
@@ -202,7 +202,7 @@ func (p *PlanPanel) renderGoalDetail() string {
 	}
 
 	b.WriteString("\n")
-	b.WriteString(tui.Hint("j/k navigate", "enter drill", "q overview"))
+	b.WriteString(elements.Hint("j/k navigate", "enter drill", "q overview"))
 
 	return b.String()
 }
@@ -258,7 +258,7 @@ func (p *PlanPanel) renderSegmentDetail() string {
 	}
 
 	b.WriteString("\n")
-	b.WriteString(tui.Hint("q back", ":claim", ":+ :- :~ annotate"))
+	b.WriteString(elements.Hint("q back", ":claim", ":+ :- :~ annotate"))
 
 	return b.String()
 }

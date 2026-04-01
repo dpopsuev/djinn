@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/tui/core"
 	"github.com/dpopsuev/djinn/tui/layout"
 )
 
@@ -198,7 +199,7 @@ type RenderPanelMsg struct {
 }
 
 // ListPanel messages.
-type ListSetItemsMsg struct{ Items []Panel }
+type ListSetItemsMsg struct{ Items []core.Panel }
 
 // Queue panel messages.
 type QueueAddMsg struct{ Prompt string }

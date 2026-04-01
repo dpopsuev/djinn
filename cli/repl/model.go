@@ -28,6 +28,9 @@ import (
 	"github.com/dpopsuev/djinn/terminal"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
+	"github.com/dpopsuev/djinn/tui/core"
+	"github.com/dpopsuev/djinn/tui/elements"
+	"github.com/dpopsuev/djinn/tui/layout"
 	"github.com/dpopsuev/djinn/tui/widgets"
 	"github.com/dpopsuev/djinn/vcs"
 )
@@ -98,14 +101,14 @@ type Model struct {
 	healthReports []tui.HealthReport // component health for status line
 	spin          spinner.Model
 	spinnerActive bool
-	activeToolIdx int                        // conversation index of active tool spinner (-1 = none)
+	activeToolIdx int                            // conversation index of active tool spinner (-1 = none)
 	envelopes     map[int]*widgets.EnvelopePanel // tool envelopes keyed by output line index
 	outputPanel   *widgets.OutputPanel
 	thinkingPanel *widgets.ThinkingPanel
 	commandsPanel *widgets.CommandsPanel
 	dashboard     *widgets.DashboardPanel
-	focus         *tui.FocusManager
-	layout        *tui.LayoutEngine
+	focus         *core.FocusManager
+	layout        *layout.LayoutEngine
 	ready         bool
 	quitting      bool
 	initialPrompt string           // auto-submit on first render
@@ -244,25 +247,25 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	}
 
 	m.keys = keybind.NewModeTable()
-	m.focus = tui.NewFocusManager(m.outputPanel, m.inputPanel, m.dashboard)
+	m.focus = core.NewFocusManager(m.outputPanel, m.inputPanel, m.dashboard)
 	m.focus.FocusPanel(1) // Default focus on input — user can type immediately.
 
 	// LayoutEngine — declarative panel composition (SPC-52).
 	m.layout = tui.NewLayoutEngine(m.focus)
-	m.layout.Register(tui.PanelSlot{Panel: m.outputPanel, Weight: 1, MinHeight: 3, Border: tui.BorderOnly, Focusable: true})
-	m.layout.Register(tui.PanelSlot{Panel: m.thinkingPanel, Visible: func() bool { return m.thinkingPanel.Active() }, Border: tui.BorderNone})
-	m.layout.Register(tui.PanelSlot{Panel: m.queuePanel, Visible: func() bool { return m.queuePanel.Len() > 0 }, Border: tui.BorderFocusDepth, Focusable: true})
-	m.layout.Register(tui.PanelSlot{Panel: m.agentsPanel, Visible: func() bool { return m.agentsPanel.Count() > 1 }, Weight: 1, MinHeight: 3, Border: tui.BorderFocusDepth, Focusable: true})
-	m.layout.Register(tui.PanelSlot{Panel: m.inputPanel, Border: tui.BorderFocusDepth, Focusable: true})
-	m.layout.Register(tui.PanelSlot{Panel: m.commandsPanel, Visible: func() bool { return m.commandsPanel.Active() }, Border: tui.BorderNone})
-	m.layout.Register(tui.PanelSlot{Panel: m.dashboard, Border: tui.BorderFocusDepth, Focusable: true})
+	m.layout.Register(layout.PanelSlot{Panel: m.outputPanel, Weight: 1, MinHeight: 3, Border: layout.BorderOnly, Focusable: true})
+	m.layout.Register(layout.PanelSlot{Panel: m.thinkingPanel, Visible: func() bool { return m.thinkingPanel.Active() }, Border: layout.BorderNone})
+	m.layout.Register(layout.PanelSlot{Panel: m.queuePanel, Visible: func() bool { return m.queuePanel.Len() > 0 }, Border: layout.BorderFocusDepth, Focusable: true})
+	m.layout.Register(layout.PanelSlot{Panel: m.agentsPanel, Visible: func() bool { return m.agentsPanel.Count() > 1 }, Weight: 1, MinHeight: 3, Border: layout.BorderFocusDepth, Focusable: true})
+	m.layout.Register(layout.PanelSlot{Panel: m.inputPanel, Border: layout.BorderFocusDepth, Focusable: true})
+	m.layout.Register(layout.PanelSlot{Panel: m.commandsPanel, Visible: func() bool { return m.commandsPanel.Active() }, Border: layout.BorderNone})
+	m.layout.Register(layout.PanelSlot{Panel: m.dashboard, Border: layout.BorderFocusDepth, Focusable: true})
 
 	// Debug panel — visible on :debug command.
 	if cfg.TraceRing != nil {
 		m.debugPanel = widgets.NewDebugPanel(cfg.TraceRing)
-		m.layout.Register(tui.PanelSlot{
+		m.layout.Register(layout.PanelSlot{
 			Panel: m.debugPanel, Visible: func() bool { return m.showDebug },
-			Weight: 1, MinHeight: 5, Border: tui.BorderFocusDepth, Focusable: true, //nolint:mnd // layout
+			Weight: 1, MinHeight: 5, Border: layout.BorderFocusDepth, Focusable: true, //nolint:mnd // layout
 		})
 	}
 	// Plan panel — visible when plan artifacts exist.
@@ -270,9 +273,9 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		if ph, ok := cfg.HubRegistry.Get("plan"); ok {
 			if planHub, ok := ph.(*hub.PlanHub); ok {
 				m.planPanel = widgets.NewPlanPanel(planHub.Graph)
-				m.layout.Register(tui.PanelSlot{
+				m.layout.Register(layout.PanelSlot{
 					Panel: m.planPanel, Visible: func() bool { return len(m.planPanel.View(1)) > 20 }, //nolint:mnd // non-empty check
-					Weight: 1, MinHeight: 5, Border: tui.BorderFocusDepth, Focusable: true, //nolint:mnd // layout
+					Weight: 1, MinHeight: 5, Border: layout.BorderFocusDepth, Focusable: true, //nolint:mnd // layout
 				})
 			}
 		}
@@ -317,7 +320,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocy
 		tui.ReinitRenderer(msg.Width)
 		// Apply Law of Thirds layout — pinned input, flexible output, fixed dashboard.
 		inputLines := max(1, m.inputPanel.Height())
-		thirds := tui.ComputeThirdsLayout(m.height, inputLines)
+		thirds := layout.ComputeThirdsLayout(m.height, inputLines)
 		m.layout.SetMinHeight(m.outputPanel, thirds.OutputHeight)
 		m.layout.SetMinHeight(m.dashboard, thirds.DashboardHeight)
 		if m.outputPanel.LineCount() == 0 {
@@ -379,7 +382,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocy
 	case tui.ThinkingMsg:
 		m.isThinking = true
 		m.dashboard.Update(tui.DashboardUIStateMsg{State: "THINKING"})
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.Dim(string(msg))})
+		m.outputPanel.Update(tui.OutputAppendMsg{Line: elements.Dim(string(msg))})
 		return m, nil
 
 	case tui.ToolCallMsg:
@@ -411,9 +414,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocy
 			}
 			m.activeToolIdx = -1
 		} else {
-			state := tui.StateDone
+			state := elements.StateDone
 			if msg.IsError {
-				state = tui.StateError
+				state = elements.StateError
 			}
 			line := "  " + tui.ToolStatus(msg.Name, state, 0) + " " + tui.DimStyle.Render(truncate(msg.Output, 100))
 			m.outputPanel.Update(tui.OutputAppendMsg{Line: line})
@@ -755,7 +758,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) { //nolint:gocycl
 
 		case "review-edits":
 			// Show pending edits as overlay — agent's file changes for review.
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.Dim("(ctrl+r: edit review — no pending edits)")})
+			m.outputPanel.Update(tui.OutputAppendMsg{Line: elements.Dim("(ctrl+r: edit review — no pending edits)")})
 			return m, nil
 
 		case "dive":
@@ -920,9 +923,9 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) { //nolint:gocyclo,funlen //
 		var sb strings.Builder
 		sb.WriteString("Registered Tools:\n")
 		for _, name := range m.tools.Names() {
-			fmt.Fprintf(&sb, "  %s %s\n", tui.Glyph(tui.StateDone), name)
+			fmt.Fprintf(&sb, "  %s %s\n", elements.Glyph(elements.StateDone), name)
 		}
-		sb.WriteString(tui.Dim(fmt.Sprintf("\n  %d tools total", len(m.tools.Names()))))
+		sb.WriteString(elements.Dim(fmt.Sprintf("\n  %d tools total", len(m.tools.Names()))))
 		m.outputPanel.Update(tui.OutputAppendMsg{Line: sb.String()})
 		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
 		return m, nil

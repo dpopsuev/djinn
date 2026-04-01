@@ -3,7 +3,12 @@
 // Focused = RedHatRed border. Unfocused = dim grey border.
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/dpopsuev/djinn/tui/core"
+	"github.com/dpopsuev/djinn/tui/layout"
+)
 
 // Panel border styles — set by ApplyTokens(), never hardcode hex here.
 var (
@@ -52,4 +57,25 @@ func FocusDepths(count, focusedIdx int) []int {
 		depths[i] = d
 	}
 	return depths
+}
+
+// NewLayoutEngine creates a LayoutEngine with the default border renderer
+// that delegates to the focus border functions in this file.
+func NewLayoutEngine(fm *core.FocusManager) *layout.LayoutEngine {
+	return layout.NewLayoutEngine(fm, defaultBorderRenderer{})
+}
+
+// defaultBorderRenderer implements layout.BorderRenderer using tui/focus.go functions.
+type defaultBorderRenderer struct{}
+
+func (defaultBorderRenderer) RenderWithDepth(content string, depth, width int) string {
+	return RenderWithDepth(content, depth, width)
+}
+
+func (defaultBorderRenderer) RenderBorderOnly(content string, focused bool, width int) string {
+	return RenderBorderOnly(content, focused, width)
+}
+
+func (defaultBorderRenderer) FocusDepths(count, focusedIdx int) []int {
+	return FocusDepths(count, focusedIdx)
 }

@@ -4,10 +4,12 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/dpopsuev/djinn/tui/design"
 )
 
 func TestDefaultTokens_MatchesTheme(t *testing.T) {
-	ts := DefaultTokens()
+	ts := design.DefaultTokens()
 
 	// Direct Theme fields must round-trip exactly.
 	checks := []struct {
@@ -41,8 +43,8 @@ func TestTokensFromTheme_CustomDiffers(t *testing.T) {
 		Accent:    lipgloss.AdaptiveColor{Light: "#111111", Dark: "#222222"},
 		FocusDim:  lipgloss.AdaptiveColor{Light: "#333333", Dark: "#444444"},
 	}
-	ts := TokensFromTheme(custom)
-	defaults := DefaultTokens()
+	ts := design.TokensFromTheme(custom)
+	defaults := design.DefaultTokens()
 
 	if ts.UserFg == defaults.UserFg {
 		t.Error("custom token should differ from default")
@@ -53,7 +55,7 @@ func TestTokensFromTheme_CustomDiffers(t *testing.T) {
 }
 
 func TestDefaultTokens_ExtendedFieldsPopulated(t *testing.T) {
-	ts := DefaultTokens()
+	ts := design.DefaultTokens()
 
 	extended := []struct {
 		name string
@@ -87,9 +89,9 @@ func TestApplyTokens_RebuildsCoreStyles(t *testing.T) {
 		Accent:    lipgloss.AdaptiveColor{Light: "#777777", Dark: "#888888"},
 		FocusDim:  lipgloss.AdaptiveColor{Light: "#999999", Dark: "#aaaaaa"},
 	}
-	ts := TokensFromTheme(custom)
+	ts := design.TokensFromTheme(custom)
 	ApplyTokens(ts)
-	defer ApplyTokens(DefaultTokens()) // restore
+	defer ApplyTokens(design.DefaultTokens()) // restore
 
 	if ActiveTokens.UserFg != custom.User {
 		t.Error("ActiveTokens.UserFg not updated")
@@ -110,8 +112,8 @@ func TestApplyTokens_RebuildsDiffStyles(t *testing.T) {
 		Accent:    lipgloss.AdaptiveColor{Light: "#777777", Dark: "#888888"},
 		FocusDim:  lipgloss.AdaptiveColor{Light: "#999999", Dark: "#aaaaaa"},
 	}
-	ApplyTokens(TokensFromTheme(custom))
-	defer ApplyTokens(DefaultTokens())
+	ApplyTokens(design.TokensFromTheme(custom))
+	defer ApplyTokens(design.DefaultTokens())
 
 	// Verify diff styles were rebuilt (they should use Success/Error, not hardcoded)
 	if ActiveTokens.DiffAddFg != custom.Success {

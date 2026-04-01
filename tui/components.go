@@ -8,6 +8,8 @@ package tui
 import (
 	"fmt"
 	"strings"
+
+	"github.com/dpopsuev/djinn/tui/elements"
 )
 
 // SectionHeader renders a labeled section border: ┌─ title ─────────┐
@@ -46,10 +48,10 @@ func StatusLine(model string, contextPct float64, filesEdited int) string {
 
 // ToolStatus renders a tool call status line: ⬢ read main.go (1.2k tokens)
 func ToolStatus(name, state string, tokens int) string {
-	glyph := Glyph(state)
+	glyph := elements.Glyph(state)
 	label := glyph + " " + name
 	if tokens > 0 {
-		label += " (" + Badge("tokens", tokens) + ")"
+		label += " (" + elements.Badge("tokens", tokens) + ")"
 	}
 	return label
 }
