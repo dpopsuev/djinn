@@ -158,11 +158,9 @@ func TestClutch_SocketPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 	perm := info.Mode().Perm()
-	// Socket should not be world-readable/writable.
+	// Socket must be owner-only (0600) — no group/other access.
 	if perm&0o077 != 0 {
-		// Note: net.Listen("unix") creates with default umask.
-		// This test documents the current behavior — may need hardening.
-		t.Logf("WARNING: socket permissions %o allow group/other access", perm)
+		t.Fatalf("SECURITY: socket permissions %04o allow group/other access, want 0600", perm)
 	}
 }
 

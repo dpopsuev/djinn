@@ -67,6 +67,11 @@ func Listen(socketPath string) (*SocketListener, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", socketPath, err)
 	}
+	// Restrict socket to owner-only (0600). Default umask leaves it world-readable.
+	if err := os.Chmod(socketPath, 0o600); err != nil {
+		ln.Close()
+		return nil, fmt.Errorf("chmod socket %s: %w", socketPath, err)
+	}
 	return &SocketListener{listener: ln, path: socketPath}, nil
 }
 
