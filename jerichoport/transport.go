@@ -12,6 +12,7 @@ type (
 	MsgHandler     = transport.MsgHandler
 	AgentCard      = transport.AgentCard
 	TaskState      = transport.TaskState
+	AgentID        = transport.AgentID
 )
 
 // Task state constants.

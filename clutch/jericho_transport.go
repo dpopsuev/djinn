@@ -49,7 +49,7 @@ func (b *BugleTransportBridge) SendToShell(ctx context.Context, content string) 
 }
 
 // SendToAgent sends a message to any named agent.
-func (b *BugleTransportBridge) SendToAgent(ctx context.Context, from, to, content string) (*jerichoport.Task, error) {
+func (b *BugleTransportBridge) SendToAgent(ctx context.Context, from, to jerichoport.AgentID, content string) (*jerichoport.Task, error) {
 	return b.transport.SendMessage(ctx, to, jerichoport.Message{
 		From:    from,
 		To:      to,
