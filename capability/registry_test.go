@@ -2,15 +2,11 @@ package capability
 
 import "testing"
 
-type mockTestRunner struct{}
-
-func (m *mockTestRunner) RunTests(_ interface{}, _ string) (TestResult, error) {
-	return TestResult{Passed: 10}, nil
-}
+type mockPort struct{}
 
 func TestRegistry_RegisterAndGet(t *testing.T) {
 	r := NewRegistry()
-	r.Register(PortTestRunner, &mockTestRunner{})
+	r.Register(PortTestRunner, &mockPort{})
 
 	p, ok := r.Get(PortTestRunner)
 	if !ok {
@@ -44,7 +40,7 @@ func TestRegistry_Has(t *testing.T) {
 	if r.Has(PortSourceControl) {
 		t.Fatal("should not have unregistered port")
 	}
-	r.Register(PortSourceControl, &mockTestRunner{})
+	r.Register(PortSourceControl, &mockPort{})
 	if !r.Has(PortSourceControl) {
 		t.Fatal("should have registered port")
 	}

@@ -32,32 +32,6 @@ type Spectator interface {
 	OnEvent(handler func(clutch.BackendMsg))
 }
 
-// IsolationControl provides runtime sandbox manipulation.
-// Used by the /mount, /unmount, /network, /resources slash commands
-// to dynamically adjust the jail while the backend is running.
-type IsolationControl interface {
-	Mount(path string, readOnly bool) error
-	Unmount(path string) error
-	SetNetwork(enabled bool) error
-	Resources() (ResourceInfo, error)
-}
-
-// ResourceInfo reports the current resource allocation of a sandbox.
-type ResourceInfo struct {
-	CPUs     int
-	MemoryMB int
-	DiskGB   int
-	Network  bool
-	Mounts   []MountInfo
-}
-
-// MountInfo describes a single filesystem mount inside the sandbox.
-type MountInfo struct {
-	HostPath  string
-	GuestPath string
-	ReadOnly  bool
-}
-
 // ReadOnlySpectator is the stub implementation.
 // It wraps a transport and only receives — never sends.
 type ReadOnlySpectator struct {

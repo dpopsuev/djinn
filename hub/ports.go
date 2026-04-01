@@ -22,23 +22,6 @@ type PlanSegmentDTO struct {
 	Content string `json:"content"`
 }
 
-// CodeReviewerPort is the driven port for external code review services.
-type CodeReviewerPort interface {
-	SubmitReview(ctx context.Context, files []string) (ReviewResult, error)
-}
-
-// ReviewResult is the wire format for code review outcomes.
-type ReviewResult struct {
-	Approved bool     `json:"approved"`
-	Findings []string `json:"findings,omitempty"`
-}
-
-// IssueTrackerPort is the driven port for external issue tracking.
-type IssueTrackerPort interface {
-	CreateIssue(ctx context.Context, title, body string) (string, error)
-	UpdateIssue(ctx context.Context, id, status string) error
-}
-
 // StructuralAnalyzerPort is the driven port for architecture analysis.
 // Day 2 adapter: LocusAdapter (via MCP).
 type StructuralAnalyzerPort interface {
@@ -50,17 +33,4 @@ type AnalysisResult struct {
 	Components []string            `json:"components"`
 	Violations []string            `json:"violations,omitempty"`
 	Graph      map[string][]string `json:"graph,omitempty"`
-}
-
-// QualityGaterPort is the driven port for external quality gates.
-// Day 2 adapter: LimesAdapter (via MCP).
-type QualityGaterPort interface {
-	Gate(ctx context.Context, workDir string) (GateResult, error)
-}
-
-// GateResult is the wire format for quality gate outcomes.
-type GateResult struct {
-	Passed  bool     `json:"passed"`
-	Summary string   `json:"summary"`
-	Details []string `json:"details,omitempty"`
 }

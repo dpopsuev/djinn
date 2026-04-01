@@ -24,11 +24,6 @@ type HealthReport struct {
 	Message   string
 }
 
-// HealthReporter is implemented by components that report health.
-type HealthReporter interface {
-	Health() HealthReport
-}
-
 // Status line field keys.
 const (
 	fieldWorkspace = "scope"

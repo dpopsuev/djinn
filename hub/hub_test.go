@@ -298,16 +298,7 @@ func TestAnalysisResult(t *testing.T) {
 	}
 }
 
-func TestGateResult(t *testing.T) {
-	result := GateResult{
-		Passed:  true,
-		Summary: "all checks passed",
-		Details: []string{"lint: ok", "test: ok"},
-	}
-	if !result.Passed {
-		t.Error("expected passed=true")
-	}
-}
+// TestGateResult removed — GateResult type moved to staff/ports.go (canonical location).
 
 // --- Test helpers ---
 

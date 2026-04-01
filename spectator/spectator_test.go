@@ -31,6 +31,4 @@ func TestSpectator_ReadOnlyObservation(t *testing.T) {
 }
 func TestSpectator_Intervention(t *testing.T)     { t.Skip("not implemented — requires command channel") }
 func TestSpectator_PauseResume(t *testing.T)      { t.Skip("not implemented") }
-func TestIsolationControl_Mount(t *testing.T)     { t.Skip("not implemented — requires sandbox runtime") }
-func TestIsolationControl_Network(t *testing.T)   { t.Skip("not implemented") }
-func TestIsolationControl_Resources(t *testing.T) { t.Skip("not implemented") }
+// IsolationControl tests removed — interface deleted (orphan, no implementors).

@@ -16,7 +16,7 @@ type CodeHub struct {
 	HubCore
 	Window   *review.ReviewWindow
 	Budget   *review.BudgetMonitor
-	Reviewer CodeReviewerPort // nil on Day 1
+	// Reviewer port removed — Day 2 adapter will implement StructuralAnalyzerPort instead.
 }
 
 // NewCodeHub creates a code hub with the given review window.
