@@ -20,7 +20,7 @@ type StaffWorld struct {
 //	sw.Transport() → *jerichoport.LocalTransport
 //	sw.Bus()       → jerichoport.Bus
 //	sw.Pool()      → *jerichoport.AgentPool
-func NewStaffWorld(launcher jerichoport.Launcher) *StaffWorld {
+func NewStaffWorld(launcher jerichoport.AgentSupervisor) *StaffWorld {
 	staff := jerichoport.NewStaff(launcher)
 	return &StaffWorld{
 		Staff:    staff,

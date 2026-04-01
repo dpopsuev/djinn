@@ -134,7 +134,7 @@ func (p *InputPanel) HistoryDown() {
 }
 
 func (p *InputPanel) SetFocus(f bool) {
-	p.focused = f
+	p.BasePanel.SetFocus(f)
 	if f {
 		p.textarea.Focus()
 	} else {
@@ -151,11 +151,11 @@ func (p *InputPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 		p.textarea.Reset()
 		return p, nil
 	case InputFocusMsg:
-		p.focused = true
+		p.SetFocus(true)
 		p.textarea.Focus()
 		return p, nil
 	case InputBlurMsg:
-		p.focused = false
+		p.SetFocus(false)
 		p.textarea.Blur()
 		return p, nil
 	case InputAddHistoryMsg:
@@ -179,7 +179,7 @@ func (p *InputPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 		}
 		return p, nil
 	case tea.KeyMsg:
-		if !p.focused {
+		if !p.Focused() {
 			return p, nil
 		}
 		// Enter emits SubmitMsg
@@ -194,7 +194,7 @@ func (p *InputPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 			return p, nil
 		}
 	}
-	if !p.focused {
+	if !p.Focused() {
 		return p, nil
 	}
 	var cmd tea.Cmd

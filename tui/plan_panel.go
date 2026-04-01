@@ -41,14 +41,14 @@ type PlanPanel struct {
 // NewPlanPanel creates a plan panel backed by an artifact graph.
 func NewPlanPanel(graph *artifact.Graph) *PlanPanel {
 	return &PlanPanel{
-		BasePanel: BasePanel{id: "plan"},
+		BasePanel: NewBasePanel("plan", 0),
 		graph:     graph,
 	}
 }
 
 // Update handles keyboard navigation across three views.
 func (p *PlanPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
-	if !p.focused {
+	if !p.Focused() {
 		return p, nil
 	}
 	km, ok := msg.(tea.KeyMsg)
@@ -327,7 +327,7 @@ func (p *PlanPanel) childArtifacts(parentID string) []artifact.Artifact {
 
 // FocusContext returns the currently focused artifact's context.
 func (p *PlanPanel) FocusContext() FocusContext {
-	fc := FocusContext{PanelID: p.id}
+	fc := FocusContext{PanelID: p.ID()}
 
 	switch p.view {
 	case PlanViewOverview:

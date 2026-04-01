@@ -47,7 +47,7 @@ func (p *TurnPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 
 // View renders the turn. Collapsed = one-line summary. Expanded = full turn.
 func (p *TurnPanel) View(width int) string {
-	if p.collapsed {
+	if p.Collapsed() {
 		return p.summaryView(width)
 	}
 	return p.expandedView(width)

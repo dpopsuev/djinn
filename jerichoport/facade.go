@@ -1,12 +1,12 @@
 package jerichoport
 
-import "github.com/dpopsuev/jericho/facade"
+import "github.com/dpopsuev/jericho/agent"
 
-// Facade type aliases — API for Humans layer over ECS internals.
+// Agent facade — API for Humans layer over ECS internals.
 type (
-	Staff       = facade.Staff
-	AgentHandle = facade.AgentHandle
+	Staff = agent.Staff
+	Solo  = agent.Solo
 )
 
-// Facade constructor.
-var NewStaff = facade.NewStaff
+// Constructor.
+var NewStaff = agent.NewStaff

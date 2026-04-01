@@ -23,7 +23,7 @@ func newStubLauncher() *stubLauncher {
 	return &stubLauncher{started: make(map[world.EntityID]bool)}
 }
 
-func (s *stubLauncher) Start(_ context.Context, id world.EntityID, _ jerichoport.LaunchConfig) error {
+func (s *stubLauncher) Start(_ context.Context, id world.EntityID, _ jerichoport.AgentConfig) error {
 	s.started[id] = true
 	return nil
 }
@@ -172,8 +172,8 @@ func TestAgentCard_Usable(t *testing.T) {
 	}
 }
 
-func TestHandler_Usable(t *testing.T) {
-	var h jerichoport.Handler = func(_ context.Context, msg jerichoport.Message) (jerichoport.Message, error) {
+func TestMsgHandler_Usable(t *testing.T) {
+	var h jerichoport.MsgHandler = func(_ context.Context, msg jerichoport.Message) (jerichoport.Message, error) {
 		return jerichoport.Message{From: msg.To, Content: "ack"}, nil
 	}
 	resp, err := h(context.Background(), jerichoport.Message{To: "test"})
@@ -195,16 +195,16 @@ func TestEvent_Usable(t *testing.T) {
 	}
 }
 
-func TestAgentIdentity_Usable(t *testing.T) {
-	ai := jerichoport.AgentIdentity{
-		PersonaName: "Herald",
-		Role:        jerichoport.RoleWorker,
+func TestPersona_HasRole(t *testing.T) {
+	p := jerichoport.Persona{
+		Name: "Herald",
+		Role: jerichoport.RoleWorker,
 	}
-	if !ai.IsRole(jerichoport.RoleWorker) {
-		t.Fatal("IsRole(RoleWorker) should be true")
+	if p.Role != jerichoport.RoleWorker {
+		t.Fatalf("Role = %q, want %q", p.Role, jerichoport.RoleWorker)
 	}
-	if !ai.HasRole() {
-		t.Fatal("HasRole() should be true for non-empty role")
+	if p.Name != "Herald" {
+		t.Fatalf("Name = %q, want Herald", p.Name)
 	}
 }
 
@@ -221,18 +221,18 @@ func TestModelIdentity_Usable(t *testing.T) {
 
 func TestPersona_Usable(t *testing.T) {
 	p := jerichoport.Persona{
-		Identity:    jerichoport.AgentIdentity{PersonaName: "TestBot"},
+		Name:        "TestBot",
 		Description: "A test persona",
 	}
-	if p.Identity.PersonaName != "TestBot" {
-		t.Fatalf("name = %q", p.Identity.PersonaName)
+	if p.Name != "TestBot" {
+		t.Fatalf("name = %q", p.Name)
 	}
 }
 
-func TestColorIdentity_Usable(t *testing.T) {
-	ci := jerichoport.ColorIdentity{
+func TestColor_Usable(t *testing.T) {
+	ci := jerichoport.Color{
 		Shade:      "Azure",
-		Color:      "Cerulean",
+		Name:       "Cerulean",
 		Role:       "Writer",
 		Collective: "Refactor",
 		Hex:        "#007BA7",
@@ -283,8 +283,8 @@ func TestCostBill_Usable(t *testing.T) {
 	}
 }
 
-func TestLaunchConfig_Usable(t *testing.T) {
-	cfg := jerichoport.LaunchConfig{
+func TestAgentConfig_Usable(t *testing.T) {
+	cfg := jerichoport.AgentConfig{
 		Role:    "executor",
 		Prompt:  "system prompt",
 		Model:   "sonnet-4",
@@ -374,17 +374,27 @@ func TestTaskStateConstants(t *testing.T) {
 	}
 }
 
-func TestAgentStateConstants(t *testing.T) {
-	states := []jerichoport.AgentState{
-		jerichoport.Active,
-		jerichoport.Idle,
-		jerichoport.Stale,
-		jerichoport.Errored,
-		jerichoport.Done,
+func TestAliveStateConstants(t *testing.T) {
+	states := []jerichoport.AliveState{
+		jerichoport.AliveRunning,
+		jerichoport.AliveTerminated,
 	}
 	for i, s := range states {
 		if s == "" {
-			t.Fatalf("agent state[%d] is empty", i)
+			t.Fatalf("alive state[%d] is empty", i)
+		}
+	}
+}
+
+func TestReadyReasonConstants(t *testing.T) {
+	reasons := []jerichoport.ReadyReason{
+		jerichoport.ReasonIdle,
+		jerichoport.ReasonStale,
+		jerichoport.ReasonErrored,
+	}
+	for i, r := range reasons {
+		if r == "" {
+			t.Fatalf("ready reason[%d] is empty", i)
 		}
 	}
 }
@@ -429,8 +439,8 @@ func TestPersonaByName_Known(t *testing.T) {
 		if !ok {
 			t.Fatalf("PersonaByName(%q) not found", name)
 		}
-		if p.Identity.PersonaName != name {
-			t.Fatalf("PersonaByName(%q).PersonaName = %q", name, p.Identity.PersonaName)
+		if p.Name != name {
+			t.Fatalf("PersonaByName(%q).Name = %q", name, p.Name)
 		}
 	}
 }
@@ -440,8 +450,8 @@ func TestPersonaByName_CaseInsensitive(t *testing.T) {
 	if !ok {
 		t.Fatal("PersonaByName(herald) should be case-insensitive")
 	}
-	if p.Identity.PersonaName != "Herald" {
-		t.Fatalf("name = %q, want Herald", p.Identity.PersonaName)
+	if p.Name != "Herald" {
+		t.Fatalf("name = %q, want Herald", p.Name)
 	}
 }
 
@@ -460,8 +470,8 @@ func TestDefaultPersonaResolver_Set(t *testing.T) {
 	if !ok {
 		t.Fatal("DefaultPersonaResolver(Herald) not found")
 	}
-	if p.Identity.PersonaName != "Herald" {
-		t.Fatalf("name = %q", p.Identity.PersonaName)
+	if p.Name != "Herald" {
+		t.Fatalf("name = %q", p.Name)
 	}
 }
 
@@ -473,21 +483,21 @@ func TestWorld_AttachGetTryGet(t *testing.T) {
 	w := jerichoport.NewWorld()
 	id := w.Spawn()
 
-	// Attach Health component via jerichoport wrapper.
-	jerichoport.Attach(w, id, jerichoport.Health{State: jerichoport.Active})
+	// Attach Alive component via jerichoport wrapper.
+	jerichoport.Attach(w, id, jerichoport.Alive{State: jerichoport.AliveRunning})
 
 	// Get via jerichoport wrapper.
-	h := jerichoport.Get[jerichoport.Health](w, id)
-	if h.State != jerichoport.Active {
-		t.Fatalf("state = %q, want active", h.State)
+	h := jerichoport.Get[jerichoport.Alive](w, id)
+	if h.State != jerichoport.AliveRunning {
+		t.Fatalf("state = %q, want running", h.State)
 	}
 
 	// TryGet via jerichoport wrapper.
-	h2, ok := jerichoport.TryGet[jerichoport.Health](w, id)
+	h2, ok := jerichoport.TryGet[jerichoport.Alive](w, id)
 	if !ok {
-		t.Fatal("TryGet should find Health")
+		t.Fatal("TryGet should find Alive")
 	}
-	if h2.State != jerichoport.Active {
+	if h2.State != jerichoport.AliveRunning {
 		t.Fatalf("state = %q", h2.State)
 	}
 
@@ -704,7 +714,7 @@ func TestAgentPool_ForkCount(t *testing.T) {
 	pool := jerichoport.NewAgentPool(w, tr, bus, launcher)
 
 	ctx := context.Background()
-	id, err := pool.Fork(ctx, "executor", jerichoport.LaunchConfig{
+	id, err := pool.Fork(ctx, "executor", jerichoport.AgentConfig{
 		Role:  "executor",
 		Model: "test-model",
 	}, 0)

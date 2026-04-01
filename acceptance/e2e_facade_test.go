@@ -18,7 +18,7 @@ func TestE2E_FacadeLifecycle(t *testing.T) {
 	staff := jerichoport.NewStaff(newMockLauncher())
 
 	// 2. Spawn GenSec as root agent.
-	gensec, err := staff.Spawn(ctx, "gensec", jerichoport.LaunchConfig{
+	gensec, err := staff.Spawn(ctx, "gensec", jerichoport.AgentConfig{
 		Role:  "gensec",
 		Model: "haiku",
 	})
@@ -36,7 +36,7 @@ func TestE2E_FacadeLifecycle(t *testing.T) {
 	}
 
 	// 3. Spawn Executor under GenSec (parent-child relationship).
-	executor, err := gensec.Spawn(ctx, "executor", jerichoport.LaunchConfig{
+	executor, err := gensec.Spawn(ctx, "executor", jerichoport.AgentConfig{
 		Role:  "executor",
 		Model: "opus",
 	})

@@ -1,23 +1,22 @@
 package jerichoport
 
-import "github.com/dpopsuev/jericho/identity"
+import "github.com/dpopsuev/jericho/symbol"
 
-// Type aliases — definitions live in bugle/identity.
+// Type aliases — definitions live in jericho/symbol.
 type (
-	AgentIdentity   = identity.AgentIdentity
-	Role            = identity.Role
-	ModelIdentity   = identity.ModelIdentity
-	Persona         = identity.Persona
-	PersonaResolver = identity.PersonaResolver
+	Role            = symbol.Role
+	ModelIdentity   = symbol.ModelIdentity
+	Persona         = symbol.Persona
+	PersonaResolver = symbol.PersonaResolver
 )
 
 // Role constants.
 const (
-	RoleWorker   = identity.RoleWorker
-	RoleManager  = identity.RoleManager
-	RoleEnforcer = identity.RoleEnforcer
-	RoleBroker   = identity.RoleBroker
+	RoleWorker   = symbol.RoleWorker
+	RoleManager  = symbol.RoleManager
+	RoleEnforcer = symbol.RoleEnforcer
+	RoleBroker   = symbol.RoleBroker
 )
 
 // DefaultPersonaResolver resolves personas by name.
-var DefaultPersonaResolver = identity.DefaultPersonaResolver
+var DefaultPersonaResolver = symbol.DefaultPersonaResolver

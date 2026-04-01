@@ -68,7 +68,7 @@ func (p *ListPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 	case ListSetItemsMsg:
 		p.SetItems(msg.Items)
 	case tea.KeyMsg:
-		if !p.focused {
+		if !p.Focused() {
 			return p, nil
 		}
 		switch msg.Type {

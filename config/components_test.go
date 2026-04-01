@@ -140,7 +140,7 @@ func TestSandboxConfigurable_Roundtrip(t *testing.T) {
 }
 
 func TestDebugConfigurable_Roundtrip(t *testing.T) {
-	c := &DebugConfigurable{TapFile: "/tmp/tap.jsonl", LiveDebug: "127.0.0.1:9999", Verbose: true}
+	c := &DebugConfigurable{TapFile: "debug/tap.jsonl", LiveDebug: "127.0.0.1:9999", Verbose: true}
 	if c.ConfigKey() != "debug" {
 		t.Fatalf("key = %q", c.ConfigKey())
 	}
@@ -149,7 +149,7 @@ func TestDebugConfigurable_Roundtrip(t *testing.T) {
 	if err := c2.Apply(c.Snapshot()); err != nil {
 		t.Fatal(err)
 	}
-	if c2.TapFile != "/tmp/tap.jsonl" {
+	if c2.TapFile != "debug/tap.jsonl" {
 		t.Fatalf("tap_file = %q", c2.TapFile)
 	}
 	if c2.LiveDebug != "127.0.0.1:9999" {

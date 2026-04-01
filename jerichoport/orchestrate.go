@@ -2,11 +2,8 @@ package jerichoport
 
 import "github.com/dpopsuev/jericho/orchestrate"
 
-// Type aliases — definitions live in bugle/orchestrate.
+// Type aliases — definitions live in jericho/orchestrate.
 type (
-	WorkerManager = orchestrate.Manager
+	WorkerManager = orchestrate.WorkerManager
 	WorkerConfig  = orchestrate.WorkerConfig
 )
-
-// Constructor.
-var NewWorkerManager = orchestrate.NewManager

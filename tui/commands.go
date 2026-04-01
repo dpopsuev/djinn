@@ -50,7 +50,7 @@ func (p *CommandsPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 		p.matches = nil
 		p.cursor = 0
 	case tea.KeyMsg:
-		if !p.visible || !p.focused {
+		if !p.visible || !p.Focused() {
 			return p, nil
 		}
 		switch msg.Type {

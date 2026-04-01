@@ -23,7 +23,7 @@ func newMockLauncher() *mockLauncher {
 	}
 }
 
-func (m *mockLauncher) Start(_ context.Context, id jerichoport.EntityID, _ jerichoport.LaunchConfig) error {
+func (m *mockLauncher) Start(_ context.Context, id jerichoport.EntityID, _ jerichoport.AgentConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.started[id] = true
@@ -55,7 +55,7 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 	pool := sw.Pool()
 
 	// --- Phase 1: Spawn GenSec as root ---
-	gensec, err := sw.Spawn(ctx, "gensec", jerichoport.LaunchConfig{
+	gensec, err := sw.Spawn(ctx, "gensec", jerichoport.AgentConfig{
 		Role:  "gensec",
 		Model: "haiku",
 	})
@@ -71,7 +71,7 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 	pool.SetAutoReap(gensec.ID(), false) // GenSec explicitly reaps
 
 	// --- Phase 3: Spawn Scheduler under GenSec ---
-	scheduler, err := gensec.Spawn(ctx, "scheduler", jerichoport.LaunchConfig{
+	scheduler, err := gensec.Spawn(ctx, "scheduler", jerichoport.AgentConfig{
 		Role:  "scheduler",
 		Model: "sonnet",
 	})
@@ -81,21 +81,21 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 	pool.SetAutoReap(scheduler.ID(), false) // Scheduler explicitly reaps
 
 	// --- Phase 4: Spawn 3 Executors under Scheduler ---
-	exec1, err := scheduler.Spawn(ctx, "executor", jerichoport.LaunchConfig{
+	exec1, err := scheduler.Spawn(ctx, "executor", jerichoport.AgentConfig{
 		Role:  "executor",
 		Model: "opus",
 	})
 	if err != nil {
 		t.Fatalf("Spawn executor-1: %v", err)
 	}
-	exec2, err := scheduler.Spawn(ctx, "executor", jerichoport.LaunchConfig{
+	exec2, err := scheduler.Spawn(ctx, "executor", jerichoport.AgentConfig{
 		Role:  "executor",
 		Model: "opus",
 	})
 	if err != nil {
 		t.Fatalf("Spawn executor-2: %v", err)
 	}
-	exec3, err := scheduler.Spawn(ctx, "executor", jerichoport.LaunchConfig{
+	exec3, err := scheduler.Spawn(ctx, "executor", jerichoport.AgentConfig{
 		Role:  "executor",
 		Model: "opus",
 	})
@@ -204,12 +204,12 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 
 	// --- Phase 10: Verify launcher tracked all starts and stops ---
 	launcher.mu.Lock()
-	for _, h := range []*jerichoport.AgentHandle{gensec, scheduler, exec1, exec2, exec3} {
+	for _, h := range []*jerichoport.Solo{gensec, scheduler, exec1, exec2, exec3} {
 		if !launcher.started[h.ID()] {
 			t.Errorf("entity %d was not started", h.ID())
 		}
 	}
-	for _, h := range []*jerichoport.AgentHandle{scheduler, exec1, exec2, exec3} {
+	for _, h := range []*jerichoport.Solo{scheduler, exec1, exec2, exec3} {
 		if !launcher.stopped[h.ID()] {
 			t.Errorf("entity %d was not stopped", h.ID())
 		}

@@ -8,8 +8,8 @@ func TestResolvePersona_AllRoles(t *testing.T) {
 		if !ok {
 			t.Fatalf("role %q → persona %q not found", role, personaName)
 		}
-		if p.Identity.PersonaName != personaName {
-			t.Fatalf("role %q → got %q, want %q", role, p.Identity.PersonaName, personaName)
+		if p.Name != personaName {
+			t.Fatalf("role %q → got %q, want %q", role, p.Name, personaName)
 		}
 	}
 }

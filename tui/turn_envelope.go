@@ -76,7 +76,7 @@ func (t *TurnEnvelope) Update(msg tea.Msg) (Panel, tea.Cmd) {
 // View renders the turn envelope. Collapsed = single-line summary.
 // Expanded = bordered box with title, user input, tools, response, thinking.
 func (t *TurnEnvelope) View(width int) string {
-	if t.collapsed {
+	if t.Collapsed() {
 		return t.collapsedView()
 	}
 	return t.expandedView(width)

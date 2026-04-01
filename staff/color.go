@@ -4,6 +4,6 @@ package staff
 import "github.com/dpopsuev/djinn/jerichoport"
 
 // AssignColor creates a ColorIdentity for a role within a scope.
-func AssignColor(registry *jerichoport.Registry, role, scope string) (jerichoport.ColorIdentity, error) {
+func AssignColor(registry *jerichoport.Registry, role, scope string) (jerichoport.Color, error) {
 	return registry.Assign(role, scope)
 }

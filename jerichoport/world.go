@@ -1,11 +1,11 @@
 package jerichoport
 
 import (
-	"github.com/dpopsuev/jericho/palette"
+	"github.com/dpopsuev/jericho/symbol"
 	"github.com/dpopsuev/jericho/world"
 )
 
-// Type aliases — definitions live in bugle/world.
+// Type aliases — definitions live in jericho/world.
 type (
 	World         = world.World
 	EntityID      = world.EntityID
@@ -13,21 +13,27 @@ type (
 	ComponentType = world.ComponentType
 	DiffKind      = world.DiffKind
 	DiffHook      = world.DiffHook
-	AgentState    = world.AgentState
-	Health        = world.Health
+	Alive         = world.Alive
+	AliveState    = world.AliveState
+	Ready         = world.Ready
+	ReadyReason   = world.ReadyReason
 	Hierarchy     = world.Hierarchy
 	Budget        = world.Budget
 	Progress      = world.Progress
 	Display       = world.Display
 )
 
-// Agent state constants.
+// Alive state constants.
 const (
-	Active  = world.Active
-	Idle    = world.Idle
-	Stale   = world.Stale
-	Errored = world.Errored
-	Done    = world.Done
+	AliveRunning    = world.AliveRunning
+	AliveTerminated = world.AliveTerminated
+)
+
+// Ready reason constants.
+const (
+	ReasonIdle    = world.ReasonIdle
+	ReasonStale   = world.ReasonStale
+	ReasonErrored = world.ReasonErrored
 )
 
 // Generic wrappers.
@@ -40,10 +46,10 @@ func TryGet[T world.Component](w *world.World, id world.EntityID) (T, bool) {
 // Constructor.
 var NewWorld = world.NewWorld
 
-// Palette — color identity for visual agent badges.
+// Color identity for visual agent badges.
 type (
-	ColorIdentity = palette.ColorIdentity
-	Registry      = palette.Registry
+	Color    = symbol.Color
+	Registry = symbol.Registry
 )
 
-var NewRegistry = palette.NewRegistry
+var NewRegistry = symbol.NewRegistry

@@ -21,12 +21,12 @@ func NewBugleTransportBridge(t *jerichoport.LocalTransport) *BugleTransportBridg
 }
 
 // RegisterShell registers a handler for shell-bound messages.
-func (b *BugleTransportBridge) RegisterShell(handler jerichoport.Handler) {
+func (b *BugleTransportBridge) RegisterShell(handler jerichoport.MsgHandler) {
 	b.transport.Register("shell", handler)
 }
 
 // RegisterBackend registers a handler for backend-bound messages.
-func (b *BugleTransportBridge) RegisterBackend(handler jerichoport.Handler) {
+func (b *BugleTransportBridge) RegisterBackend(handler jerichoport.MsgHandler) {
 	b.transport.Register("backend", handler)
 }
 

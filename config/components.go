@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
+	"strings"
 )
 
 // Agent mode constants.
@@ -17,7 +19,35 @@ const (
 var (
 	ErrUnexpectedType = errors.New("unexpected type")
 	ErrUnknownMode    = errors.New("unknown mode")
+	ErrPathTraversal  = errors.New("path traversal rejected")
+	ErrInvalidValue   = errors.New("invalid value")
 )
+
+// maxMaxTurns is the upper bound for session max_turns.
+const maxMaxTurns = 10_000
+
+// validOutputModes is the set of allowed output mode values.
+var validOutputModes = map[string]bool{
+	"":         true, // empty = default
+	"standard": true,
+	"verbose":  true,
+	"quiet":    true,
+	"chunked":  true,
+}
+
+// validatePath rejects path traversal and absolute paths outside the workspace.
+func validatePath(field, path string) error {
+	if path == "" {
+		return nil
+	}
+	if filepath.IsAbs(path) {
+		return fmt.Errorf("%s: %w: absolute path %q", field, ErrPathTraversal, path)
+	}
+	if strings.Contains(path, "..") {
+		return fmt.Errorf("%s: %w: traversal in %q", field, ErrPathTraversal, path)
+	}
+	return nil
+}
 
 // ModeConfig implements Configurable for the agent mode.
 type ModeConfig struct {
@@ -91,17 +121,25 @@ func (c *SessionConfigurable) Apply(v any) error {
 		return fmt.Errorf("session: %w: expected map, got %T", ErrUnexpectedType, v)
 	}
 	if mt, ok := m["max_turns"]; ok {
+		var n int
 		switch val := mt.(type) {
 		case int:
-			c.MaxTurns = val
+			n = val
 		case float64:
-			c.MaxTurns = int(val)
+			n = int(val)
 		}
+		if n < 0 || n > maxMaxTurns {
+			return fmt.Errorf("max_turns: %w: %d (must be 0-%d)", ErrInvalidValue, n, maxMaxTurns)
+		}
+		c.MaxTurns = n
 	}
 	if aa, ok := m["auto_approve"].(bool); ok {
 		c.AutoApprove = aa
 	}
 	if om, ok := m["output_mode"].(string); ok {
+		if !validOutputModes[om] {
+			return fmt.Errorf("output_mode: %w: %q", ErrInvalidValue, om)
+		}
 		c.OutputMode = om
 	}
 	if np, ok := m["no_persist"].(bool); ok {
@@ -129,6 +167,9 @@ func (c *SandboxConfigurable) Apply(v any) error {
 		return fmt.Errorf("sandbox: %w: expected map, got %T", ErrUnexpectedType, v)
 	}
 	if b, ok := m["backend"].(string); ok {
+		if err := validatePath("backend", b); err != nil {
+			return err
+		}
 		c.Backend = b
 	}
 	if l, ok := m["level"].(string); ok {
@@ -158,6 +199,9 @@ func (c *DebugConfigurable) Apply(v any) error {
 		return fmt.Errorf("debug: %w: expected map, got %T", ErrUnexpectedType, v)
 	}
 	if tf, ok := m["tap_file"].(string); ok {
+		if err := validatePath("tap_file", tf); err != nil {
+			return err
+		}
 		c.TapFile = tf
 	}
 	if ld, ok := m["live_debug"].(string); ok {

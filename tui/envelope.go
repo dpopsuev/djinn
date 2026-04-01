@@ -36,7 +36,7 @@ func (p *EnvelopePanel) SetResult(output string, isError bool) {
 	p.output = output
 	p.isError = isError
 	p.done = true
-	p.collapsed = true // auto-collapse on result
+	p.SetCollapsed(true) // auto-collapse on result
 }
 
 func (p *EnvelopePanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
@@ -47,7 +47,7 @@ func (p *EnvelopePanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 }
 
 func (p *EnvelopePanel) View(width int) string {
-	if p.collapsed {
+	if p.Collapsed() {
 		return p.summaryView()
 	}
 	return p.expandedView(width)

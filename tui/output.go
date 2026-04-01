@@ -121,7 +121,7 @@ func (p *OutputPanel) Update(msg tea.Msg) (Panel, tea.Cmd) {
 			p.streamBuf.Reset()
 		}
 	default:
-		if !p.focused || !p.vpReady {
+		if !p.Focused() || !p.vpReady {
 			return p, nil
 		}
 		var cmd tea.Cmd

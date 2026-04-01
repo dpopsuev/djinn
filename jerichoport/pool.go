@@ -2,14 +2,14 @@ package jerichoport
 
 import "github.com/dpopsuev/jericho/pool"
 
-// Type aliases — definitions live in bugle/pool.
+// Type aliases — definitions live in jericho/pool.
 type (
-	AgentPool    = pool.AgentPool
-	Launcher     = pool.Launcher
-	LaunchConfig = pool.LaunchConfig
-	ExitStatus   = pool.ExitStatus
-	ExitCode     = pool.ExitCode
-	TreeNode     = pool.TreeNode
+	AgentPool       = pool.AgentPool
+	AgentSupervisor = pool.AgentSupervisor
+	AgentConfig     = pool.AgentConfig
+	ExitStatus      = pool.ExitStatus
+	ExitCode        = pool.ExitCode
+	TreeNode        = pool.TreeNode
 )
 
 // Exit code constants.

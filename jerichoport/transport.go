@@ -2,14 +2,14 @@ package jerichoport
 
 import "github.com/dpopsuev/jericho/transport"
 
-// Type aliases — definitions live in bugle/transport.
+// Type aliases — definitions live in jericho/transport.
 type (
 	Transport      = transport.Transport
 	LocalTransport = transport.LocalTransport
 	Message        = transport.Message
 	Task           = transport.Task
 	Event          = transport.Event
-	Handler        = transport.Handler
+	MsgHandler     = transport.MsgHandler
 	AgentCard      = transport.AgentCard
 	TaskState      = transport.TaskState
 )
