@@ -183,13 +183,13 @@ func TestPlanPanel_Integration_ThreeViews(t *testing.T) {
 		t.Errorf("expected PlanViewOverview after climbing, got %d", p.view)
 	}
 
-	// --- FocusContext reflects current state ---
-	fc := p.FocusContext()
+	// --- CellSight reflects current state ---
+	fc := p.CellSight()
 	if fc.PanelID != "plan" {
-		t.Errorf("FocusContext PanelID = %q, want plan", fc.PanelID)
+		t.Errorf("CellSight PanelID = %q, want plan", fc.PanelID)
 	}
 	if fc.Metadata["view"] != "overview" {
-		t.Errorf("FocusContext view = %q, want overview", fc.Metadata["view"])
+		t.Errorf("CellSight view = %q, want overview", fc.Metadata["view"])
 	}
 }
 
@@ -220,13 +220,13 @@ func TestPlanPanel_Integration_EmptyGraph(t *testing.T) {
 		t.Errorf("view should remain overview on empty graph, got %d", p.view)
 	}
 
-	// FocusContext should return sensible defaults (no panic).
-	fc := p.FocusContext()
+	// CellSight should return sensible defaults (no panic).
+	fc := p.CellSight()
 	if fc.PanelID != "plan" {
-		t.Errorf("FocusContext PanelID = %q, want plan", fc.PanelID)
+		t.Errorf("CellSight PanelID = %q, want plan", fc.PanelID)
 	}
-	if fc.ElementID != "" {
-		t.Errorf("FocusContext ElementID should be empty on empty graph, got %q", fc.ElementID)
+	if fc.CellID != "" {
+		t.Errorf("CellSight CellID should be empty on empty graph, got %q", fc.CellID)
 	}
 }
 

@@ -116,34 +116,34 @@ func TestPlanPanel_CursorClamp(t *testing.T) {
 	}
 }
 
-// --- FocusContext ---
+// --- CellSight ---
 
-func TestPlanPanel_FocusContext_Overview(t *testing.T) {
+func TestPlanPanel_CellSight_Overview(t *testing.T) {
 	p := NewPlanPanel(testPlanGraph())
 	p.SetFocus(true)
 
-	fc := p.FocusContext()
+	fc := p.CellSight()
 	if fc.PanelID != "plan" {
 		t.Errorf("PanelID = %q, want plan", fc.PanelID)
 	}
-	if fc.ElementID != "seg-1" {
-		t.Errorf("ElementID = %q, want seg-1", fc.ElementID)
+	if fc.CellID != "seg-1" {
+		t.Errorf("CellID = %q, want seg-1", fc.CellID)
 	}
-	if fc.ElementTitle != "Hub Mediators" {
-		t.Errorf("ElementTitle = %q, want Hub Mediators", fc.ElementTitle)
+	if fc.CellTitle != "Hub Mediators" {
+		t.Errorf("CellTitle = %q, want Hub Mediators", fc.CellTitle)
 	}
 }
 
-func TestPlanPanel_FocusContext_GoalView(t *testing.T) {
+func TestPlanPanel_CellSight_GoalView(t *testing.T) {
 	p := NewPlanPanel(testPlanGraph())
 	p.SetFocus(true)
 
 	// Dive to goal.
 	p.Update(tea.KeyMsg{Type: tea.KeyEnter})
 
-	fc := p.FocusContext()
-	if fc.ElementID != "seg-1" {
-		t.Errorf("ElementID = %q, want seg-1", fc.ElementID)
+	fc := p.CellSight()
+	if fc.CellID != "seg-1" {
+		t.Errorf("CellID = %q, want seg-1", fc.CellID)
 	}
 	if fc.Metadata["view"] != "goal" {
 		t.Errorf("view = %q, want goal", fc.Metadata["view"])

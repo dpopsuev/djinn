@@ -1,7 +1,7 @@
-// focus_context_integration_test.go — Integration: FocusContext aggregation from multiple providers.
+// sight_integration_test.go — Integration: CellSight aggregation from multiple providers.
 //
-// Verifies that FocusContext correctly aggregates context from multiple
-// tui.FocusContextProvider implementations and produces prompt-injectable strings.
+// Verifies that CellSight correctly aggregates context from multiple
+// tui.Sighted implementations and produces prompt-injectable strings.
 // Uses real panel types (DebugPanel, PlanPanel) as providers.
 package tui_test
 
@@ -16,10 +16,10 @@ import (
 	"github.com/dpopsuev/djinn/tui/widgets"
 )
 
-// TestFocusContext_Integration_MultiProvider creates multiple real panels that
-// implement tui.FocusContextProvider, collects their FocusContext values, and
+// TestCellSight_Integration_MultiProvider creates multiple real panels that
+// implement tui.Sighted, collects their CellSight values, and
 // verifies that each produces a valid, structured, prompt-injectable string.
-func TestFocusContext_Integration_MultiProvider(t *testing.T) {
+func TestCellSight_Integration_MultiProvider(t *testing.T) {
 	// --- Provider 1: DebugPanel with trace events ---
 	ring := trace.NewRing(64) //nolint:mnd // small ring for test
 	ring.Append(trace.TraceEvent{
@@ -56,7 +56,7 @@ func TestFocusContext_Integration_MultiProvider(t *testing.T) {
 	_, err = graph.Add(artifact.Artifact{
 		Kind:    artifact.KindPlanSegment,
 		Title:   "Add DebugPanel Provider",
-		Content: "DebugPanel implements tui.FocusContextProvider",
+		Content: "DebugPanel implements tui.Sighted",
 	})
 	if err != nil {
 		t.Fatalf("graph.Add seg-2: %v", err)
@@ -66,13 +66,13 @@ func TestFocusContext_Integration_MultiProvider(t *testing.T) {
 	planPanel.SetFocus(true)
 
 	// Collect context from both providers.
-	providers := []tui.FocusContextProvider{debugPanel, planPanel}
+	providers := []tui.Sighted{debugPanel, planPanel}
 
 	var combined strings.Builder
 	for _, p := range providers {
-		fc := p.FocusContext()
+		fc := p.CellSight()
 		if fc.IsEmpty() {
-			t.Errorf("provider %T returned empty FocusContext", p)
+			t.Errorf("provider %T returned empty CellSight", p)
 			continue
 		}
 		prompt := fc.FormatPrompt()
@@ -124,16 +124,16 @@ func TestFocusContext_Integration_MultiProvider(t *testing.T) {
 	}
 }
 
-// TestFocusContext_Integration_EmptyProviders verifies that FocusContext
+// TestCellSight_Integration_EmptyProviders verifies that CellSight
 // handles providers returning empty context gracefully: no panics,
 // and the result is minimal or empty.
-func TestFocusContext_Integration_EmptyProviders(t *testing.T) {
+func TestCellSight_Integration_EmptyProviders(t *testing.T) {
 	t.Run("no_providers", func(t *testing.T) {
-		var providers []tui.FocusContextProvider
+		var providers []tui.Sighted
 
 		var combined strings.Builder
 		for _, p := range providers {
-			fc := p.FocusContext()
+			fc := p.CellSight()
 			combined.WriteString(fc.FormatPrompt())
 		}
 
@@ -143,16 +143,16 @@ func TestFocusContext_Integration_EmptyProviders(t *testing.T) {
 	})
 
 	t.Run("debug_panel_nil_ring", func(t *testing.T) {
-		// DebugPanel with nil ring returns panel-only context (no element).
+		// DebugPanel with nil ring returns panel-only context (no cell).
 		panel := widgets.NewDebugPanel(nil)
-		fc := panel.FocusContext()
+		fc := panel.CellSight()
 
 		if fc.PanelID != "debug" {
 			t.Errorf("expected PanelID 'debug', got %q", fc.PanelID)
 		}
-		// ElementID is empty when ring is nil — context reports panel only.
-		if fc.ElementID != "" {
-			t.Errorf("expected empty ElementID for nil ring, got %q", fc.ElementID)
+		// CellID is empty when ring is nil — context reports panel only.
+		if fc.CellID != "" {
+			t.Errorf("expected empty CellID for nil ring, got %q", fc.CellID)
 		}
 
 		// FormatPrompt should still produce output (panel-only context).
@@ -161,7 +161,7 @@ func TestFocusContext_Integration_EmptyProviders(t *testing.T) {
 			t.Error("nil-ring debug panel should still report panel ID")
 		}
 		if strings.Contains(prompt, "Selected:") {
-			t.Error("nil-ring debug panel should not have a selected element")
+			t.Error("nil-ring debug panel should not have a selected cell")
 		}
 	})
 
@@ -169,13 +169,13 @@ func TestFocusContext_Integration_EmptyProviders(t *testing.T) {
 		// DebugPanel with empty ring (no events appended).
 		ring := trace.NewRing(16) //nolint:mnd // small ring for test
 		panel := widgets.NewDebugPanel(ring)
-		fc := panel.FocusContext()
+		fc := panel.CellSight()
 
 		if fc.PanelID != "debug" {
 			t.Errorf("expected PanelID 'debug', got %q", fc.PanelID)
 		}
-		if fc.ElementID != "" {
-			t.Errorf("expected empty ElementID for empty ring, got %q", fc.ElementID)
+		if fc.CellID != "" {
+			t.Errorf("expected empty CellID for empty ring, got %q", fc.CellID)
 		}
 	})
 
@@ -184,13 +184,13 @@ func TestFocusContext_Integration_EmptyProviders(t *testing.T) {
 		registry := artifact.DefaultRegistry()
 		graph := artifact.NewGraph("Empty", registry)
 		panel := widgets.NewPlanPanel(graph)
-		fc := panel.FocusContext()
+		fc := panel.CellSight()
 
 		if fc.PanelID != "plan" {
 			t.Errorf("expected PanelID 'plan', got %q", fc.PanelID)
 		}
-		if fc.ElementID != "" {
-			t.Errorf("expected empty ElementID for empty graph, got %q", fc.ElementID)
+		if fc.CellID != "" {
+			t.Errorf("expected empty CellID for empty graph, got %q", fc.CellID)
 		}
 
 		// FormatPrompt for panel-only context.
@@ -201,22 +201,22 @@ func TestFocusContext_Integration_EmptyProviders(t *testing.T) {
 	})
 
 	t.Run("all_empty_providers_aggregated", func(t *testing.T) {
-		// Multiple providers, all returning minimal context (panel-only, no element).
+		// Multiple providers, all returning minimal context (panel-only, no cell).
 		debugEmpty := widgets.NewDebugPanel(nil)
 		registry := artifact.DefaultRegistry()
 		planEmpty := widgets.NewPlanPanel(artifact.NewGraph("Empty", registry))
 
-		providers := []tui.FocusContextProvider{debugEmpty, planEmpty}
+		providers := []tui.Sighted{debugEmpty, planEmpty}
 
 		var combined strings.Builder
 		for _, p := range providers {
-			fc := p.FocusContext()
+			fc := p.CellSight()
 			prompt := fc.FormatPrompt()
 			combined.WriteString(prompt)
 		}
 
 		result := combined.String()
-		// Both panels produce panel-only context (PanelID set, no ElementID),
+		// Both panels produce panel-only context (PanelID set, no CellID),
 		// so FormatPrompt returns non-empty (it's not IsEmpty since PanelID is set).
 		if !strings.Contains(result, "Panel: debug") {
 			t.Error("aggregated empty providers should still contain debug panel ID")
@@ -224,9 +224,9 @@ func TestFocusContext_Integration_EmptyProviders(t *testing.T) {
 		if !strings.Contains(result, "Panel: plan") {
 			t.Error("aggregated empty providers should still contain plan panel ID")
 		}
-		// No Selected lines — no elements focused.
+		// No Selected lines — no cells focused.
 		if strings.Contains(result, "Selected:") {
-			t.Error("empty providers should not have any selected elements")
+			t.Error("empty providers should not have any selected cells")
 		}
 	})
 }

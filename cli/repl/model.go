@@ -354,8 +354,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocy
 
 		// Inject focus context into prompt if the active panel supports it (GOL-62).
 		prompt := msg.Value
-		if provider, ok := m.focus.Active().(tui.FocusContextProvider); ok {
-			if fc := provider.FocusContext(); !fc.IsEmpty() {
+		if provider, ok := m.focus.Active().(tui.Sighted); ok {
+			if fc := provider.CellSight(); !fc.IsEmpty() {
 				prompt = fc.FormatPrompt() + "\n\n" + prompt
 			}
 		}

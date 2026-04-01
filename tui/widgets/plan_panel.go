@@ -328,30 +328,30 @@ func (p *PlanPanel) childArtifacts(parentID string) []artifact.Artifact {
 	return children
 }
 
-// FocusContext returns the currently focused artifact's context.
-func (p *PlanPanel) FocusContext() tui.FocusContext {
-	fc := tui.FocusContext{PanelID: p.ID()}
+// CellSight returns the currently focused artifact's context.
+func (p *PlanPanel) CellSight() tui.CellSight {
+	fc := tui.CellSight{PanelID: p.ID()}
 
 	switch p.view {
 	case PlanViewOverview:
 		all := p.graph.ListSorted()
 		if p.cursor < len(all) {
-			fc.ElementID = all[p.cursor].ID
-			fc.ElementTitle = all[p.cursor].Title
+			fc.CellID = all[p.cursor].ID
+			fc.CellTitle = all[p.cursor].Title
 			fc.Kind = all[p.cursor].Kind
 			fc.Metadata = map[string]string{"status": string(all[p.cursor].Status), "view": "overview"}
 		}
 	case PlanViewGoal:
-		fc.ElementID = p.goalID
+		fc.CellID = p.goalID
 		if a, err := p.graph.Get(p.goalID); err == nil {
-			fc.ElementTitle = a.Title
+			fc.CellTitle = a.Title
 			fc.Kind = a.Kind
 			fc.Metadata = map[string]string{"status": string(a.Status), "view": "goal"}
 		}
 	case PlanViewSegment:
-		fc.ElementID = p.segID
+		fc.CellID = p.segID
 		if a, err := p.graph.Get(p.segID); err == nil {
-			fc.ElementTitle = a.Title
+			fc.CellTitle = a.Title
 			fc.Kind = a.Kind
 			fc.Metadata = map[string]string{"status": string(a.Status), "view": "segment"}
 		}
@@ -362,7 +362,7 @@ func (p *PlanPanel) FocusContext() tui.FocusContext {
 // Compile-time checks.
 var (
 	_ core.Panel               = (*PlanPanel)(nil)
-	_ tui.FocusContextProvider = (*PlanPanel)(nil)
+	_ tui.Sighted = (*PlanPanel)(nil)
 )
 
 // --- Helpers ---

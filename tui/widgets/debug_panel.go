@@ -144,11 +144,11 @@ func formatDuration(d time.Duration) string {
 	}
 }
 
-// FocusContext returns the currently focused trace event's context.
+// CellSight returns the currently focused trace event's context.
 // The focused event is the newest visible event (bottom of scroll window).
-func (p *DebugPanel) FocusContext() tui.FocusContext {
+func (p *DebugPanel) CellSight() tui.CellSight {
 	if p.ring == nil {
-		return tui.FocusContext{PanelID: p.id}
+		return tui.CellSight{PanelID: p.id}
 	}
 
 	events := p.ring.Last(p.limit + p.scroll)
@@ -156,7 +156,7 @@ func (p *DebugPanel) FocusContext() tui.FocusContext {
 		events = events[:len(events)-p.scroll]
 	}
 	if len(events) == 0 {
-		return tui.FocusContext{PanelID: p.id}
+		return tui.CellSight{PanelID: p.id}
 	}
 
 	// Focus is on the newest visible event.
@@ -175,17 +175,17 @@ func (p *DebugPanel) FocusContext() tui.FocusContext {
 		meta["latency"] = formatDuration(e.Latency)
 	}
 
-	return tui.FocusContext{
-		PanelID:      p.id,
-		ElementID:    e.ID,
-		ElementTitle: e.Detail,
-		Kind:         string(e.Component),
-		Metadata:     meta,
+	return tui.CellSight{
+		PanelID:   p.id,
+		CellID:    e.ID,
+		CellTitle: e.Detail,
+		Kind:      string(e.Component),
+		Metadata:  meta,
 	}
 }
 
 // Compile-time check.
-var _ tui.FocusContextProvider = (*DebugPanel)(nil)
+var _ tui.Sighted = (*DebugPanel)(nil)
 
 func padRight(s string, width int) string {
 	if len(s) >= width {

@@ -1,13 +1,13 @@
 // focus_hint.go — Agent-to-TUI visual hints (GOL-62, SPC-85).
 //
-// FocusHintMsg lets the agent guide operator attention by highlighting
+// SightHintMsg lets the agent guide operator attention by highlighting
 // or scrolling to specific elements in panels.
 package tui
 
-// FocusHintMsg is emitted by the agent to highlight an element in a panel.
+// SightHintMsg is emitted by the agent to highlight an element in a panel.
 // The target panel handles it in Update() — silently ignored if element not found.
-type FocusHintMsg struct {
-	PanelID   string `json:"panel"`
-	ElementID string `json:"element"`
-	Action    string `json:"action"` // "highlight", "pulse", "scroll-to"
+type SightHintMsg struct {
+	PanelID string `json:"panel"`
+	CellID  string `json:"cell"`
+	Action  string `json:"action"` // "highlight", "pulse", "scroll-to"
 }
