@@ -1,6 +1,7 @@
 package staff
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -16,7 +17,7 @@ func TestToolClearance_PolicyEnforcer_Integration(t *testing.T) {
 	cfg := DefaultConfig()
 	registry := builtin.NewRegistry()
 	clearance := NewToolClearance(cfg, registry, "executor")
-	enforcer := policy.NewDefaultToolPolicyEnforcer()
+	enforcer := policy.NewDefaultToolPolicyEnforcer(nil)
 
 	// Build token from executor's resolved tool names (not capability names).
 	execRole := cfg.RoleMap()["executor"]
@@ -25,15 +26,15 @@ func TestToolClearance_PolicyEnforcer_Integration(t *testing.T) {
 	}
 
 	// Executor can call Read (via FileEditing capability).
-	if err := enforcer.Check(execToken, "Read", nil); err != nil {
+	if err := enforcer.Check(context.Background(), execToken, "Read", nil); err != nil {
 		t.Fatalf("executor should be allowed Read: %v", err)
 	}
 	// Executor can call Bash (via ShellExecution capability).
-	if err := enforcer.Check(execToken, "Bash", nil); err != nil {
+	if err := enforcer.Check(context.Background(), execToken, "Bash", nil); err != nil {
 		t.Fatalf("executor should be allowed Bash: %v", err)
 	}
 	// Executor can call Glob (via FileSearching capability).
-	if err := enforcer.Check(execToken, "Glob", nil); err != nil {
+	if err := enforcer.Check(context.Background(), execToken, "Glob", nil); err != nil {
 		t.Fatalf("executor should be allowed Glob: %v", err)
 	}
 
@@ -55,7 +56,7 @@ func TestToolClearance_PolicyEnforcer_Integration(t *testing.T) {
 	}
 
 	// GenSec CANNOT call Read (no FileEditing capability).
-	err := enforcer.Check(gensecToken, "Read", nil)
+	err := enforcer.Check(context.Background(), gensecToken, "Read", nil)
 	if err == nil {
 		t.Fatal("gensec should NOT be allowed Read")
 	}
@@ -64,13 +65,13 @@ func TestToolClearance_PolicyEnforcer_Integration(t *testing.T) {
 	}
 
 	// GenSec CANNOT call Bash (no ShellExecution capability).
-	err = enforcer.Check(gensecToken, "Bash", nil)
+	err = enforcer.Check(context.Background(), gensecToken, "Bash", nil)
 	if err == nil {
 		t.Fatal("gensec should NOT be allowed Bash")
 	}
 
 	// GenSec CAN call MCP-prefixed scribe tools (via WorkTracking).
-	if err := enforcer.Check(gensecToken, "mcp__scribe__artifact", nil); err != nil {
+	if err := enforcer.Check(context.Background(), gensecToken, "mcp__scribe__artifact", nil); err != nil {
 		t.Fatalf("gensec should be allowed mcp__scribe__artifact: %v", err)
 	}
 
@@ -87,7 +88,7 @@ func TestToolClearance_PolicyEnforcer_Integration(t *testing.T) {
 // has WorkTracking + RuleResolution but NOT FileEditing or ShellExecution.
 func TestToolClearance_PolicyEnforcer_AuditorRole(t *testing.T) {
 	cfg := DefaultConfig()
-	enforcer := policy.NewDefaultToolPolicyEnforcer()
+	enforcer := policy.NewDefaultToolPolicyEnforcer(nil)
 
 	audRole := cfg.RoleMap()["auditor"]
 	audToken := policy.CapabilityToken{
@@ -95,12 +96,12 @@ func TestToolClearance_PolicyEnforcer_AuditorRole(t *testing.T) {
 	}
 
 	// Auditor can call lexicon (via RuleResolution).
-	if err := enforcer.Check(audToken, "mcp__lex__lexicon", nil); err != nil {
+	if err := enforcer.Check(context.Background(), audToken, "mcp__lex__lexicon", nil); err != nil {
 		t.Fatalf("auditor should be allowed lexicon: %v", err)
 	}
 
 	// Auditor cannot call Bash.
-	if err := enforcer.Check(audToken, "Bash", nil); err == nil {
+	if err := enforcer.Check(context.Background(), audToken, "Bash", nil); err == nil {
 		t.Fatal("auditor should NOT be allowed Bash")
 	}
 }

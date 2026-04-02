@@ -16,6 +16,7 @@
 package acceptance
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -27,7 +28,7 @@ import (
 )
 
 func enforcer() *policy.DefaultToolPolicyEnforcer {
-	return policy.NewDefaultToolPolicyEnforcer()
+	return policy.NewDefaultToolPolicyEnforcer(nil)
 }
 
 func TestSecurity_WriteConfigDenied(t *testing.T) {
@@ -39,7 +40,7 @@ func TestSecurity_WriteConfigDenied(t *testing.T) {
 	input, _ := json.Marshal(map[string]string{
 		"path": filepath.Join(home, ".config", "djinn", "workspaces", "aeon.yaml"),
 	})
-	err := e.Check(token, "Write", input)
+	err := e.Check(context.Background(), token, "Write", input)
 	if err == nil {
 		t.Fatal("JAILBREAK: write to config path should be denied")
 	}
@@ -57,7 +58,7 @@ func TestSecurity_EditConfigDenied(t *testing.T) {
 	input, _ := json.Marshal(map[string]string{
 		"file_path": filepath.Join(home, ".config", "djinn", "config.yaml"),
 	})
-	err := e.Check(token, "Edit", input)
+	err := e.Check(context.Background(), token, "Edit", input)
 	if err == nil {
 		t.Fatal("JAILBREAK: edit to config path should be denied")
 	}
@@ -81,7 +82,7 @@ func TestSecurity_SymlinkBypass(t *testing.T) {
 	input, _ := json.Marshal(map[string]string{
 		"path": filepath.Join(symlink, "secret.yaml"),
 	})
-	err := e.Check(token, "Write", input)
+	err := e.Check(context.Background(), token, "Write", input)
 	if err == nil {
 		t.Fatal("JAILBREAK: symlink to protected path should be denied")
 	}
@@ -100,7 +101,7 @@ func TestSecurity_PathTraversal(t *testing.T) {
 
 	traversal := filepath.Join(dir, "safe", "..", "config", "evil.yaml")
 	input, _ := json.Marshal(map[string]string{"path": traversal})
-	err := e.Check(token, "Write", input)
+	err := e.Check(context.Background(), token, "Write", input)
 	if err == nil {
 		t.Fatal("JAILBREAK: path traversal to protected path should be denied")
 	}
@@ -123,7 +124,7 @@ func TestSecurity_BashConfigDenied(t *testing.T) {
 
 	for _, cmd := range commands {
 		input, _ := json.Marshal(map[string]string{"command": cmd})
-		err := e.Check(token, "Bash", input)
+		err := e.Check(context.Background(), token, "Bash", input)
 		if err == nil {
 			t.Fatalf("JAILBREAK: bash command should be denied: %s", cmd)
 		}
@@ -144,7 +145,7 @@ func TestSecurity_BashSafeAllowed(t *testing.T) {
 
 	for _, cmd := range safeCmds {
 		input, _ := json.Marshal(map[string]string{"command": cmd})
-		err := e.Check(token, "Bash", input)
+		err := e.Check(context.Background(), token, "Bash", input)
 		if err != nil {
 			t.Fatalf("safe command should be allowed: %s: %v", cmd, err)
 		}
@@ -157,7 +158,7 @@ func TestSecurity_WriteOutsideWorkspace(t *testing.T) {
 		WritablePaths: []string{"/home/user/project"},
 	}
 	input, _ := json.Marshal(map[string]string{"path": "/etc/passwd"})
-	err := e.Check(token, "Write", input)
+	err := e.Check(context.Background(), token, "Write", input)
 	if err == nil {
 		t.Fatal("JAILBREAK: write outside workspace should be denied")
 	}
@@ -169,7 +170,7 @@ func TestSecurity_ReadAlwaysAllowed(t *testing.T) {
 		WritablePaths: []string{"/home/user/project"},
 	}
 	input, _ := json.Marshal(map[string]string{"path": "/etc/hosts"})
-	err := e.Check(token, "Read", input)
+	err := e.Check(context.Background(), token, "Read", input)
 	if err != nil {
 		t.Fatalf("Read should always be allowed: %v", err)
 	}
@@ -181,11 +182,11 @@ func TestSecurity_ToolWhitelist(t *testing.T) {
 		AllowedTools: []string{"Read", "Grep"},
 	}
 
-	if err := e.Check(token, "Read", nil); err != nil {
+	if err := e.Check(context.Background(), token, "Read", nil); err != nil {
 		t.Fatalf("whitelisted tool denied: %v", err)
 	}
 
-	err := e.Check(token, "Bash", nil)
+	err := e.Check(context.Background(), token, "Bash", nil)
 	if err == nil {
 		t.Fatal("non-whitelisted tool should be denied")
 	}
@@ -226,7 +227,7 @@ func TestSecurity_CapabilityTokenDeniesConfig(t *testing.T) {
 	configPath := filepath.Join(home, ".config", "djinn", "test.yaml")
 	input, _ := json.Marshal(map[string]string{"path": configPath})
 
-	err := e.Check(token, "Write", input)
+	err := e.Check(context.Background(), token, "Write", input)
 	if err == nil {
 		t.Fatal("JAILBREAK: capability token should deny config writes")
 	}
@@ -236,7 +237,7 @@ func TestSecurity_NopToolPolicyEnforcerAllowsEverything(t *testing.T) {
 	e := policy.NopToolPolicyEnforcer{}
 	token := policy.CapabilityToken{DeniedPaths: []string{"/protected"}}
 	input, _ := json.Marshal(map[string]string{"path": "/protected/secret"})
-	if err := e.Check(token, "Write", input); err != nil {
+	if err := e.Check(context.Background(), token, "Write", input); err != nil {
 		t.Fatal("NopToolPolicyEnforcer should allow everything")
 	}
 }

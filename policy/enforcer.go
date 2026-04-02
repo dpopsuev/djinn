@@ -1,12 +1,16 @@
 package policy
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/dpopsuev/djinn/djinnlog"
 )
 
 // Sentinel errors.
@@ -17,14 +21,19 @@ var (
 )
 
 // DefaultToolPolicyEnforcer checks file paths and tool permissions.
-type DefaultToolPolicyEnforcer struct{}
-
-// NewDefaultToolPolicyEnforcer creates the standard enforcer.
-func NewDefaultToolPolicyEnforcer() *DefaultToolPolicyEnforcer {
-	return &DefaultToolPolicyEnforcer{}
+type DefaultToolPolicyEnforcer struct {
+	log *slog.Logger
 }
 
-func (e *DefaultToolPolicyEnforcer) Check(token CapabilityToken, tool string, input json.RawMessage) error {
+// NewDefaultToolPolicyEnforcer creates the standard enforcer.
+func NewDefaultToolPolicyEnforcer(log *slog.Logger) *DefaultToolPolicyEnforcer {
+	if log == nil {
+		log = djinnlog.Nop()
+	}
+	return &DefaultToolPolicyEnforcer{log: log}
+}
+
+func (e *DefaultToolPolicyEnforcer) Check(ctx context.Context, token CapabilityToken, tool string, input json.RawMessage) error {
 	// Check tool whitelist
 	if len(token.AllowedTools) > 0 {
 		allowed := false
@@ -35,6 +44,12 @@ func (e *DefaultToolPolicyEnforcer) Check(token CapabilityToken, tool string, in
 			}
 		}
 		if !allowed {
+			// Orange: denial is a security event
+			e.log.WarnContext(ctx, "tool denied by whitelist",
+				slog.String(djinnlog.KeyTool, tool),
+				slog.String(djinnlog.KeyDecision, "deny"),
+				slog.String(djinnlog.KeyReason, "not in AllowedTools"),
+			)
 			return fmt.Errorf("%w: %s", ErrDeniedTool, tool)
 		}
 	}
@@ -42,15 +57,24 @@ func (e *DefaultToolPolicyEnforcer) Check(token CapabilityToken, tool string, in
 	// Check file-path tools
 	switch tool {
 	case "Write", "Edit", "Read":
-		return e.checkFilePath(token, tool, input)
+		if err := e.checkFilePath(ctx, token, tool, input); err != nil {
+			return err
+		}
 	case "Bash":
-		return e.checkBash(token, input)
+		if err := e.checkBash(ctx, token, input); err != nil {
+			return err
+		}
 	}
 
+	// Yellow: allowed call
+	e.log.DebugContext(ctx, "tool allowed",
+		slog.String(djinnlog.KeyTool, tool),
+		slog.String(djinnlog.KeyDecision, "allow"),
+	)
 	return nil
 }
 
-func (e *DefaultToolPolicyEnforcer) checkFilePath(token CapabilityToken, tool string, input json.RawMessage) error {
+func (e *DefaultToolPolicyEnforcer) checkFilePath(ctx context.Context, token CapabilityToken, tool string, input json.RawMessage) error {
 	var params struct {
 		Path     string `json:"path"`
 		FilePath string `json:"file_path"`
@@ -78,6 +102,13 @@ func (e *DefaultToolPolicyEnforcer) checkFilePath(token CapabilityToken, tool st
 			deniedResolved = denied
 		}
 		if strings.HasPrefix(resolved, deniedResolved) {
+			// Orange: path denial is a security event
+			e.log.WarnContext(ctx, "path denied",
+				slog.String(djinnlog.KeyTool, tool),
+				slog.String(djinnlog.KeyPath, path),
+				slog.String(djinnlog.KeyDecision, "deny"),
+				slog.String(djinnlog.KeyReason, "protected path"),
+			)
 			return fmt.Errorf("%w: %s is protected", ErrDeniedPath, path)
 		}
 	}
@@ -96,6 +127,13 @@ func (e *DefaultToolPolicyEnforcer) checkFilePath(token CapabilityToken, tool st
 			}
 		}
 		if !writable {
+			// Orange: write outside workspace
+			e.log.WarnContext(ctx, "write denied outside workspace",
+				slog.String(djinnlog.KeyTool, tool),
+				slog.String(djinnlog.KeyPath, path),
+				slog.String(djinnlog.KeyDecision, "deny"),
+				slog.String(djinnlog.KeyReason, "outside writable paths"),
+			)
 			return fmt.Errorf("%w: %s is outside workspace", ErrDeniedPath, path)
 		}
 	}
@@ -103,7 +141,7 @@ func (e *DefaultToolPolicyEnforcer) checkFilePath(token CapabilityToken, tool st
 	return nil
 }
 
-func (e *DefaultToolPolicyEnforcer) checkBash(token CapabilityToken, input json.RawMessage) error {
+func (e *DefaultToolPolicyEnforcer) checkBash(ctx context.Context, token CapabilityToken, input json.RawMessage) error {
 	var params struct {
 		Command string `json:"command"`
 	}
@@ -116,6 +154,12 @@ func (e *DefaultToolPolicyEnforcer) checkBash(token CapabilityToken, input json.
 	// Scan command for denied path references
 	for _, denied := range token.DeniedPaths {
 		if strings.Contains(params.Command, denied) {
+			// Orange: bash command references protected path
+			e.log.WarnContext(ctx, "bash denied",
+				slog.String(djinnlog.KeyTool, "Bash"),
+				slog.String(djinnlog.KeyDecision, "deny"),
+				slog.String(djinnlog.KeyReason, "command references protected path"),
+			)
 			return fmt.Errorf("%w: command references %s", ErrDeniedBash, denied)
 		}
 		// Also check with home expansion
@@ -123,6 +167,11 @@ func (e *DefaultToolPolicyEnforcer) checkBash(token CapabilityToken, input json.
 		if home != "" {
 			expanded := strings.Replace(denied, "~", home, 1)
 			if strings.Contains(params.Command, expanded) {
+				e.log.WarnContext(ctx, "bash denied",
+					slog.String(djinnlog.KeyTool, "Bash"),
+					slog.String(djinnlog.KeyDecision, "deny"),
+					slog.String(djinnlog.KeyReason, "command references protected path (expanded)"),
+				)
 				return fmt.Errorf("%w: command references %s", ErrDeniedBash, denied)
 			}
 		}
@@ -167,7 +216,9 @@ func resolvePath(path string) (string, error) {
 // NopToolPolicyEnforcer allows everything. Used when no policy is configured.
 type NopToolPolicyEnforcer struct{}
 
-func (NopToolPolicyEnforcer) Check(_ CapabilityToken, _ string, _ json.RawMessage) error { return nil }
+func (NopToolPolicyEnforcer) Check(_ context.Context, _ CapabilityToken, _ string, _ json.RawMessage) error {
+	return nil
+}
 
 // Ensure interface compliance.
 var (

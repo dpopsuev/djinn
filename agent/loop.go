@@ -270,7 +270,7 @@ func executeTools(ctx context.Context, cfg Config, calls []driver.ToolCall) ([]d
 	for _, call := range calls {
 		// Agent call mediation — PolicyEnforcer gates every tool call
 		if cfg.Enforcer != nil {
-			if err := cfg.Enforcer.Check(cfg.Token, call.Name, call.Input); err != nil {
+			if err := cfg.Enforcer.Check(ctx, cfg.Token, call.Name, call.Input); err != nil {
 				cfg.Log.Warn("agent call denied", "tool", call.Name, "reason", err)
 				resultBlocks = append(resultBlocks, driver.NewToolResultBlock(
 					call.ID, fmt.Sprintf("denied by policy: %v", err), true,

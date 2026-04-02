@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 
@@ -10,7 +11,7 @@ import (
 )
 
 func TestPathTraversal_NestedDotDot(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{
 		WritablePaths: []string{"/workspace"},
 	}
@@ -19,7 +20,7 @@ func TestPathTraversal_NestedDotDot(t *testing.T) {
 	input, _ := json.Marshal(map[string]string{
 		"file_path": "/workspace/a/b/../../../../etc/passwd",
 	})
-	err := e.Check(token, "Write", input)
+	err := e.Check(context.Background(), token, "Write", input)
 	if err == nil {
 		t.Fatal("should deny write: nested .. resolves outside /workspace")
 	}
@@ -29,7 +30,7 @@ func TestPathTraversal_NestedDotDot(t *testing.T) {
 }
 
 func TestPathTraversal_AbsoluteOutsideWorkspace(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{
 		WritablePaths: []string{"/workspace"},
 	}
@@ -37,7 +38,7 @@ func TestPathTraversal_AbsoluteOutsideWorkspace(t *testing.T) {
 	input, _ := json.Marshal(map[string]string{
 		"file_path": "/etc/passwd",
 	})
-	err := e.Check(token, "Write", input)
+	err := e.Check(context.Background(), token, "Write", input)
 	if err == nil {
 		t.Fatal("should deny write to /etc/passwd — outside writable workspace")
 	}
@@ -47,7 +48,7 @@ func TestPathTraversal_AbsoluteOutsideWorkspace(t *testing.T) {
 }
 
 func TestPathTraversal_ReadAllowed(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{
 		// WritablePaths is intentionally empty — Read ignores it.
 	}
@@ -55,13 +56,13 @@ func TestPathTraversal_ReadAllowed(t *testing.T) {
 	input, _ := json.Marshal(map[string]string{
 		"path": "/etc/passwd",
 	})
-	if err := e.Check(token, "Read", input); err != nil {
+	if err := e.Check(context.Background(), token, "Read", input); err != nil {
 		t.Fatalf("Read with no DeniedPaths should be allowed: %v", err)
 	}
 }
 
 func TestPathTraversal_SymlinkChain(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 
 	dir := t.TempDir()
 	workspace := filepath.Join(dir, "workspace")
@@ -85,7 +86,7 @@ func TestPathTraversal_SymlinkChain(t *testing.T) {
 	input, _ := json.Marshal(map[string]string{
 		"file_path": filepath.Join(workspace, "link", "data.txt"),
 	})
-	err := e.Check(token, "Write", input)
+	err := e.Check(context.Background(), token, "Write", input)
 	if err == nil {
 		t.Fatal("should deny write through symlink that resolves outside workspace")
 	}
@@ -95,7 +96,7 @@ func TestPathTraversal_SymlinkChain(t *testing.T) {
 }
 
 func TestPathTraversal_DeniedPathExact(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{
 		DeniedPaths: []string{"/protected"},
 	}
@@ -103,7 +104,7 @@ func TestPathTraversal_DeniedPathExact(t *testing.T) {
 	input, _ := json.Marshal(map[string]string{
 		"path": "/protected/config.yaml",
 	})
-	err := e.Check(token, "Read", input)
+	err := e.Check(context.Background(), token, "Read", input)
 	if err == nil {
 		t.Fatal("should deny read of path under DeniedPaths")
 	}
@@ -113,7 +114,7 @@ func TestPathTraversal_DeniedPathExact(t *testing.T) {
 }
 
 func TestPathTraversal_WriteThroughSymlink(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 
 	dir := t.TempDir()
 	workspace := filepath.Join(dir, "workspace")
@@ -136,7 +137,7 @@ func TestPathTraversal_WriteThroughSymlink(t *testing.T) {
 	input, _ := json.Marshal(map[string]string{
 		"file_path": sneaky,
 	})
-	err := e.Check(token, "Write", input)
+	err := e.Check(context.Background(), token, "Write", input)
 	if err == nil {
 		t.Fatal("should deny write through file symlink resolving outside workspace")
 	}
@@ -146,11 +147,11 @@ func TestPathTraversal_WriteThroughSymlink(t *testing.T) {
 }
 
 func TestBashInjection_Semicolon(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{DeniedPaths: []string{"/protected"}}
 	input := json.RawMessage(`{"command": "ls; cat /protected/secret"}`)
 
-	err := e.Check(token, "Bash", input)
+	err := e.Check(context.Background(), token, "Bash", input)
 	if err == nil {
 		t.Fatal("should deny semicolon-injected command referencing denied path")
 	}
@@ -160,11 +161,11 @@ func TestBashInjection_Semicolon(t *testing.T) {
 }
 
 func TestBashInjection_Pipe(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{DeniedPaths: []string{"/protected"}}
 	input := json.RawMessage(`{"command": "ls | cat /protected/secret"}`)
 
-	err := e.Check(token, "Bash", input)
+	err := e.Check(context.Background(), token, "Bash", input)
 	if err == nil {
 		t.Fatal("should deny pipe-injected command referencing denied path")
 	}
@@ -174,11 +175,11 @@ func TestBashInjection_Pipe(t *testing.T) {
 }
 
 func TestBashInjection_Subshell(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{DeniedPaths: []string{"/protected"}}
 	input := json.RawMessage(`{"command": "$(cat /protected/secret)"}`)
 
-	err := e.Check(token, "Bash", input)
+	err := e.Check(context.Background(), token, "Bash", input)
 	if err == nil {
 		t.Fatal("should deny subshell command referencing denied path")
 	}
@@ -188,11 +189,11 @@ func TestBashInjection_Subshell(t *testing.T) {
 }
 
 func TestBashInjection_Backtick(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{DeniedPaths: []string{"/protected"}}
 	input := json.RawMessage("{\"command\": \"`cat /protected/secret`\"}")
 
-	err := e.Check(token, "Bash", input)
+	err := e.Check(context.Background(), token, "Bash", input)
 	if err == nil {
 		t.Fatal("should deny backtick command referencing denied path")
 	}
@@ -202,11 +203,11 @@ func TestBashInjection_Backtick(t *testing.T) {
 }
 
 func TestBashInjection_And(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{DeniedPaths: []string{"/protected"}}
 	input := json.RawMessage(`{"command": "true && cat /protected/secret"}`)
 
-	err := e.Check(token, "Bash", input)
+	err := e.Check(context.Background(), token, "Bash", input)
 	if err == nil {
 		t.Fatal("should deny &&-chained command referencing denied path")
 	}
@@ -216,13 +217,13 @@ func TestBashInjection_And(t *testing.T) {
 }
 
 func TestBashInjection_VariableExpansion(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{DeniedPaths: []string{"/protected"}}
 	// The literal string "/protected" appears in "f=/protected/secret",
 	// so strings.Contains catches it.
 	input := json.RawMessage(`{"command": "f=/protected/secret; cat $f"}`)
 
-	err := e.Check(token, "Bash", input)
+	err := e.Check(context.Background(), token, "Bash", input)
 	if err == nil {
 		t.Fatal("should deny command containing literal denied path in variable assignment")
 	}
@@ -232,7 +233,7 @@ func TestBashInjection_VariableExpansion(t *testing.T) {
 }
 
 func TestBashInjection_VariableExpansionEvasion(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{DeniedPaths: []string{"/protected"}}
 	// The denied string "/protected" never appears literally — it is
 	// assembled at shell runtime via variable concatenation.
@@ -240,18 +241,18 @@ func TestBashInjection_VariableExpansionEvasion(t *testing.T) {
 	// Defense: sandbox layer prevents actual access.
 	input := json.RawMessage(`{"command": "f=/pro; f=${f}tected/secret; cat $f"}`)
 
-	err := e.Check(token, "Bash", input)
+	err := e.Check(context.Background(), token, "Bash", input)
 	if err != nil {
 		t.Fatalf("should not catch evasion via variable concatenation (known limitation): %v", err)
 	}
 }
 
 func TestBashInjection_AllowedCommand(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{DeniedPaths: []string{"/protected"}}
 	input := json.RawMessage(`{"command": "ls -la /safe/dir"}`)
 
-	err := e.Check(token, "Bash", input)
+	err := e.Check(context.Background(), token, "Bash", input)
 	if err != nil {
 		t.Fatalf("should allow command not referencing denied path: %v", err)
 	}

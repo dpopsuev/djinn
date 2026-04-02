@@ -1,6 +1,7 @@
 package acceptance
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -168,10 +169,10 @@ func TestE2E_EnforcerDenies(t *testing.T) {
 		AllowedTools: []string{"Read"},
 	}
 
-	enforcer := policy.NewDefaultToolPolicyEnforcer()
+	enforcer := policy.NewDefaultToolPolicyEnforcer(nil)
 
 	// Bash is NOT in AllowedTools — should be denied.
-	err := enforcer.Check(token, "Bash", json.RawMessage(`{"command":"ls"}`))
+	err := enforcer.Check(context.Background(), token, "Bash", json.RawMessage(`{"command":"ls"}`))
 	if err == nil {
 		t.Fatal("enforcer should deny Bash when AllowedTools=[Read]")
 	}
@@ -180,7 +181,7 @@ func TestE2E_EnforcerDenies(t *testing.T) {
 	}
 
 	// Read IS in AllowedTools — should be allowed.
-	err = enforcer.Check(token, "Read", json.RawMessage(`{"file_path":"/workspace/main.go"}`))
+	err = enforcer.Check(context.Background(), token, "Read", json.RawMessage(`{"file_path":"/workspace/main.go"}`))
 	if err != nil {
 		t.Fatalf("enforcer should allow Read, got: %v", err)
 	}

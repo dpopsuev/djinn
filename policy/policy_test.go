@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -9,24 +10,24 @@ import (
 )
 
 func TestDefaultToolPolicyEnforcer_AllowedWrite(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{
 		WritablePaths: []string{"/home/user/project"},
 	}
 	input, _ := json.Marshal(map[string]string{"path": "/home/user/project/main.go"})
-	if err := e.Check(token, "Write", input); err != nil {
+	if err := e.Check(context.Background(), token, "Write", input); err != nil {
 		t.Fatalf("should allow: %v", err)
 	}
 }
 
 func TestDefaultToolPolicyEnforcer_DeniedPath(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	home, _ := os.UserHomeDir()
 	token := CapabilityToken{
 		DeniedPaths: []string{filepath.Join(home, ".config", "djinn")},
 	}
 	input, _ := json.Marshal(map[string]string{"path": filepath.Join(home, ".config", "djinn", "workspaces", "aeon.yaml")})
-	err := e.Check(token, "Write", input)
+	err := e.Check(context.Background(), token, "Write", input)
 	if err == nil {
 		t.Fatal("should deny write to config path")
 	}
@@ -36,20 +37,20 @@ func TestDefaultToolPolicyEnforcer_DeniedPath(t *testing.T) {
 }
 
 func TestDefaultToolPolicyEnforcer_DeniedEdit(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	home, _ := os.UserHomeDir()
 	token := CapabilityToken{
 		DeniedPaths: []string{filepath.Join(home, ".config", "djinn")},
 	}
 	input, _ := json.Marshal(map[string]string{"file_path": filepath.Join(home, ".config", "djinn", "config.yaml")})
-	err := e.Check(token, "Edit", input)
+	err := e.Check(context.Background(), token, "Edit", input)
 	if err == nil {
 		t.Fatal("should deny edit to config path")
 	}
 }
 
 func TestDefaultToolPolicyEnforcer_SymlinkBypass(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 
 	// Create a real config dir and a symlink to it
 	dir := t.TempDir()
@@ -66,14 +67,14 @@ func TestDefaultToolPolicyEnforcer_SymlinkBypass(t *testing.T) {
 
 	// Agent tries to write via symlink
 	input, _ := json.Marshal(map[string]string{"path": filepath.Join(symlink, "secret.yaml")})
-	err := e.Check(token, "Write", input)
+	err := e.Check(context.Background(), token, "Write", input)
 	if err == nil {
 		t.Fatal("should deny write through symlink to protected path")
 	}
 }
 
 func TestDefaultToolPolicyEnforcer_PathTraversal(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "config")
 	os.MkdirAll(configDir, 0o755)
@@ -85,14 +86,14 @@ func TestDefaultToolPolicyEnforcer_PathTraversal(t *testing.T) {
 	// Path traversal: dir/other/../config/file
 	traversal := filepath.Join(dir, "other", "..", "config", "file.yaml")
 	input, _ := json.Marshal(map[string]string{"path": traversal})
-	err := e.Check(token, "Write", input)
+	err := e.Check(context.Background(), token, "Write", input)
 	if err == nil {
 		t.Fatal("should deny path traversal to protected path")
 	}
 }
 
 func TestDefaultToolPolicyEnforcer_BashDenied(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	home, _ := os.UserHomeDir()
 	configDir := filepath.Join(home, ".config", "djinn")
 	token := CapabilityToken{
@@ -100,7 +101,7 @@ func TestDefaultToolPolicyEnforcer_BashDenied(t *testing.T) {
 	}
 
 	input, _ := json.Marshal(map[string]string{"command": "sed -i 's/container/none/' " + filepath.Join(configDir, "workspaces", "aeon.yaml")})
-	err := e.Check(token, "Bash", input)
+	err := e.Check(context.Background(), token, "Bash", input)
 	if err == nil {
 		t.Fatal("should deny bash command targeting config")
 	}
@@ -110,49 +111,49 @@ func TestDefaultToolPolicyEnforcer_BashDenied(t *testing.T) {
 }
 
 func TestDefaultToolPolicyEnforcer_BashAllowed(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{
 		DeniedPaths: []string{"/protected"},
 	}
 	input, _ := json.Marshal(map[string]string{"command": "go test ./..."})
-	if err := e.Check(token, "Bash", input); err != nil {
+	if err := e.Check(context.Background(), token, "Bash", input); err != nil {
 		t.Fatalf("should allow: %v", err)
 	}
 }
 
 func TestDefaultToolPolicyEnforcer_WriteOutsideWorkspace(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{
 		WritablePaths: []string{"/home/user/project"},
 	}
 	input, _ := json.Marshal(map[string]string{"path": "/etc/passwd"})
-	err := e.Check(token, "Write", input)
+	err := e.Check(context.Background(), token, "Write", input)
 	if err == nil {
 		t.Fatal("should deny write outside workspace")
 	}
 }
 
 func TestDefaultToolPolicyEnforcer_ReadAlwaysAllowed(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{
 		WritablePaths: []string{"/home/user/project"},
 	}
 	// Read should work even outside writable paths (read is not write)
 	input, _ := json.Marshal(map[string]string{"path": "/etc/hosts"})
-	if err := e.Check(token, "Read", input); err != nil {
+	if err := e.Check(context.Background(), token, "Read", input); err != nil {
 		t.Fatalf("Read should be allowed: %v", err)
 	}
 }
 
 func TestDefaultToolPolicyEnforcer_ToolWhitelist(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{
 		AllowedTools: []string{"Read", "Grep"},
 	}
-	if err := e.Check(token, "Read", nil); err != nil {
+	if err := e.Check(context.Background(), token, "Read", nil); err != nil {
 		t.Fatalf("Read should be allowed: %v", err)
 	}
-	err := e.Check(token, "Bash", nil)
+	err := e.Check(context.Background(), token, "Bash", nil)
 	if err == nil {
 		t.Fatal("Bash should be denied")
 	}
@@ -162,9 +163,9 @@ func TestDefaultToolPolicyEnforcer_ToolWhitelist(t *testing.T) {
 }
 
 func TestDefaultToolPolicyEnforcer_EmptyWhitelistAllowsAll(t *testing.T) {
-	e := NewDefaultToolPolicyEnforcer()
+	e := NewDefaultToolPolicyEnforcer(nil)
 	token := CapabilityToken{}
-	if err := e.Check(token, "Bash", nil); err != nil {
+	if err := e.Check(context.Background(), token, "Bash", nil); err != nil {
 		t.Fatalf("empty whitelist should allow all: %v", err)
 	}
 }
@@ -173,7 +174,7 @@ func TestNopToolPolicyEnforcer_AllowsEverything(t *testing.T) {
 	e := NopToolPolicyEnforcer{}
 	token := CapabilityToken{DeniedPaths: []string{"/protected"}}
 	input, _ := json.Marshal(map[string]string{"path": "/protected/secret"})
-	if err := e.Check(token, "Write", input); err != nil {
+	if err := e.Check(context.Background(), token, "Write", input); err != nil {
 		t.Fatalf("NopToolPolicyEnforcer should allow everything: %v", err)
 	}
 }

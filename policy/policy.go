@@ -7,7 +7,10 @@
 // Denied calls return errors to the agent, not crashes.
 package policy
 
-import "encoding/json"
+import (
+	"context"
+	"encoding/json"
+)
 
 // CapabilityToken defines what an agent is allowed to do.
 // Created at workspace load, immutable by the agent.
@@ -21,5 +24,5 @@ type CapabilityToken struct {
 // ToolPolicyEnforcer gates every agent call. Returns nil if allowed,
 // error with reason if denied.
 type ToolPolicyEnforcer interface {
-	Check(token CapabilityToken, tool string, input json.RawMessage) error
+	Check(ctx context.Context, token CapabilityToken, tool string, input json.RawMessage) error
 }

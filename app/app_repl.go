@@ -307,7 +307,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	})
 
 	// ToolPolicyEnforcer — agent call mediation
-	enforcer := policy.NewDefaultToolPolicyEnforcer()
+	enforcer := policy.NewDefaultToolPolicyEnforcer(djinnlog.For(log, "policy"))
 	capToken := ws.ToCapabilityToken()
 	log.Info("policy enforcer active", "writable", len(capToken.WritablePaths), "denied", len(capToken.DeniedPaths))
 
