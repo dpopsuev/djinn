@@ -8,9 +8,9 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
-	github.com/dpopsuev/jericho v0.0.0
+	github.com/dpopsuev/jericho v0.2.0
 	github.com/dpopsuev/mirage v0.2.0
-	github.com/dpopsuev/misbah v0.0.0-20260321142959-18b9d0f2e4f3
+	github.com/dpopsuev/misbah v0.15.0
 	github.com/muesli/termenv v0.16.0
 	go.uber.org/goleak v1.3.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -56,7 +56,3 @@ require (
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 )
-
-replace github.com/dpopsuev/misbah => ../misbah
-
-replace github.com/dpopsuev/jericho => ../jericho

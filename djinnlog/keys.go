@@ -46,5 +46,10 @@ const (
 	KeyField LogKey = "field" // field within a panel
 )
 
+// Waste detection keys — agent waste classification.
+const (
+	KeyWasteKind LogKey = "waste_kind" // WasteKind string (transportation, defect, etc.)
+)
+
 // Performance group key — nests perf metrics under "perf".
 const KeyPerf LogKey = "perf"

@@ -3,6 +3,7 @@ package tui
 import (
 	"time"
 
+	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/tui/core"
 	"github.com/dpopsuev/djinn/tui/layout"
@@ -206,6 +207,13 @@ type QueueAddMsg struct{ Prompt string }
 type QueueDrainMsg struct{} // remove first item
 type QueueClearMsg struct{} // clear all
 type QueueRemoveMsg struct{ Index int }
+
+// Waste detection messages (GOL-37).
+type WasteMetricsMsg struct {
+	Total     int
+	ByKind    map[agent.WasteKind]int
+	WasteRate float64 // waste / total calls
+}
 
 // Layout messages.
 type ResizeMsg = layout.ResizeMsg
