@@ -113,3 +113,60 @@ func TestDashboardPanel_SightGate(t *testing.T) {
 		t.Fatal("SightGate should be true by default")
 	}
 }
+
+func TestDashboardPanel_AndonUpdate_Green(t *testing.T) {
+	d := NewDashboardPanel()
+	d.Update(tui.AndonUpdateMsg{State: tui.AndonState{
+		Level:   tui.AndonGreen,
+		Source:  "budget",
+		Message: "all clear",
+	}})
+	view := d.View(120)
+	// Green uses ● glyph (U+25CF).
+	if !strings.Contains(view, "\u25cf") {
+		t.Fatalf("green andon should show solid circle glyph: %q", view)
+	}
+}
+
+func TestDashboardPanel_AndonUpdate_Yellow(t *testing.T) {
+	d := NewDashboardPanel()
+	d.Update(tui.AndonUpdateMsg{State: tui.AndonState{
+		Level:   tui.AndonYellow,
+		Source:  "gate",
+		Message: "quality degraded",
+	}})
+	view := d.View(120)
+	// Yellow uses ◉ glyph (U+25C9).
+	if !strings.Contains(view, "\u25c9") {
+		t.Fatalf("yellow andon should show fisheye glyph: %q", view)
+	}
+}
+
+func TestDashboardPanel_AndonUpdate_Red(t *testing.T) {
+	d := NewDashboardPanel()
+	_, cmd := d.Update(tui.AndonUpdateMsg{State: tui.AndonState{
+		Level:   tui.AndonRed,
+		Source:  "budget",
+		Message: "budget exceeded",
+	}})
+	view := d.View(120)
+	// Red uses ⬤ glyph (U+2B24).
+	if !strings.Contains(view, "\u2b24") {
+		t.Fatalf("red andon should show large circle glyph: %q", view)
+	}
+	// Red should emit a CordonMsg command.
+	if cmd == nil {
+		t.Fatal("red andon should emit a CordonMsg command")
+	}
+	msg := cmd()
+	cordon, ok := msg.(tui.CordonMsg)
+	if !ok {
+		t.Fatalf("cmd should produce CordonMsg, got %T", msg)
+	}
+	if cordon.Reason != "budget exceeded" {
+		t.Fatalf("CordonMsg.Reason = %q, want 'budget exceeded'", cordon.Reason)
+	}
+	if cordon.AgentID != "budget" {
+		t.Fatalf("CordonMsg.AgentID = %q, want 'budget'", cordon.AgentID)
+	}
+}

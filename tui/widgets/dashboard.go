@@ -2,11 +2,14 @@
 package widgets
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/tui/core"
 	"github.com/dpopsuev/djinn/tui/design"
 
@@ -29,6 +32,7 @@ type DashboardPanel struct {
 	agentCap   int    // max concurrent agents
 	health     []tui.HealthReport
 	uiState    string // "INSERT", "STREAMING", "APPROVAL"
+	andon      tui.AndonState
 }
 
 const panelIDDashboard = "dashboard"
@@ -128,6 +132,31 @@ func (p *DashboardPanel) Update(msg tea.Msg) (core.Panel, tea.Cmd) {
 		p.health = msg.Reports
 	case tui.DashboardUIStateMsg:
 		p.uiState = msg.State
+	case tui.AndonUpdateMsg:
+		prev := p.andon.Level
+		p.andon = msg.State
+		if msg.State.Level != prev {
+			slog.InfoContext(context.Background(), "andon level change",
+				slog.String(djinnlog.KeyComponent, "dashboard"),
+				slog.String(djinnlog.KeyFrom, prev.String()),
+				slog.String(djinnlog.KeyTo, msg.State.Level.String()),
+				slog.String(djinnlog.KeyAgent, msg.State.Source),
+			)
+		}
+		if tui.ShouldCordon(msg.State.Level) {
+			slog.WarnContext(context.Background(), "cordon triggered by andon",
+				slog.String(djinnlog.KeyComponent, "dashboard"),
+				slog.String(djinnlog.KeyAgent, msg.State.Source),
+				slog.String(djinnlog.KeyReason, msg.State.Message),
+			)
+			return p, func() tea.Msg {
+				return tui.CordonMsg{
+					Reason:  msg.State.Message,
+					AgentID: msg.State.Source,
+					Detail:  "andon red: auto-cordon",
+				}
+			}
+		}
 	}
 	return p, nil
 }
@@ -167,6 +196,18 @@ func (p *DashboardPanel) View(width int) string {
 		agentInfo := tui.StatusStyle.Render(fmt.Sprintf("agents:%d active:%s | ", p.agentCount, p.activeRole))
 		statusLine = agentInfo + statusLine
 	}
+
+	// Andon indicator.
+	var andonStr string
+	switch p.andon.Level {
+	case tui.AndonGreen:
+		andonStr = ss.HealthGreen.Render("\u25cf") // ●
+	case tui.AndonYellow:
+		andonStr = ss.HealthYellow.Render("\u25c9") // ◉
+	case tui.AndonRed:
+		andonStr = ss.HealthRed.Render("\u2b24") // ⬤
+	}
+	statusLine = andonStr + " " + statusLine
 
 	// Compose: indicator left, status right, fill middle with spaces.
 	gap := width - lipgloss.Width(indicator) - lipgloss.Width(statusLine)

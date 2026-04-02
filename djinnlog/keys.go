@@ -53,3 +53,12 @@ const (
 
 // Performance group key — nests perf metrics under "perf".
 const KeyPerf LogKey = "perf"
+
+// SymbolGraph keys.
+const (
+	KeyCount    LogKey = "count"    // item count
+	KeyCallers  LogKey = "callers"  // caller count for a symbol
+	KeyProvider LogKey = "provider" // provider name/index
+	KeyFrom     LogKey = "from"     // transition source
+	KeyTo       LogKey = "to"       // transition target
+)
