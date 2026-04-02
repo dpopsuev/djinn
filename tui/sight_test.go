@@ -30,15 +30,18 @@ func TestCellSight_FormatPrompt_Full(t *testing.T) {
 		CellID:    "GOL-59",
 		CellTitle: "Artifact Primitive",
 		Kind:      "goal",
-		Metadata:  map[string]string{"status": "draft", "priority": "critical"},
+		Fields: []SightField{
+			{Key: "status", Value: "draft"},
+			{Key: "priority", Value: "critical"},
+		},
 	}
 
 	result := fc.FormatPrompt()
 
-	if !strings.Contains(result, "<focus-context>") {
+	if !strings.Contains(result, "<cell-sight>") {
 		t.Error("should contain opening tag")
 	}
-	if !strings.Contains(result, "</focus-context>") {
+	if !strings.Contains(result, "</cell-sight>") {
 		t.Error("should contain closing tag")
 	}
 	if !strings.Contains(result, "Panel: plan") {
@@ -61,18 +64,18 @@ func TestCellSight_FormatPrompt_TokenBudget(t *testing.T) {
 		CellID:    "trace-42",
 		CellTitle: "call mcp_server tool_name with detailed parameters",
 		Kind:      "trace-event",
-		Metadata: map[string]string{
-			"component": "mcp",
-			"action":    "call",
-			"server":    "scribe",
-			"tool":      "artifact",
-			"latency":   "150ms",
+		Fields: []SightField{
+			{Key: "component", Value: "mcp"},
+			{Key: "action", Value: "call"},
+			{Key: "server", Value: "scribe"},
+			{Key: "tool", Value: "artifact"},
+			{Key: "latency", Value: "150ms"},
 		},
 	}
 
 	result := fc.FormatPrompt()
 	// Rough token estimate: ~4 chars per token. 200 tokens = 800 chars.
-	if len(result) > 800 { //nolint:mnd // 200 token budget ≈ 800 chars
+	if len(result) > 800 { //nolint:mnd // 200 token budget ~ 800 chars
 		t.Errorf("FormatPrompt too long: %d chars (budget: ~800)", len(result))
 	}
 }
@@ -85,5 +88,74 @@ func TestCellSight_FormatPrompt_PanelOnly(t *testing.T) {
 	}
 	if strings.Contains(result, "Selected:") {
 		t.Error("should not contain Selected when no cell")
+	}
+}
+
+func TestCellSight_FormatPrompt_FiltersSensitive(t *testing.T) {
+	fc := CellSight{
+		PanelID: "debug",
+		CellID:  "trace-1",
+		Fields: []SightField{
+			{Key: "component", Value: "mcp"},
+			{Key: "latency", Value: "42ms", Sensitive: true},
+			{Key: "error", Value: "true", Sensitive: true},
+			{Key: "action", Value: "call"},
+		},
+	}
+
+	result := fc.FormatPrompt()
+
+	// Non-sensitive fields must be present.
+	if !strings.Contains(result, "component: mcp") {
+		t.Error("non-sensitive field 'component' should be in prompt")
+	}
+	if !strings.Contains(result, "action: call") {
+		t.Error("non-sensitive field 'action' should be in prompt")
+	}
+
+	// Sensitive fields must NOT be present.
+	if strings.Contains(result, "latency: 42ms") {
+		t.Error("sensitive field 'latency' should NOT be in prompt")
+	}
+	if strings.Contains(result, "error: true") {
+		t.Error("sensitive field 'error' should NOT be in prompt")
+	}
+}
+
+func TestCellSight_FormatPrompt_ShowsHiddenHint(t *testing.T) {
+	fc := CellSight{
+		PanelID: "debug",
+		CellID:  "trace-1",
+		Fields: []SightField{
+			{Key: "component", Value: "mcp"},
+			{Key: "latency", Value: "42ms", Sensitive: true},
+			{Key: "error", Value: "true", Sensitive: true},
+		},
+	}
+
+	result := fc.FormatPrompt()
+
+	if !strings.Contains(result, "2 fields hidden") {
+		t.Errorf("should show '2 fields hidden' hint, got:\n%s", result)
+	}
+	if !strings.Contains(result, ":sight reveal") {
+		t.Error("hidden hint should mention ':sight reveal'")
+	}
+}
+
+func TestCellSight_FormatPrompt_NoHintWhenNoSensitive(t *testing.T) {
+	fc := CellSight{
+		PanelID: "plan",
+		CellID:  "seg-1",
+		Fields: []SightField{
+			{Key: "status", Value: "draft"},
+			{Key: "view", Value: "overview"},
+		},
+	}
+
+	result := fc.FormatPrompt()
+
+	if strings.Contains(result, "fields hidden") {
+		t.Error("should not show hidden hint when no sensitive fields")
 	}
 }

@@ -339,29 +339,41 @@ func (p *PlanPanel) CellSight() tui.CellSight {
 			fc.CellID = all[p.cursor].ID
 			fc.CellTitle = all[p.cursor].Title
 			fc.Kind = all[p.cursor].Kind
-			fc.Metadata = map[string]string{"status": string(all[p.cursor].Status), "view": "overview"}
+			fc.Fields = []tui.SightField{
+				{Key: "status", Value: string(all[p.cursor].Status)},
+				{Key: "view", Value: "overview"},
+			}
 		}
 	case PlanViewGoal:
 		fc.CellID = p.goalID
 		if a, err := p.graph.Get(p.goalID); err == nil {
 			fc.CellTitle = a.Title
 			fc.Kind = a.Kind
-			fc.Metadata = map[string]string{"status": string(a.Status), "view": "goal"}
+			fc.Fields = []tui.SightField{
+				{Key: "status", Value: string(a.Status)},
+				{Key: "view", Value: "goal"},
+			}
 		}
 	case PlanViewSegment:
 		fc.CellID = p.segID
 		if a, err := p.graph.Get(p.segID); err == nil {
 			fc.CellTitle = a.Title
 			fc.Kind = a.Kind
-			fc.Metadata = map[string]string{"status": string(a.Status), "view": "segment"}
+			fc.Fields = []tui.SightField{
+				{Key: "status", Value: string(a.Status)},
+				{Key: "view", Value: "segment"},
+			}
 		}
 	}
 	return fc
 }
 
+// SightGate returns true — plan panel is visible to agents by default.
+func (p *PlanPanel) SightGate() bool { return true }
+
 // Compile-time checks.
 var (
-	_ core.Panel               = (*PlanPanel)(nil)
+	_ core.Panel  = (*PlanPanel)(nil)
 	_ tui.Sighted = (*PlanPanel)(nil)
 )
 

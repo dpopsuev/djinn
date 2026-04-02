@@ -188,8 +188,15 @@ func TestPlanPanel_Integration_ThreeViews(t *testing.T) {
 	if fc.PanelID != "plan" {
 		t.Errorf("CellSight PanelID = %q, want plan", fc.PanelID)
 	}
-	if fc.Metadata["view"] != "overview" {
-		t.Errorf("CellSight view = %q, want overview", fc.Metadata["view"])
+	viewField := ""
+	for i := range fc.Fields {
+		if fc.Fields[i].Key == "view" {
+			viewField = fc.Fields[i].Value
+			break
+		}
+	}
+	if viewField != "overview" {
+		t.Errorf("CellSight view = %q, want overview", viewField)
 	}
 }
 

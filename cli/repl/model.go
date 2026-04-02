@@ -352,11 +352,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocy
 		m.spinnerActive = true
 		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
 
-		// Inject focus context into prompt if the active panel supports it (GOL-62).
+		// Inject cell sight into prompt if the active panel supports it (GOL-62).
 		prompt := msg.Value
 		if provider, ok := m.focus.Active().(tui.Sighted); ok {
-			if fc := provider.CellSight(); !fc.IsEmpty() {
-				prompt = fc.FormatPrompt() + "\n\n" + prompt
+			if provider.SightGate() {
+				if fc := provider.CellSight(); !fc.IsEmpty() {
+					prompt = fc.FormatPrompt() + "\n\n" + prompt
+				}
 			}
 		}
 		return m, tea.Batch(m.runAgent(prompt), m.spin.Tick, tickCmd())

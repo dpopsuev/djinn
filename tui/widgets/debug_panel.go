@@ -146,6 +146,8 @@ func formatDuration(d time.Duration) string {
 
 // CellSight returns the currently focused trace event's context.
 // The focused event is the newest visible event (bottom of scroll window).
+// Latency and error fields are marked Sensitive — excluded from agent prompt
+// unless the operator explicitly reveals them.
 func (p *DebugPanel) CellSight() tui.CellSight {
 	if p.ring == nil {
 		return tui.CellSight{PanelID: p.id}
@@ -161,18 +163,21 @@ func (p *DebugPanel) CellSight() tui.CellSight {
 
 	// Focus is on the newest visible event.
 	e := &events[len(events)-1]
-	meta := map[string]string{
-		"component": string(e.Component),
-		"action":    e.Action,
+	fields := []tui.SightField{
+		{Key: "component", Value: string(e.Component)},
+		{Key: "action", Value: e.Action},
 	}
 	if e.Server != "" {
-		meta["server"] = e.Server
+		fields = append(fields, tui.SightField{Key: "server", Value: e.Server})
 	}
 	if e.Tool != "" {
-		meta["tool"] = e.Tool
+		fields = append(fields, tui.SightField{Key: "tool", Value: e.Tool})
 	}
 	if e.Latency > 0 {
-		meta["latency"] = formatDuration(e.Latency)
+		fields = append(fields, tui.SightField{Key: "latency", Value: formatDuration(e.Latency), Sensitive: true})
+	}
+	if e.Error {
+		fields = append(fields, tui.SightField{Key: "error", Value: "true", Sensitive: true})
 	}
 
 	return tui.CellSight{
@@ -180,9 +185,12 @@ func (p *DebugPanel) CellSight() tui.CellSight {
 		CellID:    e.ID,
 		CellTitle: e.Detail,
 		Kind:      string(e.Component),
-		Metadata:  meta,
+		Fields:    fields,
 	}
 }
+
+// SightGate returns true — debug panel is visible to agents by default.
+func (p *DebugPanel) SightGate() bool { return true }
 
 // Compile-time check.
 var _ tui.Sighted = (*DebugPanel)(nil)

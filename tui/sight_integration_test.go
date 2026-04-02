@@ -47,8 +47,8 @@ func TestCellSight_Integration_MultiProvider(t *testing.T) {
 
 	_, err := graph.Add(artifact.Artifact{
 		Kind:    artifact.KindPlanSegment,
-		Title:   "Implement FocusContext",
-		Content: "Wire focus context into prompt injection",
+		Title:   "Implement CellSight",
+		Content: "Wire cell sight into prompt injection",
 	})
 	if err != nil {
 		t.Fatalf("graph.Add seg-1: %v", err)
@@ -70,6 +70,9 @@ func TestCellSight_Integration_MultiProvider(t *testing.T) {
 
 	var combined strings.Builder
 	for _, p := range providers {
+		if !p.SightGate() {
+			continue
+		}
 		fc := p.CellSight()
 		if fc.IsEmpty() {
 			t.Errorf("provider %T returned empty CellSight", p)
@@ -90,13 +93,13 @@ func TestCellSight_Integration_MultiProvider(t *testing.T) {
 	}
 
 	// Verify structural markers present from both providers.
-	tagCount := strings.Count(result, "<focus-context>")
+	tagCount := strings.Count(result, "<cell-sight>")
 	if tagCount != 2 { //nolint:mnd // exactly 2 providers
-		t.Errorf("expected 2 <focus-context> sections, got %d", tagCount)
+		t.Errorf("expected 2 <cell-sight> sections, got %d", tagCount)
 	}
-	closeCount := strings.Count(result, "</focus-context>")
+	closeCount := strings.Count(result, "</cell-sight>")
 	if closeCount != 2 { //nolint:mnd // exactly 2 providers
-		t.Errorf("expected 2 </focus-context> sections, got %d", closeCount)
+		t.Errorf("expected 2 </cell-sight> sections, got %d", closeCount)
 	}
 
 	// Verify DebugPanel context appears (newest event = "code health report").
@@ -111,16 +114,24 @@ func TestCellSight_Integration_MultiProvider(t *testing.T) {
 	if !strings.Contains(result, "Panel: plan") {
 		t.Error("aggregated context should contain plan panel")
 	}
-	if !strings.Contains(result, "Implement FocusContext") {
+	if !strings.Contains(result, "Implement CellSight") {
 		t.Error("aggregated context should contain plan panel's focused artifact title")
 	}
 
-	// Verify metadata from both providers is present.
+	// Verify non-sensitive fields from both providers are present.
 	if !strings.Contains(result, "component:") {
-		t.Error("debug panel context should include component metadata")
+		t.Error("debug panel context should include component field")
 	}
 	if !strings.Contains(result, "status:") {
-		t.Error("plan panel context should include status metadata")
+		t.Error("plan panel context should include status field")
+	}
+
+	// Verify sensitive fields (latency) are hidden.
+	if strings.Contains(result, "latency: 150ms") {
+		t.Error("sensitive latency field should NOT appear in prompt")
+	}
+	if !strings.Contains(result, "fields hidden") {
+		t.Error("hidden hint should appear when sensitive fields exist")
 	}
 }
 
@@ -230,3 +241,58 @@ func TestCellSight_Integration_EmptyProviders(t *testing.T) {
 		}
 	})
 }
+
+// TestSightGate_False_NoInjection verifies that when SightGate returns false,
+// the panel's CellSight is not injected into the prompt.
+func TestSightGate_False_NoInjection(t *testing.T) {
+	// Both real panels return SightGate() == true by default.
+	// Verify the gate check logic works by simulating the model.go pattern.
+	ring := trace.NewRing(16) //nolint:mnd // small ring for test
+	ring.Append(trace.TraceEvent{
+		Component: trace.ComponentMCP,
+		Action:    "call",
+		Detail:    "should appear",
+	})
+	panel := widgets.NewDebugPanel(ring)
+
+	// SightGate is true — injection should happen.
+	if !panel.SightGate() {
+		t.Fatal("DebugPanel SightGate should be true by default")
+	}
+
+	// Simulate the gate check from model.go.
+	var prompt string
+	provider := tui.Sighted(panel)
+	if provider.SightGate() {
+		if fc := provider.CellSight(); !fc.IsEmpty() {
+			prompt = fc.FormatPrompt()
+		}
+	}
+	if prompt == "" {
+		t.Error("with SightGate() == true, prompt should contain cell sight")
+	}
+
+	// Now test with a mock that returns SightGate() == false.
+	gated := &gatedPanel{sight: panel.CellSight(), gate: false}
+	var gatedPrompt string
+	if gated.SightGate() {
+		if fc := gated.CellSight(); !fc.IsEmpty() {
+			gatedPrompt = fc.FormatPrompt()
+		}
+	}
+	if gatedPrompt != "" {
+		t.Error("with SightGate() == false, prompt should be empty")
+	}
+}
+
+// gatedPanel is a test helper that wraps a CellSight with a configurable gate.
+type gatedPanel struct {
+	sight tui.CellSight
+	gate  bool
+}
+
+func (g *gatedPanel) CellSight() tui.CellSight { return g.sight }
+func (g *gatedPanel) SightGate() bool          { return g.gate }
+
+// Compile-time check.
+var _ tui.Sighted = (*gatedPanel)(nil)

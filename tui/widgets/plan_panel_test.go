@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/artifact"
+	tui "github.com/dpopsuev/djinn/tui"
 )
 
 func testPlanGraph() *artifact.Graph {
@@ -145,9 +146,29 @@ func TestPlanPanel_CellSight_GoalView(t *testing.T) {
 	if fc.CellID != "seg-1" {
 		t.Errorf("CellID = %q, want seg-1", fc.CellID)
 	}
-	if fc.Metadata["view"] != "goal" {
-		t.Errorf("view = %q, want goal", fc.Metadata["view"])
+	viewField := fieldByKey(fc.Fields, "view")
+	if viewField == "" {
+		t.Error("CellSight should contain 'view' field")
+	} else if viewField != "goal" {
+		t.Errorf("view = %q, want goal", viewField)
 	}
+}
+
+func TestPlanPanel_SightGate(t *testing.T) {
+	p := NewPlanPanel(testPlanGraph())
+	if !p.SightGate() {
+		t.Error("PlanPanel SightGate should return true by default")
+	}
+}
+
+// fieldByKey returns the value of the first SightField with the given key.
+func fieldByKey(fields []tui.SightField, key string) string {
+	for i := range fields {
+		if fields[i].Key == key {
+			return fields[i].Value
+		}
+	}
+	return ""
 }
 
 // --- Empty graph ---
