@@ -148,8 +148,8 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) { /
 
 		// If no tool calls, we're done
 		if len(response.toolCalls) == 0 {
-			cfg.Log.Info("turn complete", slog.Int("turn", turn+1),
-				slog.Group("perf",
+			cfg.Log.InfoContext(ctx, "turn complete", slog.Int(djinnlog.KeyTurn, turn+1),
+				slog.Group(djinnlog.KeyPerf,
 					djinnlog.RTT(time.Since(turnStart)),
 					djinnlog.TokensIn(usageIn(response.usage)),
 					djinnlog.TokensOut(usageOut(response.usage)),
@@ -312,7 +312,7 @@ func executeTools(ctx context.Context, cfg Config, calls []driver.ToolCall) ([]d
 			call.ID, output, isError,
 		))
 
-		cfg.Log.Debug("tool result", slog.String("tool", call.Name), slog.Bool("error", isError), djinnlog.ToolLatency(time.Since(toolStart)))
+		cfg.Log.DebugContext(ctx, "tool result", slog.String(djinnlog.KeyTool, call.Name), slog.Bool(djinnlog.KeyError, isError), djinnlog.ToolLatency(time.Since(toolStart)))
 		if cfg.Handler != nil {
 			cfg.Handler.OnToolResult(call.ID, call.Name, truncateForDisplay(output), isError)
 		}

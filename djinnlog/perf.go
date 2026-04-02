@@ -24,12 +24,12 @@ func ToolLatency(d time.Duration) slog.Attr {
 
 // TokensIn returns an input token count attribute.
 func TokensIn(n int) slog.Attr {
-	return slog.Int("tokens_in", n)
+	return slog.Int(KeyTokensIn, n)
 }
 
 // TokensOut returns an output token count attribute.
 func TokensOut(n int) slog.Attr {
-	return slog.Int("tokens_out", n)
+	return slog.Int(KeyTokensOut, n)
 }
 
 // Throughput returns tokens-per-second attribute.
@@ -43,7 +43,7 @@ func Throughput(tokensOut int, elapsed time.Duration) slog.Attr {
 
 // Turns returns the ReAct loop turn count attribute.
 func Turns(n int) slog.Attr {
-	return slog.Int("turns", n)
+	return slog.Int(KeyTurn, n)
 }
 
 // ContextPct returns context window usage as a fraction (0.0–1.0).
