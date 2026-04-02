@@ -40,5 +40,11 @@ const (
 	KeyTurn      LogKey = "turn"       // conversation turn number
 )
 
+// TUI keys — panel/field identification.
+const (
+	KeyPanel LogKey = "panel" // TUI panel identifier
+	KeyField LogKey = "field" // field within a panel
+)
+
 // Performance group key — nests perf metrics under "perf".
 const KeyPerf LogKey = "perf"

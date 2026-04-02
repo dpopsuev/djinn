@@ -8,25 +8,35 @@
 package tui
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/dpopsuev/djinn/djinnlog"
 )
 
 // SightManager tracks gate state and field overrides per panel.
 // Thread-safe: all methods are safe for concurrent use.
+// All mutations are logged for audit trail (OWASP A09).
 type SightManager struct {
 	mu      sync.RWMutex
 	gates   map[string]bool // panel ID -> gate on/off
 	reveals map[string]bool // "panel.field" -> revealed (true) or hidden (false)
+	log     *slog.Logger
 }
 
 // NewSightManager creates a SightManager with default-open gates.
-func NewSightManager() *SightManager {
+func NewSightManager(log *slog.Logger) *SightManager {
+	if log == nil {
+		log = djinnlog.Nop()
+	}
 	return &SightManager{
 		gates:   make(map[string]bool),
 		reveals: make(map[string]bool),
+		log:     log,
 	}
 }
 
@@ -36,6 +46,17 @@ func (m *SightManager) SetGate(panelID string, on bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.gates[panelID] = on
+
+	// Yellow: operator visibility decision is auditable
+	action := "gate_off"
+	if on {
+		action = "gate_on"
+	}
+	m.log.InfoContext(context.Background(), "sight gate changed",
+		slog.String(djinnlog.KeyComponent, "sight"),
+		slog.String(djinnlog.KeyAction, action),
+		slog.String(djinnlog.KeyPanel, panelID),
+	)
 }
 
 // IsGateOpen returns whether a panel's gate is open.
@@ -54,6 +75,14 @@ func (m *SightManager) Reveal(panelID, field string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.reveals[panelID+"."+field] = true
+
+	// Yellow: operator reveals sensitive field — audit trail
+	m.log.InfoContext(context.Background(), "sight field revealed",
+		slog.String(djinnlog.KeyComponent, "sight"),
+		slog.String(djinnlog.KeyAction, "reveal"),
+		slog.String(djinnlog.KeyPanel, panelID),
+		slog.String(djinnlog.KeyField, field),
+	)
 }
 
 // Hide restores a field's Sensitive flag, making it hidden from the agent.
@@ -61,6 +90,14 @@ func (m *SightManager) Hide(panelID, field string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.reveals[panelID+"."+field] = false
+
+	// Yellow: operator hides field — audit trail
+	m.log.InfoContext(context.Background(), "sight field hidden",
+		slog.String(djinnlog.KeyComponent, "sight"),
+		slog.String(djinnlog.KeyAction, "hide"),
+		slog.String(djinnlog.KeyPanel, panelID),
+		slog.String(djinnlog.KeyField, field),
+	)
 }
 
 // IsRevealed returns whether a field has been explicitly revealed.

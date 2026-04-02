@@ -70,7 +70,7 @@ func NewDjinn() *Djinn {
 		capacity:    staff.NewAgentCapacity(1),
 		envelopeCfg: staff.DefaultEnvelopeConfig(),
 		scopePath:   "/",
-		sightMgr:    tui.NewSightManager(),
+		sightMgr:    tui.NewSightManager(nil), // TODO: inject real logger from app
 	}
 }
 

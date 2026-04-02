@@ -6,7 +6,7 @@ import (
 )
 
 func TestSightManager_DefaultGateOpen(t *testing.T) {
-	m := NewSightManager()
+	m := NewSightManager(nil)
 
 	// Panels not explicitly configured should default to open.
 	if !m.IsGateOpen("debug") {
@@ -21,7 +21,7 @@ func TestSightManager_DefaultGateOpen(t *testing.T) {
 }
 
 func TestSightManager_SetGateOff_BlocksInjection(t *testing.T) {
-	m := NewSightManager()
+	m := NewSightManager(nil)
 
 	// Close the gate.
 	m.SetGate("debug", false)
@@ -42,7 +42,7 @@ func TestSightManager_SetGateOff_BlocksInjection(t *testing.T) {
 }
 
 func TestSightManager_Reveal_OverridesSensitive(t *testing.T) {
-	m := NewSightManager()
+	m := NewSightManager(nil)
 
 	// Before reveal, IsRevealed should be false.
 	if m.IsRevealed("debug", "latency") {
@@ -87,7 +87,7 @@ func TestSightManager_Reveal_OverridesSensitive(t *testing.T) {
 }
 
 func TestSightManager_Hide_RestoresSensitive(t *testing.T) {
-	m := NewSightManager()
+	m := NewSightManager(nil)
 
 	// Reveal, then hide.
 	m.Reveal("debug", "latency")
@@ -125,7 +125,7 @@ func TestSightManager_Hide_RestoresSensitive(t *testing.T) {
 
 func TestSightManager_Status_ShowsState(t *testing.T) {
 	t.Run("defaults", func(t *testing.T) {
-		m := NewSightManager()
+		m := NewSightManager(nil)
 		status := m.Status()
 		if !strings.Contains(status, "all panels open") {
 			t.Errorf("default status should mention 'all panels open', got:\n%s", status)
@@ -136,7 +136,7 @@ func TestSightManager_Status_ShowsState(t *testing.T) {
 	})
 
 	t.Run("with_gates_and_reveals", func(t *testing.T) {
-		m := NewSightManager()
+		m := NewSightManager(nil)
 		m.SetGate("debug", false)
 		m.SetGate("plan", true)
 		m.Reveal("debug", "latency")
@@ -163,7 +163,7 @@ func TestSightManager_Status_ShowsState(t *testing.T) {
 }
 
 func TestSightManager_ApplyCellSight_NoFields(t *testing.T) {
-	m := NewSightManager()
+	m := NewSightManager(nil)
 	cs := CellSight{PanelID: "debug"}
 	applied := m.ApplyCellSight(cs)
 	if applied.PanelID != "debug" {
@@ -175,7 +175,7 @@ func TestSightManager_ApplyCellSight_NoFields(t *testing.T) {
 }
 
 func TestSightManager_ApplyCellSight_DoesNotMutateOriginal(t *testing.T) {
-	m := NewSightManager()
+	m := NewSightManager(nil)
 	m.Reveal("debug", "latency")
 
 	cs := CellSight{
