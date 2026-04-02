@@ -37,7 +37,7 @@ func hubConnect(t *testing.T, socketPath, role string) *clutch.SocketTransport {
 // rebuild shell → restart → session preserved.
 func TestHub_E2E_ShellHotSwap(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "hub-e2e-shell.sock")
-	hub, err := clutch.NewHub(sock)
+	hub, err := clutch.NewHub(sock, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func TestHub_E2E_ShellHotSwap(t *testing.T) {
 // TestHub_E2E_BackendHotSwap proves backend rebuild doesn't affect the shell.
 func TestHub_E2E_BackendHotSwap(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "hub-e2e-backend.sock")
-	hub, err := clutch.NewHub(sock)
+	hub, err := clutch.NewHub(sock, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func TestHub_E2E_BackendHotSwap(t *testing.T) {
 // through the hub without losing the hub itself.
 func TestHub_E2E_FullRebuild(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "hub-e2e-full.sock")
-	hub, err := clutch.NewHub(sock)
+	hub, err := clutch.NewHub(sock, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

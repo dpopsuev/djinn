@@ -65,7 +65,7 @@ func RunHub(args []string, stderr io.Writer) error {
 	logResult := djinnlog.Setup(djinnlog.Options{Verbose: true})
 	log := djinnlog.For(logResult.Logger, "hub")
 
-	hub, err := clutch.NewHub(socketPath)
+	hub, err := clutch.NewHub(socketPath, djinnlog.For(log, "clutch"))
 	if err != nil {
 		return fmt.Errorf("start hub: %w", err)
 	}

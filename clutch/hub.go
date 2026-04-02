@@ -10,7 +10,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
+
+	"github.com/dpopsuev/djinn/djinnlog"
 )
 
 // Sentinel errors for Hub operations.
@@ -19,6 +22,7 @@ var ErrUnknownRole = errors.New("unknown role")
 // Hub is the GenSec relay — both shell and backend connect as clients.
 type Hub struct {
 	listener *SocketListener
+	log      *slog.Logger
 
 	mu      sync.RWMutex
 	shell   *SocketTransport // current shell connection (nil if disconnected)
@@ -33,12 +37,15 @@ type Hub struct {
 }
 
 // NewHub creates a hub listening on the given Unix socket path.
-func NewHub(socketPath string) (*Hub, error) {
+func NewHub(socketPath string, log *slog.Logger) (*Hub, error) {
+	if log == nil {
+		log = djinnlog.Nop()
+	}
 	ln, err := Listen(socketPath)
 	if err != nil {
 		return nil, err
 	}
-	return &Hub{listener: ln}, nil
+	return &Hub{listener: ln, log: log}, nil
 }
 
 // Run accepts connections and relays messages until ctx is canceled.
@@ -48,12 +55,27 @@ func (h *Hub) Run(ctx context.Context) error {
 		h.listener.Close()
 	}()
 
+	h.log.InfoContext(ctx, "hub started",
+		slog.String(djinnlog.KeyComponent, "clutch"),
+		slog.String(djinnlog.KeyPath, h.listener.Addr()),
+	)
+
 	for {
 		conn, err := h.listener.listener.Accept()
 		if err != nil {
 			if ctx.Err() != nil {
-				return nil // graceful shutdown
+				// Yellow: clean shutdown
+				h.log.InfoContext(ctx, "hub shutdown",
+					slog.String(djinnlog.KeyComponent, "clutch"),
+					slog.String(djinnlog.KeyAction, "shutdown"),
+				)
+				return nil
 			}
+			// Orange: accept failure
+			h.log.WarnContext(ctx, "hub accept error",
+				slog.String(djinnlog.KeyComponent, "clutch"),
+				slog.String(djinnlog.KeyError, err.Error()),
+			)
 			return fmt.Errorf("hub accept: %w", err)
 		}
 
@@ -62,9 +84,20 @@ func (h *Hub) Run(ctx context.Context) error {
 		// Read registration using the transport's decoder (same buffer).
 		role, err := h.readRegistration(transport)
 		if err != nil {
+			// Orange: registration failure
+			h.log.WarnContext(ctx, "registration rejected",
+				slog.String(djinnlog.KeyComponent, "clutch"),
+				slog.String(djinnlog.KeyError, err.Error()),
+			)
 			transport.Close()
 			continue
 		}
+
+		// Yellow: successful registration
+		h.log.InfoContext(ctx, "client registered",
+			slog.String(djinnlog.KeyComponent, "clutch"),
+			slog.String(djinnlog.KeyRole, role),
+		)
 
 		switch role {
 		case "shell":

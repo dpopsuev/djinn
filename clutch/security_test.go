@@ -20,7 +20,7 @@ import (
 func TestClutch_RejectsUnknownRole(t *testing.T) {
 	t.Helper()
 	socketPath := filepath.Join(t.TempDir(), "test.sock")
-	hub, err := NewHub(socketPath)
+	hub, err := NewHub(socketPath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestClutch_RejectsUnknownRole(t *testing.T) {
 
 func TestClutch_RejectsMalformedRegistration(t *testing.T) {
 	socketPath := filepath.Join(t.TempDir(), "test.sock")
-	hub, err := NewHub(socketPath)
+	hub, err := NewHub(socketPath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +83,7 @@ func TestClutch_RejectsMalformedRegistration(t *testing.T) {
 
 func TestClutch_RejectsEmptyRole(t *testing.T) {
 	socketPath := filepath.Join(t.TempDir(), "test.sock")
-	hub, err := NewHub(socketPath)
+	hub, err := NewHub(socketPath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestClutch_RejectsEmptyRole(t *testing.T) {
 
 func TestClutch_RejectsCaseSensitiveRole(t *testing.T) {
 	socketPath := filepath.Join(t.TempDir(), "test.sock")
-	hub, err := NewHub(socketPath)
+	hub, err := NewHub(socketPath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestClutch_RejectsCaseSensitiveRole(t *testing.T) {
 
 func TestClutch_SocketPermissions(t *testing.T) {
 	socketPath := filepath.Join(t.TempDir(), "test.sock")
-	hub, err := NewHub(socketPath)
+	hub, err := NewHub(socketPath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestClutch_SocketPermissions(t *testing.T) {
 
 func TestClutch_AcceptsValidRoles(t *testing.T) {
 	socketPath := filepath.Join(t.TempDir(), "test.sock")
-	hub, err := NewHub(socketPath)
+	hub, err := NewHub(socketPath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

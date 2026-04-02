@@ -26,7 +26,7 @@ func connectToHub(t *testing.T, socketPath, role string) *SocketTransport {
 
 func TestHub_FrontendHotSwap(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "hub-fe.sock")
-	hub, err := NewHub(sock)
+	hub, err := NewHub(sock, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestHub_FrontendHotSwap(t *testing.T) {
 
 func TestHub_DaemonHotSwap(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "hub-be.sock")
-	hub, err := NewHub(sock)
+	hub, err := NewHub(sock, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestHub_DaemonHotSwap(t *testing.T) {
 
 func TestHub_BothHotSwap(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "hub-both.sock")
-	hub, err := NewHub(sock)
+	hub, err := NewHub(sock, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +217,7 @@ func TestHub_BothHotSwap(t *testing.T) {
 
 func TestHub_DaemonOnly_NoFrontend(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "hub-noshell.sock")
-	hub, err := NewHub(sock)
+	hub, err := NewHub(sock, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

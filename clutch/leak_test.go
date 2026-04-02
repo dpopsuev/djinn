@@ -21,7 +21,7 @@ func TestMain(m *testing.M) {
 
 func TestLeak_HubCleanShutdown(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "leak.sock")
-	hub, err := NewHub(sock)
+	hub, err := NewHub(sock, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
