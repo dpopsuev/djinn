@@ -28,12 +28,31 @@ type OutputPanel struct {
 
 const panelIDOutput = "output"
 
+// OutputOption configures an OutputPanel.
+type OutputOption func(*OutputPanel)
+
+// WithOutputHeight sets the initial viewport height.
+func WithOutputHeight(h int) OutputOption {
+	return func(p *OutputPanel) {
+		p.InitViewport(80, h) //nolint:mnd // default width, caller overrides via resize
+	}
+}
+
+// WithOutputOverlay sets an initial overlay text.
+func WithOutputOverlay(text string) OutputOption {
+	return func(p *OutputPanel) { p.overlay = text }
+}
+
 // NewOutputPanel creates the output panel.
-func NewOutputPanel() *OutputPanel {
-	return &OutputPanel{
+func NewOutputPanel(opts ...OutputOption) *OutputPanel {
+	p := &OutputPanel{
 		BasePanel: core.NewBasePanel(panelIDOutput, 0),
 		dirty:     true,
 	}
+	for _, opt := range opts {
+		opt(p)
+	}
+	return p
 }
 
 var _ core.Panel = (*OutputPanel)(nil)

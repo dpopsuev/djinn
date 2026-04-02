@@ -35,12 +35,34 @@ const panelIDDashboard = "dashboard"
 
 var _ core.Panel = (*DashboardPanel)(nil)
 
+// DashboardOption configures a DashboardPanel.
+type DashboardOption func(*DashboardPanel)
+
+// WithWorkspace sets the workspace name shown in the dashboard.
+func WithWorkspace(name string) DashboardOption {
+	return func(p *DashboardPanel) { p.workspace = name }
+}
+
+// WithDriverModel sets the driver and model shown in the dashboard.
+func WithDriverModel(driver, model string) DashboardOption {
+	return func(p *DashboardPanel) { p.driver = driver; p.model = model }
+}
+
+// WithUIState sets the initial UI state indicator (INSERT, STREAMING, etc.).
+func WithUIState(state string) DashboardOption {
+	return func(p *DashboardPanel) { p.uiState = state }
+}
+
 // NewDashboardPanel creates the dashboard.
-func NewDashboardPanel() *DashboardPanel {
-	return &DashboardPanel{
+func NewDashboardPanel(opts ...DashboardOption) *DashboardPanel {
+	p := &DashboardPanel{
 		BasePanel: core.NewBasePanel(panelIDDashboard, 1),
 		uiState:   "INSERT",
 	}
+	for _, opt := range opts {
+		opt(p)
+	}
+	return p
 }
 
 // SetIdentity updates workspace/driver/model/mode.

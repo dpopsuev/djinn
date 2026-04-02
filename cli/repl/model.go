@@ -159,11 +159,11 @@ type Model struct {
 
 // NewModel creates a new REPL model.
 func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type used as constructor input
-	inputPanel := widgets.NewInputPanel()
-	inputPanel.SetCompletions(CommandNames())
+	inputOpts := []widgets.InputOption{widgets.WithCompletions(CommandNames())}
 	if placeholder := pickPlaceholderFile(cfg.Session.WorkDirs); placeholder != "" {
-		inputPanel.Update(tui.InputSetPlaceholderMsg{Text: fmt.Sprintf("Try \"explain %s\"", placeholder)})
+		inputOpts = append(inputOpts, widgets.WithPlaceholder(fmt.Sprintf("Try \"explain %s\"", placeholder)))
 	}
+	inputPanel := widgets.NewInputPanel(inputOpts...)
 
 	mode, err := agent.ParseMode(cfg.Mode)
 	if err != nil {

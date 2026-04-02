@@ -41,8 +41,26 @@ const panelIDInput = "input"
 
 var _ core.Panel = (*InputPanel)(nil)
 
+// InputOption configures an InputPanel.
+type InputOption func(*InputPanel)
+
+// WithPlaceholder sets the input placeholder text.
+func WithPlaceholder(text string) InputOption {
+	return func(p *InputPanel) { p.textarea.Placeholder = text }
+}
+
+// WithCompletions sets the tab-completion command names.
+func WithCompletions(names []string) InputOption {
+	return func(p *InputPanel) { p.completions = names }
+}
+
+// WithOnSubmit sets the submit callback.
+func WithOnSubmit(fn func(string)) InputOption {
+	return func(p *InputPanel) { p.onSubmit = fn }
+}
+
 // NewInputPanel creates the input panel.
-func NewInputPanel() *InputPanel {
+func NewInputPanel(opts ...InputOption) *InputPanel {
 	ta := textarea.New()
 	ta.Prompt = "" // No per-line prompt — chevron prepended in View() on first line only.
 	ta.Placeholder = `Try "explain this codebase"`
@@ -66,13 +84,17 @@ func NewInputPanel() *InputPanel {
 	ta.BlurredStyle.Text = tui.DimStyle
 	ta.Focus()
 
-	return &InputPanel{
+	p := &InputPanel{
 		BasePanel: core.NewBasePanel(panelIDInput, 1),
 		textarea:  ta,
 		histIdx:   -1,
 		visible:   true,
 		compIdx:   -1,
 	}
+	for _, opt := range opts {
+		opt(p)
+	}
+	return p
 }
 
 // OnSubmit sets the callback for Enter key.
