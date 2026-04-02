@@ -94,6 +94,30 @@ func (p *AgentsPanel) Selected() *AgentStatusPanel {
 	return nil
 }
 
+// CellSight returns the agents panel's current state for agent prompt injection.
+// CellID tracks the selected agent's role. Cost is sensitive — budget gaming risk.
+func (p *AgentsPanel) CellSight() tui.CellSight {
+	cs := tui.CellSight{
+		PanelID: "agents",
+		Kind:    "agent",
+	}
+	if sel := p.Selected(); sel != nil {
+		cs.CellID = sel.Role
+		cs.Fields = []tui.SightField{
+			{Key: "role", Value: sel.Role},
+			{Key: "state", Value: sel.State},
+			{Key: "cost", Value: fmt.Sprintf("%d/%d", sel.TokensIn, sel.TokensOut), Sensitive: true},
+		}
+	}
+	return cs
+}
+
+// SightGate returns true — agents panel is visible to agents by default.
+func (p *AgentsPanel) SightGate() bool { return true }
+
+// Compile-time check.
+var _ tui.Sighted = (*AgentsPanel)(nil)
+
 func (p *AgentsPanel) Update(msg tea.Msg) (core.Panel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tui.AgentStatusMsg:

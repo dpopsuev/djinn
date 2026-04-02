@@ -65,3 +65,51 @@ func TestDashboard_DefaultInsert(t *testing.T) {
 		t.Fatalf("default state should be INSERT: %q", view)
 	}
 }
+
+func TestDashboardPanel_CellSight(t *testing.T) {
+	d := NewDashboardPanel()
+	d.Update(tui.DashboardMetricsMsg{
+		TokensIn:   500,
+		TokensOut:  200,
+		Turns:      3,
+		AgentCount: 2,
+		Operation:  "plan",
+	})
+
+	cs := d.CellSight()
+	if cs.PanelID != "dashboard" {
+		t.Fatalf("PanelID = %q, want dashboard", cs.PanelID)
+	}
+	if cs.Kind != "status" {
+		t.Fatalf("Kind = %q, want status", cs.Kind)
+	}
+	if len(cs.Fields) != 4 {
+		t.Fatalf("Fields count = %d, want 4", len(cs.Fields))
+	}
+
+	// Verify field keys and sensitivity.
+	fieldMap := make(map[string]tui.SightField)
+	for _, f := range cs.Fields {
+		fieldMap[f.Key] = f
+	}
+
+	if f, ok := fieldMap["operation"]; !ok || f.Value != "plan" || f.Sensitive {
+		t.Errorf("operation field: got %+v", fieldMap["operation"])
+	}
+	if f, ok := fieldMap["turns"]; !ok || f.Value != "3" || f.Sensitive {
+		t.Errorf("turns field: got %+v", fieldMap["turns"])
+	}
+	if f, ok := fieldMap["agents"]; !ok || f.Value != "2" || f.Sensitive {
+		t.Errorf("agents field: got %+v", fieldMap["agents"])
+	}
+	if f, ok := fieldMap["tokens"]; !ok || !f.Sensitive {
+		t.Errorf("tokens field should be sensitive: got %+v", fieldMap["tokens"])
+	}
+}
+
+func TestDashboardPanel_SightGate(t *testing.T) {
+	d := NewDashboardPanel()
+	if !d.SightGate() {
+		t.Fatal("SightGate should be true by default")
+	}
+}

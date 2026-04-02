@@ -34,6 +34,7 @@ type DashboardPanel struct {
 const panelIDDashboard = "dashboard"
 
 var _ core.Panel = (*DashboardPanel)(nil)
+var _ tui.Sighted = (*DashboardPanel)(nil)
 
 // DashboardOption configures a DashboardPanel.
 type DashboardOption func(*DashboardPanel)
@@ -89,6 +90,24 @@ func (p *DashboardPanel) SetHealth(reports []tui.HealthReport) {
 func (p *DashboardPanel) SetUIState(state string) {
 	p.uiState = state
 }
+
+// CellSight returns the dashboard's current state for agent prompt injection.
+// Tokens are sensitive — an agent could game budget by seeing remaining capacity.
+func (p *DashboardPanel) CellSight() tui.CellSight {
+	return tui.CellSight{
+		PanelID: panelIDDashboard,
+		Kind:    "status",
+		Fields: []tui.SightField{
+			{Key: "operation", Value: p.operation},
+			{Key: "turns", Value: fmt.Sprintf("%d", p.turns)},
+			{Key: "agents", Value: fmt.Sprintf("%d", p.agentCount)},
+			{Key: "tokens", Value: fmt.Sprintf("%d/%d", p.tokensIn, p.tokensOut), Sensitive: true},
+		},
+	}
+}
+
+// SightGate returns true — dashboard is visible to agents by default.
+func (p *DashboardPanel) SightGate() bool { return true }
 
 func (p *DashboardPanel) Update(msg tea.Msg) (core.Panel, tea.Cmd) {
 	switch msg := msg.(type) {

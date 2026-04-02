@@ -133,3 +133,60 @@ func TestAgentStatusPanel_IgnoresOtherAgentMessages(t *testing.T) {
 		t.Fatal("should ignore messages for other agents")
 	}
 }
+
+func TestAgentsPanel_CellSight(t *testing.T) {
+	p := NewAgentsPanel()
+	p.AddAgent("a1", "executor", lipgloss.Color("2"))
+	p.UpdateAgent(tui.AgentStatusMsg{
+		AgentID:   "a1",
+		Role:      "executor",
+		State:     AgentStateStreaming,
+		TokensIn:  300,
+		TokensOut: 120,
+	})
+
+	cs := p.CellSight()
+	if cs.PanelID != "agents" {
+		t.Fatalf("PanelID = %q, want agents", cs.PanelID)
+	}
+	if cs.Kind != "agent" {
+		t.Fatalf("Kind = %q, want agent", cs.Kind)
+	}
+	if cs.CellID != "executor" {
+		t.Fatalf("CellID = %q, want executor", cs.CellID)
+	}
+
+	// Verify fields and sensitivity.
+	fieldMap := make(map[string]tui.SightField)
+	for _, f := range cs.Fields {
+		fieldMap[f.Key] = f
+	}
+
+	if f, ok := fieldMap["role"]; !ok || f.Value != "executor" || f.Sensitive {
+		t.Errorf("role field: got %+v", fieldMap["role"])
+	}
+	if f, ok := fieldMap["state"]; !ok || f.Value != AgentStateStreaming || f.Sensitive {
+		t.Errorf("state field: got %+v", fieldMap["state"])
+	}
+	if f, ok := fieldMap["cost"]; !ok || !f.Sensitive {
+		t.Errorf("cost field should be sensitive: got %+v", fieldMap["cost"])
+	}
+}
+
+func TestAgentsPanel_CellSight_Empty(t *testing.T) {
+	p := NewAgentsPanel()
+	cs := p.CellSight()
+	if cs.PanelID != "agents" {
+		t.Fatalf("PanelID = %q, want agents", cs.PanelID)
+	}
+	if len(cs.Fields) != 0 {
+		t.Fatalf("empty panel should have no fields, got %d", len(cs.Fields))
+	}
+}
+
+func TestAgentsPanel_SightGate(t *testing.T) {
+	p := NewAgentsPanel()
+	if !p.SightGate() {
+		t.Fatal("SightGate should be true by default")
+	}
+}

@@ -32,6 +32,7 @@ type DriftPanel struct {
 }
 
 var _ core.Panel = (*DriftPanel)(nil)
+var _ tui.Sighted = (*DriftPanel)(nil)
 
 // NewDriftPanel creates a drift panel with zero scores.
 func NewDriftPanel() *DriftPanel {
@@ -50,6 +51,23 @@ func (d *DriftPanel) SetDrift(funcScore, archScore, perfScore float64, funcLabel
 	d.perfLabel = perfLabel
 	d.tasksLeft = tasksLeft
 }
+
+// CellSight returns the drift panel's three-pillar scores for agent prompt injection.
+// All scores are public — the agent needs convergence awareness to prioritize work.
+func (d *DriftPanel) CellSight() tui.CellSight {
+	return tui.CellSight{
+		PanelID: panelIDDrift,
+		Kind:    "reconciliation",
+		Fields: []tui.SightField{
+			{Key: "functionality", Value: fmt.Sprintf("%.0f%%", d.funcScore)},
+			{Key: "structure", Value: fmt.Sprintf("%.0f%%", d.archScore)},
+			{Key: "performance", Value: fmt.Sprintf("%.0f%%", d.perfScore)},
+		},
+	}
+}
+
+// SightGate returns true — drift panel is visible to agents by default.
+func (d *DriftPanel) SightGate() bool { return true }
 
 func (d *DriftPanel) Update(msg tea.Msg) (core.Panel, tea.Cmd) {
 	if m, ok := msg.(tui.DriftUpdateMsg); ok {

@@ -37,6 +37,34 @@ func (p *BudgetPanel) Collapsible() bool      { return true }
 func (p *BudgetPanel) Collapsed() bool        { return len(p.signals) == 0 }
 func (p *BudgetPanel) Toggle()                {}
 
+// CellSight returns the budget panel's state for agent prompt injection.
+// Agent count is public; all cost-related fields are sensitive — budget gaming risk.
+func (p *BudgetPanel) CellSight() tui.CellSight {
+	fields := []tui.SightField{
+		{Key: "signals", Value: fmt.Sprintf("%d", len(p.signals))},
+	}
+	for i := range p.signals {
+		s := &p.signals[i]
+		fields = append(fields, tui.SightField{
+			Key:       s.Metric,
+			Value:     fmt.Sprintf("%.0f/%.0f", s.Value, s.Threshold),
+			Sensitive: true,
+		})
+	}
+	return tui.CellSight{
+		PanelID: p.id,
+		Kind:    "cost",
+		Fields:  fields,
+	}
+}
+
+// SightGate returns false — budget panel is hidden from agents by default.
+// The operator must explicitly enable it with :sight reveal.
+func (p *BudgetPanel) SightGate() bool { return false }
+
+// Compile-time check.
+var _ tui.Sighted = (*BudgetPanel)(nil)
+
 // SetSignals updates the displayed heuristic signals.
 func (p *BudgetPanel) SetSignals(signals []review.Signal) {
 	p.signals = signals

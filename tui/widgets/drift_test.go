@@ -173,3 +173,42 @@ func TestDriftPanel_PillarStyle(t *testing.T) {
 	_ = pillarStyle(80)  // good (boundary)
 	_ = pillarStyle(50)  // mid (boundary)
 }
+
+func TestDriftPanel_CellSight(t *testing.T) {
+	dp := NewDriftPanel()
+	dp.SetDrift(80, 90, 60, "4/5 specs", "0 cycles", "3 failing", 3)
+
+	cs := dp.CellSight()
+	if cs.PanelID != "drift" {
+		t.Fatalf("PanelID = %q, want drift", cs.PanelID)
+	}
+	if cs.Kind != "reconciliation" {
+		t.Fatalf("Kind = %q, want reconciliation", cs.Kind)
+	}
+	if len(cs.Fields) != 3 {
+		t.Fatalf("Fields count = %d, want 3", len(cs.Fields))
+	}
+
+	// All fields should be public.
+	fieldMap := make(map[string]tui.SightField)
+	for _, f := range cs.Fields {
+		fieldMap[f.Key] = f
+	}
+
+	if f, ok := fieldMap["functionality"]; !ok || f.Value != "80%" || f.Sensitive {
+		t.Errorf("functionality field: got %+v", fieldMap["functionality"])
+	}
+	if f, ok := fieldMap["structure"]; !ok || f.Value != "90%" || f.Sensitive {
+		t.Errorf("structure field: got %+v", fieldMap["structure"])
+	}
+	if f, ok := fieldMap["performance"]; !ok || f.Value != "60%" || f.Sensitive {
+		t.Errorf("performance field: got %+v", fieldMap["performance"])
+	}
+}
+
+func TestDriftPanel_SightGate(t *testing.T) {
+	dp := NewDriftPanel()
+	if !dp.SightGate() {
+		t.Fatal("SightGate should be true by default")
+	}
+}
