@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/dpopsuev/djinn/staff"
+	"github.com/dpopsuev/djinn/tui"
 )
 
 // Sentinel errors.
@@ -49,6 +51,9 @@ type Djinn struct {
 	OnCommand  func(ctx context.Context, name string, args []string) (string, error)
 	OnNavigate func(path string, scopeType string) error
 
+	// Agent visibility control
+	sightMgr *tui.SightManager
+
 	// Observable state (written by adapter, read by Viewer)
 	tokensIn    int
 	tokensOut   int
@@ -65,6 +70,7 @@ func NewDjinn() *Djinn {
 		capacity:    staff.NewAgentCapacity(1),
 		envelopeCfg: staff.DefaultEnvelopeConfig(),
 		scopePath:   "/",
+		sightMgr:    tui.NewSightManager(),
 	}
 }
 
@@ -126,6 +132,9 @@ func (d *Djinn) Command(ctx context.Context, name string, args []string) (string
 	case "envelope":
 		return d.commandEnvelope(args)
 
+	case "sight":
+		return d.commandSight(args)
+
 	default:
 		if d.OnCommand != nil {
 			return d.OnCommand(ctx, name, args)
@@ -164,6 +173,74 @@ func (d *Djinn) commandEnvelope(args []string) (string, error) {
 	default:
 		return "", fmt.Errorf("%w: %q (on, off, every N)", ErrUnknownSubcmd, args[0])
 	}
+}
+
+// commandSight handles :sight subcommands for agent visibility control.
+//
+//	:sight             — show current state
+//	:sight on <panel>  — open panel gate (agent can see it)
+//	:sight off <panel> — close panel gate (agent cannot see it)
+//	:sight reveal <panel>.<field> — override sensitive, show to agent
+//	:sight hide <panel>.<field>   — re-obscure a revealed field
+func (d *Djinn) commandSight(args []string) (string, error) {
+	if len(args) == 0 {
+		return d.sightMgr.Status(), nil
+	}
+
+	switch args[0] {
+	case "on":
+		if len(args) < 2 { //nolint:mnd // subcommand + panel
+			return "", fmt.Errorf("%w: :sight on <panel>", ErrUsage)
+		}
+		d.sightMgr.SetGate(args[1], true)
+		return fmt.Sprintf("sight: %s → on", args[1]), nil
+
+	case "off":
+		if len(args) < 2 { //nolint:mnd // subcommand + panel
+			return "", fmt.Errorf("%w: :sight off <panel>", ErrUsage)
+		}
+		d.sightMgr.SetGate(args[1], false)
+		return fmt.Sprintf("sight: %s → off", args[1]), nil
+
+	case "reveal":
+		if len(args) < 2 { //nolint:mnd // subcommand + panel.field
+			return "", fmt.Errorf("%w: :sight reveal <panel>.<field>", ErrUsage)
+		}
+		panel, field, ok := parsePanelField(args[1])
+		if !ok {
+			return "", fmt.Errorf("%w: expected panel.field, got %q", ErrUsage, args[1])
+		}
+		d.sightMgr.Reveal(panel, field)
+		return fmt.Sprintf("sight: %s.%s → revealed", panel, field), nil
+
+	case "hide":
+		if len(args) < 2 { //nolint:mnd // subcommand + panel.field
+			return "", fmt.Errorf("%w: :sight hide <panel>.<field>", ErrUsage)
+		}
+		panel, field, ok := parsePanelField(args[1])
+		if !ok {
+			return "", fmt.Errorf("%w: expected panel.field, got %q", ErrUsage, args[1])
+		}
+		d.sightMgr.Hide(panel, field)
+		return fmt.Sprintf("sight: %s.%s → hidden", panel, field), nil
+
+	default:
+		return "", fmt.Errorf("%w: %q (on, off, reveal, hide)", ErrUnknownSubcmd, args[0])
+	}
+}
+
+// parsePanelField splits "panel.field" into its components.
+func parsePanelField(s string) (panel, field string, ok bool) {
+	parts := strings.SplitN(s, ".", 2) //nolint:mnd // exactly 2 parts
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
+}
+
+// SightManager returns the sight manager for external use (e.g., TUI model).
+func (d *Djinn) SightManager() *tui.SightManager {
+	return d.sightMgr
 }
 
 func (d *Djinn) SetOperation(op string) {

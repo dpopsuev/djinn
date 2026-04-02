@@ -122,6 +122,81 @@ func TestDjinn_Command_Envelope(t *testing.T) {
 	}
 }
 
+func TestDjinn_Command_Sight(t *testing.T) {
+	d := NewDjinn()
+	ctx := context.Background()
+
+	// Query — default state.
+	out, err := d.Command(ctx, "sight", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out == "" {
+		t.Error("sight query should return status")
+	}
+
+	// Gate on.
+	out, err = d.Command(ctx, "sight", []string{"on", "debug"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "sight: debug → on" {
+		t.Errorf("sight on = %q", out)
+	}
+
+	// Gate off.
+	out, err = d.Command(ctx, "sight", []string{"off", "debug"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "sight: debug → off" {
+		t.Errorf("sight off = %q", out)
+	}
+	if d.SightManager().IsGateOpen("debug") {
+		t.Error("debug gate should be closed")
+	}
+
+	// Reveal.
+	out, err = d.Command(ctx, "sight", []string{"reveal", "debug.latency"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "sight: debug.latency → revealed" {
+		t.Errorf("sight reveal = %q", out)
+	}
+	if !d.SightManager().IsRevealed("debug", "latency") {
+		t.Error("debug.latency should be revealed")
+	}
+
+	// Hide.
+	out, err = d.Command(ctx, "sight", []string{"hide", "debug.latency"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "sight: debug.latency → hidden" {
+		t.Errorf("sight hide = %q", out)
+	}
+	if d.SightManager().IsRevealed("debug", "latency") {
+		t.Error("debug.latency should be hidden")
+	}
+
+	// Usage errors.
+	_, err = d.Command(ctx, "sight", []string{"on"})
+	if err == nil {
+		t.Error("sight on without panel should error")
+	}
+
+	_, err = d.Command(ctx, "sight", []string{"reveal", "nopanel"})
+	if err == nil {
+		t.Error("sight reveal without panel.field should error")
+	}
+
+	_, err = d.Command(ctx, "sight", []string{"bogus"})
+	if err == nil {
+		t.Error("sight with unknown subcommand should error")
+	}
+}
+
 func TestDjinn_Command_Unknown_DelegatesToHandler(t *testing.T) {
 	d := NewDjinn()
 	d.OnCommand = func(_ context.Context, name string, args []string) (string, error) {

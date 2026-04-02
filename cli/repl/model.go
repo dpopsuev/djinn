@@ -353,11 +353,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocy
 		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
 
 		// Inject cell sight into prompt if the active panel supports it (GOL-62).
+		// SightManager gates override panel's own SightGate, and field
+		// sensitivity overrides allow operator-controlled reveal/hide.
 		prompt := msg.Value
+		sightMgr := m.term.SightManager()
 		if provider, ok := m.focus.Active().(tui.Sighted); ok {
-			if provider.SightGate() {
-				if fc := provider.CellSight(); !fc.IsEmpty() {
-					prompt = fc.FormatPrompt() + "\n\n" + prompt
+			panelGate := provider.SightGate()
+			mgrGate := sightMgr.IsGateOpen(provider.CellSight().PanelID)
+			if panelGate && mgrGate {
+				if cs := provider.CellSight(); !cs.IsEmpty() {
+					cs = sightMgr.ApplyCellSight(cs)
+					prompt = cs.FormatPrompt() + "\n\n" + prompt
 				}
 			}
 		}
