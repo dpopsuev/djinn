@@ -17,14 +17,31 @@ import (
 // The agent cannot inject commands, modify input, trigger dialogs, or change layout.
 // All agent output is confined to the output panel.
 
+// MaxSightHintsPerTurn limits SightHintMsg per agent turn.
+// Prevents agent from spamming highlight/pulse to distract operator.
+// STRIDE T (Tampering) mitigation at trust boundary TB-1.
+const MaxSightHintsPerTurn = 3
+
 // BubbletaHandler bridges agent.EventHandler to Bubbletea messages.
 type BubbletaHandler struct {
-	program *tea.Program
+	program   *tea.Program
+	hintCount int // SightHintMsg count in current turn
 }
 
 // NewHandler creates a handler that sends events to the given program.
 func NewHandler(p *tea.Program) *BubbletaHandler {
 	return &BubbletaHandler{program: p}
+}
+
+// EmitSightHint sends a SightHintMsg if under the per-turn rate limit.
+// Excess hints are silently dropped. Counter resets on OnDone/OnError.
+func (h *BubbletaHandler) EmitSightHint(hint SightHintMsg) bool {
+	if h.hintCount >= MaxSightHintsPerTurn {
+		return false // dropped
+	}
+	h.hintCount++
+	h.program.Send(hint)
+	return true
 }
 
 func (h *BubbletaHandler) OnText(text string) {
@@ -66,9 +83,11 @@ func (h *BubbletaHandler) OnToolResult(callID, name, output string, isError bool
 }
 
 func (h *BubbletaHandler) OnDone(usage *driver.Usage) {
+	h.hintCount = 0 // reset hint rate limit for next turn
 	h.program.Send(DoneMsg{Usage: usage})
 }
 
 func (h *BubbletaHandler) OnError(err error) {
+	h.hintCount = 0 // reset hint rate limit for next turn
 	h.program.Send(ErrorMsg{Err: err})
 }

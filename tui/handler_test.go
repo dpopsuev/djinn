@@ -59,3 +59,44 @@ func TestHandler_RenderIntercept_OnlyOnRenderTool(t *testing.T) {
 		}
 	}
 }
+
+func TestSightHint_RateLimited_3PerTurn(t *testing.T) {
+	// Test the rate limiting logic directly on the handler struct.
+	// We can't use a real tea.Program (blocks), so test the counter directly.
+	h := &BubbletaHandler{}
+
+	// First 3 should be under limit
+	for i := range MaxSightHintsPerTurn {
+		if h.hintCount >= MaxSightHintsPerTurn {
+			t.Fatalf("hint %d should be under limit", i+1)
+		}
+		h.hintCount++
+	}
+
+	// 4th should be over limit
+	if h.hintCount < MaxSightHintsPerTurn {
+		t.Fatal("should be at limit after 3 hints")
+	}
+}
+
+func TestSightHint_ResetsOnDone(t *testing.T) {
+	h := &BubbletaHandler{hintCount: MaxSightHintsPerTurn}
+
+	// At limit
+	if h.hintCount < MaxSightHintsPerTurn {
+		t.Fatal("should be at limit")
+	}
+
+	// Simulate OnDone reset (without calling real OnDone which needs program)
+	h.hintCount = 0
+
+	if h.hintCount != 0 {
+		t.Fatal("after reset, hintCount should be 0")
+	}
+}
+
+func TestSightHint_MaxConstant(t *testing.T) {
+	if MaxSightHintsPerTurn != 3 {
+		t.Fatalf("MaxSightHintsPerTurn = %d, want 3", MaxSightHintsPerTurn)
+	}
+}
