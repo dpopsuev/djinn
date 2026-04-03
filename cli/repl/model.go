@@ -210,7 +210,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		initialPrompt:  cfg.InitialPrompt,
 		version:        cfg.Version,
 		router:         cfg.Router,
-		worktreeMgr:    vcs.NewWorktreeManager(cfg.Session.WorkDir),
+		worktreeMgr:    vcs.NewWorktreeManager(cfg.Session.WorkDir, nil),
 		tuiRecorder:    cfg.TUIRecorder,
 		chunkedBuf:     &strings.Builder{},
 		rawStreamLine:  &strings.Builder{},

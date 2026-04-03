@@ -12,11 +12,14 @@ package vcs
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/dpopsuev/djinn/djinnlog"
 )
 
 const (
@@ -35,11 +38,16 @@ type WorktreeInfo struct {
 // WorktreeManager manages git worktrees for executor task isolation.
 type WorktreeManager struct {
 	repoRoot string
+	log      *slog.Logger
 }
 
 // NewWorktreeManager creates a manager for the given repo root.
-func NewWorktreeManager(repoRoot string) *WorktreeManager {
-	return &WorktreeManager{repoRoot: repoRoot}
+// Pass nil for log to discard all output.
+func NewWorktreeManager(repoRoot string, log *slog.Logger) *WorktreeManager {
+	if log == nil {
+		log = djinnlog.Nop()
+	}
+	return &WorktreeManager{repoRoot: repoRoot, log: log}
 }
 
 // Create makes a new worktree and branch for a task.
@@ -51,13 +59,30 @@ func (m *WorktreeManager) Create(taskID string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
+	start := time.Now()
+
 	// Create the worktree with a new branch from current HEAD.
 	cmd := exec.CommandContext(ctx, "git", "worktree", "add", wtPath, "-b", branch)
 	cmd.Dir = m.repoRoot
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		// Orange: git command failure
+		m.log.WarnContext(ctx, "worktree create failed",
+			slog.String(djinnlog.KeyAction, "create"),
+			slog.String(djinnlog.KeyPath, wtPath),
+			slog.String(djinnlog.KeyError, strings.TrimSpace(string(out))),
+		)
 		return "", fmt.Errorf("git worktree add: %s: %w", strings.TrimSpace(string(out)), err)
 	}
+
+	// Yellow: worktree created
+	m.log.InfoContext(ctx, "worktree created",
+		slog.String(djinnlog.KeyAction, "create"),
+		slog.String(djinnlog.KeyPath, wtPath),
+		slog.String(djinnlog.KeyBranch, branch),
+		slog.String(djinnlog.KeyTaskID, taskID),
+		slog.Duration(djinnlog.KeyDuration, time.Since(start)),
+	)
 
 	return wtPath, nil
 }
@@ -76,8 +101,20 @@ func (m *WorktreeManager) Remove(taskID string) error {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		// If worktree dir doesn't exist, try to prune stale entries.
 		if _, statErr := os.Stat(wtPath); os.IsNotExist(statErr) {
+			// Orange: stale worktree detected
+			m.log.WarnContext(ctx, "stale worktree detected",
+				slog.String(djinnlog.KeyAction, "prune"),
+				slog.String(djinnlog.KeyPath, wtPath),
+				slog.String(djinnlog.KeyReason, "directory does not exist"),
+			)
 			exec.CommandContext(ctx, "git", "worktree", "prune").Run() //nolint:errcheck // test helper, error checked elsewhere
 		} else {
+			// Orange: git command failure
+			m.log.WarnContext(ctx, "worktree remove failed",
+				slog.String(djinnlog.KeyAction, "remove"),
+				slog.String(djinnlog.KeyPath, wtPath),
+				slog.String(djinnlog.KeyError, strings.TrimSpace(string(out))),
+			)
 			return fmt.Errorf("git worktree remove: %s: %w", strings.TrimSpace(string(out)), err)
 		}
 	}
@@ -87,6 +124,12 @@ func (m *WorktreeManager) Remove(taskID string) error {
 	branchCmd.Dir = m.repoRoot
 	branchCmd.Run() //nolint:errcheck // branch may already be gone
 
+	// Yellow: worktree removed
+	m.log.InfoContext(ctx, "worktree removed",
+		slog.String(djinnlog.KeyAction, "remove"),
+		slog.String(djinnlog.KeyPath, wtPath),
+	)
+
 	return nil
 }
 
@@ -95,10 +138,17 @@ func (m *WorktreeManager) List() ([]WorktreeInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
+	start := time.Now()
+
 	cmd := exec.CommandContext(ctx, "git", "worktree", "list", "--porcelain")
 	cmd.Dir = m.repoRoot
 	out, err := cmd.Output()
 	if err != nil {
+		// Orange: git command failure
+		m.log.WarnContext(ctx, "worktree list failed",
+			slog.String(djinnlog.KeyAction, "list"),
+			slog.String(djinnlog.KeyError, err.Error()),
+		)
 		return nil, fmt.Errorf("git worktree list: %w", err)
 	}
 
@@ -125,6 +175,13 @@ func (m *WorktreeManager) List() ([]WorktreeInfo, error) {
 			currentBranch = ""
 		}
 	}
+
+	// Yellow: worktree listed
+	m.log.DebugContext(ctx, "worktrees listed",
+		slog.String(djinnlog.KeyAction, "list"),
+		slog.Int(djinnlog.KeyCount, len(infos)),
+		slog.Duration(djinnlog.KeyDuration, time.Since(start)),
+	)
 
 	return infos, nil
 }

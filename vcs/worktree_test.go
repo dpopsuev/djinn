@@ -30,7 +30,7 @@ func initTestRepo(t *testing.T) string {
 
 func TestWorktreeManager_CreateAndList(t *testing.T) {
 	repo := initTestRepo(t)
-	mgr := NewWorktreeManager(repo)
+	mgr := NewWorktreeManager(repo, nil)
 
 	path, err := mgr.Create("TSK-108")
 	if err != nil {
@@ -60,7 +60,7 @@ func TestWorktreeManager_CreateAndList(t *testing.T) {
 
 func TestWorktreeManager_Remove(t *testing.T) {
 	repo := initTestRepo(t)
-	mgr := NewWorktreeManager(repo)
+	mgr := NewWorktreeManager(repo, nil)
 
 	mgr.Create("TSK-109") //nolint:errcheck // error intentionally ignored
 
@@ -83,7 +83,7 @@ func TestWorktreeManager_Remove(t *testing.T) {
 
 func TestWorktreeManager_ParallelWorktrees(t *testing.T) {
 	repo := initTestRepo(t)
-	mgr := NewWorktreeManager(repo)
+	mgr := NewWorktreeManager(repo, nil)
 
 	path1, err := mgr.Create("TSK-110")
 	if err != nil {
@@ -116,14 +116,14 @@ func TestWorktreeManager_ParallelWorktrees(t *testing.T) {
 }
 
 func TestWorktreeManager_Path(t *testing.T) {
-	mgr := NewWorktreeManager("/home/user/repo")
+	mgr := NewWorktreeManager("/home/user/repo", nil)
 	if mgr.Path("TSK-112") != "/home/user/repo/.worktrees/TSK-112" {
 		t.Fatalf("path = %q", mgr.Path("TSK-112"))
 	}
 }
 
 func TestWorktreeManager_Branch(t *testing.T) {
-	mgr := NewWorktreeManager("/any")
+	mgr := NewWorktreeManager("/any", nil)
 	if mgr.Branch("TSK-113") != "djinn/TSK-113" {
 		t.Fatalf("branch = %q", mgr.Branch("TSK-113"))
 	}

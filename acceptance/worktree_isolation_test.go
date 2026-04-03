@@ -44,7 +44,7 @@ func initAcceptanceRepo(t *testing.T) string {
 
 func TestWorktree_CreateWriteVerifyMainUnaffected(t *testing.T) {
 	repo := initAcceptanceRepo(t)
-	mgr := vcs.NewWorktreeManager(repo)
+	mgr := vcs.NewWorktreeManager(repo, nil)
 
 	// Create worktree for a task.
 	wtPath, err := mgr.Create("TSK-200")
@@ -77,7 +77,7 @@ func TestWorktree_CreateWriteVerifyMainUnaffected(t *testing.T) {
 
 func TestWorktree_ParallelWorktreesDontConflict(t *testing.T) {
 	repo := initAcceptanceRepo(t)
-	mgr := vcs.NewWorktreeManager(repo)
+	mgr := vcs.NewWorktreeManager(repo, nil)
 
 	wt1, err := mgr.Create("TSK-201")
 	if err != nil {
@@ -111,7 +111,7 @@ func TestWorktree_ParallelWorktreesDontConflict(t *testing.T) {
 
 func TestWorktree_CleanupOnRemove(t *testing.T) {
 	repo := initAcceptanceRepo(t)
-	mgr := vcs.NewWorktreeManager(repo)
+	mgr := vcs.NewWorktreeManager(repo, nil)
 
 	wtPath, err := mgr.Create("TSK-203")
 	if err != nil {

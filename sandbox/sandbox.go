@@ -7,7 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
+	"time"
+
+	"github.com/dpopsuev/djinn/djinnlog"
 )
 
 // Handle identifies a running sandbox instance.
@@ -76,3 +80,104 @@ func Available() []string {
 	}
 	return names
 }
+
+// LoggingSandbox wraps a Sandbox with structured logging.
+// All operations are logged; the underlying sandbox does the real work.
+type LoggingSandbox struct {
+	inner Sandbox
+	log   *slog.Logger
+}
+
+// WithLogging wraps a Sandbox with structured logging.
+// Pass nil for log to discard all output.
+func WithLogging(sb Sandbox, log *slog.Logger) *LoggingSandbox {
+	if log == nil {
+		log = djinnlog.Nop()
+	}
+	return &LoggingSandbox{inner: sb, log: log}
+}
+
+func (s *LoggingSandbox) Name() string { return s.inner.Name() }
+
+func (s *LoggingSandbox) Create(ctx context.Context, level string, repos []string) (Handle, error) {
+	start := time.Now()
+	handle, err := s.inner.Create(ctx, level, repos)
+	if err != nil {
+		// Orange: sandbox creation failure
+		s.log.WarnContext(ctx, "sandbox create failed",
+			slog.String(djinnlog.KeyAction, "create"),
+			slog.String(djinnlog.KeyBackend, s.inner.Name()),
+			slog.String(djinnlog.KeyLevel, level),
+			slog.String(djinnlog.KeyError, err.Error()),
+		)
+		return handle, err
+	}
+	// Yellow: sandbox created
+	s.log.InfoContext(ctx, "sandbox created",
+		slog.String(djinnlog.KeyAction, "create"),
+		slog.String(djinnlog.KeyBackend, s.inner.Name()),
+		slog.String(djinnlog.KeyLevel, level),
+		slog.Duration(djinnlog.KeyDuration, time.Since(start)),
+	)
+	return handle, nil
+}
+
+func (s *LoggingSandbox) Destroy(ctx context.Context, handle Handle) error {
+	err := s.inner.Destroy(ctx, handle)
+	if err != nil {
+		// Orange: destroy failure
+		s.log.WarnContext(ctx, "sandbox destroy failed",
+			slog.String(djinnlog.KeyAction, "destroy"),
+			slog.String(djinnlog.KeyBackend, s.inner.Name()),
+			slog.String(djinnlog.KeyError, err.Error()),
+		)
+		return err
+	}
+	// Yellow: sandbox destroyed
+	s.log.InfoContext(ctx, "sandbox destroyed",
+		slog.String(djinnlog.KeyAction, "destroy"),
+		slog.String(djinnlog.KeyBackend, s.inner.Name()),
+	)
+	return nil
+}
+
+func (s *LoggingSandbox) Exec(ctx context.Context, handle Handle, cmd []string, timeout int64) (ExecResult, error) {
+	start := time.Now()
+	// Yellow: exec started
+	s.log.DebugContext(ctx, "sandbox exec started",
+		slog.String(djinnlog.KeyAction, "exec"),
+		slog.String(djinnlog.KeyBackend, s.inner.Name()),
+	)
+	result, err := s.inner.Exec(ctx, handle, cmd, timeout)
+	if err != nil {
+		// Orange: exec failure
+		s.log.WarnContext(ctx, "sandbox exec failed",
+			slog.String(djinnlog.KeyAction, "exec"),
+			slog.String(djinnlog.KeyBackend, s.inner.Name()),
+			slog.String(djinnlog.KeyError, err.Error()),
+			slog.Duration(djinnlog.KeyDuration, time.Since(start)),
+		)
+		return result, err
+	}
+	if result.ExitCode != 0 {
+		// Orange: non-zero exit code
+		s.log.WarnContext(ctx, "sandbox exec non-zero exit",
+			slog.String(djinnlog.KeyAction, "exec"),
+			slog.String(djinnlog.KeyBackend, s.inner.Name()),
+			slog.Int(djinnlog.KeyExitCode, int(result.ExitCode)),
+			slog.Duration(djinnlog.KeyDuration, time.Since(start)),
+		)
+	} else {
+		// Yellow: exec completed
+		s.log.DebugContext(ctx, "sandbox exec completed",
+			slog.String(djinnlog.KeyAction, "exec"),
+			slog.String(djinnlog.KeyBackend, s.inner.Name()),
+			slog.Int(djinnlog.KeyExitCode, int(result.ExitCode)),
+			slog.Duration(djinnlog.KeyDuration, time.Since(start)),
+		)
+	}
+	return result, nil
+}
+
+// Ensure interface compliance.
+var _ Sandbox = (*LoggingSandbox)(nil)

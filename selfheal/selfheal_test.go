@@ -247,7 +247,7 @@ func initTestRepo(t *testing.T) string {
 
 func TestHarnessRunFix_Success(t *testing.T) {
 	repoDir := initTestRepo(t)
-	wm := vcs.NewWorktreeManager(repoDir)
+	wm := vcs.NewWorktreeManager(repoDir, nil)
 	h := NewHarness(wm)
 
 	ctx := context.Background()
@@ -275,7 +275,7 @@ func TestHarnessRunFix_Success(t *testing.T) {
 
 func TestHarnessRunFix_InstructionFails(t *testing.T) {
 	repoDir := initTestRepo(t)
-	wm := vcs.NewWorktreeManager(repoDir)
+	wm := vcs.NewWorktreeManager(repoDir, nil)
 	h := NewHarness(wm)
 
 	ctx := context.Background()
@@ -300,7 +300,7 @@ func TestHarnessRunFix_InstructionFails(t *testing.T) {
 
 func TestHarnessRunFix_CreateError(t *testing.T) {
 	// Use a non-existent repo root so Create fails.
-	wm := vcs.NewWorktreeManager("/nonexistent/repo/path")
+	wm := vcs.NewWorktreeManager("/nonexistent/repo/path", nil)
 	h := NewHarness(wm)
 
 	ctx := context.Background()
@@ -312,7 +312,7 @@ func TestHarnessRunFix_CreateError(t *testing.T) {
 
 func TestHarnessCleanup(t *testing.T) {
 	repoDir := initTestRepo(t)
-	wm := vcs.NewWorktreeManager(repoDir)
+	wm := vcs.NewWorktreeManager(repoDir, nil)
 	h := NewHarness(wm)
 
 	// First create a worktree so there's something to clean up.
@@ -339,7 +339,7 @@ func TestHarnessCleanup_Error(t *testing.T) {
 	// metadata, and pre-create the worktree directory so os.Stat succeeds
 	// (which causes Remove to return the git error instead of silently pruning).
 	fakeRepo := t.TempDir()
-	wm := vcs.NewWorktreeManager(fakeRepo)
+	wm := vcs.NewWorktreeManager(fakeRepo, nil)
 
 	// Create the directory that Remove will stat-check.
 	wtPath := wm.Path("bad-fix")
@@ -452,7 +452,7 @@ func TestGateValidate_ExactBoundary(t *testing.T) {
 func TestOrchestratorAttempt_CircuitOpen(t *testing.T) {
 	ring := trace.NewRing(100)
 	repoDir := initTestRepo(t)
-	wm := vcs.NewWorktreeManager(repoDir)
+	wm := vcs.NewWorktreeManager(repoDir, nil)
 	h := NewHarness(wm)
 	orch := NewOrchestrator(ring, h)
 
@@ -476,7 +476,7 @@ func TestOrchestratorAttempt_BuildFails(t *testing.T) {
 
 	// Overwrite the Go files with invalid Go code so build fails in the worktree.
 	// We'll use instructions that corrupt the Go code.
-	wm := vcs.NewWorktreeManager(repoDir)
+	wm := vcs.NewWorktreeManager(repoDir, nil)
 	h := NewHarness(wm)
 	orch := NewOrchestrator(ring, h)
 
@@ -506,7 +506,7 @@ func TestOrchestratorAttempt_BuildFails(t *testing.T) {
 func TestOrchestratorHistory(t *testing.T) {
 	ring := trace.NewRing(100)
 	repoDir := initTestRepo(t)
-	wm := vcs.NewWorktreeManager(repoDir)
+	wm := vcs.NewWorktreeManager(repoDir, nil)
 	h := NewHarness(wm)
 	orch := NewOrchestrator(ring, h)
 

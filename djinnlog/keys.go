@@ -62,3 +62,16 @@ const (
 	KeyFrom     LogKey = "from"     // transition source
 	KeyTo       LogKey = "to"       // transition target
 )
+
+// Domain keys — workstream, sandbox, VCS.
+const (
+	KeyBackend      LogKey = "backend"        // sandbox backend name
+	KeyLevel        LogKey = "level"          // sandbox isolation level
+	KeyExitCode     LogKey = "exit_code"      // process exit code
+	KeyBranch       LogKey = "branch"         // git branch name
+	KeyTaskID       LogKey = "task_id"        // task identifier
+	KeyWorkstreamID LogKey = "workstream_id"  // workstream identifier
+	KeyIntentID     LogKey = "intent_id"      // operator intent identifier
+	KeySource       LogKey = "source"         // event source (e.g., watchdog name)
+	KeyQueuePos     LogKey = "queue_position" // position in queue
+)

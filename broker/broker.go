@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/dpopsuev/djinn/ari"
+	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/tier"
@@ -24,6 +26,8 @@ var ErrWorkstreamNotFound = errors.New("workstream not found or not running")
 // Broker is the central hub that composes the orchestrator, signal bus, cordons,
 // and ports. It receives intents, drives orchestration, and reports health.
 type Broker struct {
+	log *slog.Logger
+
 	orch        orchestrator.Orchestrator
 	bus         *signal.SignalBus
 	cordons     *CordonRegistry
@@ -41,6 +45,7 @@ type Broker struct {
 
 // BrokerConfig holds the dependencies for creating a Broker.
 type BrokerConfig struct {
+	Logger        *slog.Logger // nil = djinnlog.Nop()
 	Orchestrator  orchestrator.Orchestrator
 	Bus           *signal.SignalBus
 	Cordons       *CordonRegistry
@@ -61,7 +66,12 @@ func withMaxConcurrentFromConfig(n int) []RegistryOption {
 
 // NewBroker creates a new broker from its dependencies.
 func NewBroker(cfg *BrokerConfig) *Broker {
+	log := cfg.Logger
+	if log == nil {
+		log = djinnlog.Nop()
+	}
 	return &Broker{
+		log:         log,
 		orch:        cfg.Orchestrator,
 		bus:         cfg.Bus,
 		cordons:     cfg.Cordons,
@@ -85,6 +95,12 @@ func (b *Broker) Start(ctx context.Context) {
 	b.bus.OnSignal(func(s signal.Signal) {
 		if s.Level == signal.Black && len(s.Scope) > 0 {
 			b.cordons.Set(s.Scope, s.Message, s.Source)
+			// Orange: cordon triggered
+			b.log.WarnContext(ctx, "cordon triggered",
+				slog.String(djinnlog.KeyAction, "cordon"),
+				slog.String(djinnlog.KeyReason, s.Message),
+				slog.String(djinnlog.KeySource, s.Source),
+			)
 		}
 	})
 
@@ -98,11 +114,19 @@ func (b *Broker) Start(ctx context.Context) {
 // HandleIntent processes a single intent: build plan, execute, relay events.
 func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 	plan := b.planFactory(intent)
+	startedAt := time.Now()
 
 	scopes := make([]tier.Scope, len(plan.Stages))
 	for i := range plan.Stages {
 		scopes[i] = plan.Stages[i].Scope
 	}
+
+	// Yellow: workstream created
+	b.log.InfoContext(ctx, "workstream created",
+		slog.String(djinnlog.KeyAction, "create"),
+		slog.String(djinnlog.KeyIntentID, intent.ID),
+		slog.Int(djinnlog.KeyCount, len(plan.Stages)),
+	)
 
 	wsBus := signal.NewSignalBus()
 	ws := &WorkstreamInfo{
@@ -113,11 +137,17 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 		Scopes:    scopes,
 		Health:    signal.Green,
 		Bus:       wsBus,
-		StartedAt: time.Now(),
+		StartedAt: startedAt,
 	}
 
 	registered, queuePos := b.workstreams.TryRegister(ws)
 	if !registered {
+		// Orange: queue full / rejected
+		b.log.WarnContext(ctx, "workstream queued",
+			slog.String(djinnlog.KeyIntentID, intent.ID),
+			slog.Int(djinnlog.KeyQueuePos, queuePos),
+			slog.String(djinnlog.KeyReason, "concurrency limit reached"),
+		)
 		b.operator.EmitResult(ari.Result{
 			IntentID: intent.ID,
 			Success:  false,
@@ -139,6 +169,11 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 
 	ch, err := b.orch.Execute(execCtx, plan)
 	if err != nil {
+		// Orange: execution error
+		b.log.WarnContext(ctx, "workstream execution error",
+			slog.String(djinnlog.KeyIntentID, intent.ID),
+			slog.String(djinnlog.KeyError, err.Error()),
+		)
 		b.workstreams.Complete(plan.ID, WorkstreamFailed)
 		b.operator.EmitResult(ari.Result{
 			IntentID: intent.ID,
@@ -162,8 +197,21 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 	success := lastEvent.Kind == orchestrator.ExecutionDone && lastEvent.Message == orchestrator.ExecutionSuccess
 	if success {
 		b.workstreams.Complete(plan.ID, WorkstreamCompleted)
+		// Yellow: workstream completed
+		b.log.InfoContext(ctx, "workstream completed",
+			slog.String(djinnlog.KeyIntentID, intent.ID),
+			slog.String(djinnlog.KeyStatus, string(WorkstreamCompleted)),
+			slog.Duration(djinnlog.KeyDuration, time.Since(startedAt)),
+		)
 	} else {
 		b.workstreams.Complete(plan.ID, WorkstreamFailed)
+		// Orange: workstream failed
+		b.log.WarnContext(ctx, "workstream failed",
+			slog.String(djinnlog.KeyIntentID, intent.ID),
+			slog.String(djinnlog.KeyStatus, string(WorkstreamFailed)),
+			slog.String(djinnlog.KeyReason, lastEvent.Message),
+			slog.Duration(djinnlog.KeyDuration, time.Since(startedAt)),
+		)
 	}
 
 	b.operator.EmitResult(ari.Result{
@@ -191,6 +239,13 @@ func (b *Broker) CancelWorkstream(id string) error {
 	}
 	cancel()
 	b.workstreams.Complete(id, WorkstreamCanceled)
+
+	// Yellow: workstream canceled
+	b.log.InfoContext(context.Background(), "workstream canceled",
+		slog.String(djinnlog.KeyAction, "cancel"),
+		slog.String(djinnlog.KeyWorkstreamID, id),
+		slog.String(djinnlog.KeyStatus, string(WorkstreamCanceled)),
+	)
 	return nil
 }
 
