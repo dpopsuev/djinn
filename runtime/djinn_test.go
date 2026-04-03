@@ -45,7 +45,7 @@ func TestNew_DefaultConfig(t *testing.T) {
 func TestNew_CustomConfig(t *testing.T) {
 	cfg := Config{
 		StaffCfg:      testStaffConfig(),
-		Registry:      builtin.NewRegistry(),
+		Executor:      builtin.NewRegistry(),
 		Enforcer:      policy.NopToolPolicyEnforcer{},
 		Session:       session.New("test-id", "claude-4", "/tmp/work"),
 		InitialRole:   "executor",
@@ -67,7 +67,7 @@ func TestNew_CustomConfig(t *testing.T) {
 func TestSwitchRole(t *testing.T) {
 	cfg := Config{
 		StaffCfg: testStaffConfig(),
-		Registry: builtin.NewRegistry(),
+		Executor: builtin.NewRegistry(),
 	}
 	d := New(cfg)
 
@@ -101,7 +101,7 @@ func TestSwitchRole(t *testing.T) {
 func TestSwitchRole_UpdatesToken(t *testing.T) {
 	cfg := Config{
 		StaffCfg:    testStaffConfig(),
-		Registry:    builtin.NewRegistry(),
+		Executor:    builtin.NewRegistry(),
 		InitialRole: "gensec",
 	}
 	d := New(cfg)
@@ -164,7 +164,7 @@ func TestSandboxExec_Set(t *testing.T) {
 func TestResolvedTools_Sorted(t *testing.T) {
 	cfg := Config{
 		StaffCfg:    testStaffConfig(),
-		Registry:    builtin.NewRegistry(),
+		Executor:    builtin.NewRegistry(),
 		InitialRole: "executor",
 	}
 	d := New(cfg)
@@ -180,7 +180,7 @@ func TestResolvedTools_Sorted(t *testing.T) {
 func TestSwitchRole_UnknownRole(t *testing.T) {
 	d := New(Config{
 		StaffCfg: testStaffConfig(),
-		Registry: builtin.NewRegistry(),
+		Executor: builtin.NewRegistry(),
 	})
 
 	d.SwitchRole("nonexistent")
@@ -196,7 +196,7 @@ func TestSwitchRole_UnknownRole(t *testing.T) {
 func TestClearance_ReturnsSameInstance(t *testing.T) {
 	d := New(Config{
 		StaffCfg: testStaffConfig(),
-		Registry: builtin.NewRegistry(),
+		Executor: builtin.NewRegistry(),
 	})
 	c1 := d.Clearance()
 	c2 := d.Clearance()

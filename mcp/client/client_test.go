@@ -180,6 +180,28 @@ func TestMCPTools_Adapter(t *testing.T) {
 	}
 }
 
+func TestMCPTool_RawName_ServerName(t *testing.T) {
+	srv := httptest.NewServer(mockMCPHandler(t))
+	defer srv.Close()
+
+	c := New(djinnlog.Nop())
+	defer c.Close()
+	c.ConnectHTTP(context.Background(), "scribe", srv.URL)
+
+	tools := c.MCPTools()
+	if len(tools) == 0 {
+		t.Fatal("no tools")
+	}
+
+	tool := tools[0]
+	if tool.RawName() != "artifact" && tool.RawName() != "graph" {
+		t.Fatalf("RawName = %q, expected artifact or graph", tool.RawName())
+	}
+	if tool.ServerName() != "scribe" {
+		t.Fatalf("ServerName = %q, expected scribe", tool.ServerName())
+	}
+}
+
 func TestClose(t *testing.T) {
 	srv := httptest.NewServer(mockMCPHandler(t))
 	defer srv.Close()
@@ -217,6 +239,46 @@ mcp:
 	}
 	if configs["lex"].IsHTTP() {
 		t.Fatal("lex should be stdio")
+	}
+}
+
+func TestLoadMCPConfig_MCPServersKey(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "djinn.yaml"), []byte(`
+mcp_servers:
+  scribe:
+    command: "scribe"
+    args: ["serve"]
+  locus:
+    url: "http://localhost:8090/"
+`), 0o644)
+
+	configs := LoadMCPConfig(dir)
+	if len(configs) != 2 {
+		t.Fatalf("configs = %d, want 2", len(configs))
+	}
+	if configs["scribe"].Command != "scribe" {
+		t.Fatalf("scribe.Command = %q", configs["scribe"].Command)
+	}
+	if !configs["locus"].IsHTTP() {
+		t.Fatal("locus should be HTTP")
+	}
+}
+
+func TestLoadMCPConfig_MCPServersOverridesMCP(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "djinn.yaml"), []byte(`
+mcp:
+  scribe:
+    url: "http://old:8080/"
+mcp_servers:
+  scribe:
+    url: "http://new:9090/"
+`), 0o644)
+
+	configs := LoadMCPConfig(dir)
+	if configs["scribe"].URL != "http://new:9090/" {
+		t.Fatalf("mcp_servers should override mcp, got URL = %q", configs["scribe"].URL)
 	}
 }
 

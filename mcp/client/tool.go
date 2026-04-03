@@ -47,6 +47,16 @@ func (t *MCPTool) InputSchema() json.RawMessage {
 	return t.def.InputSchema
 }
 
+// RawName returns the unpreixed tool name as declared by the MCP server.
+func (t *MCPTool) RawName() string {
+	return t.def.Name
+}
+
+// ServerName returns which MCP server this tool belongs to.
+func (t *MCPTool) ServerName() string {
+	return t.serverName
+}
+
 // Execute calls the MCP server's tools/call endpoint.
 func (t *MCPTool) Execute(ctx context.Context, input json.RawMessage) (string, error) {
 	return t.client.Call(ctx, t.serverName, t.def.Name, input)

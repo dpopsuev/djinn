@@ -35,12 +35,18 @@ func loadDjinnYAML(path string, servers map[string]ServerConfig) {
 		return
 	}
 	var cfg struct {
-		MCP map[string]ServerConfig `yaml:"mcp"`
+		MCP        map[string]ServerConfig `yaml:"mcp"`
+		MCPServers map[string]ServerConfig `yaml:"mcp_servers"`
 	}
 	if yaml.Unmarshal(data, &cfg) != nil {
 		return
 	}
+	// "mcp" key (legacy/existing format).
 	for name, sc := range cfg.MCP {
+		servers[name] = sc
+	}
+	// "mcp_servers" key (new Configurable format) — takes precedence.
+	for name, sc := range cfg.MCPServers {
 		servers[name] = sc
 	}
 }

@@ -2,6 +2,10 @@ package mcp
 
 import (
 	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -190,5 +194,90 @@ func TestUnknownMethod(t *testing.T) {
 	}
 	if err.Error() != "unknown method: resources/list" {
 		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestHTTPHandler_Initialize(t *testing.T) {
+	mock := NewMockMCPServer()
+	srv := httptest.NewServer(mock.HTTPHandler())
+	defer srv.Close()
+
+	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}`
+	resp, err := http.Post(srv.URL, "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+
+	data, _ := io.ReadAll(resp.Body)
+	var rpcResp jsonRPCResponse
+	if err := json.Unmarshal(data, &rpcResp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if rpcResp.Error != nil {
+		t.Fatalf("error: %v", rpcResp.Error)
+	}
+	if rpcResp.Result == nil {
+		t.Fatal("result should not be nil")
+	}
+}
+
+func TestHTTPHandler_ToolsCall(t *testing.T) {
+	mock := NewMockMCPServer()
+	mock.RegisterTool("greet", "Say hello", "hello from HTTP")
+
+	srv := httptest.NewServer(mock.HTTPHandler())
+	defer srv.Close()
+
+	body := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"greet","arguments":{}}}`
+	resp, err := http.Post(srv.URL, "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	defer resp.Body.Close()
+
+	data, _ := io.ReadAll(resp.Body)
+	var rpcResp jsonRPCResponse
+	if err := json.Unmarshal(data, &rpcResp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	var result struct {
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+	}
+	if err := json.Unmarshal(rpcResp.Result, &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if len(result.Content) != 1 || result.Content[0].Text != "hello from HTTP" {
+		t.Fatalf("content = %v", result.Content)
+	}
+}
+
+func TestHTTPHandler_UnknownTool_ReturnsError(t *testing.T) {
+	mock := NewMockMCPServer()
+	srv := httptest.NewServer(mock.HTTPHandler())
+	defer srv.Close()
+
+	body := `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"nonexistent","arguments":{}}}`
+	resp, err := http.Post(srv.URL, "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	defer resp.Body.Close()
+
+	data, _ := io.ReadAll(resp.Body)
+	var rpcResp jsonRPCResponse
+	if err := json.Unmarshal(data, &rpcResp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if rpcResp.Error == nil {
+		t.Fatal("expected error for unknown tool")
 	}
 }

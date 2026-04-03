@@ -25,11 +25,11 @@ import (
 // Sentinel errors for ToolClearance.
 var ErrToolNotAllowed = errors.New("tool not available for role")
 
-// ToolClearance wraps a tool registry with role-based capability filtering.
+// ToolClearance wraps a tool executor with role-based capability filtering.
 // The agent sees only the tools that belong to the current role's capabilities.
 type ToolClearance struct {
 	mu       sync.RWMutex
-	registry *builtin.Registry
+	executor builtin.ToolExecutor
 	config   *StaffConfig
 	role     string // current active role
 
@@ -39,9 +39,10 @@ type ToolClearance struct {
 }
 
 // NewToolClearance creates a clearance filter that restricts tools by role capabilities.
-func NewToolClearance(cfg *StaffConfig, registry *builtin.Registry, initialRole string) *ToolClearance {
+// The executor can be a *builtin.Registry, a *builtin.CompositeExecutor, or any ToolExecutor.
+func NewToolClearance(cfg *StaffConfig, executor builtin.ToolExecutor, initialRole string) *ToolClearance {
 	r := &ToolClearance{
-		registry: registry,
+		executor: executor,
 		config:   cfg,
 		allowed:  make(map[string]bool),
 	}
@@ -90,7 +91,7 @@ func (r *ToolClearance) Execute(ctx context.Context, name string, input json.Raw
 	if !allowed {
 		return "", fmt.Errorf("%w: %q for %q", ErrToolNotAllowed, name, r.role)
 	}
-	return r.registry.Execute(ctx, name, input)
+	return r.executor.Execute(ctx, name, input)
 }
 
 // All returns only the tools visible to the current role.
@@ -99,7 +100,7 @@ func (r *ToolClearance) All() []builtin.Tool {
 	defer r.mu.RUnlock()
 
 	var visible []builtin.Tool
-	for _, tool := range r.registry.All() {
+	for _, tool := range r.executor.All() {
 		if r.allowed[tool.Name()] {
 			visible = append(visible, tool)
 		}

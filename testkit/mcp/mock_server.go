@@ -3,6 +3,7 @@ package mcp
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"sync"
 )
 
@@ -120,4 +121,63 @@ func (m *MockMCPServer) Handle(method string, id int64, params json.RawMessage) 
 	default:
 		return nil, fmt.Errorf("unknown method: %s", method)
 	}
+}
+
+// jsonRPCRequest mirrors mcp/client.jsonRPCRequest for HTTP handler deserialization.
+type jsonRPCRequest struct {
+	JSONRPC string          `json:"jsonrpc"`
+	ID      int64           `json:"id,omitempty"`
+	Method  string          `json:"method"`
+	Params  json.RawMessage `json:"params,omitempty"`
+}
+
+// jsonRPCResponse mirrors mcp/client.jsonRPCResponse for HTTP handler serialization.
+type jsonRPCResponse struct {
+	JSONRPC string          `json:"jsonrpc"`
+	ID      int64           `json:"id"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Error   *jsonRPCError   `json:"error,omitempty"`
+}
+
+type jsonRPCError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+// HTTPHandler returns an http.Handler that speaks JSON-RPC 2.0 over HTTP.
+// Use with httptest.NewServer to create a test MCP HTTP server that the
+// real mcp/client.Client can connect to.
+func (m *MockMCPServer) HTTPHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req jsonRPCRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+
+		result, err := m.Handle(req.Method, req.ID, req.Params)
+		if err != nil {
+			resp := jsonRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &jsonRPCError{Code: -32603, Message: err.Error()},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp) //nolint:errcheck // test helper
+			return
+		}
+
+		// Notifications return nil result — respond with empty success.
+		if result == nil {
+			result = json.RawMessage(`{}`)
+		}
+
+		resp := jsonRPCResponse{
+			JSONRPC: "2.0",
+			ID:      req.ID,
+			Result:  result,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp) //nolint:errcheck // test helper
+	})
 }

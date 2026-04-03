@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,11 +63,13 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	sessConf := &djinnconfig.SessionConfigurable{MaxTurns: 20}
 	sandboxConf := &djinnconfig.SandboxConfigurable{Level: "namespace"}
 	debugConf := &djinnconfig.DebugConfigurable{}
+	mcpConf := &djinnconfig.MCPConfigurable{}
 	cfgRegistry.Register(modeConf)
 	cfgRegistry.Register(driverConf)
 	cfgRegistry.Register(sessConf)
 	cfgRegistry.Register(sandboxConf)
 	cfgRegistry.Register(debugConf)
+	cfgRegistry.Register(mcpConf)
 
 	if err := djinnconfig.LoadAll(cfgRegistry, Getwd(), *configFile); err != nil {
 		fmt.Fprintf(stderr, "djinn: config: %v\n", err)
@@ -247,9 +250,31 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	mcpClient.Tracer = traceRing.For(trace.ComponentMCP)
 	defer mcpClient.Close()
 
-	// MCP config from djinn.yaml ONLY — Djinn owns MCP, agents get a mirror.
+	// MCP config merge: djinn.yaml (LoadMCPConfig) + config registry (mcp_servers) + workspace MCP.
+	// Priority: workspace > config registry > djinn.yaml loader.
 	var mcpFailures []tui.HealthReport
 	mcpConfigs := mcpclient.LoadMCPConfig(Getwd())
+
+	// Merge mcp_servers from config registry (MCPConfigurable).
+	for name, entry := range mcpConf.Servers {
+		mcpConfigs[name] = mcpclient.ServerConfig{
+			Command: entry.Command,
+			Args:    entry.Args,
+			URL:     entry.URL,
+			Env:     entry.Env,
+		}
+	}
+
+	// Merge workspace MCP definitions (highest priority).
+	for name, def := range ws.MCP {
+		mcpConfigs[name] = mcpclient.ServerConfig{
+			Command: def.Command,
+			Args:    def.Args,
+			URL:     def.URL,
+			Env:     def.Env,
+		}
+	}
+
 	for name, cfg := range mcpConfigs {
 		var connectErr error
 		if cfg.IsHTTP() {
@@ -311,18 +336,16 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	capToken := ws.ToCapabilityToken()
 	log.Info("policy enforcer active", "writable", len(capToken.WritablePaths), "denied", len(capToken.DeniedPaths))
 
-	// Build tool registry
+	// Build tool registry with CompositeExecutor for MCP upgrade path (TSK-550).
 	registry := builtin.NewRegistry()
 	builtin.RegisterAeonShellTools(registry, ws.PrimaryPath(), HomeDir())
 	builtin.RegisterDebugTrace(registry, traceRing)
-	for _, tool := range mcpClient.MCPTools() {
-		registry.Register(tool)
-	}
-	log.Info("tools registered", "builtin", len(registry.Names())-len(mcpClient.MCPTools()), "mcp", len(mcpClient.MCPTools()), "total", len(registry.Names()))
+	composite := builtin.NewCompositeExecutor(registry, mcpClient, djinnlog.For(logResult.Logger, "tools"))
+	log.InfoContext(ctx, "tools registered", slog.Int(djinnlog.KeyCount, len(composite.Names())))
 
-	// Wrap registry in ToolHub for mediated execution (GOL-37).
+	// Wrap composite executor in ToolHub for mediated execution (GOL-37).
 	toolTracker := tools.NewToolLatencyTracker()
-	toolHub := hub.NewToolHub(hubCore, registry, toolTracker)
+	toolHub := hub.NewToolHub(hubCore, composite, toolTracker)
 	hubRegistry.Register(toolHub)
 
 	// Load staff config: built-in defaults → user config → workspace config.
@@ -335,7 +358,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	}
 
 	// Create tool clearance — filters tools by role's capabilities.
-	slotRouter := staff.NewToolClearance(staffCfg, registry, "gensec")
+	slotRouter := staff.NewToolClearance(staffCfg, composite, "gensec")
 
 	// Sandbox: if configured, create an isolated environment.
 	// Sandbox: all agents run sandboxed by default. Only GenSec can jailbreak.

@@ -19,7 +19,7 @@ import (
 // Config holds the inputs needed to construct a Djinn facade.
 type Config struct {
 	StaffCfg *staff.StaffConfig
-	Registry *builtin.Registry
+	Executor builtin.ToolExecutor // Registry, CompositeExecutor, or any ToolExecutor
 	Enforcer policy.ToolPolicyEnforcer
 	Token    policy.CapabilityToken
 	Session  *session.Session
@@ -52,8 +52,8 @@ func New(cfg Config) *Djinn {
 	if cfg.StaffCfg == nil {
 		cfg.StaffCfg = staff.DefaultConfig()
 	}
-	if cfg.Registry == nil {
-		cfg.Registry = builtin.NewRegistry()
+	if cfg.Executor == nil {
+		cfg.Executor = builtin.NewRegistry()
 	}
 	if cfg.Enforcer == nil {
 		cfg.Enforcer = policy.NopToolPolicyEnforcer{}
@@ -67,7 +67,7 @@ func New(cfg Config) *Djinn {
 
 	d := &Djinn{
 		staffCfg:      cfg.StaffCfg,
-		clearance:     staff.NewToolClearance(cfg.StaffCfg, cfg.Registry, cfg.InitialRole),
+		clearance:     staff.NewToolClearance(cfg.StaffCfg, cfg.Executor, cfg.InitialRole),
 		enforcer:      cfg.Enforcer,
 		token:         cfg.Token,
 		session:       cfg.Session,
