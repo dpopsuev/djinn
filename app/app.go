@@ -117,6 +117,8 @@ func Run(args []string, stderr io.Writer) error {
 		return RunBackendCmd(args[1:], stderr)
 	case "debug":
 		return RunDebug(args[1:], stderr)
+	case "serve":
+		return RunServe(args[1:], stderr)
 	case "version", "--version", "-v":
 		fmt.Fprintln(stderr, "djinn "+Version)
 		return nil
