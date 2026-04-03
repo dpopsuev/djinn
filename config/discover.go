@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 )
 
 // Config file locations.
@@ -16,6 +17,12 @@ const (
 
 // Discover finds config files in priority order (lowest → highest).
 // Returns only paths that exist.
+//
+// Walk order:
+//  1. User global: ~/.djinn/config.yaml (lowest priority)
+//  2. Parent-directory walk: from root down to workdir, each djinn.yaml found
+//     (shallowest first, so deepest/most-specific overrides shallowest)
+//  3. Environment variable: $DJINN_CONFIG (highest priority)
 func Discover(workdir string) []string {
 	var paths []string
 
@@ -27,11 +34,24 @@ func Discover(workdir string) []string {
 		}
 	}
 
-	// 2. Project local: ./djinn.yaml
-	local := filepath.Join(workdir, ProjectConfig)
-	if _, err := os.Stat(local); err == nil {
-		paths = append(paths, local)
+	// 2. Walk from workdir upward to root, collecting all djinn.yaml files.
+	// We walk upward and then reverse so shallowest comes first (lower priority)
+	// and deepest (most specific) comes last (higher priority).
+	var walkPaths []string
+	for dir := filepath.Clean(workdir); dir != "/" && dir != "."; dir = filepath.Dir(dir) {
+		candidate := filepath.Join(dir, ProjectConfig)
+		if _, err := os.Stat(candidate); err == nil {
+			walkPaths = append(walkPaths, candidate)
+		}
 	}
+	// Also check root "/" itself.
+	rootCandidate := filepath.Join(string(filepath.Separator), ProjectConfig)
+	if _, err := os.Stat(rootCandidate); err == nil {
+		walkPaths = append(walkPaths, rootCandidate)
+	}
+	// walkPaths is deepest-first (workdir → root). Reverse to shallowest-first.
+	slices.Reverse(walkPaths)
+	paths = append(paths, walkPaths...)
 
 	// 3. Environment variable: $DJINN_CONFIG
 	if envPath := os.Getenv(EnvConfigVar); envPath != "" {

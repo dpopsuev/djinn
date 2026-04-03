@@ -1,9 +1,18 @@
 package client
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/dpopsuev/djinn/djinnlog"
+	testmcp "github.com/dpopsuev/djinn/testkit/mcp"
 )
 
 // Security tests for MCP response deserialization (TSK-516, OWASP A08).
@@ -111,5 +120,89 @@ func TestMCP_Response_IsErrorFlag(t *testing.T) {
 	}
 	if !result.IsError {
 		t.Error("SECURITY: isError flag lost during deserialization")
+	}
+}
+
+// --- TSK-598: MCP identity validation tests ---
+
+func TestMCP_RejectsUnknownServer(t *testing.T) {
+	c := New(djinnlog.Nop())
+	defer c.Close()
+
+	// Call with a server name that was never connected.
+	_, err := c.Call(context.Background(), "nonexistent-server", "some-tool", nil)
+	if err == nil {
+		t.Fatal("SECURITY: call to unknown server succeeded")
+	}
+	if !errors.Is(err, ErrServerNotFound) {
+		t.Fatalf("expected ErrServerNotFound, got: %v", err)
+	}
+}
+
+func TestMCP_ServerInitializeValidation(t *testing.T) {
+	// Use MockMCPServer to verify the initialize handshake happens before tools/list.
+	mock := testmcp.NewMockMCPServer()
+	mock.RegisterTool("test-tool", "A test tool", "ok")
+
+	// Wrap the mock's HTTP handler to record method call order.
+	var methods []string
+	methodCh := make(chan string, 10)
+	srv := httptest.NewServer(wrappingHandler(mock, methodCh))
+	defer srv.Close()
+
+	// Connect — this should trigger: initialize → notifications/initialized → tools/list.
+	c := New(djinnlog.Nop())
+	defer c.Close()
+
+	if err := c.ConnectHTTP(context.Background(), "test-mock", srv.URL); err != nil {
+		t.Fatalf("ConnectHTTP: %v", err)
+	}
+
+	// Drain the channel to get method order.
+	close(methodCh)
+	for m := range methodCh {
+		methods = append(methods, m)
+	}
+
+	// Verify handshake order.
+	if len(methods) < 3 {
+		t.Fatalf("expected at least 3 methods, got %d: %v", len(methods), methods)
+	}
+	if methods[0] != "initialize" {
+		t.Errorf("first method should be initialize, got %q", methods[0])
+	}
+	if methods[1] != "notifications/initialized" {
+		t.Errorf("second method should be notifications/initialized, got %q", methods[1])
+	}
+	if methods[2] != "tools/list" {
+		t.Errorf("third method should be tools/list, got %q", methods[2])
+	}
+
+	// Verify tools were discovered.
+	tools := c.Tools()
+	if len(tools) != 1 {
+		t.Fatalf("expected 1 tool, got %d", len(tools))
+	}
+	if tools[0].Name != "test-tool" {
+		t.Fatalf("tool name = %q, want test-tool", tools[0].Name)
+	}
+}
+
+// wrappingHandler records method names before delegating to the mock server.
+func wrappingHandler(mock *testmcp.MockMCPServer, methods chan<- string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Capture the body to peek at the method field.
+		data, _ := io.ReadAll(r.Body)
+		r.Body.Close()
+
+		var req struct {
+			Method string `json:"method"`
+		}
+		json.Unmarshal(data, &req) //nolint:errcheck // test helper
+		methods <- req.Method
+
+		// Reconstruct the body for the mock handler.
+		r.Body = io.NopCloser(bytes.NewReader(data))
+		mock.HTTPHandler().ServeHTTP(w, r)
 	}
 }

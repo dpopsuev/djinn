@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/dpopsuev/djinn/scope"
 	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/tui"
+	"github.com/dpopsuev/djinn/vfs"
 )
 
 // Sentinel errors.
@@ -44,12 +47,18 @@ type Djinn struct {
 	subMu       sync.RWMutex
 	subscribers []chan<- ViewEvent
 
+	// Workspace repo paths: name -> host path (for VFS mount creation).
+	repos map[string]string
+
 	// Pluggable handlers — set by the adapter (TUI, headless, etc.)
 	// These allow Terminal to trigger actions without importing adapter packages.
 	OnSubmit   func(ctx context.Context, prompt string) error
 	OnShell    func(ctx context.Context, command string) (string, error)
 	OnCommand  func(ctx context.Context, name string, args []string) (string, error)
 	OnNavigate func(path string, scopeType string) error
+
+	// VFS mount table — runtime path translation for agents.
+	mounts *vfs.MountTable
 
 	// Agent visibility control
 	sightMgr *tui.SightManager
@@ -70,6 +79,7 @@ func NewDjinn() *Djinn {
 		capacity:    staff.NewAgentCapacity(1),
 		envelopeCfg: staff.DefaultEnvelopeConfig(),
 		scopePath:   "/",
+		mounts:      vfs.NewMountTable(slog.Default()),
 		sightMgr:    tui.NewSightManager(nil), // TODO: inject real logger from app
 	}
 }
@@ -261,10 +271,55 @@ func (d *Djinn) NavigateScope(path, scopeType string) error {
 	d.scopeType = scopeType
 	d.mu.Unlock()
 
+	// Create VFS mount entries based on scope type and registered repos.
+	st := scope.ScopeType(scopeType)
+	if st.Valid() {
+		d.mountScopeRepos(path, st)
+	}
+
 	if d.OnNavigate != nil {
 		return d.OnNavigate(path, scopeType)
 	}
 	return nil
+}
+
+// SetRepos registers host repo paths for VFS mount creation during scope
+// navigation. Called during initialization to provide workspace repo info.
+func (d *Djinn) SetRepos(repos map[string]string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.repos = repos
+}
+
+// Mounts returns the VFS mount table for external use (e.g., agent path translation).
+func (d *Djinn) Mounts() *vfs.MountTable {
+	return d.mounts
+}
+
+// mountScopeRepos creates VFS mount entries for repos matching the navigated scope.
+// Mount semantics:
+//   - Global: read-only mounts of all repos
+//   - System: mount persists until session ends
+//   - Operations: mount is ephemeral (caller unmounts when done)
+func (d *Djinn) mountScopeRepos(scopePath string, st scope.ScopeType) {
+	d.mu.RLock()
+	repos := d.repos
+	d.mu.RUnlock()
+
+	if repos == nil {
+		return
+	}
+
+	readOnly := st == scope.ScopeGlobal
+
+	for name, hostPath := range repos {
+		virtualPath := scopePath
+		if !strings.HasSuffix(virtualPath, "/"+name) {
+			virtualPath = scopePath + "/" + name
+		}
+		// Best-effort mount — skip conflicts (already mounted).
+		_ = d.mounts.Mount(virtualPath, hostPath, readOnly, st)
+	}
 }
 
 func (d *Djinn) SetEnvelopeEnabled(enabled bool) {

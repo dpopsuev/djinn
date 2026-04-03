@@ -35,6 +35,15 @@ type RelayManager struct {
 
 	// Queue: prompts received during swap.
 	queue []string
+
+	// Workstation: when set, relay uses Detach/Attach instead of session copy.
+	// Nil = legacy session-copy behavior (backward compatible).
+	Workstation interface {
+		Detach() string
+		Attach(agentID string) error
+	}
+	// NextAgentID is the agent ID to attach after swap (set by caller).
+	NextAgentID string
 }
 
 // RelayConfig configures a RelayManager.
@@ -76,44 +85,44 @@ func (r *RelayManager) CheckAndRelay(ctx context.Context) (*Session, driver.Chat
 	switch state {
 	case MonitorIdle:
 		if r.monitor.ShouldSpawn() {
-			r.log.Info("relay: spawning background session",
+			r.log.InfoContext(context.Background(), "relay: spawning background session",
 				"usage", fmt.Sprintf("%.0f%%", r.monitor.Usage()*100))
 			r.monitor.SetState(MonitorSpawning)
 			if err := r.spawnBackground(ctx); err != nil {
-				r.log.Warn("relay: background spawn failed, falling back to compact", "error", err)
+				r.log.WarnContext(context.Background(), "relay: background spawn failed, falling back to compact", "error", err)
 				r.monitor.SetState(MonitorIdle)
 				before, after := Compact(r.activeSession, DefaultKeepRecent)
-				r.log.Info("relay: fallback compact", "before", before, "after", after)
+				r.log.InfoContext(context.Background(), "relay: fallback compact", "before", before, "after", after)
 			}
 		}
 
 	case MonitorSpawning:
 		// Record() pre-emptively transitioned idle→spawning when it detected
 		// the 80% threshold. CheckAndRelay is the actor that performs the spawn.
-		r.log.Info("relay: spawning background session (deferred)",
+		r.log.InfoContext(context.Background(), "relay: spawning background session (deferred)",
 			"usage", fmt.Sprintf("%.0f%%", r.monitor.Usage()*100))
 		if err := r.spawnBackground(ctx); err != nil {
-			r.log.Warn("relay: background spawn failed, falling back to compact", "error", err)
+			r.log.WarnContext(context.Background(), "relay: background spawn failed, falling back to compact", "error", err)
 			r.monitor.SetState(MonitorIdle)
 			before, after := Compact(r.activeSession, DefaultKeepRecent)
-			r.log.Info("relay: fallback compact", "before", before, "after", after)
+			r.log.InfoContext(context.Background(), "relay: fallback compact", "before", before, "after", after)
 		}
 
 	case MonitorReady:
 		if r.monitor.ShouldSwap() {
-			r.log.Info("relay: executing swap",
+			r.log.InfoContext(context.Background(), "relay: executing swap",
 				"usage", fmt.Sprintf("%.0f%%", r.monitor.Usage()*100))
 			if err := r.executeSwap(ctx); err != nil {
-				r.log.Warn("relay: swap failed", "error", err)
+				r.log.WarnContext(context.Background(), "relay: swap failed", "error", err)
 			}
 		}
 
 	case MonitorSwapping:
 		// Record() pre-emptively transitioned ready→swapping. Execute now.
-		r.log.Info("relay: executing swap (deferred)",
+		r.log.InfoContext(context.Background(), "relay: executing swap (deferred)",
 			"usage", fmt.Sprintf("%.0f%%", r.monitor.Usage()*100))
 		if err := r.executeSwap(ctx); err != nil {
-			r.log.Warn("relay: swap failed", "error", err)
+			r.log.WarnContext(context.Background(), "relay: swap failed", "error", err)
 		}
 	}
 
@@ -181,7 +190,7 @@ func (r *RelayManager) spawnBackground(ctx context.Context) error {
 
 	r.backupDriver = newDriver
 	r.monitor.SetState(MonitorReady)
-	r.log.Info("relay: background session ready",
+	r.log.InfoContext(context.Background(), "relay: background session ready",
 		"id", r.backupSession.ID,
 		"entries", r.backupSession.History.Len())
 
@@ -193,6 +202,19 @@ func (r *RelayManager) spawnBackground(ctx context.Context) error {
 func (r *RelayManager) executeSwap(ctx context.Context) error {
 	if r.backupDriver == nil || r.backupSession == nil {
 		return ErrNoBackup
+	}
+
+	// Workstation relay: detach old agent, attach new agent.
+	if r.Workstation != nil {
+		formerAgent := r.Workstation.Detach()
+		if r.NextAgentID != "" {
+			if err := r.Workstation.Attach(r.NextAgentID); err != nil {
+				r.log.WarnContext(context.Background(), "relay: workstation attach failed",
+					"agent", r.NextAgentID, "error", err)
+			}
+		}
+		r.log.InfoContext(context.Background(), "relay: workstation handoff",
+			"former", formerAgent, "next", r.NextAgentID)
 	}
 
 	// Archive old session.
@@ -208,19 +230,19 @@ func (r *RelayManager) executeSwap(ctx context.Context) error {
 	// Archive the old session if store is available.
 	if r.store != nil {
 		if err := r.store.Archive(oldSession); err != nil {
-			r.log.Warn("relay: archive old session failed", "error", err)
+			r.log.WarnContext(context.Background(), "relay: archive old session failed", "error", err)
 		}
 	}
 
 	// Stop old driver.
 	if err := oldDriver.Stop(ctx); err != nil {
-		r.log.Warn("relay: stop old driver failed", "error", err)
+		r.log.WarnContext(context.Background(), "relay: stop old driver failed", "error", err)
 	}
 
 	// Reset monitor for new context window.
 	r.monitor.Reset()
 
-	r.log.Info("relay: swap complete",
+	r.log.InfoContext(context.Background(), "relay: swap complete",
 		"new_id", r.activeSession.ID,
 		"queued", len(r.queue))
 

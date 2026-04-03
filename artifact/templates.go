@@ -40,5 +40,6 @@ func DefaultRegistry() *TemplateRegistry {
 	r := NewTemplateRegistry()
 	r.Register(PlanSegmentTemplate())
 	r.Register(TaskTemplate())
+	r.Register(ScratchPaperTemplate())
 	return r
 }
