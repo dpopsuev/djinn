@@ -48,6 +48,7 @@ type EventHandler interface {
 type Config struct {
 	Driver       driver.ChatDriver
 	Tools        builtin.ToolExecutor
+	Envelope     *ToolEnvelope             // when set, replaces inline PolicyEnforcer + Approve + Tools.Execute()
 	Session      *session.Session
 	SystemPrompt string
 	MaxTurns     int
@@ -268,6 +269,33 @@ func executeTools(ctx context.Context, cfg Config, calls []driver.ToolCall) ([]d
 	resultBlocks := make([]driver.ContentBlock, 0, len(calls))
 
 	for _, call := range calls {
+		// Envelope path: gates + enrichers + execute + recorders in one call
+		if cfg.Envelope != nil {
+			cfg.Log.Info("tool call", "tool", call.Name)
+			toolStart := time.Now()
+			output, err := cfg.Envelope.Execute(ctx, call.Name, call.Input)
+			isError := err != nil
+			if isError {
+				output = err.Error()
+			}
+
+			const maxOutputLen = 50000
+			if len(output) > maxOutputLen {
+				output = output[:maxOutputLen] + "\n... (truncated)"
+			}
+
+			resultBlocks = append(resultBlocks, driver.NewToolResultBlock(
+				call.ID, output, isError,
+			))
+
+			cfg.Log.DebugContext(ctx, "tool result", slog.String(djinnlog.KeyTool, call.Name), slog.Bool(djinnlog.KeyError, isError), djinnlog.ToolLatency(time.Since(toolStart)))
+			if cfg.Handler != nil {
+				cfg.Handler.OnToolResult(call.ID, call.Name, truncateForDisplay(output), isError)
+			}
+			continue
+		}
+
+		// Legacy path: inline PolicyEnforcer + Approve + Tools.Execute()
 		// Agent call mediation — PolicyEnforcer gates every tool call
 		if cfg.Enforcer != nil {
 			if err := cfg.Enforcer.Check(ctx, cfg.Token, call.Name, call.Input); err != nil {

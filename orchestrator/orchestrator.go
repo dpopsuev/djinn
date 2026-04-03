@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/tier"
 )
 
@@ -53,7 +53,7 @@ type Stage struct {
 	Name        string
 	Scope       tier.Scope
 	Driver      driver.DriverConfig
-	Gate        gate.GateConfig
+	Gate        artifact.ContractGateConfig
 	Prompt      string
 	TimeBudget  time.Duration // 0 = unlimited
 	TokenBudget int           // 0 = unlimited

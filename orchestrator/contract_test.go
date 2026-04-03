@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/tier"
 )
@@ -18,7 +18,7 @@ type OrchestratorFactory func(
 	createSandbox func(ctx context.Context, scope tier.Scope) (string, error),
 	destroySandbox func(ctx context.Context, id string) error,
 	driverFactory func(driver.DriverConfig) driver.Driver,
-	gateFactory func(gate.GateConfig) gate.Gate,
+	gateFactory func(artifact.ContractGateConfig) artifact.ContractGate,
 	signalEmit func(signal.Signal),
 ) Orchestrator
 
@@ -26,7 +26,7 @@ func simpleFactory(
 	createSandbox func(ctx context.Context, scope tier.Scope) (string, error),
 	destroySandbox func(ctx context.Context, id string) error,
 	driverFactory func(driver.DriverConfig) driver.Driver,
-	gateFactory func(gate.GateConfig) gate.Gate,
+	gateFactory func(artifact.ContractGateConfig) artifact.ContractGate,
 	signalEmit func(signal.Signal),
 ) Orchestrator {
 	return NewSimpleOrchestrator(createSandbox, destroySandbox, driverFactory, gateFactory, signalEmit)
@@ -61,7 +61,7 @@ func contractHappyPath(t *testing.T, factory OrchestratorFactory) { //nolint:the
 		func(cfg driver.DriverConfig) driver.Driver {
 			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
-		func(cfg gate.GateConfig) gate.Gate { return &stubGate{} },
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
 		func(s signal.Signal) {},
 	)
 
@@ -100,7 +100,7 @@ func contractGateFailureStops(t *testing.T, factory OrchestratorFactory) { //nol
 		func(cfg driver.DriverConfig) driver.Driver {
 			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
-		func(cfg gate.GateConfig) gate.Gate { return &stubGate{err: errors.New("fail")} },
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{err: errors.New("fail")} },
 		func(s signal.Signal) {},
 	)
 
@@ -131,7 +131,7 @@ func contractCancelTerminates(t *testing.T, factory OrchestratorFactory) { //nol
 			go func() { <-blockCh; close(ch) }()
 			return &stubDriver{recvCh: ch}
 		},
-		func(cfg gate.GateConfig) gate.Gate { return &stubGate{} },
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
 		func(s signal.Signal) {},
 	)
 
@@ -164,7 +164,7 @@ func contractEventsInOrder(t *testing.T, factory OrchestratorFactory) { //nolint
 		func(cfg driver.DriverConfig) driver.Driver {
 			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
-		func(cfg gate.GateConfig) gate.Gate { return &stubGate{} },
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
 		func(s signal.Signal) {},
 	)
 
@@ -195,7 +195,7 @@ func contractChannelClosed(t *testing.T, factory OrchestratorFactory) { //nolint
 		func(cfg driver.DriverConfig) driver.Driver {
 			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
-		func(cfg gate.GateConfig) gate.Gate { return &stubGate{} },
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
 		func(s signal.Signal) {},
 	)
 

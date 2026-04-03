@@ -16,9 +16,9 @@ import (
 	"github.com/dpopsuev/djinn/broker"
 	djinnconfig "github.com/dpopsuev/djinn/config"
 	djinnctx "github.com/dpopsuev/djinn/context"
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/djinnfile"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/orchestrator"
 	msbsandbox "github.com/dpopsuev/djinn/sandbox/misbah"
 	"github.com/dpopsuev/djinn/session"
@@ -405,7 +405,7 @@ func RunHeadless(args []string, stderr io.Writer) error {
 		func(cfg driver.DriverConfig) driver.Driver {
 			return stubs.NewStubDriver(driver.Message{Role: driver.RoleAssistant, Content: "completed"})
 		},
-		func(cfg gate.GateConfig) gate.Gate { return stubs.AlwaysPassGate() },
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return stubs.AlwaysPassGate() },
 		func(s sigsvc.Signal) { bus.Emit(s) },
 	)
 

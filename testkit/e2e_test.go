@@ -7,8 +7,8 @@ import (
 
 	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/broker"
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/testkit/assertions"
@@ -36,7 +36,7 @@ func TestE2E_StandardFlow_AllStubs(t *testing.T) {
 			_ = stubDriverInstance // reference kept for verification
 			return d
 		},
-		func(cfg gate.GateConfig) gate.Gate {
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate {
 			return stubs.AlwaysPassGate()
 		},
 		func(s signal.Signal) { bus.Emit(s) },
@@ -127,7 +127,7 @@ func TestE2E_GateFailure_StopsExecution(t *testing.T) {
 		func(cfg driver.DriverConfig) driver.Driver {
 			return stubs.NewStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
-		func(cfg gate.GateConfig) gate.Gate {
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate {
 			return stubs.AlwaysFailGate("quality too low")
 		},
 		func(s signal.Signal) { bus.Emit(s) },

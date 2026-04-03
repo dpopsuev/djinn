@@ -3,8 +3,8 @@ package orchestrator
 import (
 	"testing"
 
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/tier"
 )
 
@@ -51,7 +51,7 @@ func TestWorkPlan_Construction(t *testing.T) {
 				Name:   "code",
 				Scope:  tier.Scope{Level: tier.Mod, Name: "auth"},
 				Driver: driver.DriverConfig{Model: "claude-opus-4-6"},
-				Gate:   gate.GateConfig{Name: "lint", Severity: "blocking"},
+				Gate:   artifact.ContractGateConfig{Name: "lint", Severity: "blocking"},
 				Prompt: "implement auth",
 			},
 		},

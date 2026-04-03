@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sync/atomic"
 
-	"github.com/dpopsuev/djinn/gate"
+	"github.com/dpopsuev/djinn/artifact"
 )
 
 // StubGate is a configurable gate stub.
@@ -23,12 +23,12 @@ func (g *StubGate) Validate(ctx context.Context, sandboxID string) error {
 }
 
 // AlwaysPassGate always passes validation.
-func AlwaysPassGate() gate.Gate {
+func AlwaysPassGate() artifact.ContractGate {
 	return &StubGate{}
 }
 
 // AlwaysFailGate always fails with the given message.
-func AlwaysFailGate(msg string) gate.Gate {
+func AlwaysFailGate(msg string) artifact.ContractGate {
 	return &StubGate{err: errors.New(msg)}
 }
 

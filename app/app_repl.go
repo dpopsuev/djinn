@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/cli/repl"
 	"github.com/dpopsuev/djinn/clutch"
@@ -348,6 +349,20 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	toolHub := hub.NewToolHub(hubCore, composite, toolTracker)
 	hubRegistry.Register(toolHub)
 
+	// Build Tool Operation Envelope: SecurityBundle + EnrichmentBundle + ObservabilityBundle.
+	symbolPopulator := agent.NewSymbolGraphPopulator(djinnlog.For(logResult.Logger, "symbol"), &agent.RegexProvider{})
+	wasteClassifier := agent.NewWasteClassifier(djinnlog.For(logResult.Logger, "waste"))
+
+	envelope, envelopeErr := agent.NewEnvelopeBuilder(toolHub).
+		WithGates(agent.SecurityBundle(enforcer, capToken)...).
+		WithEnrichers(agent.EnrichmentBundle(symbolPopulator)...).
+		WithRecorders(agent.ObservabilityBundle(wasteClassifier)...).
+		Build()
+	if envelopeErr != nil {
+		return fmt.Errorf("build envelope: %w", envelopeErr)
+	}
+	log.Info("tool envelope built", "gates", 1, "enrichers", 1, "recorders", 1)
+
 	// Load staff config: built-in defaults → user config → workspace config.
 	staffCfg := staff.LoadConfigChain(
 		filepath.Join(HomeDir(), "staff.yaml"),
@@ -472,6 +487,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	replErr := repl.Run(ctx, repl.Config{
 		Driver:         chatDriver,
 		Tools:          toolHub,
+		Envelope:       envelope,
 		Session:        sess,
 		SystemPrompt:   assembledPrompt,
 		MaxTurns:       sessConf.MaxTurns,

@@ -10,8 +10,8 @@ import (
 
 	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/broker"
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/orchestrator"
 	msbsandbox "github.com/dpopsuev/djinn/sandbox/misbah"
 	"github.com/dpopsuev/djinn/signal"
@@ -57,7 +57,7 @@ func TestE2E_Integration_MisbahSandbox(t *testing.T) {
 				Content: "completed",
 			})
 		},
-		func(cfg gate.GateConfig) gate.Gate {
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate {
 			return stubs.AlwaysPassGate()
 		},
 		func(s signal.Signal) { bus.Emit(s) },

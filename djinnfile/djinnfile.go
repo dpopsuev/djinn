@@ -10,7 +10,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/dpopsuev/djinn/gate"
+	"github.com/dpopsuev/djinn/artifact"
 )
 
 // Tier name constants.
@@ -132,7 +132,7 @@ func (df *Djinnfile) applyDefaults() {
 			df.Stages[i].Tier = defaultTier
 		}
 		if df.Stages[i].Gate.Severity == "" {
-			df.Stages[i].Gate.Severity = gate.SeverityBlocking
+			df.Stages[i].Gate.Severity = artifact.SeverityBlocking
 		}
 		if df.Stages[i].Gate.Name == "" {
 			df.Stages[i].Gate.Name = df.Stages[i].Name + gateSuffix

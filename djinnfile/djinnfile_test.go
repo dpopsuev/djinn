@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/gate"
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/tier"
 )
 
@@ -86,8 +86,8 @@ func TestParse_Defaults(t *testing.T) {
 	if df.Stages[0].Tier != TierMod {
 		t.Fatalf("default Tier = %q, want %q", df.Stages[0].Tier, TierMod)
 	}
-	if df.Stages[0].Gate.Severity != gate.SeverityBlocking {
-		t.Fatalf("default Severity = %q, want %q", df.Stages[0].Gate.Severity, gate.SeverityBlocking)
+	if df.Stages[0].Gate.Severity != artifact.SeverityBlocking {
+		t.Fatalf("default Severity = %q, want %q", df.Stages[0].Gate.Severity, artifact.SeverityBlocking)
 	}
 	if df.Stages[0].Gate.Name != "code-gate" {
 		t.Fatalf("default Gate.Name = %q, want %q", df.Stages[0].Gate.Name, "code-gate")

@@ -5,12 +5,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/dpopsuev/djinn/gate"
+	"github.com/dpopsuev/djinn/artifact"
 )
 
 func TestStubGate_InterfaceSatisfaction(t *testing.T) {
-	var _ gate.Gate = (*StubGate)(nil)
-	var _ gate.Gate = (*FailOnNthGate)(nil)
+	var _ artifact.ContractGate = (*StubGate)(nil)
+	var _ artifact.ContractGate = (*FailOnNthGate)(nil)
 }
 
 func TestAlwaysPassGate(t *testing.T) {

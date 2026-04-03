@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/tier"
 )
@@ -31,7 +31,7 @@ func (d *stubDriver) Send(ctx context.Context, msg driver.Message) error        
 func (d *stubDriver) Recv(ctx context.Context) <-chan driver.Message                { return d.recvCh }
 func (d *stubDriver) Stop(ctx context.Context) error                                { return nil }
 
-// stubGate implements gate.Gate for orchestrator tests.
+// stubGate implements artifact.ContractGate for orchestrator tests.
 type stubGate struct{ err error }
 
 func (g *stubGate) Validate(ctx context.Context, sandboxID string) error { return g.err }
@@ -49,7 +49,7 @@ func TestSimpleOrchestrator_FourStageHappyPath(t *testing.T) {
 		func(cfg driver.DriverConfig) driver.Driver {
 			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
-		func(cfg gate.GateConfig) gate.Gate {
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate {
 			return &stubGate{}
 		},
 		func(s signal.Signal) {
@@ -120,7 +120,7 @@ func TestSimpleOrchestrator_GateFailure(t *testing.T) {
 		func(cfg driver.DriverConfig) driver.Driver {
 			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
-		func(cfg gate.GateConfig) gate.Gate { return &stubGate{err: gateErr} },
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{err: gateErr} },
 		func(s signal.Signal) {},
 	)
 
@@ -175,7 +175,7 @@ func TestSimpleOrchestrator_Cancel(t *testing.T) {
 			}()
 			return &stubDriver{recvCh: ch}
 		},
-		func(cfg gate.GateConfig) gate.Gate { return &stubGate{} },
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
 		func(s signal.Signal) {},
 	)
 
@@ -219,7 +219,7 @@ func TestSimpleOrchestrator_TimeBudget(t *testing.T) {
 			ch := make(chan driver.Message)
 			return &stubDriver{recvCh: ch}
 		},
-		func(cfg gate.GateConfig) gate.Gate { return &stubGate{} },
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
 		func(s signal.Signal) {},
 	)
 
@@ -263,7 +263,7 @@ func TestSimpleOrchestrator_TokenBudget(t *testing.T) {
 				driver.Message{Role: "assistant", Content: "msg3"},
 			)
 		},
-		func(cfg gate.GateConfig) gate.Gate { return &stubGate{} },
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
 		func(s signal.Signal) { signals = append(signals, s) },
 	)
 
@@ -308,7 +308,7 @@ func TestSimpleOrchestrator_Submit(t *testing.T) {
 		func(cfg driver.DriverConfig) driver.Driver {
 			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
-		func(cfg gate.GateConfig) gate.Gate { return &stubGate{} },
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
 		func(s signal.Signal) {},
 	)
 

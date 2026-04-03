@@ -1,8 +1,8 @@
 package composition
 
 import (
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/tier"
 )
@@ -30,7 +30,7 @@ func ToWorkPlan(f Formation, id string) orchestrator.WorkPlan {
 			Name:        u.Role + "-" + scopeName,
 			Scope:       tier.Scope{Level: tierForRole(u.Role), Name: scopeName},
 			Driver:      driver.DriverConfig{},
-			Gate:        gate.GateConfig{Name: u.Role + "-gate", Severity: gate.SeverityBlocking},
+			Gate:        artifact.ContractGateConfig{Name: u.Role + "-gate", Severity: artifact.SeverityBlocking},
 			Prompt:      u.TerminatesWhen.Target,
 			TimeBudget:  u.Budget.WallClock,
 			TokenBudget: u.Budget.Tokens,

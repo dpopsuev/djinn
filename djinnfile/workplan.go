@@ -1,8 +1,8 @@
 package djinnfile
 
 import (
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/tier"
 )
@@ -24,7 +24,7 @@ func (df *Djinnfile) ToWorkPlan(id string) orchestrator.WorkPlan {
 				MaxTokens:   df.Driver.MaxTokens,
 				Temperature: df.Driver.Temperature,
 			},
-			Gate: gate.GateConfig{
+			Gate: artifact.ContractGateConfig{
 				Name:     sc.Gate.Name,
 				Severity: sc.Gate.Severity,
 			},

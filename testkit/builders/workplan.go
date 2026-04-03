@@ -1,8 +1,8 @@
 package builders
 
 import (
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/tier"
 )
@@ -25,7 +25,7 @@ func (b *WorkPlanBuilder) AddStage(name string, scope tier.Scope, prompt string)
 		Name:   name,
 		Scope:  scope,
 		Driver: driver.DriverConfig{Model: "stub"},
-		Gate:   gate.GateConfig{Name: name + "-gate", Severity: gate.SeverityBlocking},
+		Gate:   artifact.ContractGateConfig{Name: name + "-gate", Severity: artifact.SeverityBlocking},
 		Prompt: prompt,
 	})
 	return b

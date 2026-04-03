@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/ari"
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/tier"
@@ -31,7 +31,7 @@ func (d *testDriver) Send(ctx context.Context, msg driver.Message) error        
 func (d *testDriver) Recv(ctx context.Context) <-chan driver.Message                { return d.recvCh }
 func (d *testDriver) Stop(ctx context.Context) error                                { return nil }
 
-// testGate implements gate.Gate for broker tests.
+// testGate implements artifact.ContractGate for broker tests.
 type testGate struct{}
 
 func (g *testGate) Validate(ctx context.Context, sandboxID string) error { return nil }
@@ -105,7 +105,7 @@ func newTestBrokerConfig(op *testOperator, bus *signal.SignalBus) *BrokerConfig 
 		func(ctx context.Context, scope tier.Scope) (string, error) { return "sb", nil },
 		func(ctx context.Context, id string) error { return nil },
 		func(cfg driver.DriverConfig) driver.Driver { return newTestDriver() },
-		func(cfg gate.GateConfig) gate.Gate { return &testGate{} },
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &testGate{} },
 		func(s signal.Signal) { bus.Emit(s) },
 	)
 
@@ -285,7 +285,7 @@ func TestBroker_CancelWorkstream(t *testing.T) {
 				go func() { <-blockCh; close(ch) }()
 				return &testDriver{recvCh: ch}
 			},
-			func(cfg gate.GateConfig) gate.Gate { return &testGate{} },
+			func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &testGate{} },
 			func(s signal.Signal) { bus.Emit(s) },
 		),
 		Bus:      bus,

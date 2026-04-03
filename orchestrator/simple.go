@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/tier"
 )
@@ -29,7 +29,7 @@ type SimpleOrchestrator struct {
 	createSandbox  func(ctx context.Context, scope tier.Scope) (string, error)
 	destroySandbox func(ctx context.Context, id string) error
 	driverFactory  func(driver.DriverConfig) driver.Driver
-	gateFactory    func(gate.GateConfig) gate.Gate
+	gateFactory    func(artifact.ContractGateConfig) artifact.ContractGate
 	signalEmit     func(signal.Signal)
 
 	mu     sync.Mutex
@@ -42,7 +42,7 @@ func NewSimpleOrchestrator(
 	createSandbox func(ctx context.Context, scope tier.Scope) (string, error),
 	destroySandbox func(ctx context.Context, id string) error,
 	driverFactory func(driver.DriverConfig) driver.Driver,
-	gateFactory func(gate.GateConfig) gate.Gate,
+	gateFactory func(artifact.ContractGateConfig) artifact.ContractGate,
 	signalEmit func(signal.Signal),
 ) *SimpleOrchestrator {
 	return &SimpleOrchestrator{

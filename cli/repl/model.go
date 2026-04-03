@@ -72,6 +72,7 @@ type Model struct {
 	// Dependencies
 	chatDriver   driver.ChatDriver
 	tools        builtin.ToolExecutor
+	envelope     *agent.ToolEnvelope // Envelope-based execution (nil = legacy inline path)
 	sess         *session.Session
 	systemPrompt string
 	maxTurns     int
@@ -179,6 +180,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	m := Model{
 		chatDriver:    cfg.Driver,
 		tools:         cfg.Tools,
+		envelope:      cfg.Envelope,
 		sess:          cfg.Session,
 		systemPrompt:  cfg.SystemPrompt,
 		maxTurns:      cfg.MaxTurns,
@@ -1008,6 +1010,7 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 		cfg := agent.Config{
 			Driver:       m.chatDriver,
 			Tools:        tools,
+			Envelope:     m.envelope,
 			Session:      m.sess,
 			SystemPrompt: m.systemPrompt,
 			MaxTurns:     m.maxTurns,

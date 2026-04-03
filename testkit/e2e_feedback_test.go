@@ -7,8 +7,8 @@ import (
 
 	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/broker"
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/gate"
 	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/testkit/stubs"
@@ -28,7 +28,7 @@ func TestE2E_FeedbackLoop_AlertToFixToRecovery(t *testing.T) {
 		func(cfg driver.DriverConfig) driver.Driver {
 			return stubs.NewStubDriver(driver.Message{Role: "assistant", Content: "fixed"})
 		},
-		func(cfg gate.GateConfig) gate.Gate {
+		func(cfg artifact.ContractGateConfig) artifact.ContractGate {
 			return stubs.AlwaysPassGate()
 		},
 		func(s signal.Signal) { bus.Emit(s) },
