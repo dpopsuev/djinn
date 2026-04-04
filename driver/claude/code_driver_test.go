@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/mcp"
+	mcpclient "github.com/dpopsuev/djinn/mcp/client"
 )
 
 func TestCodeDriver_InterfaceSatisfaction(t *testing.T) {
@@ -84,8 +84,8 @@ func TestCodeDriver_BuildCommand(t *testing.T) {
 }
 
 func TestCodeDriver_BuildCommand_WithMCP(t *testing.T) {
-	servers := []mcp.Server{
-		{Name: "scribe", Type: mcp.TypeHTTP, URL: "http://localhost:8080/"},
+	servers := []mcpclient.Server{
+		{Name: "scribe", Type: mcpclient.TypeHTTP, URL: "http://localhost:8080/"},
 	}
 
 	d := NewCodeDriver(

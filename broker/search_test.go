@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/signal"
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 func TestBroker_Search_Signals(t *testing.T) {
@@ -73,7 +73,7 @@ func TestBroker_Search_CrossSubsystem(t *testing.T) {
 		ID:        "ws-auth",
 		Action:    "fix auth",
 		Status:    WorkstreamRunning,
-		Scopes:    []tier.Scope{{Level: tier.Mod, Name: "auth"}},
+		Scopes:    []workspace.TierScope{{Level: workspace.Mod, Name: "auth"}},
 		StartedAt: time.Now(),
 	})
 	cordons.Set([]string{"auth/"}, "auth cordoned", "watchdog")

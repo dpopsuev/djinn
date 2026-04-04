@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 // StubSandbox implements broker.SandboxPort with deterministic IDs.
@@ -24,7 +24,7 @@ func NewStubSandbox() *StubSandbox {
 }
 
 // Create generates a deterministic sandbox ID ("sandbox-N") and tracks it.
-func (s *StubSandbox) Create(ctx context.Context, scope tier.Scope) (string, error) {
+func (s *StubSandbox) Create(ctx context.Context, scope workspace.TierScope) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.createErr != nil {

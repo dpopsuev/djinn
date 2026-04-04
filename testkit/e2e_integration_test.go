@@ -9,15 +9,14 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/ari"
-	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/artifact"
+	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/orchestrator"
 	msbsandbox "github.com/dpopsuev/djinn/sandbox/misbah"
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/testkit/builders"
 	"github.com/dpopsuev/djinn/testkit/stubs"
-	"github.com/dpopsuev/djinn/tier"
+	wksp "github.com/dpopsuev/djinn/workspace"
 )
 
 const (
@@ -48,7 +47,7 @@ func TestE2E_Integration_MisbahSandbox(t *testing.T) {
 	bus := signal.NewSignalBus()
 	cordons := broker.NewCordonRegistry()
 
-	orch := orchestrator.NewSimpleOrchestrator(
+	orch := broker.NewSimpleOrchestrator(
 		sandbox.Create,
 		sandbox.Destroy,
 		func(cfg driver.DriverConfig) driver.Driver {
@@ -70,9 +69,9 @@ func TestE2E_Integration_MisbahSandbox(t *testing.T) {
 		Cordons:      cordons,
 		Operator:     op,
 		Sandbox:      sandbox,
-		PlanFactory: func(intent ari.Intent) orchestrator.WorkPlan {
+		PlanFactory: func(intent ari.Intent) broker.WorkPlan {
 			return builders.NewWorkPlan(intent.ID).
-				AddStage("code", tier.Scope{Level: tier.Mod, Name: "test-module"}, "implement changes").
+				AddStage("code", wksp.TierScope{Level: wksp.Mod, Name: "test-module"}, "implement changes").
 				Build()
 		},
 	})

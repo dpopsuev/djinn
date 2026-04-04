@@ -6,15 +6,14 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/ari"
-	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/artifact"
+	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/testkit/assertions"
 	"github.com/dpopsuev/djinn/testkit/builders"
 	"github.com/dpopsuev/djinn/testkit/stubs"
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 func TestE2E_StandardFlow_AllStubs(t *testing.T) {
@@ -27,7 +26,7 @@ func TestE2E_StandardFlow_AllStubs(t *testing.T) {
 		driver.Message{Role: "assistant", Content: "done"},
 	)
 
-	orch := orchestrator.NewSimpleOrchestrator(
+	orch := broker.NewSimpleOrchestrator(
 		sandbox.Create,
 		sandbox.Destroy,
 		func(cfg driver.DriverConfig) driver.Driver {
@@ -50,7 +49,7 @@ func TestE2E_StandardFlow_AllStubs(t *testing.T) {
 		Cordons:      cordons,
 		Operator:     op,
 		Sandbox:      sandbox,
-		PlanFactory: func(intent ari.Intent) orchestrator.WorkPlan {
+		PlanFactory: func(intent ari.Intent) broker.WorkPlan {
 			return builders.StandardFourTierPlan(intent.ID)
 		},
 	})
@@ -81,16 +80,16 @@ func TestE2E_StandardFlow_AllStubs(t *testing.T) {
 
 	// Assert event order
 	events := op.Events()
-	assertions.AssertEventOrder(t, events, []orchestrator.EventKind{
-		orchestrator.StageStarted,
-		orchestrator.StageCompleted,
-		orchestrator.StageStarted,
-		orchestrator.StageCompleted,
-		orchestrator.StageStarted,
-		orchestrator.StageCompleted,
-		orchestrator.StageStarted,
-		orchestrator.StageCompleted,
-		orchestrator.ExecutionDone,
+	assertions.AssertEventOrder(t, events, []broker.EventKind{
+		broker.StageStarted,
+		broker.StageCompleted,
+		broker.StageStarted,
+		broker.StageCompleted,
+		broker.StageStarted,
+		broker.StageCompleted,
+		broker.StageStarted,
+		broker.StageCompleted,
+		broker.ExecutionDone,
 	})
 
 	// Assert Andon is green
@@ -121,7 +120,7 @@ func TestE2E_GateFailure_StopsExecution(t *testing.T) {
 	bus := signal.NewSignalBus()
 	cordons := broker.NewCordonRegistry()
 
-	orch := orchestrator.NewSimpleOrchestrator(
+	orch := broker.NewSimpleOrchestrator(
 		sandbox.Create,
 		sandbox.Destroy,
 		func(cfg driver.DriverConfig) driver.Driver {
@@ -140,10 +139,10 @@ func TestE2E_GateFailure_StopsExecution(t *testing.T) {
 		Bus:          bus,
 		Cordons:      cordons,
 		Operator:     op,
-		PlanFactory: func(intent ari.Intent) orchestrator.WorkPlan {
+		PlanFactory: func(intent ari.Intent) broker.WorkPlan {
 			return builders.NewWorkPlan(intent.ID).
-				AddStage("code", tier.Scope{Level: tier.Mod, Name: "auth"}, "code it").
-				AddStage("test", tier.Scope{Level: tier.Mod, Name: "tests"}, "test it").
+				AddStage("code", workspace.TierScope{Level: workspace.Mod, Name: "auth"}, "code it").
+				AddStage("test", workspace.TierScope{Level: workspace.Mod, Name: "tests"}, "test it").
 				Build()
 		},
 	})

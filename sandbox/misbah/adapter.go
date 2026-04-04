@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/sandbox"
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 // DefaultSocketPath is the standard Misbah daemon socket location.
@@ -37,7 +37,7 @@ func (m *MisbahSandbox) Create(ctx context.Context, level string, repos []string
 	if len(repos) > 0 {
 		name = repos[0]
 	}
-	scope := tier.Scope{
+	scope := workspace.TierScope{
 		Level: tierLevelFromString(level),
 		Name:  name,
 	}
@@ -81,16 +81,16 @@ func (m *MisbahSandbox) Close() {
 }
 
 // tierLevelFromString converts a sandbox level string to a tier.TierLevel.
-func tierLevelFromString(level string) tier.TierLevel {
+func tierLevelFromString(level string) workspace.TierLevel {
 	switch level {
 	case sandbox.LevelNamespace:
-		return tier.Sys
+		return workspace.Sys
 	case sandbox.LevelContainer:
-		return tier.Com
+		return workspace.Com
 	case sandbox.LevelKata:
-		return tier.Mod
+		return workspace.Mod
 	default:
-		return tier.Eco
+		return workspace.Eco
 	}
 }
 

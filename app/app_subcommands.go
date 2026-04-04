@@ -13,19 +13,15 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/ari"
+	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/broker"
 	djinnconfig "github.com/dpopsuev/djinn/config"
-	djinnctx "github.com/dpopsuev/djinn/context"
-	"github.com/dpopsuev/djinn/artifact"
-	"github.com/dpopsuev/djinn/djinnfile"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/orchestrator"
 	msbsandbox "github.com/dpopsuev/djinn/sandbox/misbah"
 	"github.com/dpopsuev/djinn/session"
 	sigsvc "github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/testkit/stubs"
-	"github.com/dpopsuev/djinn/tier"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	djinnws "github.com/dpopsuev/djinn/workspace"
 )
@@ -216,7 +212,7 @@ func RunDoctor(w io.Writer) error {
 	}
 
 	fmt.Fprintln(w, "\n  context:")
-	projectCtx := djinnctx.LoadProjectContext(Getwd())
+	projectCtx := session.LoadProjectContext(Getwd())
 	found := false
 	if projectCtx.ClaudeMD != "" {
 		fmt.Fprintln(w, "    CLAUDE.md: found ✓")
@@ -377,7 +373,7 @@ func RunHeadless(args []string, stderr io.Writer) error {
 	}
 	defer f.Close()
 
-	df, err := djinnfile.Parse(f)
+	df, err := djinnconfig.ParseDjinnfile(f)
 	if err != nil {
 		return err
 	}
@@ -386,7 +382,7 @@ func RunHeadless(args []string, stderr io.Writer) error {
 	cordons := broker.NewCordonRegistry()
 	op := stubs.NewStubOperatorPort()
 
-	var createSandbox func(ctx context.Context, scope tier.Scope) (string, error)
+	var createSandbox func(ctx context.Context, scope djinnws.TierScope) (string, error)
 	var destroySandbox func(ctx context.Context, id string) error
 
 	if *misbahSocket != "" {
@@ -400,7 +396,7 @@ func RunHeadless(args []string, stderr io.Writer) error {
 		destroySandbox = stubSandbox.Destroy
 	}
 
-	orch := orchestrator.NewSimpleOrchestrator(
+	orch := broker.NewSimpleOrchestrator(
 		createSandbox, destroySandbox,
 		func(cfg driver.DriverConfig) driver.Driver {
 			return stubs.NewStubDriver(driver.Message{Role: driver.RoleAssistant, Content: "completed"})
@@ -411,7 +407,7 @@ func RunHeadless(args []string, stderr io.Writer) error {
 
 	b := broker.NewBroker(&broker.BrokerConfig{
 		Orchestrator: orch, Bus: bus, Cordons: cordons, Operator: op,
-		PlanFactory: func(intent ari.Intent) orchestrator.WorkPlan { return df.ToWorkPlan(intent.ID) },
+		PlanFactory: func(intent ari.Intent) broker.WorkPlan { return df.ToWorkPlan(intent.ID) },
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())

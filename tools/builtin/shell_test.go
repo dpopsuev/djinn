@@ -803,9 +803,9 @@ type stubTool struct {
 	desc string
 }
 
-func (s *stubTool) Name() string                                                       { return s.name }
-func (s *stubTool) Description() string                                                { return s.desc }
-func (s *stubTool) InputSchema() json.RawMessage                                       { return json.RawMessage(`{}`) }
+func (s *stubTool) Name() string                                                 { return s.name }
+func (s *stubTool) Description() string                                          { return s.desc }
+func (s *stubTool) InputSchema() json.RawMessage                                 { return json.RawMessage(`{}`) }
 func (s *stubTool) Execute(_ context.Context, _ json.RawMessage) (string, error) { return "stub", nil }
 
 func TestAllShellTools_NameDescription(t *testing.T) {

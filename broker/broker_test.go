@@ -9,9 +9,8 @@ import (
 	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/signal"
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 // testDriver implements driver.Driver for broker tests.
@@ -39,7 +38,7 @@ func (g *testGate) Validate(ctx context.Context, sandboxID string) error { retur
 // testOperator implements OperatorPort for broker tests.
 type testOperator struct {
 	mu          sync.Mutex
-	events      []orchestrator.Event
+	events      []Event
 	results     []ari.Result
 	andons      []AndonBoard
 	permissions []ari.PermissionPayload
@@ -58,7 +57,7 @@ func (o *testOperator) OnIntent(handler func(ari.Intent)) {
 	defer o.mu.Unlock()
 	o.handler = handler
 }
-func (o *testOperator) EmitProgress(event orchestrator.Event) {
+func (o *testOperator) EmitProgress(event Event) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.events = append(o.events, event)
@@ -101,8 +100,8 @@ func (o *testOperator) getAndons() []AndonBoard {
 func newTestBrokerConfig(op *testOperator, bus *signal.SignalBus) *BrokerConfig {
 	cordons := NewCordonRegistry()
 
-	orch := orchestrator.NewSimpleOrchestrator(
-		func(ctx context.Context, scope tier.Scope) (string, error) { return "sb", nil },
+	orch := NewSimpleOrchestrator(
+		func(ctx context.Context, scope workspace.TierScope) (string, error) { return "sb", nil },
 		func(ctx context.Context, id string) error { return nil },
 		func(cfg driver.DriverConfig) driver.Driver { return newTestDriver() },
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &testGate{} },
@@ -114,11 +113,11 @@ func newTestBrokerConfig(op *testOperator, bus *signal.SignalBus) *BrokerConfig 
 		Bus:          bus,
 		Cordons:      cordons,
 		Operator:     op,
-		PlanFactory: func(intent ari.Intent) orchestrator.WorkPlan {
-			return orchestrator.WorkPlan{
+		PlanFactory: func(intent ari.Intent) WorkPlan {
+			return WorkPlan{
 				ID: intent.ID,
-				Stages: []orchestrator.Stage{
-					{Name: "code", Scope: tier.Scope{Level: tier.Mod, Name: "auth"}, Prompt: "code it"},
+				Stages: []Stage{
+					{Name: "code", Scope: workspace.TierScope{Level: workspace.Mod, Name: "auth"}, Prompt: "code it"},
 				},
 			}
 		},
@@ -277,8 +276,8 @@ func TestBroker_CancelWorkstream(t *testing.T) {
 	// Use a blocking driver so the workstream stays running
 	blockCh := make(chan struct{})
 	cfg := &BrokerConfig{
-		Orchestrator: orchestrator.NewSimpleOrchestrator(
-			func(ctx context.Context, scope tier.Scope) (string, error) { return "sb", nil },
+		Orchestrator: NewSimpleOrchestrator(
+			func(ctx context.Context, scope workspace.TierScope) (string, error) { return "sb", nil },
 			func(ctx context.Context, id string) error { return nil },
 			func(cfg driver.DriverConfig) driver.Driver {
 				ch := make(chan driver.Message)
@@ -291,10 +290,10 @@ func TestBroker_CancelWorkstream(t *testing.T) {
 		Bus:      bus,
 		Cordons:  NewCordonRegistry(),
 		Operator: op,
-		PlanFactory: func(intent ari.Intent) orchestrator.WorkPlan {
-			return orchestrator.WorkPlan{
+		PlanFactory: func(intent ari.Intent) WorkPlan {
+			return WorkPlan{
 				ID:     intent.ID,
-				Stages: []orchestrator.Stage{{Name: "slow", Scope: tier.Scope{Level: tier.Mod}, Prompt: "wait"}},
+				Stages: []Stage{{Name: "slow", Scope: workspace.TierScope{Level: workspace.Mod}, Prompt: "wait"}},
 			}
 		},
 	}

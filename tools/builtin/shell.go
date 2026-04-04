@@ -30,8 +30,10 @@ type PlanTool struct {
 	Store *artifact.Graph
 }
 
-func (t *PlanTool) Name() string        { return "plan" }
-func (t *PlanTool) Description() string { return "In-process task tracker: create, get, update, list, topo_sort tasks" }
+func (t *PlanTool) Name() string { return "plan" }
+func (t *PlanTool) Description() string {
+	return "In-process task tracker: create, get, update, list, topo_sort tasks"
+}
 func (t *PlanTool) InputSchema() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
@@ -250,8 +252,10 @@ type ArchTool struct {
 	WorkDir string
 }
 
-func (t *ArchTool) Name() string        { return "arch" }
-func (t *ArchTool) Description() string { return "Import graph analysis: analyze imports, detect cycles, check layer violations" }
+func (t *ArchTool) Name() string { return "arch" }
+func (t *ArchTool) Description() string {
+	return "Import graph analysis: analyze imports, detect cycles, check layer violations"
+}
 func (t *ArchTool) InputSchema() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
@@ -305,8 +309,10 @@ type DiscourseTool struct {
 	Store *tools.DiscourseStore
 }
 
-func (t *DiscourseTool) Name() string        { return "discourse" }
-func (t *DiscourseTool) Description() string { return "Forum-style conversation persistence: topics, threads, messages" }
+func (t *DiscourseTool) Name() string { return "discourse" }
+func (t *DiscourseTool) Description() string {
+	return "Forum-style conversation persistence: topics, threads, messages"
+}
 func (t *DiscourseTool) InputSchema() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
@@ -415,8 +421,10 @@ type ReconcileTool struct {
 	WorkDir   string
 }
 
-func (t *ReconcileTool) Name() string        { return "reconcile" }
-func (t *ReconcileTool) Description() string { return "Three-pillar drift reconciliation: functionality, structure, performance" }
+func (t *ReconcileTool) Name() string { return "reconcile" }
+func (t *ReconcileTool) Description() string {
+	return "Three-pillar drift reconciliation: functionality, structure, performance"
+}
 func (t *ReconcileTool) InputSchema() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
@@ -466,8 +474,10 @@ type LatencyTool struct {
 	Tracker *tools.ToolLatencyTracker
 }
 
-func (t *LatencyTool) Name() string        { return "latency" }
-func (t *LatencyTool) Description() string { return "Tool latency telemetry: report, p50, p95 per tool" }
+func (t *LatencyTool) Name() string { return "latency" }
+func (t *LatencyTool) Description() string {
+	return "Tool latency telemetry: report, p50, p95 per tool"
+}
 func (t *LatencyTool) InputSchema() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",

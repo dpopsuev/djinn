@@ -20,7 +20,6 @@ import (
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/hub"
-	"github.com/dpopsuev/djinn/keybind"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/staff"
@@ -124,7 +123,7 @@ type Model struct {
 	activeWorktree string // current worktree path (empty = main repo)
 
 	// Keybindings
-	keys *keybind.ModeTable
+	keys *tui.ModeTable
 
 	// Context relay
 	monitor *session.ContextMonitor
@@ -248,7 +247,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		return "", fmt.Errorf("%w: %s", terminal.ErrUnknownCommand, name)
 	}
 
-	m.keys = keybind.NewModeTable()
+	m.keys = tui.NewModeTable()
 	m.focus = core.NewFocusManager(m.outputPanel, m.inputPanel, m.dashboard)
 	m.focus.FocusPanel(1) // Default focus on input — user can type immediately.
 
@@ -686,7 +685,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) { //nolint:gocycl
 		return m, nil
 	}
 
-	// Command lookup via keybind.ModeTable (SPC-51).
+	// Command lookup via tui.ModeTable (SPC-51).
 	cmd, ok := m.keys.Lookup(msg.String())
 	if ok { //nolint:nestif // keybinding command dispatch
 		switch cmd.Name {

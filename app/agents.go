@@ -47,5 +47,3 @@ func bridgeSignalHandler(program *tea.Program) func(jerichoport.Signal) {
 func BridgeStaffToTUI(staff *jerichoport.Staff, program *tea.Program) {
 	staff.OnSignal(bridgeSignalHandler(program))
 }
-
-

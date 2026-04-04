@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 func TestClaudeDriver_InterfaceSatisfaction(t *testing.T) {
@@ -60,7 +60,7 @@ func TestClaudeDriver_Lifecycle(t *testing.T) {
 func TestClaudeDriver_ContainerEnv_ModTier(t *testing.T) {
 	d := New(
 		driver.DriverConfig{Model: "claude-opus-4-6", MaxTokens: 4096},
-		WithScope(tier.Scope{Level: tier.Mod, Name: "auth"}),
+		WithScope(workspace.TierScope{Level: workspace.Mod, Name: "auth"}),
 		WithClaudeMD("# Auth Module\nFix the auth bug."),
 	)
 
@@ -79,7 +79,7 @@ func TestClaudeDriver_ContainerEnv_ModTier(t *testing.T) {
 	if env.ClaudeMD != "# Auth Module\nFix the auth bug." {
 		t.Fatalf("ClaudeMD = %q, want injected content", env.ClaudeMD)
 	}
-	if env.Scope.Level != tier.Mod {
+	if env.Scope.Level != workspace.Mod {
 		t.Fatalf("Scope.Level = %v, want Mod", env.Scope.Level)
 	}
 	if env.Scope.Name != "auth" {
@@ -105,7 +105,7 @@ func TestClaudeDriver_ContainerEnv_ModTier(t *testing.T) {
 func TestClaudeDriver_ContainerEnv_EcoTier(t *testing.T) {
 	d := New(
 		driver.DriverConfig{Model: "claude-sonnet-4-6"},
-		WithScope(tier.Scope{Level: tier.Eco, Name: "workspace"}),
+		WithScope(workspace.TierScope{Level: workspace.Eco, Name: "workspace"}),
 	)
 
 	ctx := context.Background()

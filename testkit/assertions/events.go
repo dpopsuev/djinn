@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/orchestrator"
+	"github.com/dpopsuev/djinn/broker"
 )
 
 // AssertEventOrder checks that events contain the expected kinds in order.
-func AssertEventOrder(t *testing.T, events []orchestrator.Event, expectedKinds []orchestrator.EventKind) {
+func AssertEventOrder(t *testing.T, events []broker.Event, expectedKinds []broker.EventKind) {
 	t.Helper()
 	idx := 0
 	for _, e := range events {
@@ -22,7 +22,7 @@ func AssertEventOrder(t *testing.T, events []orchestrator.Event, expectedKinds [
 }
 
 // WaitForEvent polls a function until an event with the given kind appears.
-func WaitForEvent(t *testing.T, getEvents func() []orchestrator.Event, kind orchestrator.EventKind, timeout time.Duration) orchestrator.Event {
+func WaitForEvent(t *testing.T, getEvents func() []broker.Event, kind broker.EventKind, timeout time.Duration) broker.Event {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -34,11 +34,11 @@ func WaitForEvent(t *testing.T, getEvents func() []orchestrator.Event, kind orch
 		time.Sleep(5 * time.Millisecond)
 	}
 	t.Fatalf("timed out waiting for event kind %v", kind)
-	return orchestrator.Event{}
+	return broker.Event{}
 }
 
 // AssertNoEvent checks that no event with the given kind exists.
-func AssertNoEvent(t *testing.T, events []orchestrator.Event, kind orchestrator.EventKind) {
+func AssertNoEvent(t *testing.T, events []broker.Event, kind broker.EventKind) {
 	t.Helper()
 	for _, e := range events {
 		if e.Kind == kind {
@@ -48,8 +48,8 @@ func AssertNoEvent(t *testing.T, events []orchestrator.Event, kind orchestrator.
 }
 
 // CollectEvents collects events from a channel until it's closed or timeout.
-func CollectEvents(ch <-chan orchestrator.Event, timeout time.Duration) []orchestrator.Event {
-	var events []orchestrator.Event
+func CollectEvents(ch <-chan broker.Event, timeout time.Duration) []broker.Event {
+	var events []broker.Event
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	for {

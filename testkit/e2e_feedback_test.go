@@ -6,13 +6,12 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/ari"
-	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/artifact"
+	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/testkit/stubs"
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 func TestE2E_FeedbackLoop_AlertToFixToRecovery(t *testing.T) {
@@ -22,7 +21,7 @@ func TestE2E_FeedbackLoop_AlertToFixToRecovery(t *testing.T) {
 	bus := signal.NewSignalBus()
 	cordons := broker.NewCordonRegistry()
 
-	orch := orchestrator.NewSimpleOrchestrator(
+	orch := broker.NewSimpleOrchestrator(
 		sandbox.Create,
 		sandbox.Destroy,
 		func(cfg driver.DriverConfig) driver.Driver {
@@ -44,11 +43,11 @@ func TestE2E_FeedbackLoop_AlertToFixToRecovery(t *testing.T) {
 		Alerts:       feedback, // EventIngressPort (driving)
 		Metrics:      feedback, // MetricsPort (driven)
 		Sandbox:      sandbox,
-		PlanFactory: func(intent ari.Intent) orchestrator.WorkPlan {
-			return orchestrator.WorkPlan{
+		PlanFactory: func(intent ari.Intent) broker.WorkPlan {
+			return broker.WorkPlan{
 				ID: intent.ID,
-				Stages: []orchestrator.Stage{
-					{Name: "fix", Scope: tier.Scope{Level: tier.Mod, Name: "hotfix"}, Prompt: "fix it"},
+				Stages: []broker.Stage{
+					{Name: "fix", Scope: workspace.TierScope{Level: workspace.Mod, Name: "hotfix"}, Prompt: "fix it"},
 				},
 			}
 		},

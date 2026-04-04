@@ -17,7 +17,6 @@ import (
 	"github.com/dpopsuev/djinn/cli/repl"
 	"github.com/dpopsuev/djinn/clutch"
 	djinnconfig "github.com/dpopsuev/djinn/config"
-	djinnctx "github.com/dpopsuev/djinn/context"
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/hub"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
@@ -210,8 +209,8 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	}
 
 	// Auto-discover project context
-	projectCtx := djinnctx.LoadProjectContext(sess.WorkDirs...)
-	assembledPrompt := djinnctx.BuildSystemPrompt(projectCtx, *systemPrompt)
+	projectCtx := session.LoadProjectContext(sess.WorkDirs...)
+	assembledPrompt := session.BuildSystemPrompt(projectCtx, *systemPrompt)
 
 	chatDriver, err := CreateDriver(driverConf.Name, sess.Model, assembledPrompt, logResult.Logger)
 	if err != nil {
@@ -320,8 +319,8 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		if evt.New == nil {
 			return
 		}
-		newCtx := djinnctx.LoadProjectContext(evt.New.Paths()...)
-		newPrompt := djinnctx.BuildSystemPrompt(newCtx, *systemPrompt)
+		newCtx := session.LoadProjectContext(evt.New.Paths()...)
+		newPrompt := session.BuildSystemPrompt(newCtx, *systemPrompt)
 		chatDriver.SetSystemPrompt(newPrompt)
 	})
 	wsBus.On("session", func(evt djinnws.Event) {

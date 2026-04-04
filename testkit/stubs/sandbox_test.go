@@ -5,13 +5,13 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 func TestStubSandbox_IDGeneration(t *testing.T) {
 	s := NewStubSandbox()
 	ctx := context.Background()
-	scope := tier.Scope{Level: tier.Mod, Name: "auth"}
+	scope := workspace.TierScope{Level: workspace.Mod, Name: "auth"}
 
 	id1, err := s.Create(ctx, scope)
 	if err != nil {
@@ -30,7 +30,7 @@ func TestStubSandbox_IDGeneration(t *testing.T) {
 func TestStubSandbox_LifecycleTracking(t *testing.T) {
 	s := NewStubSandbox()
 	ctx := context.Background()
-	scope := tier.Scope{Level: tier.Mod, Name: "auth"}
+	scope := workspace.TierScope{Level: workspace.Mod, Name: "auth"}
 
 	id, _ := s.Create(ctx, scope)
 	if err := s.Destroy(ctx, id); err != nil {
@@ -50,7 +50,7 @@ func TestStubSandbox_LifecycleTracking(t *testing.T) {
 func TestStubSandbox_ErrorInjection(t *testing.T) {
 	s := NewStubSandbox()
 	ctx := context.Background()
-	scope := tier.Scope{Level: tier.Mod, Name: "auth"}
+	scope := workspace.TierScope{Level: workspace.Mod, Name: "auth"}
 	injected := errors.New("injected")
 
 	s.SetCreateErr(injected)

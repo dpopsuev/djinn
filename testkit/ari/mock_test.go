@@ -5,7 +5,7 @@ import (
 	"time"
 
 	ariTypes "github.com/dpopsuev/djinn/ari"
-	"github.com/dpopsuev/djinn/orchestrator"
+	"github.com/dpopsuev/djinn/broker"
 )
 
 func TestMockARI_RoundTrip(t *testing.T) {
@@ -14,14 +14,14 @@ func TestMockARI_RoundTrip(t *testing.T) {
 
 	// Register intent handler that emits events and a result
 	server.OnIntent(func(intent ariTypes.Intent) {
-		server.EmitProgress(orchestrator.Event{
+		server.EmitProgress(broker.Event{
 			ExecID: intent.ID,
-			Kind:   orchestrator.StageStarted,
+			Kind:   broker.StageStarted,
 			Stage:  "code",
 		})
-		server.EmitProgress(orchestrator.Event{
+		server.EmitProgress(broker.Event{
 			ExecID: intent.ID,
-			Kind:   orchestrator.StageCompleted,
+			Kind:   broker.StageCompleted,
 			Stage:  "code",
 		})
 		server.EmitResult(ariTypes.Result{
@@ -38,7 +38,7 @@ func TestMockARI_RoundTrip(t *testing.T) {
 	})
 
 	// Client waits for events
-	event, ok := client.WaitForEvent(orchestrator.StageStarted, time.Second)
+	event, ok := client.WaitForEvent(broker.StageStarted, time.Second)
 	if !ok {
 		t.Fatal("timed out waiting for StageStarted")
 	}
@@ -90,7 +90,7 @@ func TestMockARI_WaitForEventTimeout(t *testing.T) {
 	server := NewMockARIServer()
 	client := NewMockARIClient(server)
 
-	_, ok := client.WaitForEvent(orchestrator.ExecutionDone, 50*time.Millisecond)
+	_, ok := client.WaitForEvent(broker.ExecutionDone, 50*time.Millisecond)
 	if ok {
 		t.Fatal("expected timeout, got event")
 	}

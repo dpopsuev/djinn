@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/mcp"
+	mcpclient "github.com/dpopsuev/djinn/mcp/client"
 )
 
 // Claude Code CLI flags and defaults.
@@ -46,7 +46,7 @@ type CodeDriver struct {
 	config       driver.DriverConfig
 	execFn       ExecFunc
 	systemPrompt string
-	mcpServers   []mcp.Server
+	mcpServers   []mcpclient.Server
 	mcpConfigDir string // temp dir for MCP config file, cleaned up on Stop
 
 	mu      sync.Mutex
@@ -60,7 +60,7 @@ type CodeDriver struct {
 type CodeDriverOption func(*CodeDriver)
 
 // WithMCPServers registers MCP servers to expose to Claude Code.
-func WithMCPServers(servers []mcp.Server) CodeDriverOption {
+func WithMCPServers(servers []mcpclient.Server) CodeDriverOption {
 	return func(d *CodeDriver) { d.mcpServers = servers }
 }
 
@@ -162,7 +162,7 @@ func (d *CodeDriver) buildCommand(prompt string) []string {
 	if len(d.mcpServers) > 0 {
 		dir, err := os.MkdirTemp("", "djinn-mcp-*")
 		if err == nil {
-			path, err := mcp.WriteConfigFile(dir, d.mcpServers)
+			path, err := mcpclient.WriteConfigFile(dir, d.mcpServers)
 			if err == nil {
 				d.mcpConfigDir = dir
 				cmd = append(cmd, flagMCPConfig, path)

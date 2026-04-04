@@ -10,9 +10,8 @@ import (
 
 	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/djinnlog"
-	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/signal"
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 const (
@@ -28,7 +27,7 @@ var ErrWorkstreamNotFound = errors.New("workstream not found or not running")
 type Broker struct {
 	log *slog.Logger
 
-	orch        orchestrator.Orchestrator
+	orch        Orchestrator
 	bus         *signal.SignalBus
 	cordons     *CordonRegistry
 	workstreams *WorkstreamRegistry
@@ -37,7 +36,7 @@ type Broker struct {
 	sandbox     SandboxPort
 	metrics     MetricsPort
 
-	planFactory func(ari.Intent) orchestrator.WorkPlan
+	planFactory func(ari.Intent) WorkPlan
 
 	mu      sync.Mutex
 	running map[string]context.CancelFunc
@@ -46,14 +45,14 @@ type Broker struct {
 // BrokerConfig holds the dependencies for creating a Broker.
 type BrokerConfig struct {
 	Logger        *slog.Logger // nil = djinnlog.Nop()
-	Orchestrator  orchestrator.Orchestrator
+	Orchestrator  Orchestrator
 	Bus           *signal.SignalBus
 	Cordons       *CordonRegistry
 	Operator      OperatorPort
 	Alerts        EventIngressPort
 	Sandbox       SandboxPort
 	Metrics       MetricsPort
-	PlanFactory   func(ari.Intent) orchestrator.WorkPlan
+	PlanFactory   func(ari.Intent) WorkPlan
 	MaxConcurrent int // 0 = unlimited
 }
 
@@ -116,7 +115,7 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 	plan := b.planFactory(intent)
 	startedAt := time.Now()
 
-	scopes := make([]tier.Scope, len(plan.Stages))
+	scopes := make([]workspace.TierScope, len(plan.Stages))
 	for i := range plan.Stages {
 		scopes[i] = plan.Stages[i].Scope
 	}
@@ -183,7 +182,7 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 		return
 	}
 
-	var lastEvent orchestrator.Event
+	var lastEvent Event
 	for event := range ch {
 		b.operator.EmitProgress(event)
 		lastEvent = event
@@ -194,7 +193,7 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 	board := ComputeAndon(health, b.cordons.Active())
 	b.operator.EmitAndon(board)
 
-	success := lastEvent.Kind == orchestrator.ExecutionDone && lastEvent.Message == orchestrator.ExecutionSuccess
+	success := lastEvent.Kind == ExecutionDone && lastEvent.Message == ExecutionSuccess
 	if success {
 		b.workstreams.Complete(plan.ID, WorkstreamCompleted)
 		// Yellow: workstream completed
@@ -275,7 +274,7 @@ func (b *Broker) forwardPermissions(ctx context.Context) {
 			if !ok {
 				return
 			}
-			_ = b.orch.Submit(ctx, resp.ExecID, orchestrator.ExternalInput{
+			_ = b.orch.Submit(ctx, resp.ExecID, ExternalInput{
 				ExecID:  resp.ExecID,
 				Payload: map[string]string{"approved": fmt.Sprintf("%t", resp.Approved)},
 			})

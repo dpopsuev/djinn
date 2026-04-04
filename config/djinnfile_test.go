@@ -1,0 +1,193 @@
+package config
+
+import (
+	"errors"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/dpopsuev/djinn/artifact"
+	"github.com/dpopsuev/djinn/workspace"
+)
+
+const validDjinnfile = `{
+  "version": "1",
+  "name": "auth-refactor",
+  "stages": [
+    {
+      "name": "analyze",
+      "tier": "eco",
+      "scope": "workspace",
+      "prompt": "analyze the auth subsystem",
+      "gate": {"name": "analysis-gate", "severity": "warning"}
+    },
+    {
+      "name": "implement",
+      "tier": "mod",
+      "scope": "auth",
+      "prompt": "implement the fix",
+      "time_budget": "3m",
+      "token_budget": 100,
+      "gate": {"name": "unit-gate", "severity": "blocking"}
+    }
+  ],
+  "driver": {
+    "model": "claude-opus-4-6",
+    "max_tokens": 8192
+  }
+}`
+
+func TestParseDjinnfile_Valid(t *testing.T) {
+	df, err := ParseDjinnfile(strings.NewReader(validDjinnfile))
+	if err != nil {
+		t.Fatalf("ParseDjinnfile: %v", err)
+	}
+	if df.Name != "auth-refactor" {
+		t.Fatalf("Name = %q, want %q", df.Name, "auth-refactor")
+	}
+	if df.Version != "1" {
+		t.Fatalf("Version = %q, want %q", df.Version, "1")
+	}
+	if len(df.Stages) != 2 {
+		t.Fatalf("Stages = %d, want 2", len(df.Stages))
+	}
+	if df.Stages[0].Name != "analyze" {
+		t.Fatalf("Stage[0].Name = %q, want %q", df.Stages[0].Name, "analyze")
+	}
+	if df.Stages[0].Tier != TierEco {
+		t.Fatalf("Stage[0].Tier = %q, want %q", df.Stages[0].Tier, TierEco)
+	}
+	if df.Stages[1].parsedTimeBudget != 3*time.Minute {
+		t.Fatalf("Stage[1].parsedTimeBudget = %v, want 3m", df.Stages[1].parsedTimeBudget)
+	}
+	if df.Stages[1].TokenBudget != 100 {
+		t.Fatalf("Stage[1].TokenBudget = %d, want 100", df.Stages[1].TokenBudget)
+	}
+	if df.Driver.Model != "claude-opus-4-6" {
+		t.Fatalf("Driver.Model = %q, want %q", df.Driver.Model, "claude-opus-4-6")
+	}
+	if df.Driver.MaxTokens != 8192 {
+		t.Fatalf("Driver.MaxTokens = %d, want 8192", df.Driver.MaxTokens)
+	}
+}
+
+func TestParseDjinnfile_Defaults(t *testing.T) {
+	minimal := `{"stages": [{"name": "code", "prompt": "do it"}]}`
+	df, err := ParseDjinnfileBytes([]byte(minimal))
+	if err != nil {
+		t.Fatalf("ParseDjinnfile: %v", err)
+	}
+	if df.Version != "1" {
+		t.Fatalf("default Version = %q, want %q", df.Version, "1")
+	}
+	if df.Driver.Model != DefaultModel {
+		t.Fatalf("default Model = %q, want %q", df.Driver.Model, DefaultModel)
+	}
+	if df.Stages[0].Tier != TierMod {
+		t.Fatalf("default Tier = %q, want %q", df.Stages[0].Tier, TierMod)
+	}
+	if df.Stages[0].Gate.Severity != artifact.SeverityBlocking {
+		t.Fatalf("default Severity = %q, want %q", df.Stages[0].Gate.Severity, artifact.SeverityBlocking)
+	}
+	if df.Stages[0].Gate.Name != "code-gate" {
+		t.Fatalf("default Gate.Name = %q, want %q", df.Stages[0].Gate.Name, "code-gate")
+	}
+	if df.Stages[0].parsedTimeBudget != DefaultTimeBudgetMod {
+		t.Fatalf("default TimeBudget = %v, want %v", df.Stages[0].parsedTimeBudget, DefaultTimeBudgetMod)
+	}
+}
+
+func TestParseDjinnfile_DefaultTimeBudgetPerTier(t *testing.T) {
+	tests := []struct {
+		tier string
+		want time.Duration
+	}{
+		{TierEco, DefaultTimeBudgetEco},
+		{TierSys, DefaultTimeBudgetSys},
+		{TierCom, DefaultTimeBudgetCom},
+		{TierMod, DefaultTimeBudgetMod},
+	}
+	for _, tt := range tests {
+		input := `{"stages": [{"name": "s", "tier": "` + tt.tier + `"}]}`
+		df, err := ParseDjinnfileBytes([]byte(input))
+		if err != nil {
+			t.Fatalf("ParseDjinnfile(%s): %v", tt.tier, err)
+		}
+		if df.Stages[0].parsedTimeBudget != tt.want {
+			t.Fatalf("tier %s: budget = %v, want %v", tt.tier, df.Stages[0].parsedTimeBudget, tt.want)
+		}
+	}
+}
+
+func TestParseDjinnfile_NoStages(t *testing.T) {
+	_, err := ParseDjinnfileBytes([]byte(`{"stages": []}`))
+	if !errors.Is(err, ErrNoStages) {
+		t.Fatalf("err = %v, want ErrNoStages", err)
+	}
+}
+
+func TestParseDjinnfile_NoStageName(t *testing.T) {
+	_, err := ParseDjinnfileBytes([]byte(`{"stages": [{"prompt": "do it"}]}`))
+	if !errors.Is(err, ErrNoStageName) {
+		t.Fatalf("err = %v, want ErrNoStageName", err)
+	}
+}
+
+func TestParseDjinnfile_InvalidTimeBudget(t *testing.T) {
+	input := `{"stages": [{"name": "s", "time_budget": "not-a-duration"}]}`
+	_, err := ParseDjinnfileBytes([]byte(input))
+	if err == nil {
+		t.Fatal("expected error for invalid time_budget")
+	}
+}
+
+func TestParseDjinnfile_InvalidJSON(t *testing.T) {
+	_, err := ParseDjinnfile(strings.NewReader("{bad json"))
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func TestDjinnfileToWorkPlan(t *testing.T) {
+	df, err := ParseDjinnfile(strings.NewReader(validDjinnfile))
+	if err != nil {
+		t.Fatalf("ParseDjinnfile: %v", err)
+	}
+
+	plan := df.ToWorkPlan("plan-1")
+
+	if plan.ID != "plan-1" {
+		t.Fatalf("ID = %q, want %q", plan.ID, "plan-1")
+	}
+	if len(plan.Stages) != 2 {
+		t.Fatalf("Stages = %d, want 2", len(plan.Stages))
+	}
+
+	s0 := plan.Stages[0]
+	if s0.Name != "analyze" {
+		t.Fatalf("Stage[0].Name = %q, want %q", s0.Name, "analyze")
+	}
+	if s0.Scope.Level != workspace.Eco {
+		t.Fatalf("Stage[0].Scope.Level = %v, want Eco", s0.Scope.Level)
+	}
+	if s0.Scope.Name != "workspace" {
+		t.Fatalf("Stage[0].Scope.Name = %q, want %q", s0.Scope.Name, "workspace")
+	}
+	if s0.Prompt != "analyze the auth subsystem" {
+		t.Fatalf("Stage[0].Prompt = %q", s0.Prompt)
+	}
+	if s0.Driver.Model != "claude-opus-4-6" {
+		t.Fatalf("Stage[0].Driver.Model = %q, want %q", s0.Driver.Model, "claude-opus-4-6")
+	}
+
+	s1 := plan.Stages[1]
+	if s1.TimeBudget != 3*time.Minute {
+		t.Fatalf("Stage[1].TimeBudget = %v, want 3m", s1.TimeBudget)
+	}
+	if s1.TokenBudget != 100 {
+		t.Fatalf("Stage[1].TokenBudget = %d, want 100", s1.TokenBudget)
+	}
+	if s1.Gate.Name != "unit-gate" {
+		t.Fatalf("Stage[1].Gate.Name = %q, want %q", s1.Gate.Name, "unit-gate")
+	}
+}

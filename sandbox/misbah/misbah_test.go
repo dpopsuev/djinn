@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/tier"
+	wksp "github.com/dpopsuev/djinn/workspace"
 )
 
 const testSocket = "/run/misbah/permission.sock"
@@ -63,8 +63,8 @@ func TestSandboxPort_Integration_DiffCommit(t *testing.T) {
 	s := New(socketPath, workspace)
 	defer s.Close()
 
-	scope := tier.Scope{
-		Level: tier.Mod,
+	scope := wksp.TierScope{
+		Level: wksp.Mod,
 		Name:  "test",
 	}
 

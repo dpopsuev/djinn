@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/app"
-	djinnctx "github.com/dpopsuev/djinn/context"
 	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/workspace"
 )
@@ -21,7 +20,7 @@ func TestWorkspace_UpwardWalkFindsParent(t *testing.T) {
 	os.MkdirAll(child, 0o755)
 	os.WriteFile(filepath.Join(parent, "CLAUDE.md"), []byte("project rules"), 0o644)
 
-	ctx := djinnctx.LoadProjectContext(child)
+	ctx := session.LoadProjectContext(child)
 	if ctx.ClaudeMD != "project rules" {
 		t.Fatalf("should find CLAUDE.md from parent, got %q", ctx.ClaudeMD)
 	}
@@ -33,7 +32,7 @@ func TestWorkspace_WalkStopsAtHome(t *testing.T) {
 	subdir := filepath.Join(home, "projects", "test")
 	os.MkdirAll(subdir, 0o755)
 
-	ctx := djinnctx.LoadProjectContext(subdir)
+	ctx := session.LoadProjectContext(subdir)
 	// Should not find anything above home
 	if ctx.ClaudeMD != "" {
 		t.Fatal("walk should not escape above $HOME")
@@ -41,7 +40,7 @@ func TestWorkspace_WalkStopsAtHome(t *testing.T) {
 }
 
 func TestWorkspace_NoFileNoError(t *testing.T) {
-	ctx := djinnctx.LoadProjectContext(t.TempDir())
+	ctx := session.LoadProjectContext(t.TempDir())
 	if ctx.ClaudeMD != "" || ctx.AgentsMD != "" || ctx.GeminiMD != "" {
 		t.Fatal("empty dir should produce empty context")
 	}
@@ -53,7 +52,7 @@ func TestWorkspace_MultiDirMerge(t *testing.T) {
 	os.WriteFile(filepath.Join(dir1, "CLAUDE.md"), []byte("claude from dir1"), 0o644)
 	os.WriteFile(filepath.Join(dir2, "AGENTS.md"), []byte("agents from dir2"), 0o644)
 
-	ctx := djinnctx.LoadProjectContext(dir1, dir2)
+	ctx := session.LoadProjectContext(dir1, dir2)
 	if ctx.ClaudeMD != "claude from dir1" {
 		t.Fatalf("ClaudeMD = %q", ctx.ClaudeMD)
 	}
@@ -76,7 +75,7 @@ func TestWorkspace_MemoryFromClaudePath(t *testing.T) {
 	os.MkdirAll(memDir, 0o755)
 	os.WriteFile(filepath.Join(memDir, "MEMORY.md"), []byte("# Memory\nDjinn context"), 0o644)
 
-	ctx := djinnctx.LoadProjectContext(workDir)
+	ctx := session.LoadProjectContext(workDir)
 	if !strings.Contains(ctx.MemoryMD, "Memory") {
 		t.Fatalf("MEMORY.md not discovered, got %q", ctx.MemoryMD)
 	}
@@ -101,7 +100,7 @@ func TestWorkspace_MultiMemory_AllReposLoaded(t *testing.T) {
 		os.WriteFile(filepath.Join(memDir, "MEMORY.md"), []byte("# "+name+" Memory\n"+name+" is important."), 0o644)
 	}
 
-	ctx := djinnctx.LoadProjectContext(djinnDir, misbahDir)
+	ctx := session.LoadProjectContext(djinnDir, misbahDir)
 
 	if !strings.Contains(ctx.MemoryMD, "djinn Memory") {
 		t.Fatalf("missing djinn memory in: %q", ctx.MemoryMD)
@@ -113,18 +112,18 @@ func TestWorkspace_MultiMemory_AllReposLoaded(t *testing.T) {
 
 func TestWorkspace_NoMemoryNoError(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	ctx := djinnctx.LoadProjectContext(t.TempDir())
+	ctx := session.LoadProjectContext(t.TempDir())
 	if ctx.MemoryMD != "" {
 		t.Fatal("missing memory should be empty")
 	}
 }
 
 func TestWorkspace_BuildPromptIncludesMemory(t *testing.T) {
-	ctx := djinnctx.ProjectContext{
+	ctx := session.ProjectContext{
 		ClaudeMD: "project rules",
 		MemoryMD: "remembered context",
 	}
-	prompt := djinnctx.BuildSystemPrompt(ctx, "user system")
+	prompt := session.BuildSystemPrompt(ctx, "user system")
 	if !strings.Contains(prompt, "remembered context") {
 		t.Fatal("system prompt should include MEMORY.md")
 	}

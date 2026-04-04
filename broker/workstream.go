@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/signal"
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 // Sentinel errors for workstream operations.
@@ -31,7 +31,7 @@ type WorkstreamInfo struct {
 	IntentID  string
 	Action    string
 	Status    WorkstreamStatus
-	Scopes    []tier.Scope
+	Scopes    []workspace.TierScope
 	Health    signal.FlagLevel
 	Bus       *signal.SignalBus // per-workstream signal partition
 	StartedAt time.Time
@@ -180,7 +180,7 @@ func (r *WorkstreamRegistry) All() []WorkstreamInfo {
 }
 
 // FindByScope returns a running workstream whose scopes overlap with the given scopes.
-func (r *WorkstreamRegistry) FindByScope(scopes []tier.Scope) (WorkstreamInfo, bool) {
+func (r *WorkstreamRegistry) FindByScope(scopes []workspace.TierScope) (WorkstreamInfo, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	for _, ws := range r.workstreams {
@@ -194,7 +194,7 @@ func (r *WorkstreamRegistry) FindByScope(scopes []tier.Scope) (WorkstreamInfo, b
 	return WorkstreamInfo{}, false
 }
 
-func scopesOverlap(a, b []tier.Scope) bool {
+func scopesOverlap(a, b []workspace.TierScope) bool {
 	for _, sa := range a {
 		for _, sb := range b {
 			if sa.Name == sb.Name {

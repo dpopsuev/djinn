@@ -21,7 +21,6 @@ import (
 	"syscall"
 
 	"github.com/dpopsuev/djinn/clutch"
-	djinnctx "github.com/dpopsuev/djinn/context"
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
@@ -103,13 +102,13 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 	if *wsFlag != "" {
 		workDir = *wsFlag
 	}
-	projectCtx := djinnctx.LoadProjectContext(workDir)
+	projectCtx := session.LoadProjectContext(workDir)
 
 	prompt := *systemPrompt
 	if *systemFile != "" {
 		prompt = ReadSystemFile(*systemFile)
 	}
-	assembledPrompt := djinnctx.BuildSystemPrompt(projectCtx, prompt)
+	assembledPrompt := session.BuildSystemPrompt(projectCtx, prompt)
 
 	// Create driver.
 	chatDriver, err := createBackendDriver(*driverName, modelName, assembledPrompt, log)

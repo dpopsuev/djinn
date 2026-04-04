@@ -23,7 +23,7 @@ import (
 type Config struct {
 	Driver        driver.ChatDriver
 	Tools         builtin.ToolExecutor
-	Envelope      *agent.ToolEnvelope       // when set, agent loop uses Envelope.Execute() instead of inline checks
+	Envelope      *agent.ToolEnvelope // when set, agent loop uses Envelope.Execute() instead of inline checks
 	Session       *session.Session
 	SystemPrompt  string
 	MaxTurns      int

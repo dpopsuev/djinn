@@ -5,7 +5,6 @@ import (
 
 	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/broker"
-	"github.com/dpopsuev/djinn/orchestrator"
 )
 
 // StubOperatorPort implements broker.OperatorPort for testing.
@@ -13,7 +12,7 @@ type StubOperatorPort struct {
 	mu          sync.Mutex
 	intentCh    chan ari.Intent
 	permRespCh  chan ari.PermissionResponse
-	events      []orchestrator.Event
+	events      []broker.Event
 	permissions []ari.PermissionPayload
 	andons      []broker.AndonBoard
 	results     []ari.Result
@@ -34,7 +33,7 @@ func (p *StubOperatorPort) OnIntent(handler func(ari.Intent)) {
 	p.handler = handler
 }
 
-func (p *StubOperatorPort) EmitProgress(event orchestrator.Event) {
+func (p *StubOperatorPort) EmitProgress(event broker.Event) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.events = append(p.events, event)
@@ -78,10 +77,10 @@ func (p *StubOperatorPort) SendPermissionResponse(resp ari.PermissionResponse) {
 }
 
 // Events returns a copy of all recorded events.
-func (p *StubOperatorPort) Events() []orchestrator.Event {
+func (p *StubOperatorPort) Events() []broker.Event {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	out := make([]orchestrator.Event, len(p.events))
+	out := make([]broker.Event, len(p.events))
 	copy(out, p.events)
 	return out
 }

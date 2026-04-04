@@ -10,15 +10,14 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/ari"
-	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/artifact"
+	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/driver"
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
-	"github.com/dpopsuev/djinn/orchestrator"
 	msbsandbox "github.com/dpopsuev/djinn/sandbox/misbah"
 	"github.com/dpopsuev/djinn/signal"
 	"github.com/dpopsuev/djinn/testkit/stubs"
-	"github.com/dpopsuev/djinn/tier"
+	wksp "github.com/dpopsuev/djinn/workspace"
 )
 
 const (
@@ -70,7 +69,7 @@ func hello() string {
 	cordons := broker.NewCordonRegistry()
 	op := stubs.NewStubOperatorPort()
 
-	orch := orchestrator.NewSimpleOrchestrator(
+	orch := broker.NewSimpleOrchestrator(
 		sandbox.Create,
 		sandbox.Destroy,
 		func(cfg driver.DriverConfig) driver.Driver {
@@ -101,12 +100,12 @@ func hello() string {
 		Cordons:      cordons,
 		Operator:     op,
 		Sandbox:      sandbox,
-		PlanFactory: func(intent ari.Intent) orchestrator.WorkPlan {
-			return orchestrator.WorkPlan{
+		PlanFactory: func(intent ari.Intent) broker.WorkPlan {
+			return broker.WorkPlan{
 				ID: intent.ID,
-				Stages: []orchestrator.Stage{{
+				Stages: []broker.Stage{{
 					Name:       "code",
-					Scope:      tier.Scope{Level: tier.Mod, Name: "main"},
+					Scope:      wksp.TierScope{Level: wksp.Mod, Name: "main"},
 					Driver:     driver.DriverConfig{Model: "claude-sonnet-4-6"},
 					Gate:       artifact.ContractGateConfig{Name: "pass", Severity: artifact.SeverityBlocking},
 					Prompt:     "Add a comment to the hello function in main.go saying '// returns greeting'",

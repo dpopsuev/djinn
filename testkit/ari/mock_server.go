@@ -5,7 +5,6 @@ import (
 
 	ariTypes "github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/broker"
-	"github.com/dpopsuev/djinn/orchestrator"
 )
 
 // MockARIServer implements broker.OperatorPort as an in-process mock.
@@ -13,7 +12,7 @@ type MockARIServer struct {
 	mu          sync.Mutex
 	handler     func(ariTypes.Intent)
 	permRespCh  chan ariTypes.PermissionResponse
-	events      []orchestrator.Event
+	events      []broker.Event
 	permissions []ariTypes.PermissionPayload
 	andons      []broker.AndonBoard
 	results     []ariTypes.Result
@@ -32,7 +31,7 @@ func (s *MockARIServer) OnIntent(handler func(ariTypes.Intent)) {
 	s.handler = handler
 }
 
-func (s *MockARIServer) EmitProgress(event orchestrator.Event) {
+func (s *MockARIServer) EmitProgress(event broker.Event) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.events = append(s.events, event)
@@ -71,10 +70,10 @@ func (s *MockARIServer) InjectIntent(intent ariTypes.Intent) {
 }
 
 // RecordedEvents returns a copy of all progress events.
-func (s *MockARIServer) RecordedEvents() []orchestrator.Event {
+func (s *MockARIServer) RecordedEvents() []broker.Event {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := make([]orchestrator.Event, len(s.events))
+	out := make([]broker.Event, len(s.events))
 	copy(out, s.events)
 	return out
 }

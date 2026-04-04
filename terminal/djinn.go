@@ -9,10 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dpopsuev/djinn/scope"
 	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/tui"
-	"github.com/dpopsuev/djinn/vfs"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 // Sentinel errors.
@@ -58,7 +57,7 @@ type Djinn struct {
 	OnNavigate func(path string, scopeType string) error
 
 	// VFS mount table — runtime path translation for agents.
-	mounts *vfs.MountTable
+	mounts *workspace.MountTable
 
 	// Agent visibility control
 	sightMgr *tui.SightManager
@@ -79,7 +78,7 @@ func NewDjinn() *Djinn {
 		capacity:    staff.NewAgentCapacity(1),
 		envelopeCfg: staff.DefaultEnvelopeConfig(),
 		scopePath:   "/",
-		mounts:      vfs.NewMountTable(slog.Default()),
+		mounts:      workspace.NewMountTable(slog.Default()),
 		sightMgr:    tui.NewSightManager(nil), // TODO: inject real logger from app
 	}
 }
@@ -272,7 +271,7 @@ func (d *Djinn) NavigateScope(path, scopeType string) error {
 	d.mu.Unlock()
 
 	// Create VFS mount entries based on scope type and registered repos.
-	st := scope.ScopeType(scopeType)
+	st := workspace.ScopeType(scopeType)
 	if st.Valid() {
 		d.mountScopeRepos(path, st)
 	}
@@ -292,7 +291,7 @@ func (d *Djinn) SetRepos(repos map[string]string) {
 }
 
 // Mounts returns the VFS mount table for external use (e.g., agent path translation).
-func (d *Djinn) Mounts() *vfs.MountTable {
+func (d *Djinn) Mounts() *workspace.MountTable {
 	return d.mounts
 }
 
@@ -301,7 +300,7 @@ func (d *Djinn) Mounts() *vfs.MountTable {
 //   - Global: read-only mounts of all repos
 //   - System: mount persists until session ends
 //   - Operations: mount is ephemeral (caller unmounts when done)
-func (d *Djinn) mountScopeRepos(scopePath string, st scope.ScopeType) {
+func (d *Djinn) mountScopeRepos(scopePath string, st workspace.ScopeType) {
 	d.mu.RLock()
 	repos := d.repos
 	d.mu.RUnlock()
@@ -310,7 +309,7 @@ func (d *Djinn) mountScopeRepos(scopePath string, st scope.ScopeType) {
 		return
 	}
 
-	readOnly := st == scope.ScopeGlobal
+	readOnly := st == workspace.ScopeGlobal
 
 	for name, hostPath := range repos {
 		virtualPath := scopePath

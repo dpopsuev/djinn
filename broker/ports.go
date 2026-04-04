@@ -4,15 +4,14 @@ import (
 	"context"
 
 	"github.com/dpopsuev/djinn/ari"
-	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/signal"
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 // OperatorPort is the driving port for operator interactions (intent in, events out).
 type OperatorPort interface {
 	OnIntent(handler func(ari.Intent))
-	EmitProgress(event orchestrator.Event)
+	EmitProgress(event Event)
 	EmitPermission(payload ari.PermissionPayload)
 	EmitAndon(board AndonBoard)
 	EmitResult(result ari.Result)
@@ -26,7 +25,7 @@ type EventIngressPort interface {
 
 // SandboxPort is the driven port for sandbox lifecycle management.
 type SandboxPort interface {
-	Create(ctx context.Context, scope tier.Scope) (string, error)
+	Create(ctx context.Context, scope workspace.TierScope) (string, error)
 	Destroy(ctx context.Context, sandboxID string) error
 }
 

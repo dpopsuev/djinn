@@ -14,8 +14,8 @@ import (
 // CodeHub mediates between code review tools, budget monitoring, and display.
 type CodeHub struct {
 	HubCore
-	Window   *review.ReviewWindow
-	Budget   *review.BudgetMonitor
+	Window *review.ReviewWindow
+	Budget *review.BudgetMonitor
 	// Reviewer port removed — Day 2 adapter will implement StructuralAnalyzerPort instead.
 }
 

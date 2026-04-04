@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/signal"
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 func TestWorkstreamRegistry_RegisterAndGet(t *testing.T) {
@@ -15,7 +15,7 @@ func TestWorkstreamRegistry_RegisterAndGet(t *testing.T) {
 		IntentID: "int-1",
 		Action:   "fix",
 		Status:   WorkstreamRunning,
-		Scopes:   []tier.Scope{{Level: tier.Mod, Name: "auth"}},
+		Scopes:   []workspace.TierScope{{Level: workspace.Mod, Name: "auth"}},
 		Health:   signal.Green,
 	})
 
@@ -143,10 +143,10 @@ func TestWorkstreamRegistry_FindByScope(t *testing.T) {
 	r.Register(&WorkstreamInfo{
 		ID:     "ws-1",
 		Status: WorkstreamRunning,
-		Scopes: []tier.Scope{{Level: tier.Mod, Name: "auth"}},
+		Scopes: []workspace.TierScope{{Level: workspace.Mod, Name: "auth"}},
 	})
 
-	ws, found := r.FindByScope([]tier.Scope{{Level: tier.Mod, Name: "auth"}})
+	ws, found := r.FindByScope([]workspace.TierScope{{Level: workspace.Mod, Name: "auth"}})
 	if !found {
 		t.Fatal("should find by matching scope")
 	}
@@ -154,7 +154,7 @@ func TestWorkstreamRegistry_FindByScope(t *testing.T) {
 		t.Fatalf("found ID = %q, want %q", ws.ID, "ws-1")
 	}
 
-	_, found = r.FindByScope([]tier.Scope{{Level: tier.Mod, Name: "billing"}})
+	_, found = r.FindByScope([]workspace.TierScope{{Level: workspace.Mod, Name: "billing"}})
 	if found {
 		t.Fatal("should not find non-matching scope")
 	}
@@ -165,11 +165,11 @@ func TestWorkstreamRegistry_FindByScope_IgnoresCompleted(t *testing.T) {
 	r.Register(&WorkstreamInfo{
 		ID:     "ws-1",
 		Status: WorkstreamRunning,
-		Scopes: []tier.Scope{{Level: tier.Mod, Name: "auth"}},
+		Scopes: []workspace.TierScope{{Level: workspace.Mod, Name: "auth"}},
 	})
 	r.Complete("ws-1", WorkstreamCompleted)
 
-	_, found := r.FindByScope([]tier.Scope{{Level: tier.Mod, Name: "auth"}})
+	_, found := r.FindByScope([]workspace.TierScope{{Level: workspace.Mod, Name: "auth"}})
 	if found {
 		t.Fatal("should not find completed workstream")
 	}

@@ -48,7 +48,7 @@ type EventHandler interface {
 type Config struct {
 	Driver       driver.ChatDriver
 	Tools        builtin.ToolExecutor
-	Envelope     *ToolEnvelope             // when set, replaces inline PolicyEnforcer + Approve + Tools.Execute()
+	Envelope     *ToolEnvelope // when set, replaces inline PolicyEnforcer + Approve + Tools.Execute()
 	Session      *session.Session
 	SystemPrompt string
 	MaxTurns     int

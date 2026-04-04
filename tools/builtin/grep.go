@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	grepToolName = "Grep"
-	grepToolDesc = "Search file contents for a regex pattern."
+	grepToolName   = "Grep"
+	grepToolDesc   = "Search file contents for a regex pattern."
 	maxGrepResults = 100
 )
 

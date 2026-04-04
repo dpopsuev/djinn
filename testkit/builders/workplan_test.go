@@ -3,13 +3,13 @@ package builders
 import (
 	"testing"
 
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 func TestWorkPlanBuilder_Fluent(t *testing.T) {
 	plan := NewWorkPlan("plan-1").
-		AddStage("code", tier.Scope{Level: tier.Mod, Name: "auth"}, "implement auth").
-		AddStage("test", tier.Scope{Level: tier.Mod, Name: "tests"}, "run tests").
+		AddStage("code", workspace.TierScope{Level: workspace.Mod, Name: "auth"}, "implement auth").
+		AddStage("test", workspace.TierScope{Level: workspace.Mod, Name: "tests"}, "run tests").
 		Build()
 
 	if plan.ID != "plan-1" {

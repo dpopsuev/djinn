@@ -4,7 +4,7 @@ import (
 	"time"
 
 	ariTypes "github.com/dpopsuev/djinn/ari"
-	"github.com/dpopsuev/djinn/orchestrator"
+	"github.com/dpopsuev/djinn/broker"
 )
 
 // MockARIClient provides a test-friendly interface for interacting with MockARIServer.
@@ -28,7 +28,7 @@ func (c *MockARIClient) RespondPermission(resp ariTypes.PermissionResponse) {
 }
 
 // WaitForEvent polls until an event with the given kind appears, or times out.
-func (c *MockARIClient) WaitForEvent(kind orchestrator.EventKind, timeout time.Duration) (orchestrator.Event, bool) {
+func (c *MockARIClient) WaitForEvent(kind broker.EventKind, timeout time.Duration) (broker.Event, bool) {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		events := c.server.RecordedEvents()
@@ -39,7 +39,7 @@ func (c *MockARIClient) WaitForEvent(kind orchestrator.EventKind, timeout time.D
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	return orchestrator.Event{}, false
+	return broker.Event{}, false
 }
 
 // WaitForResult polls until a result appears, or times out.
@@ -56,7 +56,7 @@ func (c *MockARIClient) WaitForResult(timeout time.Duration) (ariTypes.Result, b
 }
 
 // Events returns all recorded events.
-func (c *MockARIClient) Events() []orchestrator.Event {
+func (c *MockARIClient) Events() []broker.Event {
 	return c.server.RecordedEvents()
 }
 

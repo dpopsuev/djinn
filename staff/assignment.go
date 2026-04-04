@@ -6,7 +6,7 @@ package staff
 import (
 	"time"
 
-	"github.com/dpopsuev/djinn/composition"
+	"github.com/dpopsuev/djinn/broker"
 )
 
 // Mode constants — string aliases matching agent.Mode names.
@@ -110,15 +110,15 @@ func Secretary(scope AssignmentScope) Assignment {
 	}
 }
 
-// ToUnit converts to composition.Unit for formation instantiation.
-func (a Assignment) ToUnit() composition.Unit {
-	return composition.Unit{
+// ToUnit converts to broker.Unit for formation instantiation.
+func (a Assignment) ToUnit() broker.Unit {
+	return broker.Unit{
 		Role: a.Role,
-		Scope: composition.UnitScope{
+		Scope: broker.UnitScope{
 			RO: a.Scope.ReadPaths,
 			RW: a.Scope.WritePaths,
 		},
-		Budget: composition.Budget{
+		Budget: broker.Budget{
 			Tokens:    a.Budget.MaxTokens,
 			WallClock: a.Budget.MaxDuration,
 		},

@@ -21,12 +21,12 @@ func stripANSI(s string) string {
 
 // RecordingFrame is a single captured TUI render with component breakdown.
 type RecordingFrame struct {
-	Timestamp  time.Time        `json:"timestamp"`
-	Frame      string           `json:"frame"`
-	Width      int              `json:"width"`
-	Height     int              `json:"height"`
-	State      string           `json:"state"`
-	Role       string           `json:"role"`
+	Timestamp  time.Time            `json:"timestamp"`
+	Frame      string               `json:"frame"`
+	Width      int                  `json:"width"`
+	Height     int                  `json:"height"`
+	State      string               `json:"state"`
+	Role       string               `json:"role"`
 	Components *RecordingComponents `json:"components,omitempty"`
 }
 

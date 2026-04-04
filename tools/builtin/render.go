@@ -31,7 +31,7 @@ var validRenderTypes = map[string]bool{
 // RenderTool lets agents create structured visual panels in the TUI.
 type RenderTool struct{}
 
-func (t *RenderTool) Name() string        { return "render" }
+func (t *RenderTool) Name() string { return "render" }
 func (t *RenderTool) Description() string {
 	return "Create visual panels. Use proactively for plans, progress, dependencies.\n\n" +
 		"Types and data formats:\n" +

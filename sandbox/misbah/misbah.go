@@ -10,7 +10,7 @@ import (
 	"github.com/dpopsuev/misbah/daemon"
 	"github.com/dpopsuev/misbah/model"
 
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 // Default container settings.
@@ -45,7 +45,7 @@ func New(socketPath, workspace string) *SandboxPort {
 // Create creates a Misbah container with tier-appropriate mounts.
 // The daemon's tier system generates overlay mounts for writable paths —
 // agent writes are captured in the overlay, real workspace untouched.
-func (s *SandboxPort) Create(ctx context.Context, scope tier.Scope) (string, error) {
+func (s *SandboxPort) Create(ctx context.Context, scope workspace.TierScope) (string, error) {
 	name := fmt.Sprintf("%s%s-%d", containerPrefix, scope.Name, s.counter.Add(1))
 
 	spec := &model.ContainerSpec{

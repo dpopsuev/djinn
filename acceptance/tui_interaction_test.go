@@ -309,9 +309,9 @@ func TestTUI_TUIRecorder_CapturesFrames(t *testing.T) {
 
 	sess := session.New("debug-test", "test-model", "/workspace")
 	m := repl.NewModel(repl.Config{
-		Tools:    builtin.NewRegistry(),
-		Session:  sess,
-		Mode:     "agent",
+		Tools:       builtin.NewRegistry(),
+		Session:     sess,
+		Mode:        "agent",
 		TUIRecorder: dt,
 	})
 	m2, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})

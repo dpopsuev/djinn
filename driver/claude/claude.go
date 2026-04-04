@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/tier"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 // Sentinel errors for ClaudeDriver.
@@ -33,7 +33,7 @@ type ContainerEnv struct {
 	ClaudeMD   string            // injected CLAUDE.md content
 	MCPServers map[string]string // server name -> socket path
 	EnvVars    map[string]string
-	Scope      tier.Scope
+	Scope      workspace.TierScope
 }
 
 // ClaudeDriver implements driver.Driver for Claude Code agents.
@@ -41,7 +41,7 @@ type ContainerEnv struct {
 // Real LLM communication is deferred to Misbah container integration.
 type ClaudeDriver struct {
 	config   driver.DriverConfig
-	scope    tier.Scope
+	scope    workspace.TierScope
 	claudeMD string
 
 	mu      sync.Mutex
@@ -56,7 +56,7 @@ type ClaudeDriver struct {
 type Option func(*ClaudeDriver)
 
 // WithScope sets the tier scope for container environment generation.
-func WithScope(scope tier.Scope) Option {
+func WithScope(scope workspace.TierScope) Option {
 	return func(d *ClaudeDriver) { d.scope = scope }
 }
 
