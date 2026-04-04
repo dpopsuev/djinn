@@ -1,37 +1,54 @@
 # Djinn — AI Agent Industrial Complex
 
-## Philosophy: Flat Token Curve
+## Philosophy: Log(n) Complexity
 
-Djinn invests in planning to eliminate rework. Every other agent CLI optimizes for speed to first edit — fast start, exponential rework, high waste. Djinn optimizes for cost of the tenth edit — slower start, flat waste rate, lower total cost.
+Djinn achieves logarithmic time and token cost as work grows. Three mechanisms:
 
-The **Proposal Loop**: agent proposes (understanding, plan, risks), operator reviews via TUI, annotates, amends, accepts. The upfront negotiation IS the product. The code is just the output of a good plan.
+1. **Compose** — reduce total work. Steps compose into Tasks, Tasks into Plans. The "Do" artifact family (Current State → Desired State). Better plans = fewer steps. The Proposal Loop invests tokens in planning to eliminate rework.
+2. **Decompose** — parallelize remaining work. Steps decompose into Jobs scheduled to N agents. Agent Space isolation prevents interference. More agents = work / N.
+3. **Tooling** — reduce cost per step. Agent Shell enforces safety (less rework). Agent Substrate caches reads (less I/O). Enrichment adds context (fewer wrong edits).
 
-Higher initial token cost. Flat waste rate. Lower total tokens over a longer time horizon.
+Observable result: Flat Token Curve. Each additional unit of work costs less than the previous one.
 
-## Architecture (66 components, 0 cycles, 170 edges)
+## Architecture: Four Facades + Seven Components
 
-### Three Spaces
-- **Worker** = LLM agent (untrusted, stateless, teleportable, CAN DIE)
-- **Vehicle** = Workstation (boots without LLM, persists across agent death, carries tools + scratch paper + claims)
-- **Space** = Misbah jail (physical isolation — namespaces, containers, Kata)
+### Four Facades (inside djinnd)
 
-### Key Systems (built in Sprints 1-4)
-- **CellSight** (SPC-85): agent sees what operator sees — 6 panels implement Sighted
-- **SightManager**: operator controls what agent can see — :sight on/off/reveal/hide
-- **SymbolGraph** (SPC-109): pre-edit caller impact — RegexProvider (Day 1a), ASTProvider (Day 1b Go), LSPProvider (Day 2)
-- **HookRunner**: shell command interception at tool boundaries (pre/post_tool_use)
-- **WasteClassifier** (SPC-105): 7 Lean waste types for agent tool calls
-- **Andon** (SPC-106): TPS stop-the-line with AlertQueue + auto-cordon on critical
-- **Workstation** (SPC-111): persistent agent-independent execution environment with scratch paper
-- **VFS** (SPC-95): virtual filesystem with MountTable + path translation + escape detection
-- **MCP Wiring**: auto-connect ecosystem tools, CompositeExecutor with tool upgrade path
-- **AgentAccountability**: extensible compliance metrics per MetricKind
+Every tool call flows through four layers. No direct host access.
 
-### Pending Systems (designed, not built)
-- **Dynamic Gating** (SPC-101): three-stamp lifecycle — Deterministic > Sovereign > Stochastic
-- **Proposal Loop**: agent-operator negotiation before execution (the flat curve mechanism)
-- **File Kanban** (SPC-104): agent coordination via intent declaration + worktree isolation
-- **Kanban Board** (SPC-103): TUI panel for artifact lifecycle visualization
+- **Agent Uniform** — who you are. Role, clearance, budget, model. Issued at spawn.
+- **Agent Shell** — what you can do. Intercepts every tool call. Enforces Uniform.
+- **Agent Space** — what you can see. Chrooted overlay FS per agent. Mirage (Day 1) / Misbah (Day 2).
+- **Agent Substrate** — how it executes. Shared cache, Tool Envelope (Gate/Enrich/Execute/Record), router to executors.
+
+### Seven Components
+
+| Component | Role | Type |
+|---|---|---|
+| **Macro** | TUI / CLI cockpit | Application |
+| **djinnd** | Client-side daemon (sessions, substrate, auth) | Daemon |
+| **Troupe** | Agent mesh library (interfaces, ACP, local Broker) | Library |
+| **Olympiad** | Agent mesh service (discovery, publishing, routing) | Service |
+| **Mirage** | Overlay FS library (logical isolation) | Library |
+| **Misbah** | Compute daemon (containers, physical isolation) | Service |
+| **tesseractui** | Shared TUI primitives | Library |
+
+### Agent Provider
+
+```go
+type AgentProvider interface {
+    Acquire(ctx context.Context, prefs Preferences) (Agent, error)
+}
+// Adapters: LocalCLIProvider (existing drivers), JerichoProvider (Troupe), MockProvider
+```
+
+### Built Systems
+- **Tool Envelope** (SPC-118): Gate/Enrich/Execute/Record pipeline — SecurityGate, PolicyGate, SymbolEnricher, WasteRecorder, HookRunner
+- **CellSight** (SPC-85): bidirectional TUI state in agent prompt
+- **SymbolGraph** (SPC-109): pre-edit caller impact
+- **WasteClassifier** (SPC-105): 7 Lean waste types
+- **MountTable**: VFS path translation (exists, not wired into tools)
+- **CompositeExecutor**: 3-tier tool routing (override → builtin → MCP)
 
 ## Day 0 / Day 1 / Day 2
 
@@ -41,10 +58,18 @@ Higher initial token cost. Flat waste rate. Lower total tokens over a longer tim
 
 ## Dependency Rules
 
-- Djinn -> Jericho (via jerichoport/ adapter). This is the ONLY Jericho import path.
-- Djinn NEVER imports origami/ — use Bugle Protocol for circuit execution.
-- Dependency direction: `Origami -> Jericho <- Djinn` (lateral via Bugle Protocol)
-- Jericho v0.2.0 pinned. Misbah v0.15.0 pinned. No replace directives.
+- Djinn → Troupe (agent mesh library). Jericho codebase becomes Troupe.
+- Djinn → Mirage (overlay FS library). Agent Space isolation.
+- Djinn NEVER imports Origami — use Olympiad mesh for shared agent pool.
+- Dependency direction: `Origami → Olympiad ← Djinn` (both are mesh clients)
+- Library defines contract. Daemon provides distributed implementation.
+
+```
+Library (contract)       Daemon (distributed)     Domain
+Mirage                   Misbah                   Isolation
+Troupe                   Olympiad                 Agent Mesh
+tesseractui              Macro                    Presentation
+```
 
 ## Manufacturing Principles
 
