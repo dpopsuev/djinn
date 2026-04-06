@@ -125,6 +125,15 @@ linters-settings:
         deny:
           - pkg: "log$"
             desc: "use slog or djinnlog instead of stdlib log"
+      tui-boundary:
+        files:
+          - "!**/tui/**"
+          - "!**/cmd/**"
+        deny:
+          - pkg: "github.com/charmbracelet/bubbletea"
+            desc: "only tui/ may import bubbletea — use terminal.ViewEvent"
+          - pkg: "github.com/charmbracelet/lipgloss"
+            desc: "only tui/ may import lipgloss — use terminal.ViewEvent"
 
   prealloc:
     simple: true
