@@ -10,44 +10,46 @@ Djinn achieves logarithmic time and token cost as work grows. Three mechanisms:
 
 Observable result: Flat Token Curve. Each additional unit of work costs less than the previous one.
 
-## Architecture: Four Facades + Seven Components
+## Pipeline: Prompt → Intent → Problem → Classify → Solution
 
-### Four Facades (inside djinnd)
+The philosophical core (DJN-NED-31). Every operator interaction follows this flow:
 
-Every tool call flows through four layers. No direct host access.
-
-- **Agent Uniform** — who you are. Role, clearance, budget, model. Issued at spawn.
-- **Agent Shell** — what you can do. Intercepts every tool call. Enforces Uniform.
-- **Agent Space** — what you can see. Chrooted overlay FS per agent. Mirage (Day 1) / Misbah (Day 2).
-- **Agent Substrate** — how it executes. Shared cache, Tool Envelope (Gate/Enrich/Execute/Record), router to executors.
-
-### Seven Components
-
-| Component | Role | Type |
-|---|---|---|
-| **Macro** | TUI / CLI cockpit | Application |
-| **djinnd** | Client-side daemon (sessions, substrate, auth) | Daemon |
-| **Troupe** | Agent mesh library (interfaces, ACP, local Broker) | Library |
-| **Olympiad** | Agent mesh service (discovery, publishing, routing) | Service |
-| **Mirage** | Overlay FS library (logical isolation) | Library |
-| **Misbah** | Compute daemon (containers, physical isolation) | Service |
-| **tesseractui** | Shared TUI primitives | Library |
-
-### Agent Provider
-
-```go
-type AgentProvider interface {
-    Acquire(ctx context.Context, prefs Preferences) (Agent, error)
-}
-// Adapters: LocalCLIProvider (existing drivers), JerichoProvider (Troupe), MockProvider
+```
+Prompt   → raw text ("fix the auth timeout")
+Intent   → parsed action + context (in memory, not an artifact)
+Problem  → Need artifact (problem domain, apex of pyramid)
+Classify → Taxonomer at each layer (Oculus/Parchment/Ordo modules)
+Solution → Spec → Goal → Task → Code → Doc (pyramid descent)
 ```
 
+Each layer runs Decompose → Taxonomy → Compose. The pyramid IS Parchment artifact kinds.
+
+## Architecture: Substrate + Libraries
+
+### Substrate (djinnd) — The Only Component
+
+The daemon that manages everything. Agents act freely inside their Mirage.
+
+- **Uniform** — spawn config DATA. Defines what tools exist in the agent's Space. Not blocking — absence.
+- **Shell** — DISSOLVED. No interception. Agents act freely inside Space.
+- **Space** — containment boundary. Agent works freely inside it. Mirage (Day 1) / Misbah (Day 2).
+- **Substrate** — THE DAEMON (djinnd). Enrichment + observation, NOT interception. Caching, symbols, rules, planning, spawning.
+
+### Libraries (module imports, not services)
+
+| Library | Domain | Status |
+|---|---|---|
+| **Parchment** | Artifact graph engine | v0.1.0 published |
+| **Ordo** | Rule resolution engine | v0.1.0 published |
+| **Oculus** | Symbol/architecture analysis | Pending extraction from Locus |
+| **Troupe** | Agent mesh (Actor/Broker/Driver/ACP) | Direct import |
+| **Mirage** | Isolation facade (overlay/Kata/K8s sandbox) | v0.1 overlay, v0.2 planned |
+
 ### Built Systems
-- **Tool Envelope** (SPC-118): Gate/Enrich/Execute/Record pipeline — SecurityGate, PolicyGate, SymbolEnricher, WasteRecorder, HookRunner
+- **Tool Envelope** (SPC-118): Gate/Enrich/Execute/Record pipeline
 - **CellSight** (SPC-85): bidirectional TUI state in agent prompt
 - **SymbolGraph** (SPC-109): pre-edit caller impact
 - **WasteClassifier** (SPC-105): 7 Lean waste types
-- **MountTable**: VFS path translation (exists, not wired into tools)
 - **CompositeExecutor**: 3-tier tool routing (override → builtin → MCP)
 
 ## Day 0 / Day 1 / Day 2
@@ -81,6 +83,19 @@ Djinn is influenced by Toyota Production System, Lean Manufacturing, 5S, Kaizen,
 - **Kaizen** (continuous improvement): Flywheel Gate proves each sprint makes the next easier
 - **Gemba** (go and see): CellSight — agent sees real code, operator sees agent thinking
 - **Nemawashi** (consensus): Proposal Loop — debate before implementation
+
+## Flywheel Forge Philosophy
+
+Build the forge before the sword. Every DX investment compounds.
+
+**Rules:**
+- **Stub with implementation.** Every new interface ships with a testkit stub in the same PR. Not after, not later — together. `var _ Interface = (*StubImpl)(nil)` is the first line written.
+- **Red first.** Write the failing test using the stub before implementing the real code. If you can't write a test, the interface is wrong.
+- **E2E skeleton before features.** Wire stubs end-to-end to prove interfaces compose. The skeleton runs before any real backend exists.
+- **Stubs at every boundary.** Mirage has MockBuilder. Troupe has MockActor. Substrate has StubSubstrate. No exceptions.
+- **Observable by default.** Every stub records call history. Every boundary logs. No "add tracing later."
+
+The forge grows with the swords — not as a separate phase.
 
 ## Working with Djinn
 
