@@ -6,32 +6,24 @@ package builtin
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+
+	batterytool "github.com/dpopsuev/battery/tool"
 )
 
-// Sentinel errors.
+// Sentinel errors — re-exported from Battery.
 var (
-	ErrToolNotFound = errors.New("tool not found")
-	ErrEmptyInput   = errors.New("empty tool input")
+	ErrToolNotFound = batterytool.ErrNotFound
+	ErrEmptyInput   = batterytool.ErrEmptyInput
 )
 
 // Tool is the interface every built-in tool implements.
-type Tool interface {
-	Name() string
-	Description() string
-	InputSchema() json.RawMessage
-	Execute(ctx context.Context, input json.RawMessage) (string, error)
-}
+// Type alias to battery/tool.Tool — single source of truth.
+type Tool = batterytool.Tool
 
-// ToolExecutor is the interface for tool dispatch — both Registry and
-// ToolClearance satisfy it. The agent loop programs against this interface
-// so it doesn't care whether tools are filtered by role or not.
-type ToolExecutor interface {
-	Execute(ctx context.Context, name string, input json.RawMessage) (string, error)
-	All() []Tool
-	Names() []string
-}
+// ToolExecutor is the interface for tool dispatch.
+// Type alias to battery/tool.Executor — single source of truth.
+type ToolExecutor = batterytool.Executor
 
 // Registry holds registered tools and dispatches calls.
 type Registry struct {
