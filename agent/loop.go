@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/policy"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/trace"
 )
@@ -49,7 +49,7 @@ type Config struct {
 	Driver       driver.ChatDriver
 	Tools        builtin.ToolExecutor
 	Envelope     *ToolEnvelope // when set, replaces inline PolicyEnforcer + Approve + Tools.Execute()
-	Session      *session.Session
+	Session      *contextmgr.Session
 	SystemPrompt string
 	MaxTurns     int
 	ToolsEnabled bool // false = ask/plan mode (no tool execution)
@@ -88,7 +88,7 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) { /
 	}
 
 	// Append user message to session
-	cfg.Session.Append(session.Entry{
+	cfg.Session.Append(contextmgr.Entry{
 		Role:    driver.RoleUser,
 		Content: userPrompt,
 	})
@@ -111,7 +111,7 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) { /
 	for turn := range cfg.MaxTurns {
 		// Auto-compact if approaching context limit
 		if tokens := cfg.Session.TotalTokens(); tokens > int(float64(contextLimit)*0.8) {
-			before, after := session.Compact(cfg.Session, session.DefaultKeepRecent)
+			before, after := contextmgr.Compact(cfg.Session, contextmgr.DefaultKeepRecent)
 			cfg.Log.Warn("auto-compact", "before", before, "after", after, "tokens", tokens)
 		}
 
@@ -133,7 +133,7 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) { /
 		}
 
 		// Append assistant response to session
-		cfg.Session.Append(session.Entry{
+		cfg.Session.Append(contextmgr.Entry{
 			Role:    driver.RoleAssistant,
 			Content: response.text,
 			Blocks:  response.blocks,
@@ -182,7 +182,7 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) { /
 		}
 
 		// Append tool results to session
-		cfg.Session.Append(session.Entry{
+		cfg.Session.Append(contextmgr.Entry{
 			Role:   driver.RoleUser,
 			Blocks: resultBlocks,
 		})

@@ -11,9 +11,9 @@ import (
 
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/cli/repl"
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/policy"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
@@ -23,7 +23,7 @@ import (
 func testModelWithScripted(t *testing.T, steps ...stubs.ScriptedStep) *repl.Model {
 	t.Helper()
 	drv := stubs.NewScriptedDriver(steps...)
-	sess := session.New("e2e-test", "test-model", "/workspace")
+	sess := contextmgr.New("e2e-test", "test-model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Driver:  drv,
 		Tools:   builtin.NewRegistry(),
@@ -190,7 +190,7 @@ func TestE2E_EnforcerDenies(t *testing.T) {
 	drv := stubs.NewScriptedDriver(stubs.ScriptedStep{
 		TextDeltas: []string{"test"},
 	})
-	sess := session.New("enforcer-test", "test-model", "/workspace")
+	sess := contextmgr.New("enforcer-test", "test-model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Driver:   drv,
 		Tools:    builtin.NewRegistry(),

@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -220,10 +220,10 @@ func TestCollectResponse_Thinking(t *testing.T) {
 }
 
 func TestSessionIntegration(t *testing.T) {
-	sess := session.New("test-sess", "test-model", "/workspace")
+	sess := contextmgr.New("test-sess", "test-model", "/workspace")
 
-	sess.Append(session.Entry{Role: driver.RoleUser, Content: "hello"})
-	sess.Append(session.Entry{Role: driver.RoleAssistant, Content: "hi"})
+	sess.Append(contextmgr.Entry{Role: driver.RoleUser, Content: "hello"})
+	sess.Append(contextmgr.Entry{Role: driver.RoleAssistant, Content: "hi"})
 
 	if sess.History.Len() != 2 {
 		t.Fatalf("history = %d, want 2", sess.History.Len())
@@ -275,7 +275,7 @@ func newTestAPIDriver(t *testing.T, handler http.HandlerFunc) *claudedriver.APID
 func TestRun_FullCycle_TextOnly(t *testing.T) {
 	d := newTestAPIDriver(t, sseTextResponse("Hello from the agent"))
 
-	sess := session.New("test-run", "test-model", t.TempDir())
+	sess := contextmgr.New("test-run", "test-model", t.TempDir())
 	var handler testHandler
 
 	result, err := Run(context.Background(), Config{
@@ -350,7 +350,7 @@ data: {"type":"message_stop"}
 	}
 
 	d := newTestAPIDriver(t, handler)
-	sess := session.New("test-denied", "test-model", t.TempDir())
+	sess := contextmgr.New("test-denied", "test-model", t.TempDir())
 
 	result, err := Run(context.Background(), Config{
 		Driver:   d,

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/contextmgr"
 )
 
 // Version is set via -ldflags at build time.
@@ -163,14 +163,14 @@ Override flags (prefer djinn.yaml):
   --verbose                           show log output
 
 Config (djinn.yaml):
-  driver.name, driver.model, mode, session.max_turns,
-  session.auto_approve, session.no_persist, sandbox.backend,
+  driver.name, driver.model, mode, contextmgr.max_turns,
+  contextmgr.auto_approve, contextmgr.no_persist, sandbox.backend,
   sandbox.level, debug.tap_file, debug.live_debug, debug.verbose
 `)
 }
 
-// LoadMostRecent loads the most recently updated session.
-func LoadMostRecent(store *session.Store) (*session.Session, error) {
+// LoadMostRecent loads the most recently updated contextmgr.
+func LoadMostRecent(store *contextmgr.Store) (*contextmgr.Session, error) {
 	list, err := store.List()
 	if err != nil {
 		return nil, err

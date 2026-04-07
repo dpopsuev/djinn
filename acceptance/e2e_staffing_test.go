@@ -8,10 +8,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/cli/repl"
-	"github.com/dpopsuev/djinn/session"
-	"github.com/dpopsuev/djinn/staff"
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
+	"github.com/dpopsuev/djinn/uniform"
 )
 
 // TestE2E_StaffingPipeline verifies the role pipeline through the Model:
@@ -20,7 +20,7 @@ import (
 //   - Auditor does NOT have FileEditing tools
 //   - GenSec has WorkTracking tools
 func TestE2E_StaffingPipeline(t *testing.T) {
-	sess := session.New("staff-test", "test-model", "/workspace")
+	sess := contextmgr.New("staff-test", "test-model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Driver:  &stubs.StubChatDriver{},
 		Tools:   builtin.NewRegistry(),
@@ -37,7 +37,7 @@ func TestE2E_StaffingPipeline(t *testing.T) {
 	}
 
 	// GenSec capabilities: WorkTracking is in gensec's tool_capabilities.
-	cfg := staff.DefaultConfig()
+	cfg := uniform.DefaultConfig()
 	gensec := cfg.RoleMap()["gensec"]
 	hasWorkTracking := false
 	for _, cap := range gensec.ToolCapabilities {
@@ -95,7 +95,7 @@ func TestE2E_StaffingPipeline(t *testing.T) {
 // to concrete tools like Read, Write, Edit, Bash, Glob, Grep — not
 // abstract capability names like FileEditing or ShellExecution.
 func TestE2E_RoleCapabilityResolution(t *testing.T) {
-	cfg := staff.DefaultConfig()
+	cfg := uniform.DefaultConfig()
 	executor := cfg.RoleMap()["executor"]
 
 	tools := cfg.ResolveToolNames(executor.ToolCapabilities)
@@ -142,7 +142,7 @@ func TestE2E_RoleCapabilityResolution(t *testing.T) {
 
 	// ToolClearance integration: verify the clearance filter restricts correctly.
 	registry := builtin.NewRegistry()
-	clearance := staff.NewToolClearance(cfg, registry, "executor")
+	clearance := uniform.NewToolClearance(cfg, registry, "executor")
 	executorVisible := clearance.Names()
 	sort.Strings(executorVisible)
 	for _, expected := range expectedBuiltin {

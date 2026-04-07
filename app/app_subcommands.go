@@ -16,13 +16,13 @@ import (
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/broker"
 	djinnconfig "github.com/dpopsuev/djinn/config"
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
 	msbsandbox "github.com/dpopsuev/djinn/sandbox/misbah"
-	"github.com/dpopsuev/djinn/session"
 	sigsvc "github.com/dpopsuev/djinn/signal"
-	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
+	"github.com/dpopsuev/djinn/uniform"
 	djinnws "github.com/dpopsuev/djinn/workspace"
 )
 
@@ -34,7 +34,7 @@ const (
 
 // RunList lists all sessions.
 func RunList(w io.Writer) error {
-	store, err := session.NewStore(SessionDir())
+	store, err := contextmgr.NewStore(SessionDir())
 	if err != nil {
 		return err
 	}
@@ -63,14 +63,14 @@ func RunList(w io.Writer) error {
 	return nil
 }
 
-// RunAttach resumes a session. No args = telescope picker with fuzzy search.
+// RunAttach resumes a contextmgr. No args = telescope picker with fuzzy search.
 func RunAttach(args []string, stderr io.Writer) error {
 	if len(args) >= 1 {
 		return RunREPL(append([]string{"--session", args[0]}, args[1:]...), stderr)
 	}
 
 	// Telescope: list sessions, filter by optional query
-	store, err := session.NewStore(SessionDir())
+	store, err := contextmgr.NewStore(SessionDir())
 	if err != nil {
 		return err
 	}
@@ -97,13 +97,13 @@ func RunAttach(args []string, stderr io.Writer) error {
 	return nil
 }
 
-// RunKill deletes a session.
+// RunKill deletes a contextmgr.
 func RunKill(args []string, stderr io.Writer) error {
 	if len(args) < 1 {
 		return ErrUsageKill
 	}
 
-	store, err := session.NewStore(SessionDir())
+	store, err := contextmgr.NewStore(SessionDir())
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func RunImport(args []string, stderr io.Writer) error {
 
 	switch source {
 	case DriverClaude:
-		sess, err := session.ImportClaudeSession(filePath, *tokenBudget)
+		sess, err := contextmgr.ImportClaudeSession(filePath, *tokenBudget)
 		if err != nil {
 			return fmt.Errorf("import: %w", err)
 		}
@@ -145,7 +145,7 @@ func RunImport(args []string, stderr io.Writer) error {
 		}
 		sess.Driver = DriverClaude
 
-		store, err := session.NewStore(SessionDir())
+		store, err := contextmgr.NewStore(SessionDir())
 		if err != nil {
 			return err
 		}
@@ -200,7 +200,7 @@ func RunDoctor(w io.Writer) error {
 		for _, p := range cfgPaths {
 			fmt.Fprintf(w, "    ✓ %s\n", p)
 		}
-		staffCfg := staff.LoadConfigChain()
+		staffCfg := uniform.LoadConfigChain()
 		if err := staffCfg.Validate(); err != nil {
 			fmt.Fprintf(w, "    ✗ staff config invalid: %v\n", err)
 		} else {
@@ -212,7 +212,7 @@ func RunDoctor(w io.Writer) error {
 	}
 
 	fmt.Fprintln(w, "\n  context:")
-	projectCtx := session.LoadProjectContext(Getwd())
+	projectCtx := contextmgr.LoadProjectContext(Getwd())
 	found := false
 	if projectCtx.ClaudeMD != "" {
 		fmt.Fprintln(w, "    CLAUDE.md: found ✓")
@@ -237,7 +237,7 @@ func RunDoctor(w io.Writer) error {
 	fmt.Fprintln(w, "\n  sessions:")
 	dir := SessionDir()
 	if _, err := os.Stat(dir); err == nil {
-		store, _ := session.NewStore(dir)
+		store, _ := contextmgr.NewStore(dir)
 		list, _ := store.List()
 		fmt.Fprintf(w, "    %d sessions in %s\n", len(list), dir)
 	} else {

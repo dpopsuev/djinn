@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/tui"
+	"github.com/dpopsuev/djinn/uniform"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
@@ -35,9 +35,9 @@ type Djinn struct {
 	mu sync.RWMutex
 
 	// Domain state
-	operation   staff.Operation
-	capacity    *staff.AgentCapacity
-	envelopeCfg staff.EnvelopeConfig
+	operation   uniform.Operation
+	capacity    *uniform.AgentCapacity
+	envelopeCfg uniform.EnvelopeConfig
 	scopePath   string
 	scopeType   string
 	startedAt   time.Time
@@ -74,9 +74,9 @@ type Djinn struct {
 // NewDjinn creates a Terminal with default configuration.
 func NewDjinn() *Djinn {
 	return &Djinn{
-		operation:   staff.DefaultOperation(),
-		capacity:    staff.NewAgentCapacity(1),
-		envelopeCfg: staff.DefaultEnvelopeConfig(),
+		operation:   uniform.DefaultOperation(),
+		capacity:    uniform.NewAgentCapacity(1),
+		envelopeCfg: uniform.DefaultEnvelopeConfig(),
 		scopePath:   "/",
 		mounts:      workspace.NewMountTable(slog.Default()),
 		sightMgr:    tui.NewSightManager(nil), // TODO: inject real logger from app
@@ -108,7 +108,7 @@ func (d *Djinn) Command(ctx context.Context, name string, args []string) (string
 		if len(args) == 0 {
 			return fmt.Sprintf("operation: %s", d.operation), nil
 		}
-		op, ok := staff.ParseOperation(args[0])
+		op, ok := uniform.ParseOperation(args[0])
 		if !ok {
 			return "", fmt.Errorf("%w: %q (ask, plan, agent)", ErrUnknownOperation, args[0])
 		}
@@ -255,7 +255,7 @@ func (d *Djinn) SightManager() *tui.SightManager {
 func (d *Djinn) SetOperation(op string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if parsed, ok := staff.ParseOperation(op); ok {
+	if parsed, ok := uniform.ParseOperation(op); ok {
 		d.operation = parsed
 	}
 }
@@ -456,19 +456,19 @@ func (d *Djinn) SetStreaming(v bool) {
 }
 
 // Operation returns the current operation.
-func (d *Djinn) Operation() staff.Operation {
+func (d *Djinn) Operation() uniform.Operation {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.operation
 }
 
 // Capacity returns the agent capacity tracker.
-func (d *Djinn) Capacity() *staff.AgentCapacity {
+func (d *Djinn) Capacity() *uniform.AgentCapacity {
 	return d.capacity
 }
 
 // EnvelopeConfig returns the current envelope configuration.
-func (d *Djinn) EnvelopeConfig() staff.EnvelopeConfig {
+func (d *Djinn) EnvelopeConfig() uniform.EnvelopeConfig {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.envelopeCfg

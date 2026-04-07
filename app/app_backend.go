@@ -20,11 +20,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/dpopsuev/djinn/clutch"
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
-	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/hotswap"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -61,7 +61,7 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 	transport, err := ConnectToHubAsBackend(*socketPath)
 	if err != nil {
 		// Fallback: direct connect (legacy shell mode).
-		transport, err = clutch.Connect(*socketPath)
+		transport, err = hotswap.Connect(*socketPath)
 		if err != nil {
 			return fmt.Errorf("connect to socket: %w", err)
 		}
@@ -77,22 +77,22 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 		modelName = DefaultModel
 	}
 
-	// Load session.
+	// Load contextmgr.
 	sessDir := SessionDir()
-	store, err := session.NewStore(sessDir)
+	store, err := contextmgr.NewStore(sessDir)
 	if err != nil {
 		return fmt.Errorf("session store: %w", err)
 	}
 
-	var sess *session.Session
+	var sess *contextmgr.Session
 	if *sessionName != "" {
 		sess, err = store.Load(*sessionName)
 		if err != nil {
-			sess = session.New(*sessionName, modelName, Getwd())
+			sess = contextmgr.New(*sessionName, modelName, Getwd())
 			sess.Name = *sessionName
 		}
 	} else {
-		sess = session.New(fmt.Sprintf("backend-%d", os.Getpid()), modelName, Getwd())
+		sess = contextmgr.New(fmt.Sprintf("backend-%d", os.Getpid()), modelName, Getwd())
 	}
 	sess.Driver = *driverName
 	sess.Model = modelName
@@ -102,13 +102,13 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 	if *wsFlag != "" {
 		workDir = *wsFlag
 	}
-	projectCtx := session.LoadProjectContext(workDir)
+	projectCtx := contextmgr.LoadProjectContext(workDir)
 
 	prompt := *systemPrompt
 	if *systemFile != "" {
 		prompt = ReadSystemFile(*systemFile)
 	}
-	assembledPrompt := session.BuildSystemPrompt(projectCtx, prompt)
+	assembledPrompt := contextmgr.BuildSystemPrompt(projectCtx, prompt)
 
 	// Create driver.
 	chatDriver, err := createBackendDriver(*driverName, modelName, assembledPrompt, log)
@@ -137,7 +137,7 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 	log.Info("backend ready", "model", modelName, "driver", *driverName, "session", sess.Name)
 
 	// Run the backend loop — blocks until shell sends Quit or context cancels.
-	return clutch.RunBackend(ctx, transport, clutch.BackendConfig{
+	return hotswap.RunBackend(ctx, transport, hotswap.BackendConfig{
 		Driver:       chatDriver,
 		Tools:        registry,
 		Session:      sess,

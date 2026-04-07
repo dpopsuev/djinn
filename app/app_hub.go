@@ -30,8 +30,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dpopsuev/djinn/clutch"
 	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/hotswap"
 )
 
 // DefaultHubSocket returns the default hub socket path.
@@ -65,7 +65,7 @@ func RunHub(args []string, stderr io.Writer) error {
 	logResult := djinnlog.Setup(djinnlog.Options{Verbose: true})
 	log := djinnlog.For(logResult.Logger, "hub")
 
-	hub, err := clutch.NewHub(socketPath, djinnlog.For(log, "clutch"))
+	h, err := hotswap.NewHub(socketPath, djinnlog.For(log, "clutch"))
 	if err != nil {
 		return fmt.Errorf("start hub: %w", err)
 	}
@@ -83,8 +83,8 @@ func RunHub(args []string, stderr io.Writer) error {
 		go autoSpawnBackend(ctx, socketPath, log)
 	}
 
-	err = hub.Run(ctx)
-	hub.Close()
+	err = h.Run(ctx)
+	h.Close()
 
 	// Clean up socket file.
 	os.Remove(socketPath) //nolint:errcheck // best-effort cleanup
@@ -137,25 +137,25 @@ func HubSocketExists() (string, bool) {
 }
 
 // connectToHubAs connects to the hub and registers with the given role.
-func connectToHubAs(socketPath, role string) (*clutch.SocketTransport, error) {
+func connectToHubAs(socketPath, role string) (*hotswap.SocketTransport, error) {
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		return nil, fmt.Errorf("connect to hub: %w", err)
 	}
 	enc := json.NewEncoder(conn)
-	if err := enc.Encode(clutch.RegisterMsg{Role: role}); err != nil {
+	if err := enc.Encode(hotswap.RegisterMsg{Role: role}); err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("register as %s: %w", role, err)
 	}
-	return clutch.WrapConn(conn), nil
+	return hotswap.WrapConn(conn), nil
 }
 
 // ConnectToHub connects to the hub as a shell client.
-func ConnectToHub(socketPath string) (*clutch.SocketTransport, error) {
+func ConnectToHub(socketPath string) (*hotswap.SocketTransport, error) {
 	return connectToHubAs(socketPath, "shell")
 }
 
 // ConnectToHubAsBackend connects to the hub as a backend client.
-func ConnectToHubAsBackend(socketPath string) (*clutch.SocketTransport, error) {
+func ConnectToHubAsBackend(socketPath string) (*hotswap.SocketTransport, error) {
 	return connectToHubAs(socketPath, "backend")
 }

@@ -10,8 +10,8 @@ import (
 
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/cli/repl"
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
@@ -19,7 +19,7 @@ import (
 
 func testTUIModel(t *testing.T, mode string) *repl.Model {
 	t.Helper()
-	sess := session.New("tui-test", "test-model", "/workspace")
+	sess := contextmgr.New("tui-test", "test-model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Tools:   builtin.NewRegistry(),
 		Session: sess,
@@ -41,7 +41,7 @@ func toModelPtr(m tea.Model) *repl.Model {
 }
 
 func TestTUI_SlashCommandNoStreaming(t *testing.T) {
-	sess := session.New("test", "model", "/workspace")
+	sess := contextmgr.New("test", "model", "/workspace")
 	result := repl.ExecuteCommand(repl.Command{Name: "/help"}, sess)
 	if result.Output == "" {
 		t.Fatal("/help should produce output")
@@ -256,7 +256,7 @@ func TestTUI_SlashCommand_NoPanic(t *testing.T) {
 func TestTUI_RoleSwitch_NoPanic(t *testing.T) {
 	// Switch roles via /role command through the event loop.
 	// Needs a driver because switchRole calls SetSystemPrompt.
-	sess := session.New("tui-test", "test-model", "/workspace")
+	sess := contextmgr.New("tui-test", "test-model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Tools:   builtin.NewRegistry(),
 		Session: sess,
@@ -307,7 +307,7 @@ func TestTUI_TUIRecorder_CapturesFrames(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sess := session.New("debug-test", "test-model", "/workspace")
+	sess := contextmgr.New("debug-test", "test-model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Tools:       builtin.NewRegistry(),
 		Session:     sess,
@@ -390,7 +390,7 @@ func TestTUI_InitialRoleModeApplied(t *testing.T) {
 	// BUG-21: NewModel sets dashboard with cfg.Mode ("agent") but the
 	// default role (gensec) should override to "plan". The initial mode
 	// must come from the role, not the CLI flag.
-	sess := session.New("mode-test", "test-model", "/workspace")
+	sess := contextmgr.New("mode-test", "test-model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Tools:   builtin.NewRegistry(),
 		Session: sess,
@@ -410,7 +410,7 @@ func TestTUI_InitialRoleModeApplied(t *testing.T) {
 func TestTUI_RoleSwitchUpdatesMode(t *testing.T) {
 	// BUG-21: switchRole updates m.mode but not the dashboard.
 	// After switching to executor, dashboard should show "agent" mode.
-	sess := session.New("mode-test", "test-model", "/workspace")
+	sess := contextmgr.New("mode-test", "test-model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Tools:   builtin.NewRegistry(),
 		Session: sess,

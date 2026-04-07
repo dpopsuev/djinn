@@ -16,64 +16,64 @@ import (
 
 	"github.com/dpopsuev/djinn/app"
 	"github.com/dpopsuev/djinn/cli/repl"
-	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/contextmgr"
 )
 
 func TestTelescope_SearchByName(t *testing.T) {
-	summaries := []session.SessionSummary{
+	summaries := []contextmgr.SessionSummary{
 		{Name: "djinn-dev", Model: "claude"},
 		{Name: "misbah-test", Model: "ollama"},
 		{Name: "djinn-prod", Model: "claude"},
 	}
-	results := session.Search(summaries, "djinn")
+	results := contextmgr.Search(summaries, "djinn")
 	if len(results) != 2 {
 		t.Fatalf("got %d, want 2", len(results))
 	}
 }
 
 func TestTelescope_SearchByModel(t *testing.T) {
-	summaries := []session.SessionSummary{
+	summaries := []contextmgr.SessionSummary{
 		{Name: "a", Model: "claude-opus-4-6"},
 		{Name: "b", Model: "qwen2.5"},
 	}
-	results := session.Search(summaries, "opus")
+	results := contextmgr.Search(summaries, "opus")
 	if len(results) != 1 || results[0].Name != "a" {
 		t.Fatalf("results = %v", results)
 	}
 }
 
 func TestTelescope_SearchByWorkDir(t *testing.T) {
-	summaries := []session.SessionSummary{
+	summaries := []contextmgr.SessionSummary{
 		{Name: "a", WorkDir: "/home/user/Workspace/djinn"},
 		{Name: "b", WorkDir: "/home/user/Workspace/misbah"},
 	}
-	results := session.Search(summaries, "misbah")
+	results := contextmgr.Search(summaries, "misbah")
 	if len(results) != 1 || results[0].Name != "b" {
 		t.Fatalf("results = %v", results)
 	}
 }
 
 func TestTelescope_EmptyQueryReturnsAll(t *testing.T) {
-	summaries := []session.SessionSummary{
+	summaries := []contextmgr.SessionSummary{
 		{Name: "a"}, {Name: "b"}, {Name: "c"},
 	}
-	results := session.Search(summaries, "")
+	results := contextmgr.Search(summaries, "")
 	if len(results) != 3 {
 		t.Fatalf("empty query should return all, got %d", len(results))
 	}
 }
 
 func TestTelescope_NoMatchReturnsEmpty(t *testing.T) {
-	summaries := []session.SessionSummary{{Name: "alpha"}}
-	results := session.Search(summaries, "zzz")
+	summaries := []contextmgr.SessionSummary{{Name: "alpha"}}
+	results := contextmgr.Search(summaries, "zzz")
 	if len(results) != 0 {
 		t.Fatal("should return empty for no match")
 	}
 }
 
 func TestTelescope_CaseInsensitive(t *testing.T) {
-	summaries := []session.SessionSummary{{Name: "DjinnDev"}}
-	results := session.Search(summaries, "djinndev")
+	summaries := []contextmgr.SessionSummary{{Name: "DjinnDev"}}
+	results := contextmgr.Search(summaries, "djinndev")
 	if len(results) != 1 {
 		t.Fatal("should be case insensitive")
 	}
@@ -101,7 +101,7 @@ func TestTelescope_AttachWithName_Delegates(t *testing.T) {
 }
 
 func TestTelescope_SessionsSlashCommand(t *testing.T) {
-	sess := session.New("test", "model", "/workspace")
+	sess := contextmgr.New("test", "model", "/workspace")
 	result := repl.ExecuteCommand(repl.Command{Name: "/sessions"}, sess)
 	// Should not panic, produces output
 	if result.Output == "" {
@@ -110,7 +110,7 @@ func TestTelescope_SessionsSlashCommand(t *testing.T) {
 }
 
 func TestTelescope_SessionsWithQuery(t *testing.T) {
-	sess := session.New("test", "model", "/workspace")
+	sess := contextmgr.New("test", "model", "/workspace")
 	result := repl.ExecuteCommand(repl.Command{Name: "/sessions", Args: []string{"nonexistent"}}, sess)
 	if !strings.Contains(result.Output, "no sessions") {
 		// Either "no sessions found" or "no sessions matching" — both valid

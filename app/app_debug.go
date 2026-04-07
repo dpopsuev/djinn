@@ -6,8 +6,8 @@ import (
 	"io"
 	"os"
 
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/session"
 )
 
 // RunDebug handles the djinn debug subcommand.
@@ -233,7 +233,7 @@ func debugComponent(component string, w io.Writer) error {
 
 func debugSession(nameOrPath string, w io.Writer) error {
 	// Try as file path first, then as session name
-	var sess *session.Session
+	var sess *contextmgr.Session
 	var err error
 
 	if _, statErr := os.Stat(nameOrPath); statErr == nil { //nolint:nestif // file vs name resolution
@@ -242,13 +242,13 @@ func debugSession(nameOrPath string, w io.Writer) error {
 		if readErr != nil {
 			return readErr
 		}
-		sess = &session.Session{}
+		sess = &contextmgr.Session{}
 		if err = json.Unmarshal(data, sess); err != nil {
 			return fmt.Errorf("parse session: %w", err)
 		}
 	} else {
 		// Try as session name from default store
-		store, storeErr := session.NewStore(SessionDir())
+		store, storeErr := contextmgr.NewStore(SessionDir())
 		if storeErr != nil {
 			return storeErr
 		}

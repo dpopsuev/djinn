@@ -17,13 +17,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/dpopsuev/djinn/agent"
+	"github.com/dpopsuev/djinn/contextmgr"
+	"github.com/dpopsuev/djinn/daemon"
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/hub"
 	"github.com/dpopsuev/djinn/policy"
-	"github.com/dpopsuev/djinn/session"
-	"github.com/dpopsuev/djinn/staff"
-	"github.com/dpopsuev/djinn/staff/memory"
 	"github.com/dpopsuev/djinn/terminal"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
@@ -31,6 +29,8 @@ import (
 	"github.com/dpopsuev/djinn/tui/elements"
 	"github.com/dpopsuev/djinn/tui/layout"
 	"github.com/dpopsuev/djinn/tui/widgets"
+	"github.com/dpopsuev/djinn/uniform"
+	"github.com/dpopsuev/djinn/uniform/memory"
 	"github.com/dpopsuev/djinn/vcs"
 )
 
@@ -72,13 +72,13 @@ type Model struct {
 	chatDriver   driver.ChatDriver
 	tools        builtin.ToolExecutor
 	envelope     *agent.ToolEnvelope // Envelope-based execution (nil = legacy inline path)
-	sess         *session.Session
+	sess         *contextmgr.Session
 	systemPrompt string
 	maxTurns     int
 	autoApprove  bool
 	mode         agent.Mode
-	approvalCh   chan bool      // bridges approval from UI to agent goroutine
-	store        *session.Store // auto-save after each turn
+	approvalCh   chan bool         // bridges approval from UI to agent goroutine
+	store        *contextmgr.Store // auto-save after each turn
 	enforcer     policy.ToolPolicyEnforcer
 	token        policy.CapabilityToken
 	log          *slog.Logger
@@ -116,7 +116,7 @@ type Model struct {
 	rawStreamLine *strings.Builder // raw unrendered text for incremental markdown (pointer: Builder can't be copied)
 
 	// Tool routing
-	router *staff.ToolClearance // capability-filtered tool dispatch (nil = raw registry)
+	router *uniform.ToolClearance // capability-filtered tool dispatch (nil = raw registry)
 
 	// Worktree isolation for executor tasks
 	worktreeMgr    *vcs.WorktreeManager
@@ -126,7 +126,7 @@ type Model struct {
 	keys *tui.ModeTable
 
 	// Context relay
-	monitor *session.ContextMonitor
+	monitor *contextmgr.ContextMonitor
 
 	// TUI telemetry
 	filesEdited int  // count of files edited this session
@@ -136,14 +136,14 @@ type Model struct {
 	tuiRecorder *tui.TUIRecorder
 	debugPanel  *widgets.DebugPanel
 	showDebug   bool
-	hubRegistry *hub.HubRegistry
+	hubRegistry *daemon.HubRegistry
 	planPanel   *widgets.PlanPanel
 
 	// Staff — role pipeline
 	currentRole string
 	roleMemory  *memory.RoleMemory
-	roles       map[string]staff.Role
-	staffCfg    *staff.StaffConfig
+	roles       map[string]uniform.Role
+	staffCfg    *uniform.StaffConfig
 	term        *terminal.Djinn // Terminal facade — domain state + event stream
 
 	// Multi-agent monitoring
@@ -226,7 +226,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	}
 
 	// Use driver's context window for the monitor if available.
-	m.monitor = session.NewContextMonitor(session.WithContextSizer(m.chatDriver))
+	m.monitor = contextmgr.NewContextMonitor(contextmgr.WithContextSizer(m.chatDriver))
 
 	// Wire Terminal OnCommand handler for slash command backward compat.
 	m.term.OnCommand = func(_ context.Context, name string, args []string) (string, error) {
@@ -272,7 +272,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	// Plan panel — visible when plan artifacts exist.
 	if cfg.HubRegistry != nil {
 		if ph, ok := cfg.HubRegistry.Get("plan"); ok {
-			if planHub, ok := ph.(*hub.PlanHub); ok {
+			if planHub, ok := ph.(*daemon.PlanHub); ok {
 				m.planPanel = widgets.NewPlanPanel(planHub.Graph)
 				m.layout.Register(layout.PanelSlot{
 					Panel: m.planPanel, Visible: func() bool { return len(m.planPanel.View(1)) > 20 }, //nolint:mnd // non-empty check
@@ -288,7 +288,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	// Staff: initialize roles and memory.
 	// The default role's mode overrides cfg.Mode — GenSec should be "plan"
 	// (no tools) regardless of what the CLI flag says.
-	staffCfg := staff.DefaultConfig()
+	staffCfg := uniform.DefaultConfig()
 	m.staffCfg = staffCfg
 	m.roles = staffCfg.RoleMap()
 	m.roleMemory = memory.NewRoleMemory()
@@ -499,7 +499,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocy
 		// Auto-transition: role-based gate check.
 		switch {
 		case m.currentRole == roleExecutor:
-			gate := &staff.MakeCircuitGate{}
+			gate := &uniform.MakeCircuitGate{}
 			gateDir := m.sess.WorkDir
 			if m.activeWorktree != "" {
 				gateDir = m.activeWorktree
@@ -510,7 +510,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocy
 			}
 			if result.Passed {
 				m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ToolSuccessStyle.Render("  ✓ gate passed")})
-				next := staff.NextRole(staff.SignalGatePassed)
+				next := uniform.NextRole(uniform.SignalGatePassed)
 				m.switchRole(next)
 			} else {
 				for _, d := range result.Diagnostics {
@@ -831,7 +831,7 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) { //nolint:gocyclo,funlen //
 				m.currentRole, strings.Join(names, ", "))})
 		case cmd.Args[0] == "create" && len(cmd.Args) >= 3:
 			name, mode := cmd.Args[1], cmd.Args[2]
-			m.roles[name] = staff.Role{
+			m.roles[name] = uniform.Role{
 				Name:             name,
 				Prompt:           fmt.Sprintf("You are %s. The operator created this role on the fly.", name),
 				Mode:             mode,
@@ -1055,7 +1055,7 @@ func approvalForMode(mode agent.Mode, ch chan bool) agent.ApprovalFunc {
 
 // renderMOTD builds the welcome banner with logo and workspace info
 // inside a lipgloss rounded border box.
-func renderMOTD(sess *session.Session, tools builtin.ToolExecutor, version, currentRole string) string {
+func renderMOTD(sess *contextmgr.Session, tools builtin.ToolExecutor, version, currentRole string) string {
 	logo := tui.LogoStyle.Render(tui.DjinnLogo)
 
 	wsName := sess.Workspace

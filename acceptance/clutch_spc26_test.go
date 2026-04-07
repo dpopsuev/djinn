@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/clutch"
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/hotswap"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -22,16 +22,16 @@ func startTestBackend(ctx context.Context, t *testing.T, sock, model string, res
 	t.Helper()
 	done := make(chan error, 1)
 	go func() {
-		transport, err := clutch.Connect(sock)
+		transport, err := hotswap.Connect(sock)
 		if err != nil {
 			done <- err
 			return
 		}
 		defer transport.Close()
-		done <- clutch.RunBackend(ctx, transport, clutch.BackendConfig{
+		done <- hotswap.RunBackend(ctx, transport, hotswap.BackendConfig{
 			Driver:   stubs.NewStubChatDriver(responses...),
 			Tools:    builtin.NewRegistry(),
-			Session:  session.New("test", model, "/workspace"),
+			Session:  contextmgr.New("test", model, "/workspace"),
 			MaxTurns: 5,
 		})
 	}()
@@ -44,7 +44,7 @@ func TestSPC26_SocketHandshake(t *testing.T) {
 	// Then the backend sends BackendReady with session state
 	sock := filepath.Join(t.TempDir(), "handshake.sock")
 
-	ln, err := clutch.Listen(sock)
+	ln, err := hotswap.Listen(sock)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,17 +65,17 @@ func TestSPC26_SocketHandshake(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if msg.Type != clutch.BackendReady {
+	if msg.Type != hotswap.BackendReady {
 		t.Fatalf("expected BackendReady, got %q", msg.Type)
 	}
-	if msg.Version != clutch.ProtocolVersion {
+	if msg.Version != hotswap.ProtocolVersion {
 		t.Fatalf("version = %d", msg.Version)
 	}
 	if msg.Model != "claude-opus-4-6" {
 		t.Fatalf("model = %q", msg.Model)
 	}
 
-	shell.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
+	shell.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
 	<-backendDone
 }
 
@@ -85,22 +85,22 @@ func TestSPC26_BackendDisconnect_ShellPreserves(t *testing.T) {
 	// Then the shell preserves all received messages
 	sock := filepath.Join(t.TempDir(), "disconnect.sock")
 
-	ln, err := clutch.Listen(sock)
+	ln, err := hotswap.Listen(sock)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer ln.Close()
 
 	go func() {
-		transport, _ := clutch.Connect(sock)
-		transport.SendToShell(clutch.BackendMsg{Type: clutch.BackendReady})                          //nolint:errcheck // best-effort send, error logged by receiver
-		transport.SendToShell(clutch.BackendMsg{Type: clutch.BackendText, Text: "partial response"}) //nolint:errcheck // best-effort send, error logged by receiver
+		transport, _ := hotswap.Connect(sock)
+		transport.SendToShell(hotswap.BackendMsg{Type: hotswap.BackendReady})                          //nolint:errcheck // best-effort send, error logged by receiver
+		transport.SendToShell(hotswap.BackendMsg{Type: hotswap.BackendText, Text: "partial response"}) //nolint:errcheck // best-effort send, error logged by receiver
 		transport.Close()
 	}()
 
 	shell, _ := ln.Accept()
 
-	var messages []clutch.BackendMsg
+	var messages []hotswap.BackendMsg
 	for {
 		msg, err := shell.RecvFromBackend()
 		if err != nil {
@@ -124,7 +124,7 @@ func TestSPC26_BackendReconnect_SessionPreserved(t *testing.T) {
 	// Then it sends new session_state and the shell continues
 	sock := filepath.Join(t.TempDir(), "reconnect.sock")
 
-	ln, err := clutch.Listen(sock)
+	ln, err := hotswap.Listen(sock)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestSPC26_BackendReconnect_SessionPreserved(t *testing.T) {
 	if ready1.Model != "model-v1" {
 		t.Fatalf("b1 model = %q", ready1.Model)
 	}
-	shell1.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
+	shell1.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
 	<-b1
 	shell1.Close()
 
@@ -159,7 +159,7 @@ func TestSPC26_BackendReconnect_SessionPreserved(t *testing.T) {
 		t.Fatalf("b2 model = %q — hot-swap should show new model", ready2.Model)
 	}
 
-	shell2.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
+	shell2.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
 	<-b2
 }
 
@@ -169,7 +169,7 @@ func TestSPC26_ShellWithoutBackend_Queues(t *testing.T) {
 	// Then the shell can send the queued prompt
 	sock := filepath.Join(t.TempDir(), "queue.sock")
 
-	ln, err := clutch.Listen(sock)
+	ln, err := hotswap.Listen(sock)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,12 +193,12 @@ func TestSPC26_ShellWithoutBackend_Queues(t *testing.T) {
 	defer shell.Close()
 
 	ready, _ := shell.RecvFromBackend()
-	if ready.Type != clutch.BackendReady {
+	if ready.Type != hotswap.BackendReady {
 		t.Fatal("expected ready")
 	}
 
 	// Send queued prompt.
-	shell.SendToBackend(clutch.ShellMsg{Type: clutch.ShellPrompt, Text: "queued"}) //nolint:errcheck // best-effort send, error logged by receiver
+	shell.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellPrompt, Text: "queued"}) //nolint:errcheck // best-effort send, error logged by receiver
 
 	var gotText bool
 	for range 20 {
@@ -206,10 +206,10 @@ func TestSPC26_ShellWithoutBackend_Queues(t *testing.T) {
 		if err != nil {
 			break
 		}
-		if msg.Type == clutch.BackendText {
+		if msg.Type == hotswap.BackendText {
 			gotText = true
 		}
-		if msg.Type == clutch.BackendDone {
+		if msg.Type == hotswap.BackendDone {
 			break
 		}
 	}
@@ -217,5 +217,5 @@ func TestSPC26_ShellWithoutBackend_Queues(t *testing.T) {
 		t.Fatal("queued prompt should produce response after backend connects")
 	}
 
-	shell.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
+	shell.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
 }

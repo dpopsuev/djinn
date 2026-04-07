@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/djinnlog"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tui"
 )
 
@@ -91,7 +91,7 @@ func executeLog(cmd Command) CommandResult {
 	return CommandResult{Output: strings.TrimRight(sb.String(), "\n")}
 }
 
-func executeConfig(cmd Command, sess *session.Session) CommandResult {
+func executeConfig(cmd Command, sess *contextmgr.Session) CommandResult {
 	mode := sess.Mode
 	if mode == "" {
 		mode = defaultModeName
@@ -107,7 +107,7 @@ func executeConfig(cmd Command, sess *session.Session) CommandResult {
 	}
 }
 
-func executeConfigSave(cmd Command, sess *session.Session) CommandResult {
+func executeConfigSave(cmd Command, sess *contextmgr.Session) CommandResult {
 	mode := sess.Mode
 	if mode == "" {
 		mode = defaultModeName

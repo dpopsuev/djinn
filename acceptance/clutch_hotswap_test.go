@@ -15,45 +15,45 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/clutch"
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/hotswap"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
 func TestClutch_ChannelTransport_Roundtrip(t *testing.T) {
-	transport := clutch.NewChannelTransport()
+	transport := hotswap.NewChannelTransport()
 	defer transport.Close()
 
 	// Shell → Backend
-	transport.SendToBackend(clutch.ShellMsg{Type: clutch.ShellPrompt, Text: "hello"})
+	transport.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellPrompt, Text: "hello"})
 
 	msg, err := transport.RecvFromShell()
 	if err != nil {
 		t.Fatalf("RecvFromShell: %v", err)
 	}
-	if msg.Type != clutch.ShellPrompt || msg.Text != "hello" {
+	if msg.Type != hotswap.ShellPrompt || msg.Text != "hello" {
 		t.Fatalf("msg = %+v", msg)
 	}
 
 	// Backend → Shell
-	transport.SendToShell(clutch.BackendMsg{Type: clutch.BackendText, Text: "world"})
+	transport.SendToShell(hotswap.BackendMsg{Type: hotswap.BackendText, Text: "world"})
 
 	resp, err := transport.RecvFromBackend()
 	if err != nil {
 		t.Fatalf("RecvFromBackend: %v", err)
 	}
-	if resp.Type != clutch.BackendText || resp.Text != "world" {
+	if resp.Type != hotswap.BackendText || resp.Text != "world" {
 		t.Fatalf("resp = %+v", resp)
 	}
 }
 
 func TestClutch_BackendSendsReady(t *testing.T) {
-	transport := clutch.NewChannelTransport()
+	transport := hotswap.NewChannelTransport()
 	defer transport.Close()
 
-	sess := session.New("test", "test-model", "/workspace")
+	sess := contextmgr.New("test", "test-model", "/workspace")
 	stubDriver := stubs.NewStubChatDriver(
 		driver.Message{Role: driver.RoleAssistant, Content: "hi"},
 	)
@@ -61,7 +61,7 @@ func TestClutch_BackendSendsReady(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go clutch.RunBackend(ctx, transport, clutch.BackendConfig{
+	go hotswap.RunBackend(ctx, transport, hotswap.BackendConfig{
 		Driver:  stubDriver,
 		Tools:   builtin.NewRegistry(),
 		Session: sess,
@@ -72,29 +72,29 @@ func TestClutch_BackendSendsReady(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RecvFromBackend: %v", err)
 	}
-	if msg.Type != clutch.BackendReady {
+	if msg.Type != hotswap.BackendReady {
 		t.Fatalf("expected Ready, got %q", msg.Type)
 	}
-	if msg.Version != clutch.ProtocolVersion {
-		t.Fatalf("version = %d, want %d", msg.Version, clutch.ProtocolVersion)
+	if msg.Version != hotswap.ProtocolVersion {
+		t.Fatalf("version = %d, want %d", msg.Version, hotswap.ProtocolVersion)
 	}
 	if msg.Model != "test-model" {
 		t.Fatalf("model = %q", msg.Model)
 	}
 
 	// Clean quit
-	transport.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit})
+	transport.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellQuit})
 	quitMsg, _ := transport.RecvFromBackend()
-	if quitMsg.Type != clutch.BackendExiting {
+	if quitMsg.Type != hotswap.BackendExiting {
 		t.Fatalf("expected Exiting, got %q", quitMsg.Type)
 	}
 }
 
 func TestClutch_QuitExitsCleanly(t *testing.T) {
-	transport := clutch.NewChannelTransport()
+	transport := hotswap.NewChannelTransport()
 	defer transport.Close()
 
-	sess := session.New("test", "model", "/workspace")
+	sess := contextmgr.New("test", "model", "/workspace")
 	stubDriver := stubs.NewStubChatDriver(
 		driver.Message{Role: driver.RoleAssistant, Content: "done"},
 	)
@@ -104,7 +104,7 @@ func TestClutch_QuitExitsCleanly(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- clutch.RunBackend(ctx, transport, clutch.BackendConfig{
+		done <- hotswap.RunBackend(ctx, transport, hotswap.BackendConfig{
 			Driver:  stubDriver,
 			Tools:   builtin.NewRegistry(),
 			Session: sess,
@@ -115,7 +115,7 @@ func TestClutch_QuitExitsCleanly(t *testing.T) {
 	transport.RecvFromBackend()
 
 	// Send quit
-	transport.SendToBackend(clutch.ShellMsg{Type: clutch.ShellQuit})
+	transport.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellQuit})
 
 	select {
 	case err := <-done:
@@ -128,17 +128,17 @@ func TestClutch_QuitExitsCleanly(t *testing.T) {
 }
 
 func TestClutch_TransportClose_PreventseSends(t *testing.T) {
-	transport := clutch.NewChannelTransport()
+	transport := hotswap.NewChannelTransport()
 	transport.Close()
 
-	err := transport.SendToBackend(clutch.ShellMsg{Type: clutch.ShellPrompt})
+	err := transport.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellPrompt})
 	if err == nil {
 		t.Fatal("send after close should error")
 	}
 }
 
 func TestClutch_ProtocolVersion(t *testing.T) {
-	if clutch.ProtocolVersion < 1 {
+	if hotswap.ProtocolVersion < 1 {
 		t.Fatal("protocol version should be >= 1")
 	}
 }

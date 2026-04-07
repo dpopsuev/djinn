@@ -15,19 +15,19 @@ import (
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/cli/repl"
-	"github.com/dpopsuev/djinn/clutch"
 	djinnconfig "github.com/dpopsuev/djinn/config"
+	"github.com/dpopsuev/djinn/contextmgr"
+	"github.com/dpopsuev/djinn/daemon"
 	"github.com/dpopsuev/djinn/djinnlog"
-	"github.com/dpopsuev/djinn/hub"
+	"github.com/dpopsuev/djinn/hotswap"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/sandbox"
-	"github.com/dpopsuev/djinn/session"
-	"github.com/dpopsuev/djinn/staff"
 	"github.com/dpopsuev/djinn/tools"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/trace"
 	"github.com/dpopsuev/djinn/tui"
+	"github.com/dpopsuev/djinn/uniform"
 	djinnws "github.com/dpopsuev/djinn/workspace"
 )
 
@@ -122,13 +122,13 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		}
 	}
 
-	store, err := session.NewStore(SessionDir())
+	store, err := contextmgr.NewStore(SessionDir())
 	if err != nil {
 		return fmt.Errorf("cannot open session store at %s: %w", SessionDir(), err)
 	}
 
 	// Session: resume, continue, or new
-	var sess *session.Session
+	var sess *contextmgr.Session
 	switch {
 	case *cont:
 		sess, err = LoadMostRecent(store)
@@ -139,7 +139,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	case *sessionName != "":
 		sess, err = store.Load(*sessionName)
 		if err != nil {
-			sess = session.New(*sessionName, driverConf.Model, Getwd())
+			sess = contextmgr.New(*sessionName, driverConf.Model, Getwd())
 			sess.Name = *sessionName
 			sess.Driver = driverConf.Name
 		} else {
@@ -147,7 +147,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		}
 	default:
 		id := fmt.Sprintf("djinn-%d", time.Now().Unix())
-		sess = session.New(id, driverConf.Model, Getwd())
+		sess = contextmgr.New(id, driverConf.Model, Getwd())
 		sess.Driver = driverConf.Name
 	}
 
@@ -198,7 +198,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		slug := strings.ReplaceAll(ws.PrimaryPath(), "/", "-")
 		claudeDir := filepath.Join(home, ".claude", "projects", slug)
 		if jsonl := findMostRecentJSONL(claudeDir); jsonl != "" {
-			imported, importErr := session.ImportClaudeSession(jsonl, 0)
+			imported, importErr := contextmgr.ImportClaudeSession(jsonl, 0)
 			if importErr == nil && imported.History.Len() > 0 {
 				for _, entry := range imported.Entries() {
 					sess.Append(entry)
@@ -209,8 +209,8 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	}
 
 	// Auto-discover project context
-	projectCtx := session.LoadProjectContext(sess.WorkDirs...)
-	assembledPrompt := session.BuildSystemPrompt(projectCtx, *systemPrompt)
+	projectCtx := contextmgr.LoadProjectContext(sess.WorkDirs...)
+	assembledPrompt := contextmgr.BuildSystemPrompt(projectCtx, *systemPrompt)
 
 	chatDriver, err := CreateDriver(driverConf.Name, sess.Model, assembledPrompt, logResult.Logger)
 	if err != nil {
@@ -237,12 +237,12 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	traceRing := trace.NewRing(1000) //nolint:mnd // 1000 events is a sensible default
 
 	// Hub mediators — DevOps phase coordination (GOL-58).
-	hubRegistry := hub.NewRegistry()
-	hubCore := hub.HubCore{
+	hubRegistry := daemon.NewRegistry()
+	hubCore := daemon.HubCore{
 		Tracer:  traceRing.For(trace.ComponentTool),
-		Display: hub.NopDisplaySender{},
+		Display: daemon.NopDisplaySender{},
 	}
-	planHub := hub.NewPlanHub(hubCore, artifact.NewGraph("session", artifact.DefaultRegistry()))
+	planHub := daemon.NewPlanHub(hubCore, artifact.NewGraph("session", artifact.DefaultRegistry()))
 	hubRegistry.Register(planHub)
 
 	// Connect MCP servers
@@ -319,8 +319,8 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		if evt.New == nil {
 			return
 		}
-		newCtx := session.LoadProjectContext(evt.New.Paths()...)
-		newPrompt := session.BuildSystemPrompt(newCtx, *systemPrompt)
+		newCtx := contextmgr.LoadProjectContext(evt.New.Paths()...)
+		newPrompt := contextmgr.BuildSystemPrompt(newCtx, *systemPrompt)
 		chatDriver.SetSystemPrompt(newPrompt)
 	})
 	wsBus.On("session", func(evt djinnws.Event) {
@@ -345,7 +345,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 
 	// Wrap composite executor in ToolHub for mediated execution (GOL-37).
 	toolTracker := tools.NewToolLatencyTracker()
-	toolHub := hub.NewToolHub(hubCore, composite, toolTracker)
+	toolHub := daemon.NewToolHub(hubCore, composite, toolTracker)
 	hubRegistry.Register(toolHub)
 
 	// Build Tool Operation Envelope: SecurityBundle + EnrichmentBundle + ObservabilityBundle.
@@ -363,16 +363,16 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	log.Info("tool envelope built", "gates", 1, "enrichers", 1, "recorders", 1)
 
 	// Load staff config: built-in defaults → user config → workspace config.
-	staffCfg := staff.LoadConfigChain(
-		filepath.Join(HomeDir(), "staff.yaml"),
-		filepath.Join(ws.PrimaryPath(), "staff.yaml"),
+	staffCfg := uniform.LoadConfigChain(
+		filepath.Join(HomeDir(), "uniform.yaml"),
+		filepath.Join(ws.PrimaryPath(), "uniform.yaml"),
 	)
 	if err := staffCfg.Validate(); err != nil {
 		return fmt.Errorf("staff config: %w", err)
 	}
 
 	// Create tool clearance — filters tools by role's capabilities.
-	slotRouter := staff.NewToolClearance(staffCfg, composite, "gensec")
+	slotRouter := uniform.NewToolClearance(staffCfg, composite, "gensec")
 
 	// Sandbox: if configured, create an isolated environment.
 	// Sandbox: all agents run sandboxed by default. Only GenSec can jailbreak.
@@ -399,11 +399,11 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 
 	// Start clutch shell/backend transport.
 	// Priority: --socket flag → auto-detect hub → in-process channel.
-	var transport clutch.Transport
+	var transport hotswap.Transport
 	var useInProcess bool
 
 	// backendCfg is shared across hub and in-process modes.
-	backendCfg := clutch.BackendConfig{
+	backendCfg := hotswap.BackendConfig{
 		Driver:       chatDriver,
 		Tools:        toolHub,
 		Session:      sess,
@@ -437,7 +437,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 					return
 				}
 				defer beTransport.Close()
-				backendErr := clutch.RunBackend(ctx, beTransport, backendCfg)
+				backendErr := hotswap.RunBackend(ctx, beTransport, backendCfg)
 				if backendErr != nil {
 					log.Error("backend exited", "error", backendErr)
 				}
@@ -448,12 +448,12 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	}
 
 	if useInProcess {
-		channelTransport := clutch.NewChannelTransport()
+		channelTransport := hotswap.NewChannelTransport()
 		defer channelTransport.Close()
 		transport = channelTransport
 
 		go func() {
-			backendErr := clutch.RunBackend(ctx, channelTransport, backendCfg)
+			backendErr := hotswap.RunBackend(ctx, channelTransport, backendCfg)
 			if backendErr != nil {
 				log.Error("backend exited", "error", backendErr)
 			}

@@ -4,15 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/session"
 )
 
 // ReplayHistory sends session entries into a driver to restore context.
 // User entries with Blocks (e.g. tool_result) go through SendRich
 // to preserve structured content. Plain text goes through Send.
 // Returns an error if any replay step fails — caller decides recovery.
-func ReplayHistory(ctx context.Context, d driver.ChatDriver, sess *session.Session) error {
+func ReplayHistory(ctx context.Context, d driver.ChatDriver, sess *contextmgr.Session) error {
 	for _, entry := range sess.Entries() {
 		switch entry.Role {
 		case driver.RoleUser:

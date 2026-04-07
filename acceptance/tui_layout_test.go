@@ -12,14 +12,14 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/dpopsuev/djinn/cli/repl"
-	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
 )
 
 func layoutModel(t *testing.T, width, height int) repl.Model {
 	t.Helper()
-	sess := session.New("layout-test", "test-model", "/workspace")
+	sess := contextmgr.New("layout-test", "test-model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Tools:   builtin.NewRegistry(),
 		Session: sess,

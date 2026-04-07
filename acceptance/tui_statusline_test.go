@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/cli/repl"
-	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
 
@@ -21,7 +21,7 @@ import (
 )
 
 func TestStatusLine_ContainsWorkspace(t *testing.T) {
-	sess := session.New("test", "claude-opus-4-6", "/workspace")
+	sess := contextmgr.New("test", "claude-opus-4-6", "/workspace")
 	sess.Workspace = "aeon"
 	m := repl.NewModel(repl.Config{
 		Tools:   builtin.NewRegistry(),
@@ -37,7 +37,7 @@ func TestStatusLine_ContainsWorkspace(t *testing.T) {
 }
 
 func TestStatusLine_ContainsMode(t *testing.T) {
-	sess := session.New("test", "claude-opus-4-6", "/workspace")
+	sess := contextmgr.New("test", "claude-opus-4-6", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Tools:   builtin.NewRegistry(),
 		Session: sess,
@@ -52,7 +52,7 @@ func TestStatusLine_ContainsMode(t *testing.T) {
 }
 
 func TestStatusLine_ContainsModel(t *testing.T) {
-	sess := session.New("test", "claude-opus-4-6", "/workspace")
+	sess := contextmgr.New("test", "claude-opus-4-6", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Tools:   builtin.NewRegistry(),
 		Session: sess,
@@ -67,7 +67,7 @@ func TestStatusLine_ContainsModel(t *testing.T) {
 }
 
 func TestStatusLine_HealthAllGreen(t *testing.T) {
-	sess := session.New("test", "model", "/workspace")
+	sess := contextmgr.New("test", "model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Tools:   builtin.NewRegistry(),
 		Session: sess,
@@ -87,7 +87,7 @@ func TestStatusLine_HealthAllGreen(t *testing.T) {
 }
 
 func TestStatusLine_HealthMixed(t *testing.T) {
-	sess := session.New("test", "model", "/workspace")
+	sess := contextmgr.New("test", "model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Tools:   builtin.NewRegistry(),
 		Session: sess,
@@ -106,7 +106,7 @@ func TestStatusLine_HealthMixed(t *testing.T) {
 }
 
 func TestStatusLine_NoReports(t *testing.T) {
-	sess := session.New("test", "model", "/workspace")
+	sess := contextmgr.New("test", "model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Tools:   builtin.NewRegistry(),
 		Session: sess,
@@ -122,7 +122,7 @@ func TestStatusLine_NoReports(t *testing.T) {
 }
 
 func TestStatusLine_EphemeralWorkspace(t *testing.T) {
-	sess := session.New("test", "model", "/workspace")
+	sess := contextmgr.New("test", "model", "/workspace")
 	// No workspace set
 	m := repl.NewModel(repl.Config{
 		Tools:   builtin.NewRegistry(),
