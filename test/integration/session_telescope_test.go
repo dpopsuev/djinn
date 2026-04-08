@@ -17,7 +17,7 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/app"
-	"github.com/dpopsuev/djinn/cli/repl"
+	"github.com/dpopsuev/djinn/repl"
 	"github.com/dpopsuev/djinn/contextmgr"
 )
 

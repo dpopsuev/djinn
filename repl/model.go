@@ -18,8 +18,8 @@ import (
 	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/daemon"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/policy"
+	"github.com/dpopsuev/djinn/substrate"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/terminal"
 	"github.com/dpopsuev/djinn/tools/builtin"
@@ -156,7 +156,7 @@ type Model struct {
 	sandboxLevel   string
 
 	// Orchestrator — agent lifecycle, separated from TUI.
-	runner *orchestrator.AgentRunner
+	runner *substrate.AgentRunner
 }
 
 // NewModel creates a new REPL model.
@@ -227,7 +227,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		term:           terminal.NewDjinn(),
 	}
 
-	m.runner = &orchestrator.AgentRunner{
+	m.runner = &substrate.AgentRunner{
 		Driver:        cfg.Driver,
 		Tools:         cfg.Tools,
 		Envelope:      cfg.Envelope,

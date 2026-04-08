@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/dpopsuev/djinn/cli/repl"
+	"github.com/dpopsuev/djinn/repl"
 	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"

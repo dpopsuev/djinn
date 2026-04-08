@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/agent"
-	"github.com/dpopsuev/djinn/cli/repl"
+	"github.com/dpopsuev/djinn/repl"
 	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
 )

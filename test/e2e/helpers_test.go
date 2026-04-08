@@ -7,7 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/dpopsuev/djinn/cli/repl"
+	"github.com/dpopsuev/djinn/repl"
 )
 
 func toModelPtr(m tea.Model) *repl.Model {

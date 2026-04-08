@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dpopsuev/djinn/cli/repl"
+	"github.com/dpopsuev/djinn/repl"
 	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
