@@ -47,6 +47,8 @@ github.com/dpopsuev/parchment v0.2.0 h1:NMfcG6HcKfZaI2KGOZURdklL2yMT+A27wtd1s0ko
 github.com/dpopsuev/parchment v0.2.0/go.mod h1:fKH+nSmUrzw0XIE607fqLZ6fD5qtkymUHFX8evtSa94=
 github.com/dpopsuev/troupe v0.4.3 h1:C4C1Jpe6zXE5DUVXQmSe0WaUvg65QQlX4WeDMw7yCtQ=
 github.com/dpopsuev/troupe v0.4.3/go.mod h1:gkfAfNgP4qlM9CunctUeKfvXFcnwSqQkSIikdcN4kOA=
+github.com/dpopsuev/troupe v0.4.4 h1:LqvjfAUmesz6G1owTHFkJgZJoxcZ4eo1rWmkuJWzD5k=
+github.com/dpopsuev/troupe v0.4.4/go.mod h1:gkfAfNgP4qlM9CunctUeKfvXFcnwSqQkSIikdcN4kOA=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f h1:Y/CXytFA4m6baUTXGLOoWe4PQhGxaX0KpnayAqC48p4=

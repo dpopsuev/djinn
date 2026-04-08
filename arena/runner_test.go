@@ -141,37 +141,26 @@ func TestRunner_E2E_WithHTTPReferee(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	// Stub actor that copies the known-good fixture to workspace
-	fixtureActor := func(_ context.Context, input string) (string, error) {
-		// Extract workspace from the input (Runner prepends "Workspace: <path>")
-		var workspace string
-		for _, line := range splitLines(input) {
-			if len(line) > 11 && line[:11] == "Workspace: " {
-				workspace = line[11:]
-				break
+	// Factory — receives workspace, copies fixture there
+	fixtureFactory := func(workspace string) (ActorFunc, error) {
+		return func(_ context.Context, _ string) (string, error) {
+			for _, name := range []string{"main.go", "go.mod"} {
+				data, err := os.ReadFile(filepath.Join("testdata", "http_fixture", name))
+				if err != nil {
+					return "", err
+				}
+				if err := os.WriteFile(filepath.Join(workspace, name), data, 0o644); err != nil {
+					return "", err
+				}
 			}
-		}
-		if workspace == "" {
-			return "", errors.New("no workspace in input")
-		}
-
-		// Copy fixture files
-		for _, name := range []string{"main.go", "go.mod"} {
-			data, err := os.ReadFile(filepath.Join("testdata", "http_fixture", name))
-			if err != nil {
-				return "", err
-			}
-			if err := os.WriteFile(filepath.Join(workspace, name), data, 0o644); err != nil {
-				return "", err
-			}
-		}
-		return "wrote main.go + go.mod", nil
+			return "wrote main.go + go.mod", nil
+		}, nil
 	}
 
 	runner, err := NewRunBuilder().
 		WithScenario(HTTPServiceScenario()).
 		WithReferee(NewHTTPReferee()).
-		WithActor(fixtureActor).
+		WithActorFactory(fixtureFactory).
 		WithOperator(NewMockOperator("build the server")).
 		WithToolLevel(L0Mothballed).
 		Build()
@@ -211,19 +200,4 @@ func copyFixture(t *testing.T, src, dst string) {
 			t.Fatalf("write %s: %v", e.Name(), err)
 		}
 	}
-}
-
-func splitLines(s string) []string {
-	var lines []string
-	start := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			lines = append(lines, s[start:i])
-			start = i + 1
-		}
-	}
-	if start < len(s) {
-		lines = append(lines, s[start:])
-	}
-	return lines
 }
