@@ -6,22 +6,22 @@ package telemetry
 import (
 	"time"
 
-	"github.com/dpopsuev/djinn/jerichoport"
+	jSignal "github.com/dpopsuev/jericho/signal"
 )
 
 // BugleBridge forwards signals between Djinn's SignalBus and Bugle's Bus.
 type BugleBridge struct {
 	djinn *SignalBus
-	bugle jerichoport.Bus
+	bugle jSignal.Bus
 }
 
 // NewBugleBridge creates a bridge that forwards in both directions.
-func NewBugleBridge(djinn *SignalBus, bugle jerichoport.Bus) *BugleBridge {
+func NewBugleBridge(djinn *SignalBus, bugle jSignal.Bus) *BugleBridge {
 	b := &BugleBridge{djinn: djinn, bugle: bugle}
 
 	// Forward Djinn → Bugle.
 	djinn.OnSignal(func(s Signal) {
-		b.bugle.Emit(&jerichoport.Signal{
+		b.bugle.Emit(&jSignal.Signal{
 			Timestamp: s.Timestamp.Format(time.RFC3339),
 			Event:     s.Category,
 			Agent:     s.Source,
@@ -34,7 +34,7 @@ func NewBugleBridge(djinn *SignalBus, bugle jerichoport.Bus) *BugleBridge {
 	})
 
 	// Forward Bugle → Djinn.
-	bugle.OnEmit(func(bs jerichoport.Signal) {
+	bugle.OnEmit(func(bs jSignal.Signal) {
 		ts, _ := time.Parse(time.RFC3339, bs.Timestamp)
 		djinn.Emit(Signal{
 			Category:   bs.Event,
