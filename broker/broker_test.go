@@ -9,7 +9,7 @@ import (
 	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
@@ -97,7 +97,7 @@ func (o *testOperator) getAndons() []AndonBoard {
 	return out
 }
 
-func newTestBrokerConfig(op *testOperator, bus *signal.SignalBus) *BrokerConfig {
+func newTestBrokerConfig(op *testOperator, bus *telemetry.SignalBus) *BrokerConfig {
 	cordons := NewCordonRegistry()
 
 	orch := NewSimpleOrchestrator(
@@ -105,7 +105,7 @@ func newTestBrokerConfig(op *testOperator, bus *signal.SignalBus) *BrokerConfig 
 		func(ctx context.Context, id string) error { return nil },
 		func(cfg driver.DriverConfig) driver.Driver { return newTestDriver() },
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &testGate{} },
-		func(s signal.Signal) { bus.Emit(s) },
+		func(s telemetry.Signal) { bus.Emit(s) },
 	)
 
 	return &BrokerConfig{
@@ -125,7 +125,7 @@ func newTestBrokerConfig(op *testOperator, bus *signal.SignalBus) *BrokerConfig 
 }
 
 func TestBroker_HandleIntent(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	op := newTestOperator()
 	b := NewBroker(newTestBrokerConfig(op, bus))
 
@@ -143,13 +143,13 @@ func TestBroker_HandleIntent(t *testing.T) {
 	if len(andons) != 1 {
 		t.Fatalf("andons = %d, want 1", len(andons))
 	}
-	if andons[0].Level != signal.Green {
+	if andons[0].Level != telemetry.Green {
 		t.Fatalf("andon level = %v, want Green", andons[0].Level)
 	}
 }
 
 func TestBroker_WorkstreamTracking(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	op := newTestOperator()
 	b := NewBroker(newTestBrokerConfig(op, bus))
 
@@ -174,24 +174,24 @@ func TestBroker_WorkstreamTracking(t *testing.T) {
 }
 
 func TestBroker_Andon(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	cordons := NewCordonRegistry()
 	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons})
 
 	board := b.Andon()
-	if board.Level != signal.Green {
+	if board.Level != telemetry.Green {
 		t.Fatalf("initial Andon = %v, want Green", board.Level)
 	}
 
-	bus.Emit(signal.Signal{Workstream: "w1", Level: signal.Red, Message: "failing"})
+	bus.Emit(telemetry.Signal{Workstream: "w1", Level: telemetry.Red, Message: "failing"})
 	board = b.Andon()
-	if board.Level != signal.Red {
+	if board.Level != telemetry.Red {
 		t.Fatalf("after red signal Andon = %v, want Red", board.Level)
 	}
 }
 
 func TestBroker_Start_IntentHandler(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	op := newTestOperator()
 	b := NewBroker(newTestBrokerConfig(op, bus))
 
@@ -218,7 +218,7 @@ func TestBroker_Start_IntentHandler(t *testing.T) {
 }
 
 func TestBroker_BlackSignalAutoCordon(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	cordons := NewCordonRegistry()
 	op := newTestOperator()
 	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons, Operator: op})
@@ -228,12 +228,12 @@ func TestBroker_BlackSignalAutoCordon(t *testing.T) {
 	b.Start(ctx)
 
 	// Emit a Black signal with scope
-	bus.Emit(signal.Signal{
+	bus.Emit(telemetry.Signal{
 		Workstream: "w1",
-		Level:      signal.Black,
+		Level:      telemetry.Black,
 		Source:     "agent-1",
 		Scope:      []string{"auth/middleware.go"},
-		Category:   signal.CategorySecurity,
+		Category:   telemetry.CategorySecurity,
 		Message:    "hardcoded API key",
 	})
 
@@ -248,7 +248,7 @@ func TestBroker_BlackSignalAutoCordon(t *testing.T) {
 }
 
 func TestBroker_BlackSignalNoScopeNoCordon(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	cordons := NewCordonRegistry()
 	op := newTestOperator()
 	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons, Operator: op})
@@ -258,9 +258,9 @@ func TestBroker_BlackSignalNoScopeNoCordon(t *testing.T) {
 	b.Start(ctx)
 
 	// Black signal without scope should NOT create a cordon
-	bus.Emit(signal.Signal{
+	bus.Emit(telemetry.Signal{
 		Workstream: "w1",
-		Level:      signal.Black,
+		Level:      telemetry.Black,
 		Message:    "general failure",
 	})
 
@@ -270,7 +270,7 @@ func TestBroker_BlackSignalNoScopeNoCordon(t *testing.T) {
 }
 
 func TestBroker_CancelWorkstream(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	op := newTestOperator()
 
 	// Use a blocking driver so the workstream stays running
@@ -285,7 +285,7 @@ func TestBroker_CancelWorkstream(t *testing.T) {
 				return &testDriver{recvCh: ch}
 			},
 			func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &testGate{} },
-			func(s signal.Signal) { bus.Emit(s) },
+			func(s telemetry.Signal) { bus.Emit(s) },
 		),
 		Bus:      bus,
 		Cordons:  NewCordonRegistry(),
@@ -327,7 +327,7 @@ func TestBroker_CancelWorkstream(t *testing.T) {
 
 func TestBroker_CancelNonexistent(t *testing.T) {
 	b := NewBroker(&BrokerConfig{
-		Bus:     signal.NewSignalBus(),
+		Bus:     telemetry.NewSignalBus(),
 		Cordons: NewCordonRegistry(),
 	})
 
@@ -338,7 +338,7 @@ func TestBroker_CancelNonexistent(t *testing.T) {
 }
 
 func TestBroker_ClearCordon(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	cordons := NewCordonRegistry()
 	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons})
 
@@ -356,7 +356,7 @@ func TestBroker_ClearCordon(t *testing.T) {
 }
 
 func TestBroker_PermissionForwarding(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	op := newTestOperator()
 	cfg := newTestBrokerConfig(op, bus)
 	b := NewBroker(cfg)

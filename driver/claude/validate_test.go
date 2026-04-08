@@ -5,12 +5,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 func TestValidate_EmptyMessages(t *testing.T) {
-	d := &APIDriver{apiURL: "http://test", apiKey: "key", log: djinnlog.Nop()}
+	d := &APIDriver{apiURL: "http://test", apiKey: "key", log: telemetry.Nop()}
 	err := d.validateRequest(nil)
 
 	var ve *driver.ValidationError
@@ -23,7 +23,7 @@ func TestValidate_EmptyMessages(t *testing.T) {
 }
 
 func TestValidate_EmptyAPIURL(t *testing.T) {
-	d := &APIDriver{apiKey: "key", log: djinnlog.Nop()}
+	d := &APIDriver{apiKey: "key", log: telemetry.Nop()}
 	msgs := []apiMessage{{Role: "user", Content: "hi"}}
 	err := d.validateRequest(msgs)
 
@@ -37,7 +37,7 @@ func TestValidate_EmptyAPIURL(t *testing.T) {
 }
 
 func TestValidate_EmptyAPIKey(t *testing.T) {
-	d := &APIDriver{apiURL: "http://test", log: djinnlog.Nop()}
+	d := &APIDriver{apiURL: "http://test", log: telemetry.Nop()}
 	msgs := []apiMessage{{Role: "user", Content: "hi"}}
 	err := d.validateRequest(msgs)
 
@@ -55,7 +55,7 @@ func TestValidate_EmptyModel_Direct(t *testing.T) {
 		config: driver.DriverConfig{Model: ""},
 		apiURL: "http://test",
 		apiKey: "key",
-		log:    djinnlog.Nop(),
+		log:    telemetry.Nop(),
 	}
 	msgs := []apiMessage{{Role: "user", Content: "hi"}}
 	err := d.validateRequest(msgs)
@@ -72,7 +72,7 @@ func TestValidate_ValidDirect(t *testing.T) {
 		config: driver.DriverConfig{Model: "claude-sonnet-4-6"},
 		apiURL: "http://test",
 		apiKey: "key",
-		log:    djinnlog.Nop(),
+		log:    telemetry.Nop(),
 	}
 	msgs := []apiMessage{{Role: "user", Content: "hi"}}
 	if err := d.validateRequest(msgs); err != nil {
@@ -86,7 +86,7 @@ func TestValidate_ValidVertex(t *testing.T) {
 		apiURL:    "http://vertex",
 		apiKey:    "token",
 		useVertex: true,
-		log:       djinnlog.Nop(),
+		log:       telemetry.Nop(),
 	}
 	msgs := []apiMessage{{Role: "user", Content: "hi"}}
 	if err := d.validateRequest(msgs); err != nil {
@@ -99,7 +99,7 @@ func TestValidate_EmptyToolUseInput(t *testing.T) {
 		config: driver.DriverConfig{Model: "claude-sonnet-4-6"},
 		apiURL: "http://test",
 		apiKey: "key",
-		log:    djinnlog.Nop(),
+		log:    telemetry.Nop(),
 	}
 	// Message with tool_use content block that has nil input
 	msgs := []apiMessage{

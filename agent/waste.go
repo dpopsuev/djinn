@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // WasteKind categorizes agent waste using Lean manufacturing's 7 wastes
@@ -99,7 +99,7 @@ type WasteClassifier struct {
 // NewWasteClassifier creates a classifier that tracks waste across a session.
 func NewWasteClassifier(log *slog.Logger) *WasteClassifier {
 	if log == nil {
-		log = djinnlog.Nop()
+		log = telemetry.Nop()
 	}
 	return &WasteClassifier{
 		readCache: make(map[string]bool),
@@ -159,14 +159,14 @@ func (wc *WasteClassifier) ClassifyCall(toolName, input, output string, isError 
 	if record != nil {
 		wc.records = append(wc.records, *record)
 		wc.log.InfoContext(context.Background(), "waste detected",
-			slog.String(djinnlog.KeyTool, toolName),
-			slog.String(djinnlog.KeyWasteKind, string(record.Kind)),
-			slog.String(djinnlog.KeyReason, record.Reason),
+			slog.String(telemetry.KeyTool, toolName),
+			slog.String(telemetry.KeyWasteKind, string(record.Kind)),
+			slog.String(telemetry.KeyReason, record.Reason),
 		)
 	} else {
 		wc.log.DebugContext(context.Background(), "tool call classified",
-			slog.String(djinnlog.KeyTool, toolName),
-			slog.String(djinnlog.KeyWasteKind, "none"),
+			slog.String(telemetry.KeyTool, toolName),
+			slog.String(telemetry.KeyWasteKind, "none"),
 		)
 	}
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
@@ -19,7 +19,7 @@ type OrchestratorFactory func(
 	destroySandbox func(ctx context.Context, id string) error,
 	driverFactory func(driver.DriverConfig) driver.Driver,
 	gateFactory func(artifact.ContractGateConfig) artifact.ContractGate,
-	signalEmit func(signal.Signal),
+	signalEmit func(telemetry.Signal),
 ) Orchestrator
 
 func simpleFactory(
@@ -27,7 +27,7 @@ func simpleFactory(
 	destroySandbox func(ctx context.Context, id string) error,
 	driverFactory func(driver.DriverConfig) driver.Driver,
 	gateFactory func(artifact.ContractGateConfig) artifact.ContractGate,
-	signalEmit func(signal.Signal),
+	signalEmit func(telemetry.Signal),
 ) Orchestrator {
 	return NewSimpleOrchestrator(createSandbox, destroySandbox, driverFactory, gateFactory, signalEmit)
 }
@@ -62,7 +62,7 @@ func contractHappyPath(t *testing.T, factory OrchestratorFactory) { //nolint:the
 			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
-		func(s signal.Signal) {},
+		func(s telemetry.Signal) {},
 	)
 
 	plan := WorkPlan{
@@ -101,7 +101,7 @@ func contractGateFailureStops(t *testing.T, factory OrchestratorFactory) { //nol
 			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{err: errors.New("fail")} },
-		func(s signal.Signal) {},
+		func(s telemetry.Signal) {},
 	)
 
 	plan := WorkPlan{
@@ -132,7 +132,7 @@ func contractCancelTerminates(t *testing.T, factory OrchestratorFactory) { //nol
 			return &stubDriver{recvCh: ch}
 		},
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
-		func(s signal.Signal) {},
+		func(s telemetry.Signal) {},
 	)
 
 	plan := WorkPlan{
@@ -165,7 +165,7 @@ func contractEventsInOrder(t *testing.T, factory OrchestratorFactory) { //nolint
 			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
-		func(s signal.Signal) {},
+		func(s telemetry.Signal) {},
 	)
 
 	plan := WorkPlan{
@@ -196,7 +196,7 @@ func contractChannelClosed(t *testing.T, factory OrchestratorFactory) { //nolint
 			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
-		func(s signal.Signal) {},
+		func(s telemetry.Signal) {},
 	)
 
 	plan := WorkPlan{

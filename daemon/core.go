@@ -5,16 +5,15 @@
 package daemon
 
 import (
-	"github.com/dpopsuev/djinn/signal"
-	"github.com/dpopsuev/djinn/trace"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // HubCore is the shared infrastructure embedded by every concrete hub.
 // Composition, not inheritance — each hub adds domain-specific fields.
 // All methods are nil-safe.
 type HubCore struct {
-	Tracer  *trace.Tracer
-	Signals *signal.SignalBus
+	Tracer  *telemetry.Tracer
+	Signals *telemetry.SignalBus
 	Display DisplaySender
 }
 
@@ -28,7 +27,7 @@ func (c *HubCore) Trace(action, detail string) {
 
 // Emit emits a signal through the bus.
 // Nil-safe: no-op when Signals is nil.
-func (c *HubCore) Emit(s signal.Signal) {
+func (c *HubCore) Emit(s telemetry.Signal) {
 	if c.Signals != nil {
 		c.Signals.Emit(s)
 	}

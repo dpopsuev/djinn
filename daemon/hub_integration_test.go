@@ -8,20 +8,19 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/artifact"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools"
-	"github.com/dpopsuev/djinn/trace"
 )
 
 // --- TSK-508: PlanHub → Artifact mediation integration tests ---
 
 func TestPlanHub_AddSegment_Integration(t *testing.T) {
 	// Wire real infrastructure: Graph + Ring + SignalBus.
-	ring := trace.NewRing(100)
-	bus := signal.NewSignalBus()
+	ring := telemetry.NewRing(100)
+	bus := telemetry.NewSignalBus()
 	spy := &spyDisplay{}
 	core := HubCore{
-		Tracer:  ring.For(trace.ComponentTool),
+		Tracer:  ring.For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: spy,
 	}
@@ -29,9 +28,9 @@ func TestPlanHub_AddSegment_Integration(t *testing.T) {
 	ph := NewPlanHub(core, graph)
 
 	// Subscribe before adding the segment — verify signal delivery.
-	var received []signal.Signal
+	var received []telemetry.Signal
 	var mu sync.Mutex
-	bus.OnSignal(func(s signal.Signal) {
+	bus.OnSignal(func(s telemetry.Signal) {
 		mu.Lock()
 		received = append(received, s)
 		mu.Unlock()
@@ -70,7 +69,7 @@ func TestPlanHub_AddSegment_Integration(t *testing.T) {
 	if len(signals) == 0 {
 		t.Fatal("signal bus has no signals after AddSegment")
 	}
-	if signals[0].Category != "plan" || signals[0].Level != signal.Green {
+	if signals[0].Category != "plan" || signals[0].Level != telemetry.Green {
 		t.Errorf("signal = {category:%q, level:%v}, want {plan, green}", signals[0].Category, signals[0].Level)
 	}
 
@@ -95,10 +94,10 @@ func TestPlanHub_AddSegment_Integration(t *testing.T) {
 }
 
 func TestPlanHub_UpdateStatus_Integration(t *testing.T) {
-	ring := trace.NewRing(100)
-	bus := signal.NewSignalBus()
+	ring := telemetry.NewRing(100)
+	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  ring.For(trace.ComponentTool),
+		Tracer:  ring.For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -164,11 +163,11 @@ func TestPlanHub_UpdateStatus_Integration(t *testing.T) {
 }
 
 func TestPlanHub_ClaimSegment_Integration(t *testing.T) {
-	ring := trace.NewRing(100)
-	bus := signal.NewSignalBus()
+	ring := telemetry.NewRing(100)
+	bus := telemetry.NewSignalBus()
 	spy := &spyDisplay{}
 	core := HubCore{
-		Tracer:  ring.For(trace.ComponentTool),
+		Tracer:  ring.For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: spy,
 	}
@@ -236,10 +235,10 @@ func TestPlanHub_ClaimSegment_Integration(t *testing.T) {
 
 func TestPlanHub_FullLifecycle_Integration(t *testing.T) {
 	// End-to-end: add → ready → claim → start → complete.
-	ring := trace.NewRing(100)
-	bus := signal.NewSignalBus()
+	ring := telemetry.NewRing(100)
+	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  ring.For(trace.ComponentTool),
+		Tracer:  ring.For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -309,10 +308,10 @@ func TestPlanHub_FullLifecycle_Integration(t *testing.T) {
 }
 
 func TestPlanHub_MultipleSegments_Integration(t *testing.T) {
-	ring := trace.NewRing(100)
-	bus := signal.NewSignalBus()
+	ring := telemetry.NewRing(100)
+	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  ring.For(trace.ComponentTool),
+		Tracer:  ring.For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -346,10 +345,10 @@ func TestPlanHub_MultipleSegments_Integration(t *testing.T) {
 // --- TSK-509: ToolHub SLA breach integration tests ---
 
 func TestToolHub_SLABreach_Integration(t *testing.T) {
-	ring := trace.NewRing(100)
-	bus := signal.NewSignalBus()
+	ring := telemetry.NewRing(100)
+	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  ring.For(trace.ComponentTool),
+		Tracer:  ring.For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -360,10 +359,10 @@ func TestToolHub_SLABreach_Integration(t *testing.T) {
 	th := NewToolHub(core, executor, tracker)
 
 	// Subscribe to verify signals are delivered to subscribers.
-	var breachSignals []signal.Signal
+	var breachSignals []telemetry.Signal
 	var mu sync.Mutex
-	bus.OnSignal(func(s signal.Signal) {
-		if s.Level == signal.Yellow && s.Category == toolHubName {
+	bus.OnSignal(func(s telemetry.Signal) {
+		if s.Level == telemetry.Yellow && s.Category == toolHubName {
 			mu.Lock()
 			breachSignals = append(breachSignals, s)
 			mu.Unlock()
@@ -409,7 +408,7 @@ func TestToolHub_SLABreach_Integration(t *testing.T) {
 	allSignals := bus.Signals()
 	foundBreach := false
 	for _, s := range allSignals {
-		if s.Level == signal.Yellow && s.Category == toolHubName {
+		if s.Level == telemetry.Yellow && s.Category == toolHubName {
 			foundBreach = true
 			break
 		}
@@ -432,9 +431,9 @@ func TestToolHub_SLABreach_Integration(t *testing.T) {
 }
 
 func TestToolHub_NoSLABreach_FastExecution(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  trace.NewRing(100).For(trace.ComponentTool),
+		Tracer:  telemetry.NewRing(100).For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -451,17 +450,17 @@ func TestToolHub_NoSLABreach_FastExecution(t *testing.T) {
 	// No SLA breach signals should exist.
 	signals := bus.Signals()
 	for _, s := range signals {
-		if s.Level == signal.Yellow && s.Category == toolHubName {
+		if s.Level == telemetry.Yellow && s.Category == toolHubName {
 			t.Errorf("unexpected SLA breach signal: %q", s.Message)
 		}
 	}
 }
 
 func TestToolHub_TracksMultipleTools(t *testing.T) {
-	ring := trace.NewRing(100)
-	bus := signal.NewSignalBus()
+	ring := telemetry.NewRing(100)
+	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  ring.For(trace.ComponentTool),
+		Tracer:  ring.For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -504,10 +503,10 @@ func TestToolHub_TracksMultipleTools(t *testing.T) {
 // --- Cross-hub integration: HubRegistry with real hubs ---
 
 func TestHubRegistry_RealHubs_Integration(t *testing.T) {
-	ring := trace.NewRing(100)
-	bus := signal.NewSignalBus()
+	ring := telemetry.NewRing(100)
+	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  ring.For(trace.ComponentTool),
+		Tracer:  ring.For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}

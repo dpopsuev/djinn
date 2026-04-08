@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 const (
@@ -45,7 +45,7 @@ type WorktreeManager struct {
 // Pass nil for log to discard all output.
 func NewWorktreeManager(repoRoot string, log *slog.Logger) *WorktreeManager {
 	if log == nil {
-		log = djinnlog.Nop()
+		log = telemetry.Nop()
 	}
 	return &WorktreeManager{repoRoot: repoRoot, log: log}
 }
@@ -68,20 +68,20 @@ func (m *WorktreeManager) Create(taskID string) (string, error) {
 	if err != nil {
 		// Orange: git command failure
 		m.log.WarnContext(ctx, "worktree create failed",
-			slog.String(djinnlog.KeyAction, "create"),
-			slog.String(djinnlog.KeyPath, wtPath),
-			slog.String(djinnlog.KeyError, strings.TrimSpace(string(out))),
+			slog.String(telemetry.KeyAction, "create"),
+			slog.String(telemetry.KeyPath, wtPath),
+			slog.String(telemetry.KeyError, strings.TrimSpace(string(out))),
 		)
 		return "", fmt.Errorf("git worktree add: %s: %w", strings.TrimSpace(string(out)), err)
 	}
 
 	// Yellow: worktree created
 	m.log.InfoContext(ctx, "worktree created",
-		slog.String(djinnlog.KeyAction, "create"),
-		slog.String(djinnlog.KeyPath, wtPath),
-		slog.String(djinnlog.KeyBranch, branch),
-		slog.String(djinnlog.KeyTaskID, taskID),
-		slog.Duration(djinnlog.KeyDuration, time.Since(start)),
+		slog.String(telemetry.KeyAction, "create"),
+		slog.String(telemetry.KeyPath, wtPath),
+		slog.String(telemetry.KeyBranch, branch),
+		slog.String(telemetry.KeyTaskID, taskID),
+		slog.Duration(telemetry.KeyDuration, time.Since(start)),
 	)
 
 	return wtPath, nil
@@ -103,17 +103,17 @@ func (m *WorktreeManager) Remove(taskID string) error {
 		if _, statErr := os.Stat(wtPath); os.IsNotExist(statErr) {
 			// Orange: stale worktree detected
 			m.log.WarnContext(ctx, "stale worktree detected",
-				slog.String(djinnlog.KeyAction, "prune"),
-				slog.String(djinnlog.KeyPath, wtPath),
-				slog.String(djinnlog.KeyReason, "directory does not exist"),
+				slog.String(telemetry.KeyAction, "prune"),
+				slog.String(telemetry.KeyPath, wtPath),
+				slog.String(telemetry.KeyReason, "directory does not exist"),
 			)
 			exec.CommandContext(ctx, "git", "worktree", "prune").Run() //nolint:errcheck // test helper, error checked elsewhere
 		} else {
 			// Orange: git command failure
 			m.log.WarnContext(ctx, "worktree remove failed",
-				slog.String(djinnlog.KeyAction, "remove"),
-				slog.String(djinnlog.KeyPath, wtPath),
-				slog.String(djinnlog.KeyError, strings.TrimSpace(string(out))),
+				slog.String(telemetry.KeyAction, "remove"),
+				slog.String(telemetry.KeyPath, wtPath),
+				slog.String(telemetry.KeyError, strings.TrimSpace(string(out))),
 			)
 			return fmt.Errorf("git worktree remove: %s: %w", strings.TrimSpace(string(out)), err)
 		}
@@ -126,8 +126,8 @@ func (m *WorktreeManager) Remove(taskID string) error {
 
 	// Yellow: worktree removed
 	m.log.InfoContext(ctx, "worktree removed",
-		slog.String(djinnlog.KeyAction, "remove"),
-		slog.String(djinnlog.KeyPath, wtPath),
+		slog.String(telemetry.KeyAction, "remove"),
+		slog.String(telemetry.KeyPath, wtPath),
 	)
 
 	return nil
@@ -146,8 +146,8 @@ func (m *WorktreeManager) List() ([]WorktreeInfo, error) {
 	if err != nil {
 		// Orange: git command failure
 		m.log.WarnContext(ctx, "worktree list failed",
-			slog.String(djinnlog.KeyAction, "list"),
-			slog.String(djinnlog.KeyError, err.Error()),
+			slog.String(telemetry.KeyAction, "list"),
+			slog.String(telemetry.KeyError, err.Error()),
 		)
 		return nil, fmt.Errorf("git worktree list: %w", err)
 	}
@@ -178,9 +178,9 @@ func (m *WorktreeManager) List() ([]WorktreeInfo, error) {
 
 	// Yellow: worktree listed
 	m.log.DebugContext(ctx, "worktrees listed",
-		slog.String(djinnlog.KeyAction, "list"),
-		slog.Int(djinnlog.KeyCount, len(infos)),
-		slog.Duration(djinnlog.KeyDuration, time.Since(start)),
+		slog.String(telemetry.KeyAction, "list"),
+		slog.Int(telemetry.KeyCount, len(infos)),
+		slog.Duration(telemetry.KeyDuration, time.Since(start)),
 	)
 
 	return infos, nil

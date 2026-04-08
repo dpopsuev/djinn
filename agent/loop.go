@@ -13,11 +13,10 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/contextmgr"
-	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/policy"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
-	"github.com/dpopsuev/djinn/trace"
 )
 
 // Defaults.
@@ -62,7 +61,7 @@ type Config struct {
 	Log          *slog.Logger
 
 	// Tracing: when set, agent loop emits TraceEvents for round-trip correlation.
-	Tracer *trace.Tracer
+	Tracer *telemetry.Tracer
 
 	// Sandbox: when set, Bash routes through SandboxExec and file paths are translated.
 	SandboxHandle  string // empty = unsandboxed
@@ -78,7 +77,7 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) { /
 		cfg.MaxTurns = DefaultMaxTurns
 	}
 	if cfg.Log == nil {
-		cfg.Log = djinnlog.Nop()
+		cfg.Log = telemetry.Nop()
 	}
 
 	// Plan mode auto-weave: enrich prompt with Scribe + Lex context
@@ -149,12 +148,12 @@ func Run(ctx context.Context, cfg Config, userPrompt string) (string, error) { /
 
 		// If no tool calls, we're done
 		if len(response.toolCalls) == 0 {
-			cfg.Log.InfoContext(ctx, "turn complete", slog.Int(djinnlog.KeyTurn, turn+1),
-				slog.Group(djinnlog.KeyPerf,
-					djinnlog.RTT(time.Since(turnStart)),
-					djinnlog.TokensIn(usageIn(response.usage)),
-					djinnlog.TokensOut(usageOut(response.usage)),
-					djinnlog.Throughput(usageOut(response.usage), time.Since(turnStart)),
+			cfg.Log.InfoContext(ctx, "turn complete", slog.Int(telemetry.KeyTurn, turn+1),
+				slog.Group(telemetry.KeyPerf,
+					telemetry.RTT(time.Since(turnStart)),
+					telemetry.TokensIn(usageIn(response.usage)),
+					telemetry.TokensOut(usageOut(response.usage)),
+					telemetry.Throughput(usageOut(response.usage), time.Since(turnStart)),
 				),
 			)
 			break
@@ -264,7 +263,7 @@ func collectResponse(events <-chan driver.StreamEvent, handler EventHandler) (co
 
 func executeTools(ctx context.Context, cfg Config, calls []driver.ToolCall) ([]driver.ContentBlock, error) { //nolint:gocritic,unparam // Config mutated locally; error reserved for future use
 	if cfg.Log == nil {
-		cfg.Log = djinnlog.Nop()
+		cfg.Log = telemetry.Nop()
 	}
 	resultBlocks := make([]driver.ContentBlock, 0, len(calls))
 
@@ -288,7 +287,7 @@ func executeTools(ctx context.Context, cfg Config, calls []driver.ToolCall) ([]d
 				call.ID, output, isError,
 			))
 
-			cfg.Log.DebugContext(ctx, "tool result", slog.String(djinnlog.KeyTool, call.Name), slog.Bool(djinnlog.KeyError, isError), djinnlog.ToolLatency(time.Since(toolStart)))
+			cfg.Log.DebugContext(ctx, "tool result", slog.String(telemetry.KeyTool, call.Name), slog.Bool(telemetry.KeyError, isError), telemetry.ToolLatency(time.Since(toolStart)))
 			if cfg.Handler != nil {
 				cfg.Handler.OnToolResult(call.ID, call.Name, truncateForDisplay(output), isError)
 			}
@@ -340,7 +339,7 @@ func executeTools(ctx context.Context, cfg Config, calls []driver.ToolCall) ([]d
 			call.ID, output, isError,
 		))
 
-		cfg.Log.DebugContext(ctx, "tool result", slog.String(djinnlog.KeyTool, call.Name), slog.Bool(djinnlog.KeyError, isError), djinnlog.ToolLatency(time.Since(toolStart)))
+		cfg.Log.DebugContext(ctx, "tool result", slog.String(telemetry.KeyTool, call.Name), slog.Bool(telemetry.KeyError, isError), telemetry.ToolLatency(time.Since(toolStart)))
 		if cfg.Handler != nil {
 			cfg.Handler.OnToolResult(call.ID, call.Name, truncateForDisplay(output), isError)
 		}

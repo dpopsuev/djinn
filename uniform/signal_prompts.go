@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // SignalContext provides additional state for prompt enrichment.
@@ -18,14 +18,14 @@ type SignalContext struct {
 	TasksDone      int
 	BudgetPct      float64 // 0.0-1.0
 	ActiveGear     Gear
-	RecentSignals  []signal.Signal
+	RecentSignals  []telemetry.Signal
 	DriftScore     float64 // 0-100 for structure pillar
 	DriftViolation string  // most severe violation
 	TraceEvidence  string  // formatted recent trace events (from health analyzer)
 }
 
 // FormatSignalPrompt creates a structured prompt for GenSec based on a signal and context.
-func FormatSignalPrompt(s signal.Signal, ctx SignalContext) string {
+func FormatSignalPrompt(s telemetry.Signal, ctx SignalContext) string {
 	var b strings.Builder
 
 	b.WriteString("SIGNAL INTERPRETATION REQUEST\n\n")
@@ -35,13 +35,13 @@ func FormatSignalPrompt(s signal.Signal, ctx SignalContext) string {
 	fmt.Fprintf(&b, "Message: %s\n\n", s.Message)
 
 	switch s.Category {
-	case signal.CategoryBudget:
+	case telemetry.CategoryBudget:
 		formatBudgetPrompt(&b, ctx)
-	case signal.CategoryDrift:
+	case telemetry.CategoryDrift:
 		formatDriftPrompt(&b, ctx)
-	case signal.CategoryPerformance:
+	case telemetry.CategoryPerformance:
 		formatPerformancePrompt(&b, ctx)
-	case signal.CategoryLifecycle:
+	case telemetry.CategoryLifecycle:
 		formatLifecyclePrompt(&b, ctx)
 	default:
 		formatGenericPrompt(&b, ctx)

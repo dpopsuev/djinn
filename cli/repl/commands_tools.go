@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/dpopsuev/djinn/contextmgr"
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tui"
 )
 
@@ -64,7 +64,7 @@ func executeLog(cmd Command) CommandResult {
 		}
 	}
 
-	var entries []djinnlog.Entry
+	var entries []telemetry.Entry
 	if levelFilter != nil {
 		entries = globalRing.Filter(*levelFilter)
 	} else {

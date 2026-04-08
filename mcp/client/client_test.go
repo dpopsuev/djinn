@@ -14,7 +14,7 @@ import (
 
 	"log/slog"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // mockMCPHandler handles JSON-RPC requests for testing.
@@ -74,7 +74,7 @@ func TestConnectHTTP(t *testing.T) {
 	srv := httptest.NewServer(mockMCPHandler(t))
 	defer srv.Close()
 
-	c := New(djinnlog.Nop())
+	c := New(telemetry.Nop())
 	defer c.Close()
 
 	if err := c.ConnectHTTP(context.Background(), "scribe", srv.URL); err != nil {
@@ -91,7 +91,7 @@ func TestTools_ListFromServer(t *testing.T) {
 	srv := httptest.NewServer(mockMCPHandler(t))
 	defer srv.Close()
 
-	c := New(djinnlog.Nop())
+	c := New(telemetry.Nop())
 	defer c.Close()
 	c.ConnectHTTP(context.Background(), "scribe", srv.URL)
 
@@ -110,7 +110,7 @@ func TestTools_MultipleServers(t *testing.T) {
 	srv2 := httptest.NewServer(mockMCPHandler(t))
 	defer srv2.Close()
 
-	c := New(djinnlog.Nop())
+	c := New(telemetry.Nop())
 	defer c.Close()
 	c.ConnectHTTP(context.Background(), "scribe", srv1.URL)
 	c.ConnectHTTP(context.Background(), "limes", srv2.URL)
@@ -125,7 +125,7 @@ func TestCall_Success(t *testing.T) {
 	srv := httptest.NewServer(mockMCPHandler(t))
 	defer srv.Close()
 
-	c := New(djinnlog.Nop())
+	c := New(telemetry.Nop())
 	defer c.Close()
 	c.ConnectHTTP(context.Background(), "scribe", srv.URL)
 
@@ -139,7 +139,7 @@ func TestCall_Success(t *testing.T) {
 }
 
 func TestCall_ServerNotFound(t *testing.T) {
-	c := New(djinnlog.Nop())
+	c := New(telemetry.Nop())
 	_, err := c.Call(context.Background(), "nonexistent", "tool", nil)
 	if err == nil {
 		t.Fatal("expected error")
@@ -150,7 +150,7 @@ func TestMCPTools_Adapter(t *testing.T) {
 	srv := httptest.NewServer(mockMCPHandler(t))
 	defer srv.Close()
 
-	c := New(djinnlog.Nop())
+	c := New(telemetry.Nop())
 	defer c.Close()
 	c.ConnectHTTP(context.Background(), "scribe", srv.URL)
 
@@ -184,7 +184,7 @@ func TestMCPTool_RawName_ServerName(t *testing.T) {
 	srv := httptest.NewServer(mockMCPHandler(t))
 	defer srv.Close()
 
-	c := New(djinnlog.Nop())
+	c := New(telemetry.Nop())
 	defer c.Close()
 	c.ConnectHTTP(context.Background(), "scribe", srv.URL)
 
@@ -206,7 +206,7 @@ func TestClose(t *testing.T) {
 	srv := httptest.NewServer(mockMCPHandler(t))
 	defer srv.Close()
 
-	c := New(djinnlog.Nop())
+	c := New(telemetry.Nop())
 	c.ConnectHTTP(context.Background(), "scribe", srv.URL)
 
 	if err := c.Close(); err != nil {
@@ -336,7 +336,7 @@ func TestConnectHTTP_SSE(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := New(djinnlog.Nop())
+	c := New(telemetry.Nop())
 	defer c.Close()
 
 	if err := c.ConnectHTTP(context.Background(), "scribe-sse", srv.URL); err != nil {
@@ -405,7 +405,7 @@ func TestConnectHTTP_SSE_Chunked(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := New(djinnlog.Nop())
+	c := New(telemetry.Nop())
 	defer c.Close()
 
 	err := c.ConnectHTTP(context.Background(), "scribe-chunked", srv.URL)
@@ -468,7 +468,7 @@ func TestConnectHTTP_SSE_RequiresAcceptHeader(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := New(djinnlog.Nop())
+	c := New(telemetry.Nop())
 	defer c.Close()
 
 	err := c.ConnectHTTP(context.Background(), "strict-scribe", srv.URL)

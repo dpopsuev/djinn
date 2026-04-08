@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // mockGenSec implements GenSecAgent for testing.
@@ -20,9 +20,9 @@ type mockGenSec struct {
 func newMockGenSec() *mockGenSec {
 	return &mockGenSec{
 		responses: map[string]string{
-			signal.CategoryBudget:      `{"action":"throttle","reason":"budget at 85%, downshift","confidence":0.8}`,
-			signal.CategoryDrift:       `{"action":"re_scope","reason":"structure violations detected","confidence":0.7}`,
-			signal.CategoryPerformance: `{"action":"continue","reason":"transient spike","confidence":0.9}`,
+			telemetry.CategoryBudget:      `{"action":"throttle","reason":"budget at 85%, downshift","confidence":0.8}`,
+			telemetry.CategoryDrift:       `{"action":"re_scope","reason":"structure violations detected","confidence":0.7}`,
+			telemetry.CategoryPerformance: `{"action":"continue","reason":"transient spike","confidence":0.9}`,
 		},
 	}
 }
@@ -61,17 +61,17 @@ func searchSubstring(s, sub string) bool {
 }
 
 func TestGreenZoneNoLLMCalls(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	mock := newMockGenSec()
 	interp := NewSignalInterpreter(bus, mock)
 	interp.Start(context.Background())
 	defer interp.Stop()
 
 	// Green signal should NOT trigger GenSec.
-	bus.Emit(signal.Signal{
+	bus.Emit(telemetry.Signal{
 		Workstream: "test",
-		Level:      signal.Green,
-		Category:   signal.CategoryBudget,
+		Level:      telemetry.Green,
+		Category:   telemetry.CategoryBudget,
 		Source:     "budget-watchdog",
 		Message:    "budget healthy",
 	})
@@ -87,7 +87,7 @@ func TestGreenZoneNoLLMCalls(t *testing.T) {
 }
 
 func TestYellowZoneCallsGenSec(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	mock := newMockGenSec()
 	interp := NewSignalInterpreter(bus, mock)
 	interp.SetContextProvider(func() SignalContext {
@@ -107,10 +107,10 @@ func TestYellowZoneCallsGenSec(t *testing.T) {
 	interp.Start(context.Background())
 	defer interp.Stop()
 
-	bus.Emit(signal.Signal{
+	bus.Emit(telemetry.Signal{
 		Workstream: "test",
-		Level:      signal.Yellow,
-		Category:   signal.CategoryBudget,
+		Level:      telemetry.Yellow,
+		Category:   telemetry.CategoryBudget,
 		Source:     "budget-watchdog",
 		Message:    "budget at 85%",
 	})
@@ -133,8 +133,8 @@ func TestYellowZoneCallsGenSec(t *testing.T) {
 	if entry.Decision.Action != ActionThrottle {
 		t.Errorf("expected ActionThrottle, got %s", entry.Decision.Action)
 	}
-	if entry.Decision.Pillar != signal.CategoryBudget {
-		t.Errorf("expected pillar %q, got %q", signal.CategoryBudget, entry.Decision.Pillar)
+	if entry.Decision.Pillar != telemetry.CategoryBudget {
+		t.Errorf("expected pillar %q, got %q", telemetry.CategoryBudget, entry.Decision.Pillar)
 	}
 	if !notified {
 		t.Error("OnDecision callback was not called")
@@ -142,17 +142,17 @@ func TestYellowZoneCallsGenSec(t *testing.T) {
 }
 
 func TestBlackZoneEmitsCordon(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	mock := newMockGenSec()
 	interp := NewSignalInterpreter(bus, mock)
 	interp.Start(context.Background())
 	defer interp.Stop()
 
 	// Black = ZoneRed = operator must approve = cordon emitted.
-	bus.Emit(signal.Signal{
+	bus.Emit(telemetry.Signal{
 		Workstream: "test",
-		Level:      signal.Black,
-		Category:   signal.CategoryDrift,
+		Level:      telemetry.Black,
+		Category:   telemetry.CategoryDrift,
 		Source:     "drift-watchdog",
 		Message:    "unrecoverable failure",
 	})
@@ -166,7 +166,7 @@ func TestBlackZoneEmitsCordon(t *testing.T) {
 	// Check bus for cordon signal emitted by interpreter.
 	var cordonFound bool
 	for _, s := range bus.Signals() {
-		if s.Source == "signal-interpreter" && s.Level == signal.Red {
+		if s.Source == "signal-interpreter" && s.Level == telemetry.Red {
 			cordonFound = true
 			break
 		}
@@ -177,17 +177,17 @@ func TestBlackZoneEmitsCordon(t *testing.T) {
 }
 
 func TestOrangeZoneAppliesDecision(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	mock := newMockGenSec()
 	interp := NewSignalInterpreter(bus, mock)
 	interp.Start(context.Background())
 	defer interp.Stop()
 
 	// Red signal → ZoneOrange → apply decision + notify operator.
-	bus.Emit(signal.Signal{
+	bus.Emit(telemetry.Signal{
 		Workstream: "test",
-		Level:      signal.Red,
-		Category:   signal.CategoryDrift,
+		Level:      telemetry.Red,
+		Category:   telemetry.CategoryDrift,
 		Source:     "drift-watchdog",
 		Message:    "structure score critical",
 	})
@@ -208,16 +208,16 @@ func TestOrangeZoneAppliesDecision(t *testing.T) {
 }
 
 func TestAuditLogRecordsFullChain(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	mock := newMockGenSec()
 	interp := NewSignalInterpreter(bus, mock)
 	interp.Start(context.Background())
 	defer interp.Stop()
 
-	bus.Emit(signal.Signal{
+	bus.Emit(telemetry.Signal{
 		Workstream: "test",
-		Level:      signal.Yellow,
-		Category:   signal.CategoryPerformance,
+		Level:      telemetry.Yellow,
+		Category:   telemetry.CategoryPerformance,
 		Source:     "bottleneck-detector",
 		Message:    "tool latency spike",
 	})
@@ -231,8 +231,8 @@ func TestAuditLogRecordsFullChain(t *testing.T) {
 
 	entry := entries[0]
 	// Verify full chain is recorded.
-	if entry.Signal.Category != signal.CategoryPerformance {
-		t.Errorf("signal category: got %q, want %q", entry.Signal.Category, signal.CategoryPerformance)
+	if entry.Signal.Category != telemetry.CategoryPerformance {
+		t.Errorf("signal category: got %q, want %q", entry.Signal.Category, telemetry.CategoryPerformance)
 	}
 	if entry.Decision.Action != ActionContinue {
 		t.Errorf("decision action: got %q, want %q", entry.Decision.Action, ActionContinue)
@@ -285,13 +285,13 @@ func TestDecisionParsing(t *testing.T) {
 
 func TestZoneFromLevel(t *testing.T) {
 	tests := []struct {
-		level signal.FlagLevel
+		level telemetry.FlagLevel
 		want  Zone
 	}{
-		{signal.Green, ZoneGreen},
-		{signal.Yellow, ZoneYellow},
-		{signal.Red, ZoneOrange},
-		{signal.Black, ZoneRed},
+		{telemetry.Green, ZoneGreen},
+		{telemetry.Yellow, ZoneYellow},
+		{telemetry.Red, ZoneOrange},
+		{telemetry.Black, ZoneRed},
 	}
 	for _, tt := range tests {
 		got := ZoneFromLevel(tt.level)
@@ -302,9 +302,9 @@ func TestZoneFromLevel(t *testing.T) {
 }
 
 func TestFormatSignalPrompt(t *testing.T) {
-	s := signal.Signal{
-		Category: signal.CategoryBudget,
-		Level:    signal.Yellow,
+	s := telemetry.Signal{
+		Category: telemetry.CategoryBudget,
+		Level:    telemetry.Yellow,
 		Source:   "budget-watchdog",
 		Message:  "budget at 80%",
 	}
@@ -330,7 +330,7 @@ func TestActionJSONRoundTrip(t *testing.T) {
 		Action:     ActionReScope,
 		Reason:     "too broad",
 		Confidence: 0.75,
-		Pillar:     signal.CategoryDrift,
+		Pillar:     telemetry.CategoryDrift,
 	}
 
 	data, err := json.Marshal(d)

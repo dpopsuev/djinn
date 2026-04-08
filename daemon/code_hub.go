@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"github.com/dpopsuev/djinn/review"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // CodeHub mediates between code review tools, budget monitoring, and display.
@@ -62,9 +62,9 @@ func (h *CodeHub) CheckBudget(ctx context.Context) (bool, []review.Signal) {
 	if exceeded {
 		h.Trace("budget-exceeded", "review backpressure triggered")
 
-		h.Emit(signal.Signal{
+		h.Emit(telemetry.Signal{
 			Category: codeHubName,
-			Level:    signal.Yellow,
+			Level:    telemetry.Yellow,
 			Source:   codeHubName + "-hub",
 			Message:  "budget thresholds exceeded — review recommended",
 		})

@@ -9,7 +9,7 @@ import (
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/testkit/assertions"
 	"github.com/dpopsuev/djinn/testkit/builders"
 	"github.com/dpopsuev/djinn/testkit/stubs"
@@ -19,7 +19,7 @@ import (
 func TestE2E_StandardFlow_AllStubs(t *testing.T) {
 	// Wire all stubs
 	sandbox := stubs.NewStubSandbox()
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	cordons := broker.NewCordonRegistry()
 
 	stubDriverInstance := stubs.NewStubDriver(
@@ -38,7 +38,7 @@ func TestE2E_StandardFlow_AllStubs(t *testing.T) {
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate {
 			return stubs.AlwaysPassGate()
 		},
-		func(s signal.Signal) { bus.Emit(s) },
+		func(s telemetry.Signal) { bus.Emit(s) },
 	)
 
 	op := stubs.NewStubOperatorPort()
@@ -97,7 +97,7 @@ func TestE2E_StandardFlow_AllStubs(t *testing.T) {
 	if len(andons) == 0 {
 		t.Fatal("no andon boards emitted")
 	}
-	if andons[0].Level != signal.Green {
+	if andons[0].Level != telemetry.Green {
 		t.Fatalf("andon level = %v, want Green", andons[0].Level)
 	}
 
@@ -117,7 +117,7 @@ func TestE2E_StandardFlow_AllStubs(t *testing.T) {
 
 func TestE2E_GateFailure_StopsExecution(t *testing.T) {
 	sandbox := stubs.NewStubSandbox()
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	cordons := broker.NewCordonRegistry()
 
 	orch := broker.NewSimpleOrchestrator(
@@ -129,7 +129,7 @@ func TestE2E_GateFailure_StopsExecution(t *testing.T) {
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate {
 			return stubs.AlwaysFailGate("quality too low")
 		},
-		func(s signal.Signal) { bus.Emit(s) },
+		func(s telemetry.Signal) { bus.Emit(s) },
 	)
 
 	op := stubs.NewStubOperatorPort()

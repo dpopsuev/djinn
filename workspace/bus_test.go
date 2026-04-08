@@ -4,11 +4,11 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 func TestBus_EmitCallsHandlers(t *testing.T) {
-	bus := NewBus(djinnlog.Nop())
+	bus := NewBus(telemetry.Nop())
 	var called int
 	bus.On("test1", func(Event) { called++ })
 	bus.On("test2", func(Event) { called++ })
@@ -21,7 +21,7 @@ func TestBus_EmitCallsHandlers(t *testing.T) {
 }
 
 func TestBus_EmitPassesEvent(t *testing.T) {
-	bus := NewBus(djinnlog.Nop())
+	bus := NewBus(telemetry.Nop())
 	var received Event
 	bus.On("capture", func(evt Event) { received = evt })
 
@@ -37,7 +37,7 @@ func TestBus_EmitPassesEvent(t *testing.T) {
 }
 
 func TestBus_PanicRecovery(t *testing.T) {
-	bus := NewBus(djinnlog.Nop())
+	bus := NewBus(telemetry.Nop())
 	var secondCalled bool
 
 	bus.On("panicker", func(Event) { panic("boom") })
@@ -52,13 +52,13 @@ func TestBus_PanicRecovery(t *testing.T) {
 }
 
 func TestBus_NoHandlers(t *testing.T) {
-	bus := NewBus(djinnlog.Nop())
+	bus := NewBus(telemetry.Nop())
 	// Should not panic
 	bus.Emit(Event{Type: EventSwitch, New: &Workspace{Name: "ws"}})
 }
 
 func TestBus_HandlerCount(t *testing.T) {
-	bus := NewBus(djinnlog.Nop())
+	bus := NewBus(telemetry.Nop())
 	if bus.HandlerCount() != 0 {
 		t.Fatal("should start empty")
 	}
@@ -70,7 +70,7 @@ func TestBus_HandlerCount(t *testing.T) {
 }
 
 func TestBus_ConcurrentEmit(t *testing.T) {
-	bus := NewBus(djinnlog.Nop())
+	bus := NewBus(telemetry.Nop())
 	var count atomic.Int64
 	bus.On("counter", func(Event) { count.Add(1) })
 

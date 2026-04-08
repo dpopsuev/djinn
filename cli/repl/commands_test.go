@@ -8,7 +8,7 @@ import (
 
 	djinnconfig "github.com/dpopsuev/djinn/config"
 	"github.com/dpopsuev/djinn/contextmgr"
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 func TestParseCommand_Valid(t *testing.T) {
@@ -586,7 +586,7 @@ func TestExecuteCommand_Log_NoRing(t *testing.T) {
 
 func TestExecuteCommand_Log_WithRing_Empty(t *testing.T) {
 	oldRing := globalRing
-	globalRing = djinnlog.NewRingHandler(100)
+	globalRing = telemetry.NewRingHandler(100)
 	defer func() { globalRing = oldRing }()
 
 	sess := contextmgr.New("test", "model", "/workspace")
@@ -598,7 +598,7 @@ func TestExecuteCommand_Log_WithRing_Empty(t *testing.T) {
 
 func TestExecuteCommand_Log_WithRing_Entries(t *testing.T) {
 	oldRing := globalRing
-	ring := djinnlog.NewRingHandler(100)
+	ring := telemetry.NewRingHandler(100)
 	logger := slog.New(ring)
 	logger.Info("test message")
 	globalRing = ring
@@ -613,7 +613,7 @@ func TestExecuteCommand_Log_WithRing_Entries(t *testing.T) {
 
 func TestExecuteCommand_Log_CountArg(t *testing.T) {
 	oldRing := globalRing
-	ring := djinnlog.NewRingHandler(100)
+	ring := telemetry.NewRingHandler(100)
 	logger := slog.New(ring)
 	for i := 0; i < 30; i++ {
 		logger.Info(fmt.Sprintf("msg-%d", i))
@@ -632,7 +632,7 @@ func TestExecuteCommand_Log_CountArg(t *testing.T) {
 
 func TestExecuteCommand_Log_LevelFilter(t *testing.T) {
 	oldRing := globalRing
-	ring := djinnlog.NewRingHandler(100)
+	ring := telemetry.NewRingHandler(100)
 	logger := slog.New(ring)
 	logger.Info("info msg")
 	logger.Error("error msg")

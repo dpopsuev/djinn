@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // EventType identifies workspace lifecycle events.
@@ -53,7 +53,7 @@ type Bus struct {
 // NewBus creates a workspace event bus.
 func NewBus(log *slog.Logger) *Bus {
 	if log == nil {
-		log = djinnlog.Nop()
+		log = telemetry.Nop()
 	}
 	return &Bus{log: log}
 }

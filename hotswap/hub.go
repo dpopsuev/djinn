@@ -13,7 +13,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // Sentinel errors for Hub operations.
@@ -39,7 +39,7 @@ type Hub struct {
 // NewHub creates a hub listening on the given Unix socket path.
 func NewHub(socketPath string, log *slog.Logger) (*Hub, error) {
 	if log == nil {
-		log = djinnlog.Nop()
+		log = telemetry.Nop()
 	}
 	ln, err := Listen(socketPath)
 	if err != nil {
@@ -56,8 +56,8 @@ func (h *Hub) Run(ctx context.Context) error {
 	}()
 
 	h.log.InfoContext(ctx, "hub started",
-		slog.String(djinnlog.KeyComponent, "clutch"),
-		slog.String(djinnlog.KeyPath, h.listener.Addr()),
+		slog.String(telemetry.KeyComponent, "clutch"),
+		slog.String(telemetry.KeyPath, h.listener.Addr()),
 	)
 
 	for {
@@ -66,15 +66,15 @@ func (h *Hub) Run(ctx context.Context) error {
 			if ctx.Err() != nil {
 				// Yellow: clean shutdown
 				h.log.InfoContext(ctx, "hub shutdown",
-					slog.String(djinnlog.KeyComponent, "clutch"),
-					slog.String(djinnlog.KeyAction, "shutdown"),
+					slog.String(telemetry.KeyComponent, "clutch"),
+					slog.String(telemetry.KeyAction, "shutdown"),
 				)
 				return nil
 			}
 			// Orange: accept failure
 			h.log.WarnContext(ctx, "hub accept error",
-				slog.String(djinnlog.KeyComponent, "clutch"),
-				slog.String(djinnlog.KeyError, err.Error()),
+				slog.String(telemetry.KeyComponent, "clutch"),
+				slog.String(telemetry.KeyError, err.Error()),
 			)
 			return fmt.Errorf("hub accept: %w", err)
 		}
@@ -86,8 +86,8 @@ func (h *Hub) Run(ctx context.Context) error {
 		if err != nil {
 			// Orange: registration failure
 			h.log.WarnContext(ctx, "registration rejected",
-				slog.String(djinnlog.KeyComponent, "clutch"),
-				slog.String(djinnlog.KeyError, err.Error()),
+				slog.String(telemetry.KeyComponent, "clutch"),
+				slog.String(telemetry.KeyError, err.Error()),
 			)
 			transport.Close()
 			continue
@@ -95,8 +95,8 @@ func (h *Hub) Run(ctx context.Context) error {
 
 		// Yellow: successful registration
 		h.log.InfoContext(ctx, "client registered",
-			slog.String(djinnlog.KeyComponent, "clutch"),
-			slog.String(djinnlog.KeyRole, role),
+			slog.String(telemetry.KeyComponent, "clutch"),
+			slog.String(telemetry.KeyRole, role),
 		)
 
 		switch role {

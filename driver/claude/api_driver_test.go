@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -56,7 +56,7 @@ func newTestAPIDriver(t *testing.T, handler http.HandlerFunc) *APIDriver {
 		config: driver.DriverConfig{Model: "claude-sonnet-4-6", MaxTokens: 1024},
 		apiURL: srv.URL,
 		apiKey: "test-key",
-		log:    djinnlog.Nop(),
+		log:    telemetry.Nop(),
 		client: srv.Client(),
 	}
 	d.Start(context.Background(), "")

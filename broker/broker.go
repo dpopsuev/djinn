@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/ari"
-	"github.com/dpopsuev/djinn/djinnlog"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
@@ -28,7 +27,7 @@ type Broker struct {
 	log *slog.Logger
 
 	orch        Orchestrator
-	bus         *signal.SignalBus
+	bus         *telemetry.SignalBus
 	cordons     *CordonRegistry
 	workstreams *WorkstreamRegistry
 	operator    OperatorPort
@@ -44,9 +43,9 @@ type Broker struct {
 
 // BrokerConfig holds the dependencies for creating a Broker.
 type BrokerConfig struct {
-	Logger        *slog.Logger // nil = djinnlog.Nop()
+	Logger        *slog.Logger // nil = telemetry.Nop()
 	Orchestrator  Orchestrator
-	Bus           *signal.SignalBus
+	Bus           *telemetry.SignalBus
 	Cordons       *CordonRegistry
 	Operator      OperatorPort
 	Alerts        EventIngressPort
@@ -67,7 +66,7 @@ func withMaxConcurrentFromConfig(n int) []RegistryOption {
 func NewBroker(cfg *BrokerConfig) *Broker {
 	log := cfg.Logger
 	if log == nil {
-		log = djinnlog.Nop()
+		log = telemetry.Nop()
 	}
 	return &Broker{
 		log:         log,
@@ -91,14 +90,14 @@ func (b *Broker) Start(ctx context.Context) {
 	})
 
 	// Auto-cordon on Black signals
-	b.bus.OnSignal(func(s signal.Signal) {
-		if s.Level == signal.Black && len(s.Scope) > 0 {
+	b.bus.OnSignal(func(s telemetry.Signal) {
+		if s.Level == telemetry.Black && len(s.Scope) > 0 {
 			b.cordons.Set(s.Scope, s.Message, s.Source)
 			// Orange: cordon triggered
 			b.log.WarnContext(ctx, "cordon triggered",
-				slog.String(djinnlog.KeyAction, "cordon"),
-				slog.String(djinnlog.KeyReason, s.Message),
-				slog.String(djinnlog.KeySource, s.Source),
+				slog.String(telemetry.KeyAction, "cordon"),
+				slog.String(telemetry.KeyReason, s.Message),
+				slog.String(telemetry.KeySource, s.Source),
 			)
 		}
 	})
@@ -122,19 +121,19 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 
 	// Yellow: workstream created
 	b.log.InfoContext(ctx, "workstream created",
-		slog.String(djinnlog.KeyAction, "create"),
-		slog.String(djinnlog.KeyIntentID, intent.ID),
-		slog.Int(djinnlog.KeyCount, len(plan.Stages)),
+		slog.String(telemetry.KeyAction, "create"),
+		slog.String(telemetry.KeyIntentID, intent.ID),
+		slog.Int(telemetry.KeyCount, len(plan.Stages)),
 	)
 
-	wsBus := signal.NewSignalBus()
+	wsBus := telemetry.NewSignalBus()
 	ws := &WorkstreamInfo{
 		ID:        plan.ID,
 		IntentID:  intent.ID,
 		Action:    intent.Action,
 		Status:    WorkstreamRunning,
 		Scopes:    scopes,
-		Health:    signal.Green,
+		Health:    telemetry.Green,
 		Bus:       wsBus,
 		StartedAt: startedAt,
 	}
@@ -143,9 +142,9 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 	if !registered {
 		// Orange: queue full / rejected
 		b.log.WarnContext(ctx, "workstream queued",
-			slog.String(djinnlog.KeyIntentID, intent.ID),
-			slog.Int(djinnlog.KeyQueuePos, queuePos),
-			slog.String(djinnlog.KeyReason, "concurrency limit reached"),
+			slog.String(telemetry.KeyIntentID, intent.ID),
+			slog.Int(telemetry.KeyQueuePos, queuePos),
+			slog.String(telemetry.KeyReason, "concurrency limit reached"),
 		)
 		b.operator.EmitResult(ari.Result{
 			IntentID: intent.ID,
@@ -170,8 +169,8 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 	if err != nil {
 		// Orange: execution error
 		b.log.WarnContext(ctx, "workstream execution error",
-			slog.String(djinnlog.KeyIntentID, intent.ID),
-			slog.String(djinnlog.KeyError, err.Error()),
+			slog.String(telemetry.KeyIntentID, intent.ID),
+			slog.String(telemetry.KeyError, err.Error()),
 		)
 		b.workstreams.Complete(plan.ID, WorkstreamFailed)
 		b.operator.EmitResult(ari.Result{
@@ -189,7 +188,7 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 	}
 
 	// Emit final andon
-	health := signal.ComputeHealth(b.bus.Signals())
+	health := telemetry.ComputeHealth(b.bus.Signals())
 	board := ComputeAndon(health, b.cordons.Active())
 	b.operator.EmitAndon(board)
 
@@ -198,18 +197,18 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 		b.workstreams.Complete(plan.ID, WorkstreamCompleted)
 		// Yellow: workstream completed
 		b.log.InfoContext(ctx, "workstream completed",
-			slog.String(djinnlog.KeyIntentID, intent.ID),
-			slog.String(djinnlog.KeyStatus, string(WorkstreamCompleted)),
-			slog.Duration(djinnlog.KeyDuration, time.Since(startedAt)),
+			slog.String(telemetry.KeyIntentID, intent.ID),
+			slog.String(telemetry.KeyStatus, string(WorkstreamCompleted)),
+			slog.Duration(telemetry.KeyDuration, time.Since(startedAt)),
 		)
 	} else {
 		b.workstreams.Complete(plan.ID, WorkstreamFailed)
 		// Orange: workstream failed
 		b.log.WarnContext(ctx, "workstream failed",
-			slog.String(djinnlog.KeyIntentID, intent.ID),
-			slog.String(djinnlog.KeyStatus, string(WorkstreamFailed)),
-			slog.String(djinnlog.KeyReason, lastEvent.Message),
-			slog.Duration(djinnlog.KeyDuration, time.Since(startedAt)),
+			slog.String(telemetry.KeyIntentID, intent.ID),
+			slog.String(telemetry.KeyStatus, string(WorkstreamFailed)),
+			slog.String(telemetry.KeyReason, lastEvent.Message),
+			slog.Duration(telemetry.KeyDuration, time.Since(startedAt)),
 		)
 	}
 
@@ -241,9 +240,9 @@ func (b *Broker) CancelWorkstream(id string) error {
 
 	// Yellow: workstream canceled
 	b.log.InfoContext(context.Background(), "workstream canceled",
-		slog.String(djinnlog.KeyAction, "cancel"),
-		slog.String(djinnlog.KeyWorkstreamID, id),
-		slog.String(djinnlog.KeyStatus, string(WorkstreamCanceled)),
+		slog.String(telemetry.KeyAction, "cancel"),
+		slog.String(telemetry.KeyWorkstreamID, id),
+		slog.String(telemetry.KeyStatus, string(WorkstreamCanceled)),
 	)
 	return nil
 }
@@ -255,7 +254,7 @@ func (b *Broker) ClearCordon(paths []string) {
 
 // Andon computes the current Andon board.
 func (b *Broker) Andon() AndonBoard {
-	health := signal.ComputeHealth(b.bus.Signals())
+	health := telemetry.ComputeHealth(b.bus.Signals())
 	return ComputeAndon(health, b.cordons.Active())
 }
 
@@ -297,11 +296,11 @@ func (b *Broker) listenAlerts(ctx context.Context) {
 }
 
 func (b *Broker) handleAlert(ctx context.Context, alert ari.Alert) {
-	b.bus.Emit(signal.Signal{
+	b.bus.Emit(telemetry.Signal{
 		Workstream: alertWorkstreamPrefix + alert.Metric,
-		Level:      signal.Red,
+		Level:      telemetry.Red,
 		Source:     alert.Source,
-		Category:   signal.CategoryPerformance,
+		Category:   telemetry.CategoryPerformance,
 		Message:    fmt.Sprintf("alert: %s = %.2f", alert.Metric, alert.Value),
 	})
 

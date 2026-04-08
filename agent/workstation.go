@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // Sentinel errors for workstation operations.
@@ -62,8 +62,8 @@ func (w *Workstation) Attach(agentID string) error {
 
 	if w.Agent != "" {
 		slog.WarnContext(context.Background(), "workstation attach rejected: not vacant",
-			slog.String(djinnlog.KeyWorkstreamID, string(w.ID)),
-			slog.String(djinnlog.KeyAgent, w.Agent),
+			slog.String(telemetry.KeyWorkstreamID, string(w.ID)),
+			slog.String(telemetry.KeyAgent, w.Agent),
 			slog.String("rejected_agent", agentID),
 		)
 		return fmt.Errorf("%w: agent %q is attached", ErrWorkstationOccupied, w.Agent)
@@ -71,9 +71,9 @@ func (w *Workstation) Attach(agentID string) error {
 
 	w.Agent = agentID
 	slog.InfoContext(context.Background(), "workstation attach",
-		slog.String(djinnlog.KeyWorkstreamID, string(w.ID)),
-		slog.String(djinnlog.KeyAgent, agentID),
-		slog.String(djinnlog.KeyTaskID, w.TaskID),
+		slog.String(telemetry.KeyWorkstreamID, string(w.ID)),
+		slog.String(telemetry.KeyAgent, agentID),
+		slog.String(telemetry.KeyTaskID, w.TaskID),
 	)
 	return nil
 }
@@ -88,9 +88,9 @@ func (w *Workstation) Detach() string {
 	w.Agent = ""
 
 	slog.InfoContext(context.Background(), "workstation detach",
-		slog.String(djinnlog.KeyWorkstreamID, string(w.ID)),
+		slog.String(telemetry.KeyWorkstreamID, string(w.ID)),
 		"former_agent", former,
-		slog.String(djinnlog.KeyTaskID, w.TaskID),
+		slog.String(telemetry.KeyTaskID, w.TaskID),
 	)
 	return former
 }

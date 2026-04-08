@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/dpopsuev/djinn/ari"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
@@ -36,5 +36,5 @@ type MetricsPort interface {
 
 // SignalSinkPort is the driven port for emitting signals to the bus.
 type SignalSinkPort interface {
-	Emit(s signal.Signal)
+	Emit(s telemetry.Signal)
 }

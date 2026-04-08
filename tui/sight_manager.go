@@ -15,7 +15,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // SightManager tracks gate state and field overrides per panel.
@@ -31,7 +31,7 @@ type SightManager struct {
 // NewSightManager creates a SightManager with default-open gates.
 func NewSightManager(log *slog.Logger) *SightManager {
 	if log == nil {
-		log = djinnlog.Nop()
+		log = telemetry.Nop()
 	}
 	return &SightManager{
 		gates:   make(map[string]bool),
@@ -53,9 +53,9 @@ func (m *SightManager) SetGate(panelID string, on bool) {
 		action = "gate_on"
 	}
 	m.log.InfoContext(context.Background(), "sight gate changed",
-		slog.String(djinnlog.KeyComponent, "sight"),
-		slog.String(djinnlog.KeyAction, action),
-		slog.String(djinnlog.KeyPanel, panelID),
+		slog.String(telemetry.KeyComponent, "sight"),
+		slog.String(telemetry.KeyAction, action),
+		slog.String(telemetry.KeyPanel, panelID),
 	)
 }
 
@@ -78,10 +78,10 @@ func (m *SightManager) Reveal(panelID, field string) {
 
 	// Yellow: operator reveals sensitive field — audit trail
 	m.log.InfoContext(context.Background(), "sight field revealed",
-		slog.String(djinnlog.KeyComponent, "sight"),
-		slog.String(djinnlog.KeyAction, "reveal"),
-		slog.String(djinnlog.KeyPanel, panelID),
-		slog.String(djinnlog.KeyField, field),
+		slog.String(telemetry.KeyComponent, "sight"),
+		slog.String(telemetry.KeyAction, "reveal"),
+		slog.String(telemetry.KeyPanel, panelID),
+		slog.String(telemetry.KeyField, field),
 	)
 }
 
@@ -93,10 +93,10 @@ func (m *SightManager) Hide(panelID, field string) {
 
 	// Yellow: operator hides field — audit trail
 	m.log.InfoContext(context.Background(), "sight field hidden",
-		slog.String(djinnlog.KeyComponent, "sight"),
-		slog.String(djinnlog.KeyAction, "hide"),
-		slog.String(djinnlog.KeyPanel, panelID),
-		slog.String(djinnlog.KeyField, field),
+		slog.String(telemetry.KeyComponent, "sight"),
+		slog.String(telemetry.KeyAction, "hide"),
+		slog.String(telemetry.KeyPanel, panelID),
+		slog.String(telemetry.KeyField, field),
 	)
 }
 

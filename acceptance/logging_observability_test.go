@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 func TestLog_SetupVerboseThreeHandlers(t *testing.T) {
-	result := djinnlog.Setup(djinnlog.Options{
+	result := telemetry.Setup(telemetry.Options{
 		Verbose: true,
 		LogFile: filepath.Join(t.TempDir(), "test.log"),
 	})
@@ -27,7 +27,7 @@ func TestLog_SetupVerboseThreeHandlers(t *testing.T) {
 }
 
 func TestLog_SetupQuietNoTerminal(t *testing.T) {
-	result := djinnlog.Setup(djinnlog.Options{
+	result := telemetry.Setup(telemetry.Options{
 		LogFile: filepath.Join(t.TempDir(), "test.log"),
 	})
 	result.Logger.Info("quiet test")
@@ -38,7 +38,7 @@ func TestLog_SetupQuietNoTerminal(t *testing.T) {
 }
 
 func TestLog_RedactionStripsSecrets(t *testing.T) {
-	result := djinnlog.Setup(djinnlog.Options{
+	result := telemetry.Setup(telemetry.Options{
 		RingSize: 10,
 	})
 
@@ -57,7 +57,7 @@ func TestLog_RedactionStripsSecrets(t *testing.T) {
 }
 
 func TestLog_RingBufferCapacity(t *testing.T) {
-	ring := djinnlog.NewRingHandler(5)
+	ring := telemetry.NewRingHandler(5)
 	log := slog.New(ring)
 
 	for i := range 10 {
@@ -70,7 +70,7 @@ func TestLog_RingBufferCapacity(t *testing.T) {
 }
 
 func TestLog_FilterByLevel(t *testing.T) {
-	ring := djinnlog.NewRingHandler(20)
+	ring := telemetry.NewRingHandler(20)
 	log := slog.New(ring)
 
 	log.Debug("debug")
@@ -85,9 +85,9 @@ func TestLog_FilterByLevel(t *testing.T) {
 }
 
 func TestLog_PerfAttributes(t *testing.T) {
-	rtt := djinnlog.RTT(2 * time.Second)
-	ttft := djinnlog.TTFT(100 * time.Millisecond)
-	throughput := djinnlog.Throughput(100, 2*time.Second)
+	rtt := telemetry.RTT(2 * time.Second)
+	ttft := telemetry.TTFT(100 * time.Millisecond)
+	throughput := telemetry.Throughput(100, 2*time.Second)
 
 	if rtt.Key != "rtt" {
 		t.Fatalf("rtt key = %q", rtt.Key)

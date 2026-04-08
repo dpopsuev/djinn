@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // SearchResultKind identifies the type of search result.
@@ -94,7 +94,7 @@ func matchesQuery(q string, fields ...string) bool {
 	return false
 }
 
-func formatSignalSummary(s signal.Signal) string {
+func formatSignalSummary(s telemetry.Signal) string {
 	return "[" + s.Level.String() + "] " + s.Message
 }
 

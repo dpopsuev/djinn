@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // mockHeuristic implements BudgetHeuristic for testing.
@@ -184,7 +184,7 @@ func TestConfigDefaults(t *testing.T) {
 }
 
 func TestEmitBudgetSignals(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	signals := []Signal{
 		{Metric: "files_touched", Value: 12, Threshold: 10, Exceeded: true},
 		{Metric: "loc_delta", Value: 200, Threshold: 500, Exceeded: false},
@@ -196,13 +196,13 @@ func TestEmitBudgetSignals(t *testing.T) {
 	if len(all) != 1 {
 		t.Fatalf("expected 1 bus signal, got %d", len(all))
 	}
-	if all[0].Level != signal.Yellow {
+	if all[0].Level != telemetry.Yellow {
 		t.Errorf("level = %s, want yellow", all[0].Level)
 	}
 }
 
 func TestEmitBudgetSignalsNone(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	signals := []Signal{
 		{Metric: "files_touched", Value: 3, Threshold: 10, Exceeded: false},
 	}

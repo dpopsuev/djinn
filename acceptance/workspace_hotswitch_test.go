@@ -7,12 +7,12 @@ import (
 
 	"github.com/dpopsuev/djinn/cli/repl"
 	"github.com/dpopsuev/djinn/contextmgr"
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
 func TestHotSwitch_BusEmitsToSubscribers(t *testing.T) {
-	bus := workspace.NewBus(djinnlog.Nop())
+	bus := workspace.NewBus(telemetry.Nop())
 
 	var received []string
 	bus.On("driver", func(evt workspace.Event) {
@@ -33,7 +33,7 @@ func TestHotSwitch_BusEmitsToSubscribers(t *testing.T) {
 }
 
 func TestHotSwitch_PanicDoesNotBlockOthers(t *testing.T) {
-	bus := workspace.NewBus(djinnlog.Nop())
+	bus := workspace.NewBus(telemetry.Nop())
 
 	var survived bool
 	bus.On("panicker", func(workspace.Event) { panic("boom") })
@@ -139,7 +139,7 @@ func TestHotSwitch_ContextReDiscovered(t *testing.T) {
 	workspace.Save(ws)
 
 	// Bus subscriber should re-discover context
-	bus := workspace.NewBus(djinnlog.Nop())
+	bus := workspace.NewBus(telemetry.Nop())
 	var contextUpdated bool
 	bus.On("context", func(evt workspace.Event) {
 		if evt.New != nil && len(evt.New.Paths()) > 0 {

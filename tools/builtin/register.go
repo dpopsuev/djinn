@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 
 	"github.com/dpopsuev/djinn/artifact"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools"
-	"github.com/dpopsuev/djinn/trace"
 )
 
 // RegisterAeonShellTools registers the 8 Aeon Shell tools into the registry.
@@ -34,7 +34,7 @@ func RegisterAeonShellTools(reg *Registry, workDir, dataDir string) {
 
 // RegisterDebugTrace registers the djinn_trace builtin tool for self-debugging.
 // Call after RegisterAeonShellTools if trace ring is available.
-func RegisterDebugTrace(reg *Registry, ring *trace.Ring) {
+func RegisterDebugTrace(reg *Registry, ring *telemetry.Ring) {
 	if ring == nil {
 		return
 	}

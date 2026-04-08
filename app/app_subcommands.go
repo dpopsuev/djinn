@@ -19,7 +19,7 @@ import (
 	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
 	msbsandbox "github.com/dpopsuev/djinn/sandbox/misbah"
-	sigsvc "github.com/dpopsuev/djinn/signal"
+	sigsvc "github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/uniform"

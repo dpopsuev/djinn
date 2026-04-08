@@ -6,13 +6,13 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	acpdriver "github.com/dpopsuev/djinn/driver/acp"
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	codexdriver "github.com/dpopsuev/djinn/driver/codex"
 	cursordriver "github.com/dpopsuev/djinn/driver/cursor"
 	geminidriver "github.com/dpopsuev/djinn/driver/gemini"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -20,7 +20,7 @@ import (
 func CreateDriver(driverName, model, systemPrompt string, log ...*slog.Logger) (driver.ChatDriver, error) { //nolint:gocyclo // driver factory with config variants
 	var driverLog *slog.Logger
 	if len(log) > 0 && log[0] != nil {
-		driverLog = djinnlog.For(log[0], "driver")
+		driverLog = telemetry.For(log[0], "driver")
 	}
 	switch driverName {
 	case DriverClaude:

@@ -18,14 +18,13 @@ import (
 	djinnconfig "github.com/dpopsuev/djinn/config"
 	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/daemon"
-	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/hotswap"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/sandbox"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools"
 	"github.com/dpopsuev/djinn/tools/builtin"
-	"github.com/dpopsuev/djinn/trace"
 	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/uniform"
 	djinnws "github.com/dpopsuev/djinn/workspace"
@@ -184,12 +183,12 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	sess.WorkDirs = ws.Paths()
 
 	// Setup logging
-	logResult := djinnlog.Setup(djinnlog.Options{
+	logResult := telemetry.Setup(telemetry.Options{
 		Verbose: debugConf.Verbose,
 		TUI:     true,
 		LogFile: filepath.Join(HomeDir(), "djinn.log"),
 	})
-	log := djinnlog.For(logResult.Logger, "app")
+	log := telemetry.For(logResult.Logger, "app")
 	log.Info("session starting", "driver", driverConf.Name, "model", driverConf.Model, "mode", modeConf.Mode)
 
 	// Auto-import Claude session for new empty sessions
@@ -234,20 +233,20 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	}
 
 	// Trace ring — observable by default (Flywheel Tier 4).
-	traceRing := trace.NewRing(1000) //nolint:mnd // 1000 events is a sensible default
+	traceRing := telemetry.NewRing(1000) //nolint:mnd // 1000 events is a sensible default
 
 	// Hub mediators — DevOps phase coordination (GOL-58).
 	hubRegistry := daemon.NewRegistry()
 	hubCore := daemon.HubCore{
-		Tracer:  traceRing.For(trace.ComponentTool),
+		Tracer:  traceRing.For(telemetry.ComponentTool),
 		Display: daemon.NopDisplaySender{},
 	}
 	planHub := daemon.NewPlanHub(hubCore, artifact.NewGraph("session", artifact.DefaultRegistry()))
 	hubRegistry.Register(planHub)
 
 	// Connect MCP servers
-	mcpClient := mcpclient.New(djinnlog.For(logResult.Logger, "mcp"))
-	mcpClient.Tracer = traceRing.For(trace.ComponentMCP)
+	mcpClient := mcpclient.New(telemetry.For(logResult.Logger, "mcp"))
+	mcpClient.Tracer = traceRing.For(telemetry.ComponentMCP)
 	defer mcpClient.Close()
 
 	// MCP config merge: djinn.yaml (LoadMCPConfig) + config registry (mcp_servers) + workspace MCP.
@@ -314,7 +313,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	initialPrompt := strings.Join(fs.Args(), " ")
 
 	// Workspace event bus
-	wsBus := djinnws.NewBus(djinnlog.For(logResult.Logger, "workspace"))
+	wsBus := djinnws.NewBus(telemetry.For(logResult.Logger, "workspace"))
 	wsBus.On("driver-prompt", func(evt djinnws.Event) {
 		if evt.New == nil {
 			return
@@ -332,7 +331,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	})
 
 	// ToolPolicyEnforcer — agent call mediation
-	enforcer := policy.NewDefaultToolPolicyEnforcer(djinnlog.For(log, "policy"))
+	enforcer := policy.NewDefaultToolPolicyEnforcer(telemetry.For(log, "policy"))
 	capToken := ws.ToCapabilityToken()
 	log.Info("policy enforcer active", "writable", len(capToken.WritablePaths), "denied", len(capToken.DeniedPaths))
 
@@ -340,8 +339,8 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	registry := builtin.NewRegistry()
 	builtin.RegisterAeonShellTools(registry, ws.PrimaryPath(), HomeDir())
 	builtin.RegisterDebugTrace(registry, traceRing)
-	composite := builtin.NewCompositeExecutor(registry, mcpClient, djinnlog.For(logResult.Logger, "tools"))
-	log.InfoContext(ctx, "tools registered", slog.Int(djinnlog.KeyCount, len(composite.Names())))
+	composite := builtin.NewCompositeExecutor(registry, mcpClient, telemetry.For(logResult.Logger, "tools"))
+	log.InfoContext(ctx, "tools registered", slog.Int(telemetry.KeyCount, len(composite.Names())))
 
 	// Wrap composite executor in ToolHub for mediated execution (GOL-37).
 	toolTracker := tools.NewToolLatencyTracker()
@@ -349,8 +348,8 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	hubRegistry.Register(toolHub)
 
 	// Build Tool Operation Envelope: SecurityBundle + EnrichmentBundle + ObservabilityBundle.
-	symbolPopulator := agent.NewSymbolGraphPopulator(djinnlog.For(logResult.Logger, "symbol"), &agent.RegexProvider{})
-	wasteClassifier := agent.NewWasteClassifier(djinnlog.For(logResult.Logger, "waste"))
+	symbolPopulator := agent.NewSymbolGraphPopulator(telemetry.For(logResult.Logger, "symbol"), &agent.RegexProvider{})
+	wasteClassifier := agent.NewWasteClassifier(telemetry.For(logResult.Logger, "waste"))
 
 	envelope, envelopeErr := agent.NewEnvelopeBuilder(toolHub).
 		WithGates(agent.SecurityBundle(enforcer, capToken)...).

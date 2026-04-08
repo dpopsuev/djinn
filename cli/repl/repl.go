@@ -9,11 +9,10 @@ import (
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/daemon"
-	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/policy"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
-	"github.com/dpopsuev/djinn/trace"
 	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/uniform"
 	"github.com/dpopsuev/djinn/workspace"
@@ -30,7 +29,7 @@ type Config struct {
 	AutoApprove   bool
 	Mode          string // "ask", "plan", "agent", "auto"
 	Log           *slog.Logger
-	Ring          *djinnlog.RingHandler
+	Ring          *telemetry.RingHandler
 	Store         *contextmgr.Store         // for auto-save after each turn
 	InitialPrompt string                    // auto-submit on first render
 	WorkspaceBus  *workspace.Bus            // workspace event bus for /workspace-switch
@@ -41,7 +40,7 @@ type Config struct {
 	HealthReports []tui.HealthReport  // initial health from startup
 	Version       string              // app version for MOTD (set via ldflags)
 	TUIRecorder   *tui.TUIRecorder    // nil = disabled; captures rendered frames
-	TraceRing     *trace.Ring         // nil = disabled; enables live MCP debugging
+	TraceRing     *telemetry.Ring     // nil = disabled; enables live MCP debugging
 	HubRegistry   *daemon.HubRegistry // nil = disabled; DevOps phase mediation
 
 	// Sandbox: when set, all agents except GenSec run inside the sandbox.
@@ -78,7 +77,7 @@ func Run(ctx context.Context, cfg Config) error { //nolint:gocritic // Config is
 var globalHandler agent.EventHandler = agent.NilHandler{}
 
 // globalRing is set before the program runs and read by /log command.
-var globalRing *djinnlog.RingHandler
+var globalRing *telemetry.RingHandler
 
 // globalWorkspaceBus is set before the program runs and read by /workspace-switch.
 var globalWorkspaceBus *workspace.Bus

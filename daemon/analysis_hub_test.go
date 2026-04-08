@@ -4,16 +4,15 @@ import (
 	"context"
 	"testing"
 
-	"github.com/dpopsuev/djinn/signal"
-	"github.com/dpopsuev/djinn/trace"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 func TestAnalysisHub_Day1_InternalOnly(t *testing.T) {
-	ring := trace.NewRing(100)
+	ring := telemetry.NewRing(100)
 	spy := &spyDisplay{}
 	core := HubCore{
-		Tracer:  ring.For(trace.ComponentTool),
-		Signals: signal.NewSignalBus(),
+		Tracer:  ring.For(telemetry.ComponentTool),
+		Signals: telemetry.NewSignalBus(),
 		Display: spy,
 	}
 
@@ -48,9 +47,9 @@ func TestAnalysisHub_Day1_InternalOnly(t *testing.T) {
 }
 
 func TestAnalysisHub_Day2_PortDelegation(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  trace.NewRing(100).For(trace.ComponentTool),
+		Tracer:  telemetry.NewRing(100).For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -79,7 +78,7 @@ func TestAnalysisHub_Day2_PortDelegation(t *testing.T) {
 	signals := bus.Signals()
 	found := false
 	for _, s := range signals {
-		if s.Level == signal.Yellow && s.Category == analysisHubName {
+		if s.Level == telemetry.Yellow && s.Category == analysisHubName {
 			found = true
 			break
 		}
@@ -90,9 +89,9 @@ func TestAnalysisHub_Day2_PortDelegation(t *testing.T) {
 }
 
 func TestAnalysisHub_AnalyzerError(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  trace.NewRing(100).For(trace.ComponentTool),
+		Tracer:  telemetry.NewRing(100).For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}

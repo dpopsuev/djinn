@@ -8,7 +8,7 @@ import (
 
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
@@ -38,7 +38,7 @@ func (g *stubGate) Validate(ctx context.Context, sandboxID string) error { retur
 
 func TestSimpleOrchestrator_FourStageHappyPath(t *testing.T) {
 	sandboxCount := 0
-	signals := []signal.Signal{}
+	signals := []telemetry.Signal{}
 
 	orch := NewSimpleOrchestrator(
 		func(ctx context.Context, scope workspace.TierScope) (string, error) {
@@ -52,7 +52,7 @@ func TestSimpleOrchestrator_FourStageHappyPath(t *testing.T) {
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate {
 			return &stubGate{}
 		},
-		func(s signal.Signal) {
+		func(s telemetry.Signal) {
 			signals = append(signals, s)
 		},
 	)
@@ -121,7 +121,7 @@ func TestSimpleOrchestrator_GateFailure(t *testing.T) {
 			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{err: gateErr} },
-		func(s signal.Signal) {},
+		func(s telemetry.Signal) {},
 	)
 
 	plan := WorkPlan{
@@ -176,7 +176,7 @@ func TestSimpleOrchestrator_Cancel(t *testing.T) {
 			return &stubDriver{recvCh: ch}
 		},
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
-		func(s signal.Signal) {},
+		func(s telemetry.Signal) {},
 	)
 
 	plan := WorkPlan{
@@ -220,7 +220,7 @@ func TestSimpleOrchestrator_TimeBudget(t *testing.T) {
 			return &stubDriver{recvCh: ch}
 		},
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
-		func(s signal.Signal) {},
+		func(s telemetry.Signal) {},
 	)
 
 	plan := WorkPlan{
@@ -251,7 +251,7 @@ func TestSimpleOrchestrator_TimeBudget(t *testing.T) {
 }
 
 func TestSimpleOrchestrator_TokenBudget(t *testing.T) {
-	var signals []signal.Signal
+	var signals []telemetry.Signal
 
 	orch := NewSimpleOrchestrator(
 		func(ctx context.Context, scope workspace.TierScope) (string, error) { return "sb", nil },
@@ -264,7 +264,7 @@ func TestSimpleOrchestrator_TokenBudget(t *testing.T) {
 			)
 		},
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
-		func(s signal.Signal) { signals = append(signals, s) },
+		func(s telemetry.Signal) { signals = append(signals, s) },
 	)
 
 	plan := WorkPlan{
@@ -292,7 +292,7 @@ func TestSimpleOrchestrator_TokenBudget(t *testing.T) {
 	// Check budget signal was emitted
 	hasBudgetSignal := false
 	for _, s := range signals {
-		if s.Category == signal.CategoryBudget {
+		if s.Category == telemetry.CategoryBudget {
 			hasBudgetSignal = true
 		}
 	}
@@ -309,7 +309,7 @@ func TestSimpleOrchestrator_Submit(t *testing.T) {
 			return newStubDriver(driver.Message{Role: "assistant", Content: "done"})
 		},
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate { return &stubGate{} },
-		func(s signal.Signal) {},
+		func(s telemetry.Signal) {},
 	)
 
 	plan := WorkPlan{

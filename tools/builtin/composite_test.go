@@ -7,8 +7,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/dpopsuev/djinn/djinnlog"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
+	"github.com/dpopsuev/djinn/telemetry"
 	mcptest "github.com/dpopsuev/djinn/testkit/mcp"
 )
 
@@ -23,7 +23,7 @@ func setupMockMCPClient(t *testing.T, tools map[string]string) (*mcpclient.Clien
 	srv := httptest.NewServer(mock.HTTPHandler())
 	t.Cleanup(srv.Close)
 
-	client := mcpclient.New(djinnlog.Nop())
+	client := mcpclient.New(telemetry.Nop())
 	t.Cleanup(func() { client.Close() })
 	if err := client.ConnectHTTP(context.Background(), "testserver", srv.URL); err != nil {
 		t.Fatalf("ConnectHTTP: %v", err)
@@ -34,7 +34,7 @@ func setupMockMCPClient(t *testing.T, tools map[string]string) (*mcpclient.Clien
 func TestCompositeExecutor_BuiltinFallback(t *testing.T) {
 	registry := NewRegistry()
 	// No MCP client — nil means all calls fall through to builtin.
-	composite := NewCompositeExecutor(registry, nil, djinnlog.Nop())
+	composite := NewCompositeExecutor(registry, nil, telemetry.Nop())
 
 	// All builtin tool names should be present.
 	names := composite.Names()
@@ -60,7 +60,7 @@ func TestCompositeExecutor_MCPOverride(t *testing.T) {
 		"Read": "mcp-read-result",
 	})
 
-	composite := NewCompositeExecutor(registry, mcpClient, djinnlog.Nop())
+	composite := NewCompositeExecutor(registry, mcpClient, telemetry.Nop())
 
 	// "Read" should be overridden.
 	overrides := composite.Overrides()
@@ -84,7 +84,7 @@ func TestCompositeExecutor_Available_MergesTools(t *testing.T) {
 		"custom_tool": "custom-result",
 	})
 
-	composite := NewCompositeExecutor(registry, mcpClient, djinnlog.Nop())
+	composite := NewCompositeExecutor(registry, mcpClient, telemetry.Nop())
 
 	names := composite.Names()
 	sort.Strings(names)
@@ -126,7 +126,7 @@ func TestCompositeExecutor_OverriddenBuiltinExcludedFromAll(t *testing.T) {
 		"Read": "mcp-read",
 	})
 
-	composite := NewCompositeExecutor(registry, mcpClient, djinnlog.Nop())
+	composite := NewCompositeExecutor(registry, mcpClient, telemetry.Nop())
 
 	// All() should NOT contain the builtin Read (it's overridden).
 	allTools := composite.All()
@@ -152,7 +152,7 @@ func TestCompositeExecutor_OverriddenBuiltinExcludedFromAll(t *testing.T) {
 
 func TestCompositeExecutor_NilMCPClient(t *testing.T) {
 	registry := NewRegistry()
-	composite := NewCompositeExecutor(registry, nil, djinnlog.Nop())
+	composite := NewCompositeExecutor(registry, nil, telemetry.Nop())
 
 	// Should work fine with nil MCP client.
 	names := composite.Names()
@@ -174,7 +174,7 @@ func TestCompositeExecutor_RawMCPNameDispatch(t *testing.T) {
 		"artifact": "artifact list result",
 	})
 
-	composite := NewCompositeExecutor(registry, mcpClient, djinnlog.Nop())
+	composite := NewCompositeExecutor(registry, mcpClient, telemetry.Nop())
 
 	// No overrides — "artifact" isn't a builtin.
 	if len(composite.Overrides()) != 0 {
@@ -200,7 +200,7 @@ func TestAutoConnect_WithMockServer(t *testing.T) {
 	srv := httptest.NewServer(mock.HTTPHandler())
 	defer srv.Close()
 
-	client := mcpclient.New(djinnlog.Nop())
+	client := mcpclient.New(telemetry.Nop())
 	defer client.Close()
 
 	if err := client.ConnectHTTP(context.Background(), "scribe", srv.URL); err != nil {
@@ -218,7 +218,7 @@ func TestAutoConnect_WithMockServer(t *testing.T) {
 
 	// Build composite.
 	registry := NewRegistry()
-	composite := NewCompositeExecutor(registry, client, djinnlog.Nop())
+	composite := NewCompositeExecutor(registry, client, telemetry.Nop())
 
 	// Merged names should include MCP tools.
 	names := composite.Names()

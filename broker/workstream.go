@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
@@ -32,8 +32,8 @@ type WorkstreamInfo struct {
 	Action    string
 	Status    WorkstreamStatus
 	Scopes    []workspace.TierScope
-	Health    signal.FlagLevel
-	Bus       *signal.SignalBus // per-workstream signal partition
+	Health    telemetry.FlagLevel
+	Bus       *telemetry.SignalBus // per-workstream signal partition
 	StartedAt time.Time
 	EndedAt   time.Time
 }

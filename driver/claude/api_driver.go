@@ -16,8 +16,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -112,7 +112,7 @@ func WithHTTPClient(c *http.Client) APIDriverOption {
 func NewAPIDriver(config driver.DriverConfig, opts ...APIDriverOption) (*APIDriver, error) {
 	d := &APIDriver{
 		config: config,
-		log:    djinnlog.Nop(),
+		log:    telemetry.Nop(),
 	}
 	for _, opt := range opts {
 		opt(d)

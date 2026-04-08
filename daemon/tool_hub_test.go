@@ -6,18 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools"
 	"github.com/dpopsuev/djinn/tools/builtin"
-	"github.com/dpopsuev/djinn/trace"
 )
 
 func TestToolHub_Execute_Mediation(t *testing.T) {
-	ring := trace.NewRing(100)
-	bus := signal.NewSignalBus()
+	ring := telemetry.NewRing(100)
+	bus := telemetry.NewSignalBus()
 	spy := &spyDisplay{}
 	core := HubCore{
-		Tracer:  ring.For(trace.ComponentTool),
+		Tracer:  ring.For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: spy,
 	}
@@ -52,9 +51,9 @@ func TestToolHub_Execute_Mediation(t *testing.T) {
 }
 
 func TestToolHub_Execute_SLABreach(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  trace.NewRing(100).For(trace.ComponentTool),
+		Tracer:  telemetry.NewRing(100).For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -72,7 +71,7 @@ func TestToolHub_Execute_SLABreach(t *testing.T) {
 	signals := bus.Signals()
 	found := false
 	for _, s := range signals {
-		if s.Level == signal.Yellow && s.Category == toolHubName {
+		if s.Level == telemetry.Yellow && s.Category == toolHubName {
 			found = true
 			break
 		}

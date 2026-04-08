@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -67,9 +67,9 @@ func (h *ToolHub) Execute(ctx context.Context, name string, input json.RawMessag
 	if sla, ok := h.SLAs[name]; ok && h.Tracker != nil {
 		slaResult := CheckSLA(sla, h.Tracker.P50(name), h.Tracker.P95(name), 0)
 		if !slaResult.Overall {
-			h.Emit(signal.Signal{
+			h.Emit(telemetry.Signal{
 				Category: toolHubName,
-				Level:    signal.Yellow,
+				Level:    telemetry.Yellow,
 				Source:   toolHubName + "-hub",
 				Message:  name + " SLA breach: P95=" + elapsed.String(),
 			})

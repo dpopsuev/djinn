@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // GenSecAgent is the interface the interpreter uses to communicate with GenSec.
@@ -22,7 +22,7 @@ type GenSecAgent interface {
 
 // SignalInterpreter connects the signal bus to GenSec's stochastic interpretation layer.
 type SignalInterpreter struct {
-	bus        *signal.SignalBus
+	bus        *telemetry.SignalBus
 	gensec     GenSecAgent
 	audit      AuditLog
 	ctx        context.Context
@@ -35,7 +35,7 @@ type SignalInterpreter struct {
 }
 
 // NewSignalInterpreter creates an interpreter wired to a signal bus and GenSec agent.
-func NewSignalInterpreter(bus *signal.SignalBus, gensec GenSecAgent) *SignalInterpreter {
+func NewSignalInterpreter(bus *telemetry.SignalBus, gensec GenSecAgent) *SignalInterpreter {
 	return &SignalInterpreter{
 		bus:    bus,
 		gensec: gensec,
@@ -63,7 +63,7 @@ func (si *SignalInterpreter) Start(ctx context.Context) {
 	si.running = true
 	si.mu.Unlock()
 
-	si.bus.OnSignal(func(s signal.Signal) {
+	si.bus.OnSignal(func(s telemetry.Signal) {
 		si.handleSignal(s)
 	})
 }
@@ -85,7 +85,7 @@ func (si *SignalInterpreter) AuditEntries() []AuditEntry {
 
 const interpreterSource = "signal-interpreter"
 
-func (si *SignalInterpreter) handleSignal(s signal.Signal) {
+func (si *SignalInterpreter) handleSignal(s telemetry.Signal) {
 	// Ignore signals emitted by the interpreter itself to prevent loops.
 	if s.Source == interpreterSource {
 		return
@@ -117,11 +117,11 @@ func (si *SignalInterpreter) handleSignal(s signal.Signal) {
 	// Ask GenSec to interpret.
 	response, err := si.gensec.Ask(si.ctx, prompt)
 	if err != nil {
-		si.bus.Emit(signal.Signal{
+		si.bus.Emit(telemetry.Signal{
 			Workstream: s.Workstream,
-			Level:      signal.Yellow,
+			Level:      telemetry.Yellow,
 			Source:     interpreterSource,
-			Category:   signal.CategoryLifecycle,
+			Category:   telemetry.CategoryLifecycle,
 			Message:    "GenSec Ask failed: " + err.Error(),
 		})
 		return
@@ -157,7 +157,7 @@ func (si *SignalInterpreter) parseResponse(response, pillar string) Decision {
 	return d
 }
 
-func (si *SignalInterpreter) routeDecision(zone Zone, d Decision, s signal.Signal) {
+func (si *SignalInterpreter) routeDecision(zone Zone, d Decision, s telemetry.Signal) {
 	switch zone {
 	case ZoneYellow:
 		// Apply decision, operator is notified via onDecision callback.
@@ -169,23 +169,23 @@ func (si *SignalInterpreter) routeDecision(zone Zone, d Decision, s signal.Signa
 
 	case ZoneRed:
 		// Emit cordon signal — operator must approve before action is taken.
-		si.bus.Emit(signal.Signal{
+		si.bus.Emit(telemetry.Signal{
 			Workstream: s.Workstream,
-			Level:      signal.Red,
+			Level:      telemetry.Red,
 			Source:     interpreterSource,
-			Category:   signal.CategoryLifecycle,
+			Category:   telemetry.CategoryLifecycle,
 			Message:    "cordon: " + d.Pillar + " — " + d.Reason,
 		})
 	}
 }
 
-func (si *SignalInterpreter) applyDecision(d Decision, s signal.Signal) {
+func (si *SignalInterpreter) applyDecision(d Decision, s telemetry.Signal) {
 	// Emit a lifecycle signal with the decision for downstream consumers.
-	si.bus.Emit(signal.Signal{
+	si.bus.Emit(telemetry.Signal{
 		Workstream: s.Workstream,
-		Level:      signal.Green,
+		Level:      telemetry.Green,
 		Source:     interpreterSource,
-		Category:   signal.CategoryLifecycle,
+		Category:   telemetry.CategoryLifecycle,
 		Message:    "decision: " + string(d.Action) + " — " + d.Reason,
 	})
 }

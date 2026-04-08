@@ -15,7 +15,7 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	msbsandbox "github.com/dpopsuev/djinn/sandbox/misbah"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	wksp "github.com/dpopsuev/djinn/workspace"
 )
@@ -65,7 +65,7 @@ func hello() string {
 	sandbox := msbsandbox.New(socketPath, workspace)
 	defer sandbox.Close()
 
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	cordons := broker.NewCordonRegistry()
 	op := stubs.NewStubOperatorPort()
 
@@ -91,7 +91,7 @@ func hello() string {
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate {
 			return stubs.AlwaysPassGate()
 		},
-		func(s signal.Signal) { bus.Emit(s) },
+		func(s telemetry.Signal) { bus.Emit(s) },
 	)
 
 	b := broker.NewBroker(&broker.BrokerConfig{

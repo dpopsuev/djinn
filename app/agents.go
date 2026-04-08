@@ -43,7 +43,7 @@ func bridgeSignalHandler(program *tea.Program) func(jerichoport.Signal) {
 
 // BridgeStaffToTUI subscribes to a Staff's signal bus and forwards
 // agent lifecycle events to the Bubbletea program as TUI messages.
-// Uses the facade — no raw signal.Meta parsing needed.
+// Uses the facade — no raw telemetry.Meta parsing needed.
 func BridgeStaffToTUI(staff *jerichoport.Staff, program *tea.Program) {
 	staff.OnSignal(bridgeSignalHandler(program))
 }

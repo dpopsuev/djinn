@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"github.com/dpopsuev/djinn/artifact"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // Hub and phase name constants.
@@ -44,9 +44,9 @@ func (h *PlanHub) AddSegment(s artifact.Artifact) string { //nolint:gocritic // 
 
 	h.Trace("segment-add", s.Title)
 
-	h.Emit(signal.Signal{
+	h.Emit(telemetry.Signal{
 		Category: "plan",
-		Level:    signal.Green,
+		Level:    telemetry.Green,
 		Source:   planHubName + "-hub",
 		Message:  "segment added: " + s.Title,
 	})
@@ -70,9 +70,9 @@ func (h *PlanHub) Claim(segmentID, owner string) error {
 
 	h.Trace("segment-claim", segmentID+" by "+owner)
 
-	h.Emit(signal.Signal{
+	h.Emit(telemetry.Signal{
 		Category: "plan",
-		Level:    signal.Green,
+		Level:    telemetry.Green,
 		Source:   planHubName + "-hub",
 		Message:  "segment claimed: " + segmentID + " by " + owner,
 	})
@@ -94,9 +94,9 @@ func (h *PlanHub) Complete(segmentID string) error {
 
 	h.Trace("segment-complete", segmentID)
 
-	h.Emit(signal.Signal{
+	h.Emit(telemetry.Signal{
 		Category: "plan",
-		Level:    signal.Green,
+		Level:    telemetry.Green,
 		Source:   planHubName + "-hub",
 		Message:  "segment completed: " + segmentID,
 	})

@@ -4,17 +4,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 func TestSignalBuilder_Fluent(t *testing.T) {
 	now := time.Now()
 	s := NewSignal("auth").
-		WithLevel(signal.Red).
+		WithLevel(telemetry.Red).
 		WithConfidence(0.3).
 		WithSource("agent-1").
 		WithScope("auth/middleware.go", "auth/handler.go").
-		WithCategory(signal.CategorySecurity).
+		WithCategory(telemetry.CategorySecurity).
 		WithMessage("tests failing").
 		WithTimestamp(now).
 		Build()
@@ -22,7 +22,7 @@ func TestSignalBuilder_Fluent(t *testing.T) {
 	if s.Workstream != "auth" {
 		t.Fatalf("Workstream = %q, want %q", s.Workstream, "auth")
 	}
-	if s.Level != signal.Red {
+	if s.Level != telemetry.Red {
 		t.Fatalf("Level = %v, want Red", s.Level)
 	}
 	if s.Confidence != 0.3 {
@@ -34,8 +34,8 @@ func TestSignalBuilder_Fluent(t *testing.T) {
 	if len(s.Scope) != 2 || s.Scope[0] != "auth/middleware.go" {
 		t.Fatalf("Scope = %v, want [auth/middleware.go auth/handler.go]", s.Scope)
 	}
-	if s.Category != signal.CategorySecurity {
-		t.Fatalf("Category = %q, want %q", s.Category, signal.CategorySecurity)
+	if s.Category != telemetry.CategorySecurity {
+		t.Fatalf("Category = %q, want %q", s.Category, telemetry.CategorySecurity)
 	}
 	if s.Message != "tests failing" {
 		t.Fatalf("Message = %q, want %q", s.Message, "tests failing")
@@ -47,7 +47,7 @@ func TestSignalBuilder_Fluent(t *testing.T) {
 
 func TestSignalBuilder_Defaults(t *testing.T) {
 	s := NewSignal("w1").Build()
-	if s.Level != signal.Green {
+	if s.Level != telemetry.Green {
 		t.Fatalf("default Level = %v, want Green", s.Level)
 	}
 	if s.Timestamp.IsZero() {

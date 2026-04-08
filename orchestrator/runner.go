@@ -13,9 +13,9 @@ import (
 
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/contextmgr"
-	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/policy"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/uniform"
 )
@@ -43,7 +43,7 @@ type AgentRunner struct {
 // Returns the agent's output and any error. The caller wraps
 // the result into a TUI message.
 func (r *AgentRunner) RunAgent(ctx context.Context, prompt string, mode agent.Mode, approvalCh chan bool, handler agent.EventHandler, currentRole string) (string, error) {
-	agentLog := djinnlog.For(r.Log, "agent")
+	agentLog := telemetry.For(r.Log, "agent")
 
 	var tools builtin.ToolExecutor = r.Tools
 	if r.Router != nil {

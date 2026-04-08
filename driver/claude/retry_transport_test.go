@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 func TestRetryTransport_TransientRetried(t *testing.T) {
@@ -28,7 +28,7 @@ func TestRetryTransport_TransientRetried(t *testing.T) {
 		MaxRetries: 3,
 		BaseDelay:  time.Millisecond,
 		MaxDelay:   time.Millisecond,
-	}, djinnlog.Nop())
+	}, telemetry.Nop())
 	rt.sleep = func(time.Duration) {} // no-op sleep
 
 	req, _ := http.NewRequest("POST", srv.URL, http.NoBody)
@@ -55,7 +55,7 @@ func TestRetryTransport_NonRetryable400(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	rt := newRetryTransport(srv.Client().Transport, DefaultRetryConfig(), djinnlog.Nop())
+	rt := newRetryTransport(srv.Client().Transport, DefaultRetryConfig(), telemetry.Nop())
 	rt.sleep = func(time.Duration) {}
 
 	req, _ := http.NewRequest("POST", srv.URL, http.NoBody)
@@ -85,7 +85,7 @@ func TestRetryTransport_MaxRetriesExhausted(t *testing.T) {
 		MaxRetries: 2,
 		BaseDelay:  time.Millisecond,
 		MaxDelay:   time.Millisecond,
-	}, djinnlog.Nop())
+	}, telemetry.Nop())
 	rt.sleep = func(time.Duration) {}
 
 	req, _ := http.NewRequest("POST", srv.URL, http.NoBody)
@@ -115,7 +115,7 @@ func TestRetryTransport_BackoffTiming(t *testing.T) {
 		MaxRetries: 3,
 		BaseDelay:  1 * time.Second,
 		MaxDelay:   30 * time.Second,
-	}, djinnlog.Nop())
+	}, telemetry.Nop())
 	rt.sleep = func(d time.Duration) { delays = append(delays, d) }
 
 	req, _ := http.NewRequest("POST", srv.URL, http.NoBody)
@@ -149,7 +149,7 @@ func TestRetryTransport_429Retried(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	rt := newRetryTransport(srv.Client().Transport, DefaultRetryConfig(), djinnlog.Nop())
+	rt := newRetryTransport(srv.Client().Transport, DefaultRetryConfig(), telemetry.Nop())
 	rt.sleep = func(time.Duration) {}
 
 	req, _ := http.NewRequest("POST", srv.URL, http.NoBody)
@@ -175,7 +175,7 @@ func TestRetryTransport_AuthError401NotRetried(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	rt := newRetryTransport(srv.Client().Transport, DefaultRetryConfig(), djinnlog.Nop())
+	rt := newRetryTransport(srv.Client().Transport, DefaultRetryConfig(), telemetry.Nop())
 	rt.sleep = func(time.Duration) {}
 
 	req, _ := http.NewRequest("POST", srv.URL, http.NoBody)
@@ -203,7 +203,7 @@ func TestRetryTransport_RequestBodyPreserved(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	rt := newRetryTransport(srv.Client().Transport, DefaultRetryConfig(), djinnlog.Nop())
+	rt := newRetryTransport(srv.Client().Transport, DefaultRetryConfig(), telemetry.Nop())
 	rt.sleep = func(time.Duration) {}
 
 	// bytes.NewReader automatically sets GetBody on the request.
@@ -236,7 +236,7 @@ func TestRetryTransport_NetworkErrorRetried(t *testing.T) {
 		MaxRetries: 1,
 		BaseDelay:  time.Millisecond,
 		MaxDelay:   time.Millisecond,
-	}, djinnlog.Nop())
+	}, telemetry.Nop())
 	rt.sleep = func(time.Duration) {}
 
 	req, _ := http.NewRequest("POST", srvURL, http.NoBody)

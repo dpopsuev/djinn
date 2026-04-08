@@ -11,7 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // WorkstationManager manages the lifecycle of workstations.
@@ -25,7 +25,7 @@ type WorkstationManager struct {
 // NewWorkstationManager creates a manager ready to track workstations.
 func NewWorkstationManager(log *slog.Logger) *WorkstationManager {
 	if log == nil {
-		log = djinnlog.Nop()
+		log = telemetry.Nop()
 	}
 	return &WorkstationManager{
 		workstations: make(map[WorkstationID]*Workstation),
@@ -66,7 +66,7 @@ func (m *WorkstationManager) Release(id WorkstationID) {
 
 	if _, ok := m.workstations[id]; ok {
 		delete(m.workstations, id)
-		m.log.InfoContext(context.Background(), "workstation released", slog.String(djinnlog.KeyWorkstreamID, string(id)))
+		m.log.InfoContext(context.Background(), "workstation released", slog.String(telemetry.KeyWorkstreamID, string(id)))
 	}
 }
 

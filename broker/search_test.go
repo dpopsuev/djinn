@@ -4,16 +4,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
 func TestBroker_Search_Signals(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
 
-	bus.Emit(signal.Signal{Workstream: "ws-1", Level: signal.Red, Message: "auth test failing"})
-	bus.Emit(signal.Signal{Workstream: "ws-2", Level: signal.Green, Message: "billing ok"})
+	bus.Emit(telemetry.Signal{Workstream: "ws-1", Level: telemetry.Red, Message: "auth test failing"})
+	bus.Emit(telemetry.Signal{Workstream: "ws-2", Level: telemetry.Green, Message: "billing ok"})
 
 	results := b.Search("auth")
 	if len(results) != 1 {
@@ -28,7 +28,7 @@ func TestBroker_Search_Signals(t *testing.T) {
 }
 
 func TestBroker_Search_Workstreams(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
 
 	b.workstreams.Register(&WorkstreamInfo{
@@ -48,7 +48,7 @@ func TestBroker_Search_Workstreams(t *testing.T) {
 }
 
 func TestBroker_Search_Cordons(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	cordons := NewCordonRegistry()
 	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons})
 
@@ -64,11 +64,11 @@ func TestBroker_Search_Cordons(t *testing.T) {
 }
 
 func TestBroker_Search_CrossSubsystem(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	cordons := NewCordonRegistry()
 	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons})
 
-	bus.Emit(signal.Signal{Workstream: "ws-auth", Level: signal.Red, Message: "auth broken"})
+	bus.Emit(telemetry.Signal{Workstream: "ws-auth", Level: telemetry.Red, Message: "auth broken"})
 	b.workstreams.Register(&WorkstreamInfo{
 		ID:        "ws-auth",
 		Action:    "fix auth",
@@ -85,10 +85,10 @@ func TestBroker_Search_CrossSubsystem(t *testing.T) {
 }
 
 func TestBroker_Search_NoMatch(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
 
-	bus.Emit(signal.Signal{Workstream: "ws-1", Message: "all good"})
+	bus.Emit(telemetry.Signal{Workstream: "ws-1", Message: "all good"})
 
 	results := b.Search("nonexistent")
 	if len(results) != 0 {
@@ -97,10 +97,10 @@ func TestBroker_Search_NoMatch(t *testing.T) {
 }
 
 func TestBroker_Search_CaseInsensitive(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
 
-	bus.Emit(signal.Signal{Workstream: "ws-1", Message: "Auth Module Error"})
+	bus.Emit(telemetry.Signal{Workstream: "ws-1", Message: "Auth Module Error"})
 
 	results := b.Search("auth module")
 	if len(results) != 1 {
@@ -109,16 +109,16 @@ func TestBroker_Search_CaseInsensitive(t *testing.T) {
 }
 
 func TestBroker_Search_SortedByRecency(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
 
 	t1 := time.Now().Add(-2 * time.Hour)
 	t2 := time.Now().Add(-1 * time.Hour)
 	t3 := time.Now()
 
-	bus.Emit(signal.Signal{Workstream: "ws-old", Message: "error old", Timestamp: t1})
-	bus.Emit(signal.Signal{Workstream: "ws-mid", Message: "error mid", Timestamp: t2})
-	bus.Emit(signal.Signal{Workstream: "ws-new", Message: "error new", Timestamp: t3})
+	bus.Emit(telemetry.Signal{Workstream: "ws-old", Message: "error old", Timestamp: t1})
+	bus.Emit(telemetry.Signal{Workstream: "ws-mid", Message: "error mid", Timestamp: t2})
+	bus.Emit(telemetry.Signal{Workstream: "ws-new", Message: "error new", Timestamp: t3})
 
 	results := b.Search("error")
 	if len(results) != 3 {

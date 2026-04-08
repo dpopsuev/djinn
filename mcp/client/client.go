@@ -17,8 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/dpopsuev/djinn/djinnlog"
-	"github.com/dpopsuev/djinn/trace"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // Sentinel errors.
@@ -35,13 +34,13 @@ type Client struct {
 	mu      sync.RWMutex
 	servers map[string]*ServerConn
 	log     *slog.Logger
-	Tracer  *trace.Tracer // optional: set to enable MCP call tracing
+	Tracer  *telemetry.Tracer // optional: set to enable MCP call tracing
 }
 
 // New creates an MCP client.
 func New(log *slog.Logger) *Client {
 	if log == nil {
-		log = djinnlog.Nop()
+		log = telemetry.Nop()
 	}
 	return &Client{
 		servers: make(map[string]*ServerConn),

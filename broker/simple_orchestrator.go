@@ -8,7 +8,7 @@ import (
 
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
@@ -30,7 +30,7 @@ type SimpleOrchestrator struct {
 	destroySandbox func(ctx context.Context, id string) error
 	driverFactory  func(driver.DriverConfig) driver.Driver
 	gateFactory    func(artifact.ContractGateConfig) artifact.ContractGate
-	signalEmit     func(signal.Signal)
+	signalEmit     func(telemetry.Signal)
 
 	mu     sync.Mutex
 	execs  map[string]context.CancelFunc
@@ -43,7 +43,7 @@ func NewSimpleOrchestrator(
 	destroySandbox func(ctx context.Context, id string) error,
 	driverFactory func(driver.DriverConfig) driver.Driver,
 	gateFactory func(artifact.ContractGateConfig) artifact.ContractGate,
-	signalEmit func(signal.Signal),
+	signalEmit func(telemetry.Signal),
 ) *SimpleOrchestrator {
 	return &SimpleOrchestrator{
 		createSandbox:  createSandbox,
@@ -99,11 +99,11 @@ func (o *SimpleOrchestrator) executeStage(ctx context.Context, execID string, st
 
 	ch <- Event{ExecID: execID, Kind: StageStarted, Stage: stage.Name}
 
-	o.signalEmit(signal.Signal{
+	o.signalEmit(telemetry.Signal{
 		Workstream: execID,
-		Level:      signal.Green,
+		Level:      telemetry.Green,
 		Source:     sourceOrchestrator,
-		Category:   signal.CategoryLifecycle,
+		Category:   telemetry.CategoryLifecycle,
 		Message:    "stage " + stage.Name + " started",
 	})
 
@@ -129,11 +129,11 @@ func (o *SimpleOrchestrator) executeStage(ctx context.Context, execID string, st
 		select {
 		case <-stageCtx.Done():
 			if errors.Is(stageCtx.Err(), context.DeadlineExceeded) {
-				o.signalEmit(signal.Signal{
+				o.signalEmit(telemetry.Signal{
 					Workstream: execID,
-					Level:      signal.Yellow,
+					Level:      telemetry.Yellow,
 					Source:     sourceOrchestrator,
-					Category:   signal.CategoryBudget,
+					Category:   telemetry.CategoryBudget,
 					Message:    fmt.Sprintf("stage %s exceeded time budget %v", stage.Name, stage.TimeBudget),
 				})
 			}
@@ -144,11 +144,11 @@ func (o *SimpleOrchestrator) executeStage(ctx context.Context, execID string, st
 			}
 			msgCount++
 			if stage.TokenBudget > 0 && msgCount >= stage.TokenBudget {
-				o.signalEmit(signal.Signal{
+				o.signalEmit(telemetry.Signal{
 					Workstream: execID,
-					Level:      signal.Yellow,
+					Level:      telemetry.Yellow,
 					Source:     sourceOrchestrator,
-					Category:   signal.CategoryBudget,
+					Category:   telemetry.CategoryBudget,
 					Message:    fmt.Sprintf("stage %s exceeded token budget %d", stage.Name, stage.TokenBudget),
 				})
 				goto gateCheck
@@ -165,11 +165,11 @@ gateCheck:
 	ch <- Event{ExecID: execID, Kind: GatePassed, Stage: stage.Name}
 	ch <- Event{ExecID: execID, Kind: StageCompleted, Stage: stage.Name}
 
-	o.signalEmit(signal.Signal{
+	o.signalEmit(telemetry.Signal{
 		Workstream: execID,
-		Level:      signal.Green,
+		Level:      telemetry.Green,
 		Source:     sourceOrchestrator,
-		Category:   signal.CategoryLifecycle,
+		Category:   telemetry.CategoryLifecycle,
 		Message:    "stage " + stage.Name + " completed",
 	})
 

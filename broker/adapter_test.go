@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/ari"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 func TestRuntimeAdapter_InterfaceSatisfaction(t *testing.T) {
@@ -12,7 +12,7 @@ func TestRuntimeAdapter_InterfaceSatisfaction(t *testing.T) {
 }
 
 func TestRuntimeAdapter_Andon(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	cordons := NewCordonRegistry()
 	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: cordons})
 
@@ -26,7 +26,7 @@ func TestRuntimeAdapter_Andon(t *testing.T) {
 		t.Fatalf("Cordons = %d, want 0", snap.Cordons)
 	}
 
-	bus.Emit(signal.Signal{Workstream: "w1", Level: signal.Red})
+	bus.Emit(telemetry.Signal{Workstream: "w1", Level: telemetry.Red})
 	snap = adapter.Andon()
 	if snap.Level != "red" {
 		t.Fatalf("Level = %q, want %q", snap.Level, "red")
@@ -34,7 +34,7 @@ func TestRuntimeAdapter_Andon(t *testing.T) {
 }
 
 func TestRuntimeAdapter_ListWorkstreams(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	b := NewBroker(&BrokerConfig{Bus: bus, Cordons: NewCordonRegistry()})
 
 	b.Workstreams().Register(&WorkstreamInfo{
@@ -42,7 +42,7 @@ func TestRuntimeAdapter_ListWorkstreams(t *testing.T) {
 		IntentID: "int-1",
 		Action:   "fix",
 		Status:   WorkstreamRunning,
-		Health:   signal.Green,
+		Health:   telemetry.Green,
 	})
 
 	adapter := NewRuntimeAdapter(b)
@@ -62,7 +62,7 @@ func TestRuntimeAdapter_ClearCordon(t *testing.T) {
 	cordons := NewCordonRegistry()
 	cordons.Set([]string{"auth"}, "broken", "agent-1")
 
-	b := NewBroker(&BrokerConfig{Bus: signal.NewSignalBus(), Cordons: cordons})
+	b := NewBroker(&BrokerConfig{Bus: telemetry.NewSignalBus(), Cordons: cordons})
 	adapter := NewRuntimeAdapter(b)
 
 	adapter.ClearCordon([]string{"auth"})

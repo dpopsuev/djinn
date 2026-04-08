@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // SymbolGraphPopulator builds SymbolGraphs using a chain of providers.
@@ -43,9 +43,9 @@ func (p *SymbolGraphPopulator) Populate(ctx context.Context, file string) (*Symb
 			break
 		}
 		p.log.WarnContext(context.Background(), "symbol provider failed, trying next",
-			slog.String(djinnlog.KeyPath, file),
-			slog.Int(djinnlog.KeyProvider, i),
-			slog.String(djinnlog.KeyError, err.Error()),
+			slog.String(telemetry.KeyPath, file),
+			slog.Int(telemetry.KeyProvider, i),
+			slog.String(telemetry.KeyError, err.Error()),
 		)
 	}
 
@@ -54,9 +54,9 @@ func (p *SymbolGraphPopulator) Populate(ctx context.Context, file string) (*Symb
 	}
 
 	p.log.DebugContext(context.Background(), "symbols populated",
-		slog.String(djinnlog.KeyPath, file),
-		slog.Int(djinnlog.KeyCount, len(symbols)),
-		slog.String(djinnlog.KeyComponent, providerName),
+		slog.String(telemetry.KeyPath, file),
+		slog.Int(telemetry.KeyCount, len(symbols)),
+		slog.String(telemetry.KeyComponent, providerName),
 	)
 
 	pkg := filepath.Dir(file)
@@ -74,8 +74,8 @@ func (p *SymbolGraphPopulator) Populate(ctx context.Context, file string) (*Symb
 		}
 
 		p.log.DebugContext(context.Background(), "references resolved",
-			slog.String(djinnlog.KeyTool, sym.Name),
-			slog.Int(djinnlog.KeyCallers, len(allRefs)),
+			slog.String(telemetry.KeyTool, sym.Name),
+			slog.Int(telemetry.KeyCallers, len(allRefs)),
 		)
 
 		var internal, external []Reference

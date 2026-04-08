@@ -13,7 +13,7 @@ import (
 	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/driver"
 	msbsandbox "github.com/dpopsuev/djinn/sandbox/misbah"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/testkit/builders"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	wksp "github.com/dpopsuev/djinn/workspace"
@@ -44,7 +44,7 @@ func TestE2E_Integration_MisbahSandbox(t *testing.T) {
 	sandbox := msbsandbox.New(socketPath, workspace)
 	defer sandbox.Close()
 
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	cordons := broker.NewCordonRegistry()
 
 	orch := broker.NewSimpleOrchestrator(
@@ -59,7 +59,7 @@ func TestE2E_Integration_MisbahSandbox(t *testing.T) {
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate {
 			return stubs.AlwaysPassGate()
 		},
-		func(s signal.Signal) { bus.Emit(s) },
+		func(s telemetry.Signal) { bus.Emit(s) },
 	)
 
 	op := stubs.NewStubOperatorPort()
@@ -121,7 +121,7 @@ func TestE2E_Integration_MisbahSandbox(t *testing.T) {
 
 	// Verify andon is green
 	board := b.Andon()
-	if board.Level != signal.Green {
+	if board.Level != telemetry.Green {
 		t.Fatalf("andon = %v, want Green", board.Level)
 	}
 }

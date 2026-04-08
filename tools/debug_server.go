@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dpopsuev/djinn/trace"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // Sentinel errors.
@@ -25,11 +25,11 @@ var (
 
 // Server exposes TraceRing data via tool dispatch.
 type Server struct {
-	ring *trace.Ring
+	ring *telemetry.Ring
 }
 
 // NewServer creates a debug server backed by the given trace ring.
-func NewServer(ring *trace.Ring) *Server {
+func NewServer(ring *telemetry.Ring) *Server {
 	return &Server{ring: ring}
 }
 
@@ -69,9 +69,9 @@ func (s *Server) handleList(input TraceInput) (string, error) {
 		limit = 50 //nolint:mnd // sensible default
 	}
 
-	var events []trace.TraceEvent
+	var events []telemetry.TraceEvent
 	if input.Component != "" {
-		events = s.ring.ByComponent(trace.Component(input.Component))
+		events = s.ring.ByComponent(telemetry.Component(input.Component))
 	} else {
 		events = s.ring.Last(limit)
 	}
@@ -109,8 +109,8 @@ func (s *Server) handleTree(input TraceInput) (string, error) {
 	children := s.ring.ByParent(parentID)
 
 	type treeNode struct {
-		Root     *trace.TraceEvent  `json:"root,omitempty"`
-		Children []trace.TraceEvent `json:"children"`
+		Root     *telemetry.TraceEvent  `json:"root,omitempty"`
+		Children []telemetry.TraceEvent `json:"children"`
 	}
 
 	node := treeNode{Children: children}
@@ -121,7 +121,7 @@ func (s *Server) handleTree(input TraceInput) (string, error) {
 }
 
 func (s *Server) handleHealth() (string, error) {
-	events := s.ring.ByComponent(trace.ComponentMCP)
+	events := s.ring.ByComponent(telemetry.ComponentMCP)
 
 	// Per-server latency stats.
 	type serverHealth struct {
@@ -142,7 +142,7 @@ func (s *Server) handleHealth() (string, error) {
 
 	for i := range events {
 		e := &events[i]
-		if !strings.HasSuffix(e.Action, trace.ActionDoneSuffix) {
+		if !strings.HasSuffix(e.Action, telemetry.ActionDoneSuffix) {
 			continue
 		}
 		s, ok := serverMap[e.Server]

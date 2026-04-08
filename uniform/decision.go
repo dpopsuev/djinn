@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // Action represents a corrective action proposed by GenSec.
@@ -110,15 +110,15 @@ func (z Zone) String() string {
 }
 
 // ZoneFromLevel maps a signal flag level to a control zone.
-func ZoneFromLevel(level signal.FlagLevel) Zone {
+func ZoneFromLevel(level telemetry.FlagLevel) Zone {
 	switch level {
-	case signal.Green:
+	case telemetry.Green:
 		return ZoneGreen
-	case signal.Yellow:
+	case telemetry.Yellow:
 		return ZoneYellow
-	case signal.Red:
+	case telemetry.Red:
 		return ZoneOrange
-	case signal.Black:
+	case telemetry.Black:
 		return ZoneRed
 	default:
 		return ZoneGreen
@@ -128,7 +128,7 @@ func ZoneFromLevel(level signal.FlagLevel) Zone {
 // AuditEntry records the full three-layer decision chain for a single signal.
 type AuditEntry struct {
 	Timestamp        time.Time `json:"ts"`
-	Signal           signal.Signal
+	Signal           telemetry.Signal
 	Zone             Zone
 	Decision         Decision
 	OperatorOverride *Action `json:"operator_override,omitempty"`

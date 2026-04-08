@@ -6,7 +6,7 @@ package daemon
 import (
 	"context"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // Hub and phase name constants for analysis.
@@ -50,9 +50,9 @@ func (h *AnalysisHub) Analyze(ctx context.Context, paths []string) (AnalysisResu
 
 	if err != nil {
 		rt.EndWithError()
-		h.Emit(signal.Signal{
+		h.Emit(telemetry.Signal{
 			Category: analysisHubName,
-			Level:    signal.Yellow,
+			Level:    telemetry.Yellow,
 			Source:   analysisHubName + "-hub",
 			Message:  "analysis failed: " + err.Error(),
 		})
@@ -62,9 +62,9 @@ func (h *AnalysisHub) Analyze(ctx context.Context, paths []string) (AnalysisResu
 	rt.End()
 
 	if len(result.Violations) > 0 {
-		h.Emit(signal.Signal{
+		h.Emit(telemetry.Signal{
 			Category: analysisHubName,
-			Level:    signal.Yellow,
+			Level:    telemetry.Yellow,
 			Source:   analysisHubName + "-hub",
 			Message:  "architecture violations detected",
 			Scope:    result.Violations,

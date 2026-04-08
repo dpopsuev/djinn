@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/artifact"
-	"github.com/dpopsuev/djinn/trace"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/tui/widgets"
 )
@@ -21,17 +21,17 @@ import (
 // verifies that each produces a valid, structured, prompt-injectable string.
 func TestCellSight_Integration_MultiProvider(t *testing.T) {
 	// --- Provider 1: DebugPanel with trace events ---
-	ring := trace.NewRing(64) //nolint:mnd // small ring for test
-	ring.Append(trace.TraceEvent{
-		Component: trace.ComponentMCP,
+	ring := telemetry.NewRing(64) //nolint:mnd // small ring for test
+	ring.Append(telemetry.TraceEvent{
+		Component: telemetry.ComponentMCP,
 		Action:    "call",
 		Server:    "scribe",
 		Tool:      "artifact",
 		Detail:    "get DJN-SPC-2026-001",
 		Latency:   42 * time.Millisecond, //nolint:mnd // test latency
 	})
-	ring.Append(trace.TraceEvent{
-		Component: trace.ComponentTool,
+	ring.Append(telemetry.TraceEvent{
+		Component: telemetry.ComponentTool,
 		Action:    "result",
 		Server:    "locus",
 		Tool:      "analysis",
@@ -178,7 +178,7 @@ func TestCellSight_Integration_EmptyProviders(t *testing.T) {
 
 	t.Run("debug_panel_empty_ring", func(t *testing.T) {
 		// DebugPanel with empty ring (no events appended).
-		ring := trace.NewRing(16) //nolint:mnd // small ring for test
+		ring := telemetry.NewRing(16) //nolint:mnd // small ring for test
 		panel := widgets.NewDebugPanel(ring)
 		fc := panel.CellSight()
 
@@ -247,9 +247,9 @@ func TestCellSight_Integration_EmptyProviders(t *testing.T) {
 func TestSightGate_False_NoInjection(t *testing.T) {
 	// Both real panels return SightGate() == true by default.
 	// Verify the gate check logic works by simulating the model.go pattern.
-	ring := trace.NewRing(16) //nolint:mnd // small ring for test
-	ring.Append(trace.TraceEvent{
-		Component: trace.ComponentMCP,
+	ring := telemetry.NewRing(16) //nolint:mnd // small ring for test
+	ring.Append(telemetry.TraceEvent{
+		Component: telemetry.ComponentMCP,
 		Action:    "call",
 		Detail:    "should appear",
 	})

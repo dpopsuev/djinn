@@ -9,20 +9,20 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // EmitBudgetSignals publishes exceeded budget signals to the signal bus.
-func EmitBudgetSignals(bus *signal.SignalBus, workstream string, signals []Signal) {
+func EmitBudgetSignals(bus *telemetry.SignalBus, workstream string, signals []Signal) {
 	exceeded := Exceeded(signals)
 	if len(exceeded) == 0 {
 		return
 	}
 
 	// Determine overall severity: any single exceeded = Yellow, 3+ = Red.
-	level := signal.Yellow
+	level := telemetry.Yellow
 	if len(exceeded) >= 3 { //nolint:mnd // 3 exceeded signals is a reasonable threshold for Red
-		level = signal.Red
+		level = telemetry.Red
 	}
 
 	details := make([]string, 0, len(exceeded))
@@ -30,11 +30,11 @@ func EmitBudgetSignals(bus *signal.SignalBus, workstream string, signals []Signa
 		details = append(details, fmt.Sprintf("%s: %.0f (threshold: %.0f)", exceeded[i].Metric, exceeded[i].Value, exceeded[i].Threshold))
 	}
 
-	bus.Emit(signal.Signal{
+	bus.Emit(telemetry.Signal{
 		Workstream: workstream,
 		Level:      level,
 		Source:     "review-budget",
-		Category:   signal.CategoryBudget,
+		Category:   telemetry.CategoryBudget,
 		Message:    "budget exceeded: " + strings.Join(details, ", "),
 	})
 }

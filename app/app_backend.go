@@ -21,10 +21,10 @@ import (
 	"syscall"
 
 	"github.com/dpopsuev/djinn/contextmgr"
-	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	"github.com/dpopsuev/djinn/hotswap"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -51,8 +51,8 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 	}
 
 	// Logging
-	logResult := djinnlog.Setup(djinnlog.Options{Verbose: *verbose})
-	log := djinnlog.For(logResult.Logger, "backend")
+	logResult := telemetry.Setup(telemetry.Options{Verbose: *verbose})
+	log := telemetry.For(logResult.Logger, "backend")
 	log.Info("starting backend", "socket", *socketPath)
 
 	// Connect to hub (or legacy shell) via Unix socket.

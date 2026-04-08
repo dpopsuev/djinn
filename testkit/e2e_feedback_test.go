@@ -9,7 +9,7 @@ import (
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/workspace"
 )
@@ -18,7 +18,7 @@ func TestE2E_FeedbackLoop_AlertToFixToRecovery(t *testing.T) {
 	// Setup: FeedbackStub with threshold=5.0, initial error_rate=0.3
 	feedback := stubs.NewFeedbackStub(5.0, map[string]float64{"error_rate": 0.3})
 	sandbox := stubs.NewStubSandbox()
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	cordons := broker.NewCordonRegistry()
 
 	orch := broker.NewSimpleOrchestrator(
@@ -30,7 +30,7 @@ func TestE2E_FeedbackLoop_AlertToFixToRecovery(t *testing.T) {
 		func(cfg artifact.ContractGateConfig) artifact.ContractGate {
 			return stubs.AlwaysPassGate()
 		},
-		func(s signal.Signal) { bus.Emit(s) },
+		func(s telemetry.Signal) { bus.Emit(s) },
 	)
 
 	op := stubs.NewStubOperatorPort()
@@ -62,7 +62,7 @@ func TestE2E_FeedbackLoop_AlertToFixToRecovery(t *testing.T) {
 		t.Fatalf("initial error_rate = %f, want 0.3", rate)
 	}
 	board := b.Andon()
-	if board.Level != signal.Green {
+	if board.Level != telemetry.Green {
 		t.Fatalf("initial Andon = %v, want Green", board.Level)
 	}
 

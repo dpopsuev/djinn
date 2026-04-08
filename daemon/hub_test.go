@@ -6,8 +6,7 @@ import (
 
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/review"
-	"github.com/dpopsuev/djinn/signal"
-	"github.com/dpopsuev/djinn/trace"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // --- HubCore nil-safety ---
@@ -16,13 +15,13 @@ func TestHubCore_NilSafe(t *testing.T) {
 	var core HubCore
 	// All methods must not panic with zero-value core.
 	core.Trace("action", "detail")
-	core.Emit(signal.Signal{Message: "test"})
+	core.Emit(telemetry.Signal{Message: "test"})
 	core.Render(DisplayMsg{Source: "test"})
 }
 
 func TestHubCore_Trace(t *testing.T) {
-	ring := trace.NewRing(100)
-	core := HubCore{Tracer: ring.For(trace.ComponentTool)}
+	ring := telemetry.NewRing(100)
+	core := HubCore{Tracer: ring.For(telemetry.ComponentTool)}
 	core.Trace("build", "hub test")
 
 	events := ring.Last(10)
@@ -35,9 +34,9 @@ func TestHubCore_Trace(t *testing.T) {
 }
 
 func TestHubCore_Emit(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	core := HubCore{Signals: bus}
-	core.Emit(signal.Signal{Category: "test", Level: signal.Green, Source: "hub", Message: "ok"})
+	core.Emit(telemetry.Signal{Category: "test", Level: telemetry.Green, Source: "hub", Message: "ok"})
 
 	signals := bus.Signals()
 	if len(signals) != 1 {
@@ -132,11 +131,11 @@ func TestHubRegistry_Names(t *testing.T) {
 // --- PlanHub mediation ---
 
 func TestPlanHub_AddSegment_Mediation(t *testing.T) {
-	bus := signal.NewSignalBus()
-	ring := trace.NewRing(100)
+	bus := telemetry.NewSignalBus()
+	ring := telemetry.NewRing(100)
 	spy := &spyDisplay{}
 	core := HubCore{
-		Tracer:  ring.For(trace.ComponentTool),
+		Tracer:  ring.For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: spy,
 	}
@@ -180,7 +179,7 @@ func TestPlanHub_AddSegment_Mediation(t *testing.T) {
 }
 
 func TestPlanHub_Complete_Mediation(t *testing.T) {
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	core := HubCore{Signals: bus, Display: NopDisplaySender{}}
 	graph := artifact.NewGraph("test", artifact.DefaultRegistry())
 	ph := NewPlanHub(core, graph)
@@ -219,10 +218,10 @@ func TestPlanHub_WithExternalPlanner(t *testing.T) {
 // --- CodeHub mediation ---
 
 func TestCodeHub_RecordChange_Mediation(t *testing.T) {
-	ring := trace.NewRing(100)
+	ring := telemetry.NewRing(100)
 	spy := &spyDisplay{}
 	core := HubCore{
-		Tracer:  ring.For(trace.ComponentTool),
+		Tracer:  ring.For(telemetry.ComponentTool),
 		Display: spy,
 	}
 

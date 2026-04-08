@@ -3,7 +3,7 @@ package broker
 import (
 	"testing"
 
-	"github.com/dpopsuev/djinn/signal"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
@@ -16,7 +16,7 @@ func TestWorkstreamRegistry_RegisterAndGet(t *testing.T) {
 		Action:   "fix",
 		Status:   WorkstreamRunning,
 		Scopes:   []workspace.TierScope{{Level: workspace.Mod, Name: "auth"}},
-		Health:   signal.Green,
+		Health:   telemetry.Green,
 	})
 
 	ws, ok := r.Get("ws-1")
@@ -192,7 +192,7 @@ func TestWorkstreamRegistry_ActiveCount(t *testing.T) {
 
 func TestWorkstreamRegistry_PerWorkstreamBus(t *testing.T) {
 	r := NewWorkstreamRegistry()
-	bus := signal.NewSignalBus()
+	bus := telemetry.NewSignalBus()
 	r.Register(&WorkstreamInfo{ID: "ws-1", Status: WorkstreamRunning, Bus: bus})
 
 	ws, _ := r.Get("ws-1")
@@ -200,7 +200,7 @@ func TestWorkstreamRegistry_PerWorkstreamBus(t *testing.T) {
 		t.Fatal("Bus should be set")
 	}
 
-	ws.Bus.Emit(signal.Signal{Workstream: "ws-1", Level: signal.Green})
+	ws.Bus.Emit(telemetry.Signal{Workstream: "ws-1", Level: telemetry.Green})
 	if len(ws.Bus.Signals()) != 1 {
 		t.Fatalf("per-workstream bus signals = %d, want 1", len(ws.Bus.Signals()))
 	}

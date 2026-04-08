@@ -12,7 +12,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/dpopsuev/djinn/trace"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tui/core"
 
 	tui "github.com/dpopsuev/djinn/tui"
@@ -21,14 +21,14 @@ import (
 // DebugPanel displays the live trace event stream.
 type DebugPanel struct {
 	id      string
-	ring    *trace.Ring
+	ring    *telemetry.Ring
 	focused bool
 	scroll  int // offset from newest (0 = bottom)
 	limit   int // max events to display
 }
 
 // NewDebugPanel creates a debug panel backed by a trace ring.
-func NewDebugPanel(ring *trace.Ring) *DebugPanel {
+func NewDebugPanel(ring *telemetry.Ring) *DebugPanel {
 	return &DebugPanel{
 		id:    "debug",
 		ring:  ring,
@@ -105,7 +105,7 @@ func (p *DebugPanel) View(width int) string {
 	return b.String()
 }
 
-func formatTraceEvent(e *trace.TraceEvent, _ int) string {
+func formatTraceEvent(e *telemetry.TraceEvent, _ int) string {
 	comp := padRight(string(e.Component), 6)
 	action := padRight(e.Action, 7)
 

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 	testmcp "github.com/dpopsuev/djinn/testkit/mcp"
 )
 
@@ -126,7 +126,7 @@ func TestMCP_Response_IsErrorFlag(t *testing.T) {
 // --- TSK-598: MCP identity validation tests ---
 
 func TestMCP_RejectsUnknownServer(t *testing.T) {
-	c := New(djinnlog.Nop())
+	c := New(telemetry.Nop())
 	defer c.Close()
 
 	// Call with a server name that was never connected.
@@ -151,7 +151,7 @@ func TestMCP_ServerInitializeValidation(t *testing.T) {
 	defer srv.Close()
 
 	// Connect — this should trigger: initialize → notifications/initialized → tools/list.
-	c := New(djinnlog.Nop())
+	c := New(telemetry.Nop())
 	defer c.Close()
 
 	if err := c.ConnectHTTP(context.Background(), "test-mock", srv.URL); err != nil {

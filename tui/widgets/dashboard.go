@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tui/core"
 	"github.com/dpopsuev/djinn/tui/design"
 
@@ -137,17 +137,17 @@ func (p *DashboardPanel) Update(msg tea.Msg) (core.Panel, tea.Cmd) {
 		p.andon = msg.State
 		if msg.State.Level != prev {
 			slog.InfoContext(context.Background(), "andon level change",
-				slog.String(djinnlog.KeyComponent, "dashboard"),
-				slog.String(djinnlog.KeyFrom, prev.String()),
-				slog.String(djinnlog.KeyTo, msg.State.Level.String()),
-				slog.String(djinnlog.KeyAgent, msg.State.Source),
+				slog.String(telemetry.KeyComponent, "dashboard"),
+				slog.String(telemetry.KeyFrom, prev.String()),
+				slog.String(telemetry.KeyTo, msg.State.Level.String()),
+				slog.String(telemetry.KeyAgent, msg.State.Source),
 			)
 		}
 		if tui.ShouldCordon(msg.State.Level) {
 			slog.WarnContext(context.Background(), "cordon triggered by andon",
-				slog.String(djinnlog.KeyComponent, "dashboard"),
-				slog.String(djinnlog.KeyAgent, msg.State.Source),
-				slog.String(djinnlog.KeyReason, msg.State.Message),
+				slog.String(telemetry.KeyComponent, "dashboard"),
+				slog.String(telemetry.KeyAgent, msg.State.Source),
+				slog.String(telemetry.KeyReason, msg.State.Message),
 			)
 			return p, func() tea.Msg {
 				return tui.CordonMsg{

@@ -5,15 +5,14 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/artifact"
-	"github.com/dpopsuev/djinn/signal"
-	"github.com/dpopsuev/djinn/trace"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 func TestPlanHub_SyncOnAdd(t *testing.T) {
 	spy := &spyPlanner{}
 	core := HubCore{
-		Tracer:  trace.NewRing(100).For(trace.ComponentTool),
-		Signals: signal.NewSignalBus(),
+		Tracer:  telemetry.NewRing(100).For(telemetry.ComponentTool),
+		Signals: telemetry.NewSignalBus(),
 		Display: NopDisplaySender{},
 	}
 	ph := NewPlanHub(core, artifact.NewGraph("sync-test", artifact.DefaultRegistry()))
@@ -30,8 +29,8 @@ func TestPlanHub_SyncOnAdd(t *testing.T) {
 func TestPlanHub_SyncOnComplete(t *testing.T) {
 	spy := &spyPlanner{}
 	core := HubCore{
-		Tracer:  trace.NewRing(100).For(trace.ComponentTool),
-		Signals: signal.NewSignalBus(),
+		Tracer:  telemetry.NewRing(100).For(telemetry.ComponentTool),
+		Signals: telemetry.NewSignalBus(),
 		Display: NopDisplaySender{},
 	}
 	graph := artifact.NewGraph("sync-test", artifact.DefaultRegistry())

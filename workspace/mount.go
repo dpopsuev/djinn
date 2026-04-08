@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // Sentinel errors for mount operations.
@@ -63,7 +63,7 @@ func (t *MountTable) Mount(virtual, host string, readOnly bool, scopeType ScopeT
 	for _, e := range t.entries {
 		if e.VirtualPath == virtual {
 			t.log.WarnContext(context.Background(), "mount conflict",
-				slog.String(djinnlog.KeyPath, virtual),
+				slog.String(telemetry.KeyPath, virtual),
 				"existing_host", e.HostPath,
 				"requested_host", host,
 			)
@@ -79,7 +79,7 @@ func (t *MountTable) Mount(virtual, host string, readOnly bool, scopeType ScopeT
 	})
 
 	t.log.InfoContext(context.Background(), "mounted",
-		slog.String(djinnlog.KeyPath, virtual),
+		slog.String(telemetry.KeyPath, virtual),
 		"host", host,
 		"readonly", readOnly,
 		"scope_type", string(scopeType),
@@ -100,14 +100,14 @@ func (t *MountTable) Unmount(virtual string) error {
 		if e.VirtualPath == virtual {
 			t.entries = append(t.entries[:i], t.entries[i+1:]...)
 			t.log.InfoContext(context.Background(), "unmounted",
-				slog.String(djinnlog.KeyPath, virtual),
+				slog.String(telemetry.KeyPath, virtual),
 				"host", e.HostPath,
 			)
 			return nil
 		}
 	}
 
-	t.log.WarnContext(context.Background(), "unmount not found", slog.String(djinnlog.KeyPath, virtual))
+	t.log.WarnContext(context.Background(), "unmount not found", slog.String(telemetry.KeyPath, virtual))
 	return fmt.Errorf("%w: %s", ErrNotMounted, virtual)
 }
 

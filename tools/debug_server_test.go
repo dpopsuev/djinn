@@ -5,50 +5,50 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/trace"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
-func seedRing() *trace.Ring {
-	r := trace.NewRing(100)
-	parentID := r.Append(trace.TraceEvent{
-		Component: trace.ComponentAgent,
+func seedRing() *telemetry.Ring {
+	r := telemetry.NewRing(100)
+	parentID := r.Append(telemetry.TraceEvent{
+		Component: telemetry.ComponentAgent,
 		Action:    "turn",
 		Detail:    "turn 1/5",
 	})
-	r.Append(trace.TraceEvent{
+	r.Append(telemetry.TraceEvent{
 		ParentID:  parentID,
-		Component: trace.ComponentMCP,
+		Component: telemetry.ComponentMCP,
 		Action:    "call",
 		Server:    "scribe",
 		Tool:      "artifact.list",
 		Detail:    "artifact.list on scribe",
 	})
-	r.Append(trace.TraceEvent{
+	r.Append(telemetry.TraceEvent{
 		ParentID:  parentID,
-		Component: trace.ComponentMCP,
+		Component: telemetry.ComponentMCP,
 		Action:    "call_done",
 		Server:    "scribe",
 		Tool:      "artifact.list",
 		Latency:   42 * time.Millisecond,
 	})
-	r.Append(trace.TraceEvent{
+	r.Append(telemetry.TraceEvent{
 		ParentID:  parentID,
-		Component: trace.ComponentMCP,
+		Component: telemetry.ComponentMCP,
 		Action:    "call",
 		Server:    "locus",
 		Tool:      "codograph.scan",
 	})
-	r.Append(trace.TraceEvent{
+	r.Append(telemetry.TraceEvent{
 		ParentID:  parentID,
-		Component: trace.ComponentMCP,
+		Component: telemetry.ComponentMCP,
 		Action:    "call_done",
 		Server:    "locus",
 		Tool:      "codograph.scan",
 		Latency:   1200 * time.Millisecond,
 		Error:     true,
 	})
-	r.Append(trace.TraceEvent{
-		Component: trace.ComponentSignal,
+	r.Append(telemetry.TraceEvent{
+		Component: telemetry.ComponentSignal,
 		Action:    "emit",
 		Detail:    "budget yellow from budget-watchdog",
 	})
@@ -62,7 +62,7 @@ func TestHandleStats(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var stats trace.RingStats
+	var stats telemetry.RingStats
 	if err := json.Unmarshal([]byte(out), &stats); err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestHandleList(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var events []trace.TraceEvent
+	var events []telemetry.TraceEvent
 	if err := json.Unmarshal([]byte(out), &events); err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestHandleListByComponent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var events []trace.TraceEvent
+	var events []telemetry.TraceEvent
 	if err := json.Unmarshal([]byte(out), &events); err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestHandleGet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var event trace.TraceEvent
+	var event telemetry.TraceEvent
 	if err := json.Unmarshal([]byte(out), &event); err != nil {
 		t.Fatal(err)
 	}
@@ -135,8 +135,8 @@ func TestHandleTree(t *testing.T) {
 	}
 
 	var tree struct {
-		Root     *trace.TraceEvent  `json:"root"`
-		Children []trace.TraceEvent `json:"children"`
+		Root     *telemetry.TraceEvent  `json:"root"`
+		Children []telemetry.TraceEvent `json:"children"`
 	}
 	if err := json.Unmarshal([]byte(out), &tree); err != nil {
 		t.Fatal(err)

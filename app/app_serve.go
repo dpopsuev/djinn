@@ -16,8 +16,8 @@ import (
 	"log/slog"
 
 	"github.com/dpopsuev/djinn/agent"
-	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/policy"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -26,13 +26,13 @@ import (
 func RunServe(_ []string, stderr io.Writer) error {
 	log := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	log.InfoContext(context.Background(), "djinn serve starting",
-		slog.String(djinnlog.KeyComponent, "serve"))
+		slog.String(telemetry.KeyComponent, "serve"))
 
 	// Build tool registry.
 	registry := builtin.NewRegistry()
 
 	// PolicyEnforcer + token for serve mode — security by construction.
-	enforcer := policy.NewDefaultToolPolicyEnforcer(djinnlog.For(log, "policy"))
+	enforcer := policy.NewDefaultToolPolicyEnforcer(telemetry.For(log, "policy"))
 	capToken := policy.CapabilityToken{
 		WritablePaths: []string{Getwd()},
 		DeniedPaths:   []string{"~/.ssh", "~/.gnupg", "~/.aws"},
@@ -40,7 +40,7 @@ func RunServe(_ []string, stderr io.Writer) error {
 
 	// Middleware: SymbolGraph enricher + WasteClassifier recorder.
 	symbolPopulator := agent.NewSymbolGraphPopulator(log, &agent.RegexProvider{})
-	wasteClassifier := agent.NewWasteClassifier(djinnlog.For(log, "waste"))
+	wasteClassifier := agent.NewWasteClassifier(telemetry.For(log, "waste"))
 
 	// Build envelope with all three layers.
 	envelope, err := agent.NewEnvelopeBuilder(registry).
@@ -63,8 +63,8 @@ func RunServe(_ []string, stderr io.Writer) error {
 	}
 
 	log.InfoContext(context.Background(), "djinn serve ready",
-		slog.String(djinnlog.KeyComponent, "serve"),
-		slog.Int(djinnlog.KeyCount, len(registry.Names())),
+		slog.String(telemetry.KeyComponent, "serve"),
+		slog.Int(telemetry.KeyCount, len(registry.Names())),
 	)
 
 	return server.Run(context.Background(), &mcp.StdioTransport{})

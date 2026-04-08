@@ -16,7 +16,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/dpopsuev/djinn/djinnlog"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // HookConfig defines a single hook entry — a shell command and the tools it applies to.
@@ -36,7 +36,7 @@ type HookRunner struct {
 // NewHookRunner creates a HookRunner from pre and post hook configs.
 func NewHookRunner(pre, post []HookConfig, log *slog.Logger) *HookRunner {
 	if log == nil {
-		log = djinnlog.Nop()
+		log = telemetry.Nop()
 	}
 	return &HookRunner{
 		preToolUse:  pre,
@@ -78,9 +78,9 @@ func (h *HookRunner) Check(ctx context.Context, tool string, input json.RawMessa
 		})
 		if err != nil {
 			h.log.Warn("hook payload marshal failed",
-				slog.String(djinnlog.KeyComponent, "hook"),
-				slog.String(djinnlog.KeyTool, tool),
-				slog.String(djinnlog.KeyError, err.Error()),
+				slog.String(telemetry.KeyComponent, "hook"),
+				slog.String(telemetry.KeyTool, tool),
+				slog.String(telemetry.KeyError, err.Error()),
 			)
 			continue
 		}
@@ -92,11 +92,11 @@ func (h *HookRunner) Check(ctx context.Context, tool string, input json.RawMessa
 		if runErr != nil && exitCode < 0 {
 			// Command failed to execute (not an exit code issue)
 			h.log.Warn("hook execution error",
-				slog.String(djinnlog.KeyComponent, "hook"),
-				slog.String(djinnlog.KeyTool, tool),
-				slog.String(djinnlog.KeyAction, "pre_tool_use"),
-				slog.String(djinnlog.KeyError, runErr.Error()),
-				slog.Duration(djinnlog.KeyDuration, elapsed),
+				slog.String(telemetry.KeyComponent, "hook"),
+				slog.String(telemetry.KeyTool, tool),
+				slog.String(telemetry.KeyAction, "pre_tool_use"),
+				slog.String(telemetry.KeyError, runErr.Error()),
+				slog.Duration(telemetry.KeyDuration, elapsed),
 			)
 			continue
 		}
@@ -104,11 +104,11 @@ func (h *HookRunner) Check(ctx context.Context, tool string, input json.RawMessa
 		switch exitCode {
 		case 0:
 			h.log.Debug("hook allowed",
-				slog.String(djinnlog.KeyComponent, "hook"),
-				slog.String(djinnlog.KeyTool, tool),
-				slog.String(djinnlog.KeyAction, "pre_tool_use"),
-				slog.String(djinnlog.KeyDecision, "allow"),
-				slog.Duration(djinnlog.KeyDuration, elapsed),
+				slog.String(telemetry.KeyComponent, "hook"),
+				slog.String(telemetry.KeyTool, tool),
+				slog.String(telemetry.KeyAction, "pre_tool_use"),
+				slog.String(telemetry.KeyDecision, "allow"),
+				slog.Duration(telemetry.KeyDuration, elapsed),
 			)
 		case hookDenyExitCode:
 			reason := stdout
@@ -116,21 +116,21 @@ func (h *HookRunner) Check(ctx context.Context, tool string, input json.RawMessa
 				reason = "denied by pre_tool_use hook"
 			}
 			h.log.Warn("hook denied",
-				slog.String(djinnlog.KeyComponent, "hook"),
-				slog.String(djinnlog.KeyTool, tool),
-				slog.String(djinnlog.KeyAction, "pre_tool_use"),
-				slog.String(djinnlog.KeyDecision, "deny"),
-				slog.Duration(djinnlog.KeyDuration, elapsed),
+				slog.String(telemetry.KeyComponent, "hook"),
+				slog.String(telemetry.KeyTool, tool),
+				slog.String(telemetry.KeyAction, "pre_tool_use"),
+				slog.String(telemetry.KeyDecision, "deny"),
+				slog.Duration(telemetry.KeyDuration, elapsed),
 			)
 			return ToolGateResult{Allowed: false, Reason: reason}, nil
 		default:
 			h.log.Warn("hook unexpected exit code",
-				slog.String(djinnlog.KeyComponent, "hook"),
-				slog.String(djinnlog.KeyTool, tool),
-				slog.String(djinnlog.KeyAction, "pre_tool_use"),
-				slog.String(djinnlog.KeyDecision, "warn"),
-				slog.Int(djinnlog.KeyExitCode, exitCode),
-				slog.Duration(djinnlog.KeyDuration, elapsed),
+				slog.String(telemetry.KeyComponent, "hook"),
+				slog.String(telemetry.KeyTool, tool),
+				slog.String(telemetry.KeyAction, "pre_tool_use"),
+				slog.String(telemetry.KeyDecision, "warn"),
+				slog.Int(telemetry.KeyExitCode, exitCode),
+				slog.Duration(telemetry.KeyDuration, elapsed),
 			)
 			// Other exit codes warn but continue
 		}
@@ -155,9 +155,9 @@ func (h *HookRunner) Record(_ context.Context, tool string, input json.RawMessag
 		})
 		if marshalErr != nil {
 			h.log.Warn("hook payload marshal failed",
-				slog.String(djinnlog.KeyComponent, "hook"),
-				slog.String(djinnlog.KeyTool, tool),
-				slog.String(djinnlog.KeyError, marshalErr.Error()),
+				slog.String(telemetry.KeyComponent, "hook"),
+				slog.String(telemetry.KeyTool, tool),
+				slog.String(telemetry.KeyError, marshalErr.Error()),
 			)
 			continue
 		}
@@ -168,18 +168,18 @@ func (h *HookRunner) Record(_ context.Context, tool string, input json.RawMessag
 
 		if runErr != nil {
 			h.log.Warn("post hook execution error",
-				slog.String(djinnlog.KeyComponent, "hook"),
-				slog.String(djinnlog.KeyTool, tool),
-				slog.String(djinnlog.KeyAction, "post_tool_use"),
-				slog.String(djinnlog.KeyError, runErr.Error()),
-				slog.Duration(djinnlog.KeyDuration, hookElapsed),
+				slog.String(telemetry.KeyComponent, "hook"),
+				slog.String(telemetry.KeyTool, tool),
+				slog.String(telemetry.KeyAction, "post_tool_use"),
+				slog.String(telemetry.KeyError, runErr.Error()),
+				slog.Duration(telemetry.KeyDuration, hookElapsed),
 			)
 		} else {
 			h.log.Debug("post hook completed",
-				slog.String(djinnlog.KeyComponent, "hook"),
-				slog.String(djinnlog.KeyTool, tool),
-				slog.String(djinnlog.KeyAction, "post_tool_use"),
-				slog.Duration(djinnlog.KeyDuration, hookElapsed),
+				slog.String(telemetry.KeyComponent, "hook"),
+				slog.String(telemetry.KeyTool, tool),
+				slog.String(telemetry.KeyAction, "post_tool_use"),
+				slog.Duration(telemetry.KeyDuration, hookElapsed),
 			)
 		}
 	}

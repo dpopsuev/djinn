@@ -30,8 +30,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/hotswap"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // DefaultHubSocket returns the default hub socket path.
@@ -62,10 +62,10 @@ func RunHub(args []string, stderr io.Writer) error {
 		socketPath = DefaultHubSocket()
 	}
 
-	logResult := djinnlog.Setup(djinnlog.Options{Verbose: true})
-	log := djinnlog.For(logResult.Logger, "hub")
+	logResult := telemetry.Setup(telemetry.Options{Verbose: true})
+	log := telemetry.For(logResult.Logger, "hub")
 
-	h, err := hotswap.NewHub(socketPath, djinnlog.For(log, "clutch"))
+	h, err := hotswap.NewHub(socketPath, telemetry.For(log, "clutch"))
 	if err != nil {
 		return fmt.Errorf("start hub: %w", err)
 	}

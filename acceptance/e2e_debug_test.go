@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/testkit"
 	"github.com/dpopsuev/djinn/tools"
 	"github.com/dpopsuev/djinn/tools/builtin"
-	"github.com/dpopsuev/djinn/trace"
 )
 
 func TestAgentSelfDebugging_TraceStats(t *testing.T) {
@@ -30,11 +30,11 @@ func TestAgentSelfDebugging_TraceStats(t *testing.T) {
 	}
 
 	// Create trace ring and debug server.
-	ring := trace.NewRing(100)
+	ring := telemetry.NewRing(100)
 	server := tools.NewServer(ring)
 
 	// Simulate some MCP activity.
-	tracer := ring.For(trace.ComponentMCP)
+	tracer := ring.For(telemetry.ComponentMCP)
 	for range 5 {
 		rt := tracer.Begin("call", "artifact.list on scribe").WithServer("scribe").WithTool("artifact.list")
 		time.Sleep(time.Millisecond)
@@ -47,7 +47,7 @@ func TestAgentSelfDebugging_TraceStats(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var stats trace.RingStats
+	var stats telemetry.RingStats
 	if err := json.Unmarshal([]byte(result), &stats); err != nil {
 		t.Fatalf("stats not valid JSON: %v", err)
 	}
@@ -58,11 +58,11 @@ func TestAgentSelfDebugging_TraceStats(t *testing.T) {
 }
 
 func TestAgentSelfDebugging_TraceHealth(t *testing.T) {
-	ring := trace.NewRing(100)
+	ring := telemetry.NewRing(100)
 	server := tools.NewServer(ring)
 
 	// Simulate errors on a server.
-	tracer := ring.For(trace.ComponentMCP)
+	tracer := ring.For(telemetry.ComponentMCP)
 	for range 5 {
 		rt := tracer.Begin("call", "codograph.scan on locus").WithServer("locus").WithTool("codograph.scan")
 		rt.EndWithError()
@@ -82,10 +82,10 @@ func TestAgentSelfDebugging_TraceHealth(t *testing.T) {
 }
 
 func TestAgentSelfDebugging_TraceList(t *testing.T) {
-	ring := trace.NewRing(100)
+	ring := telemetry.NewRing(100)
 	server := tools.NewServer(ring)
 
-	tracer := ring.For(trace.ComponentMCP)
+	tracer := ring.For(telemetry.ComponentMCP)
 	rt := tracer.Begin("call", "artifact.get on scribe").WithServer("scribe").WithTool("artifact.get")
 	rt.End()
 
@@ -94,7 +94,7 @@ func TestAgentSelfDebugging_TraceList(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var events []trace.TraceEvent
+	var events []telemetry.TraceEvent
 	if err := json.Unmarshal([]byte(result), &events); err != nil {
 		t.Fatalf("list not valid JSON: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestAgentSelfDebugging_TraceList(t *testing.T) {
 }
 
 func TestAgentSelfDebugging_BuiltinTool(t *testing.T) {
-	ring := trace.NewRing(100)
+	ring := telemetry.NewRing(100)
 
 	// Register via the same path app/ uses.
 	registry := builtin.NewRegistry()
@@ -124,7 +124,7 @@ func TestAgentSelfDebugging_BuiltinTool(t *testing.T) {
 	}
 
 	// Simulate activity.
-	tracer := ring.For(trace.ComponentAgent)
+	tracer := ring.For(telemetry.ComponentAgent)
 	rt := tracer.Begin("turn", "turn 1/5")
 	rt.End()
 

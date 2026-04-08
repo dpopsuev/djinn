@@ -17,10 +17,10 @@ import (
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/daemon"
-	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/policy"
+	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/terminal"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
@@ -174,9 +174,9 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 
 	log := cfg.Log
 	if log == nil {
-		log = djinnlog.Nop()
+		log = telemetry.Nop()
 	}
-	log = djinnlog.For(log, "repl")
+	log = telemetry.For(log, "repl")
 
 	m := Model{
 		chatDriver:    cfg.Driver,

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/telemetry"
 )
 
 // Spec: DJN-SPC-43 — Provider E2E Smoke Tests
@@ -24,7 +24,7 @@ func TestSmoke_ClaudeDirect_RoundTrip(t *testing.T) {
 	d, err := NewAPIDriver(driver.DriverConfig{
 		Model:     "claude-sonnet-4-6",
 		MaxTokens: 256,
-	}, WithLogger(djinnlog.Nop()))
+	}, WithLogger(telemetry.Nop()))
 	if err != nil {
 		t.Fatalf("NewAPIDriver: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestSmoke_ClaudeDirect_AuthFailure(t *testing.T) {
 	d, err := NewAPIDriver(driver.DriverConfig{
 		Model:     "claude-sonnet-4-6",
 		MaxTokens: 256,
-	}, WithLogger(djinnlog.Nop()))
+	}, WithLogger(telemetry.Nop()))
 	if err != nil {
 		t.Fatalf("NewAPIDriver: %v", err)
 	}
