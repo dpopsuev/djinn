@@ -8,14 +8,14 @@ package review
 import (
 	"strings"
 
-	"github.com/dpopsuev/djinn/render"
+	"github.com/dpopsuev/djinn/tui"
 )
 
 // Circuit represents a complete data flow path from entry point to exit.
 type Circuit struct {
 	Title      string
 	EntryPoint string
-	Stops      []render.CircuitStop
+	Stops      []tui.CircuitStop
 	Shared     []string // stop IDs also on other circuits
 }
 
@@ -106,7 +106,7 @@ func ExtractCircuits(changedFiles []string, deps []Dependency) []Circuit {
 	return circuits
 }
 
-func hasChangedStop(stops []render.CircuitStop) bool {
+func hasChangedStop(stops []tui.CircuitStop) bool {
 	for i := range stops {
 		if stops[i].Changed {
 			return true

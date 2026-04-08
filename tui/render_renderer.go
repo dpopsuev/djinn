@@ -2,7 +2,7 @@
 //
 // Strategy pattern: same DataFlowGraph renders to TUI, Mermaid, or JSON
 // via different Renderer implementations.
-package render
+package tui
 
 import (
 	"fmt"

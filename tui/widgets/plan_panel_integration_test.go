@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/artifact"
-	"github.com/dpopsuev/djinn/render"
+	"github.com/dpopsuev/djinn/tui"
 )
 
 // integrationGraph builds a realistic plan with 4 segments in different states,
@@ -243,7 +243,7 @@ func TestPlanPanel_Integration_EmptyGraph(t *testing.T) {
 func TestPlanPanel_Integration_DataFlowAdapter(t *testing.T) {
 	g := integrationGraph()
 
-	dfg := render.ArtifactGraphToDataFlow(g, "integration")
+	dfg := tui.ArtifactGraphToDataFlow(g, "integration")
 
 	// 4 segments → 4 nodes.
 	if len(dfg.Nodes) != 4 { //nolint:mnd // 4 segments
@@ -256,7 +256,7 @@ func TestPlanPanel_Integration_DataFlowAdapter(t *testing.T) {
 	}
 
 	// Verify node properties reflect artifact status.
-	nodeByID := make(map[string]render.Node, len(dfg.Nodes))
+	nodeByID := make(map[string]tui.Node, len(dfg.Nodes))
 	for _, n := range dfg.Nodes {
 		nodeByID[n.ID] = n
 	}

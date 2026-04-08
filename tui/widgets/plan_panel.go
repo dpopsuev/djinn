@@ -13,7 +13,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/artifact"
-	"github.com/dpopsuev/djinn/render"
 	tui "github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/tui/core"
 	"github.com/dpopsuev/djinn/tui/elements"
@@ -144,7 +143,7 @@ func (p *PlanPanel) renderOverview() string {
 	}
 
 	// Dependency diagram.
-	dfg := render.ArtifactGraphToDataFlow(p.graph, "")
+	dfg := tui.ArtifactGraphToDataFlow(p.graph, "")
 	if len(dfg.Edges) > 0 {
 		b.WriteString("\n")
 		depLine := renderDepChain(all)

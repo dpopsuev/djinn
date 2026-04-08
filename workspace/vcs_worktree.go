@@ -7,7 +7,7 @@
 //
 // Worktree location: <repoRoot>/.worktrees/<taskID>/
 // Branch naming: djinn/<taskID>
-package vcs
+package workspace
 
 import (
 	"context"

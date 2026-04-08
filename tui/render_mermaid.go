@@ -1,5 +1,5 @@
 // mermaid.go — Mermaid flowchart renderer (TSK-432).
-package render
+package tui
 
 import (
 	"fmt"

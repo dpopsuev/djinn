@@ -6,18 +6,18 @@
 package review
 
 import (
-	"github.com/dpopsuev/djinn/render"
+	"github.com/dpopsuev/djinn/tui"
 )
 
 // WalkCircuit performs DFS from an entry point, producing circuit stops.
-func WalkCircuit(entry EntryPoint, deps []Dependency, changedSet map[string]bool) []render.CircuitStop {
+func WalkCircuit(entry EntryPoint, deps []Dependency, changedSet map[string]bool) []tui.CircuitStop {
 	// Build adjacency list.
 	adj := make(map[string][]Dependency)
 	for i := range deps {
 		adj[deps[i].From] = append(adj[deps[i].From], deps[i])
 	}
 
-	var stops []render.CircuitStop
+	var stops []tui.CircuitStop
 	visited := make(map[string]bool)
 
 	var dfs func(node string)
@@ -28,7 +28,7 @@ func WalkCircuit(entry EntryPoint, deps []Dependency, changedSet map[string]bool
 		visited[node] = true
 
 		pkg, name := splitNode(node)
-		stops = append(stops, render.CircuitStop{
+		stops = append(stops, tui.CircuitStop{
 			ID:          node,
 			Name:        name,
 			Package:     pkg,

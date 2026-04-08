@@ -3,7 +3,7 @@ package review
 import (
 	"testing"
 
-	"github.com/dpopsuev/djinn/render"
+	"github.com/dpopsuev/djinn/tui"
 )
 
 func TestDetectEntryPoints(t *testing.T) {
@@ -126,7 +126,7 @@ func TestFormatTour_Summary(t *testing.T) {
 		{
 			Title:      "handler: Create",
 			EntryPoint: "handler.Create",
-			Stops: []render.CircuitStop{
+			Stops: []tui.CircuitStop{
 				{ID: "1", Name: "Create", Package: "handler", Changed: true},
 				{ID: "2", Name: "Validate", Package: "domain", PassThrough: true},
 			},
@@ -150,7 +150,7 @@ func TestFormatTour_Signatures(t *testing.T) {
 	circuits := []Circuit{
 		{
 			Title: "handler: Create",
-			Stops: []render.CircuitStop{
+			Stops: []tui.CircuitStop{
 				{ID: "1", Name: "Create", Package: "handler",
 					SignatureBefore: "(int) error",
 					SignatureAfter:  "(string) error",

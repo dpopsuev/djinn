@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/debug"
 	"github.com/dpopsuev/djinn/testkit"
+	"github.com/dpopsuev/djinn/tools"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/trace"
 )
@@ -31,7 +31,7 @@ func TestAgentSelfDebugging_TraceStats(t *testing.T) {
 
 	// Create trace ring and debug server.
 	ring := trace.NewRing(100)
-	server := debug.NewServer(ring)
+	server := tools.NewServer(ring)
 
 	// Simulate some MCP activity.
 	tracer := ring.For(trace.ComponentMCP)
@@ -42,7 +42,7 @@ func TestAgentSelfDebugging_TraceStats(t *testing.T) {
 	}
 
 	// Query stats via debug server (same path the agent would take).
-	result, err := server.Handle(debug.TraceInput{Action: "stats"})
+	result, err := server.Handle(tools.TraceInput{Action: "stats"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestAgentSelfDebugging_TraceStats(t *testing.T) {
 
 func TestAgentSelfDebugging_TraceHealth(t *testing.T) {
 	ring := trace.NewRing(100)
-	server := debug.NewServer(ring)
+	server := tools.NewServer(ring)
 
 	// Simulate errors on a server.
 	tracer := ring.For(trace.ComponentMCP)
@@ -68,7 +68,7 @@ func TestAgentSelfDebugging_TraceHealth(t *testing.T) {
 		rt.EndWithError()
 	}
 
-	result, err := server.Handle(debug.TraceInput{Action: "health"})
+	result, err := server.Handle(tools.TraceInput{Action: "health"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,13 +83,13 @@ func TestAgentSelfDebugging_TraceHealth(t *testing.T) {
 
 func TestAgentSelfDebugging_TraceList(t *testing.T) {
 	ring := trace.NewRing(100)
-	server := debug.NewServer(ring)
+	server := tools.NewServer(ring)
 
 	tracer := ring.For(trace.ComponentMCP)
 	rt := tracer.Begin("call", "artifact.get on scribe").WithServer("scribe").WithTool("artifact.get")
 	rt.End()
 
-	result, err := server.Handle(debug.TraceInput{Action: "list", Limit: 5})
+	result, err := server.Handle(tools.TraceInput{Action: "list", Limit: 5})
 	if err != nil {
 		t.Fatal(err)
 	}

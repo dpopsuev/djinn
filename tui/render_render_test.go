@@ -1,4 +1,4 @@
-package render
+package tui
 
 import (
 	"encoding/json"

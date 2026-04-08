@@ -2,7 +2,7 @@
 //
 // Like CircuitToGraph() but for artifact dependency visualization.
 // Artifacts become nodes (status → Changed flag). DependsOn become edges.
-package render
+package tui
 
 import (
 	"github.com/dpopsuev/djinn/artifact"

@@ -1,5 +1,5 @@
 // json_renderer.go — Machine-readable JSON renderer (TSK-433).
-package render
+package tui
 
 import "encoding/json"
 

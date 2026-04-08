@@ -2,7 +2,7 @@
 //
 // Provides djinn_trace tool with actions: list, get, tree, health, stats.
 // Runs as a JSON-RPC stdio server, spawned by djinn --debug or :debug on.
-package debug
+package tools
 
 import (
 	"encoding/json"
@@ -171,7 +171,7 @@ func (s *Server) handleHealth() (string, error) {
 		p95 := 0.0
 		if len(s.latencies) > 0 {
 			avg = mean(s.latencies)
-			p95 = percentile(s.latencies, 95) //nolint:mnd // p95
+			p95 = debugPercentile(s.latencies, 95) //nolint:mnd // p95
 		}
 		health = append(health, serverHealth{
 			Server:   name,
@@ -209,7 +209,7 @@ func mean(vals []float64) float64 {
 	return sum / float64(len(vals))
 }
 
-func percentile(vals []float64, pct int) float64 {
+func debugPercentile(vals []float64, pct int) float64 {
 	if len(vals) == 0 {
 		return 0
 	}

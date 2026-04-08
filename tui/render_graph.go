@@ -3,7 +3,7 @@
 // Pure value types with no external dependencies. Represents a data flow graph
 // as nodes (functions, types, packages) and directed edges (calls, data flow).
 // Used by the Visual Reviewer to render circuit-based code review tours.
-package render
+package tui
 
 // NodeKind classifies what a graph node represents.
 type NodeKind string

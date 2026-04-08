@@ -31,7 +31,7 @@ import (
 	"github.com/dpopsuev/djinn/tui/widgets"
 	"github.com/dpopsuev/djinn/uniform"
 	"github.com/dpopsuev/djinn/uniform/memory"
-	"github.com/dpopsuev/djinn/vcs"
+	"github.com/dpopsuev/djinn/workspace"
 )
 
 // Frame rate for streaming — 20fps is smooth enough for text, reduces jitter.
@@ -119,7 +119,7 @@ type Model struct {
 	router *uniform.ToolClearance // capability-filtered tool dispatch (nil = raw registry)
 
 	// Worktree isolation for executor tasks
-	worktreeMgr    *vcs.WorktreeManager
+	worktreeMgr    *workspace.WorktreeManager
 	activeWorktree string // current worktree path (empty = main repo)
 
 	// Keybindings
@@ -211,7 +211,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		initialPrompt:  cfg.InitialPrompt,
 		version:        cfg.Version,
 		router:         cfg.Router,
-		worktreeMgr:    vcs.NewWorktreeManager(cfg.Session.WorkDir, nil),
+		worktreeMgr:    workspace.NewWorktreeManager(cfg.Session.WorkDir, nil),
 		tuiRecorder:    cfg.TUIRecorder,
 		chunkedBuf:     &strings.Builder{},
 		rawStreamLine:  &strings.Builder{},

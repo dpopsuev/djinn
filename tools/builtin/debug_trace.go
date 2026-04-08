@@ -1,4 +1,4 @@
-// debug_trace.go — Builtin tool wrapping the debug.Server for self-debugging.
+// debug_trace.go — Builtin tool wrapping the tools.Server for self-debugging.
 //
 // Exposes djinn_trace as a builtin tool so the agent can query its own
 // trace ring. Actions: list, get, tree, health, stats.
@@ -8,12 +8,12 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/dpopsuev/djinn/debug"
+	"github.com/dpopsuev/djinn/tools"
 )
 
-// DebugTraceTool wraps debug.Server as a builtin tool.
+// DebugTraceTool wraps tools.Server as a builtin tool.
 type DebugTraceTool struct {
-	Server *debug.Server
+	Server *tools.Server
 }
 
 // Name returns the tool name.
@@ -45,7 +45,7 @@ func (t *DebugTraceTool) Execute(_ context.Context, input json.RawMessage) (stri
 		return "trace not enabled", nil
 	}
 
-	var params debug.TraceInput
+	var params tools.TraceInput
 	if err := json.Unmarshal(input, &params); err != nil {
 		return "invalid input: " + err.Error(), nil //nolint:nilerr // user-facing error, not Go error
 	}

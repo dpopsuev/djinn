@@ -10,7 +10,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/dpopsuev/djinn/render"
 	"github.com/dpopsuev/djinn/review"
 	"github.com/dpopsuev/djinn/tui/core"
 
@@ -24,7 +23,7 @@ type TourPanel struct {
 	focused  bool
 	circuit  int // current circuit index
 	stop     int // current stop index
-	renderer render.Renderer
+	renderer tui.Renderer
 	width    int
 }
 
@@ -34,7 +33,7 @@ func NewTourPanel() *TourPanel {
 		id:       "tour",
 		circuit:  0,
 		stop:     0,
-		renderer: render.NewTUIRenderer(),
+		renderer: tui.NewTUIRenderer(),
 	}
 }
 

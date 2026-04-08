@@ -5,8 +5,6 @@ package uniform
 
 import (
 	"time"
-
-	"github.com/dpopsuev/djinn/broker"
 )
 
 // Mode constants — string aliases matching agent.Mode names.
@@ -107,21 +105,6 @@ func Secretary(scope AssignmentScope) Assignment {
 		Capabilities: secretaryCapabilities,
 		Persona:      RolePersona[RoleExecutor],
 		Scope:        scope,
-	}
-}
-
-// ToUnit converts to broker.Unit for formation instantiation.
-func (a Assignment) ToUnit() broker.Unit {
-	return broker.Unit{
-		Role: a.Role,
-		Scope: broker.UnitScope{
-			RO: a.Scope.ReadPaths,
-			RW: a.Scope.WritePaths,
-		},
-		Budget: broker.Budget{
-			Tokens:    a.Budget.MaxTokens,
-			WallClock: a.Budget.MaxDuration,
-		},
 	}
 }
 

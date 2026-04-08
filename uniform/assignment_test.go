@@ -3,7 +3,6 @@ package uniform
 import (
 	"slices"
 	"testing"
-	"time"
 )
 
 func TestPrimordialGenSec(t *testing.T) {
@@ -109,39 +108,6 @@ func TestSecretary(t *testing.T) {
 		if !slices.Contains(s.Capabilities, required) {
 			t.Errorf("Secretary missing required capability %q", required)
 		}
-	}
-}
-
-func TestToUnit(t *testing.T) {
-	a := Assignment{
-		Role: RoleExecutor,
-		Mode: ModeAgent,
-		Scope: AssignmentScope{
-			ReadPaths:  []string{"/src"},
-			WritePaths: []string{"/src/out"},
-		},
-		Budget: AssignmentBudget{
-			MaxTokens:   50000,
-			MaxDuration: 5 * time.Minute,
-		},
-	}
-
-	u := a.ToUnit()
-
-	if u.Role != RoleExecutor {
-		t.Fatalf("Unit.Role = %q, want %q", u.Role, RoleExecutor)
-	}
-	if len(u.Scope.RO) != 1 || u.Scope.RO[0] != "/src" {
-		t.Fatalf("Unit.Scope.RO = %v, want [/src]", u.Scope.RO)
-	}
-	if len(u.Scope.RW) != 1 || u.Scope.RW[0] != "/src/out" {
-		t.Fatalf("Unit.Scope.RW = %v, want [/src/out]", u.Scope.RW)
-	}
-	if u.Budget.Tokens != 50000 {
-		t.Fatalf("Unit.Budget.Tokens = %d, want 50000", u.Budget.Tokens)
-	}
-	if u.Budget.WallClock != 5*time.Minute {
-		t.Fatalf("Unit.Budget.WallClock = %v, want 5m", u.Budget.WallClock)
 	}
 }
 

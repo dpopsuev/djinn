@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dpopsuev/djinn/render"
+	"github.com/dpopsuev/djinn/tui"
 )
 
 // TourMode controls how circuit stops are presented.
@@ -78,7 +78,7 @@ func FormatTour(circuits []Circuit, mode TourMode) *TourView {
 	return view
 }
 
-func formatStopDetail(s *render.CircuitStop, mode TourMode) string {
+func formatStopDetail(s *tui.CircuitStop, mode TourMode) string {
 	switch mode {
 	case ModeSummary:
 		return ""

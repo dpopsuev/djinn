@@ -2,7 +2,7 @@
 //
 // Provides builder functions and the CircuitStop contract used by the
 // Visual Reviewer (GOL-50, Wave 3) to convert circuits into renderable graphs.
-package render
+package tui
 
 // CircuitStop represents a single stop on a data flow circuit.
 // Defined here so render/ owns the contract; review/ produces them.

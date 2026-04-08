@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 
 	"github.com/dpopsuev/djinn/artifact"
-	"github.com/dpopsuev/djinn/debug"
 	"github.com/dpopsuev/djinn/tools"
 	"github.com/dpopsuev/djinn/trace"
 )
@@ -39,5 +38,5 @@ func RegisterDebugTrace(reg *Registry, ring *trace.Ring) {
 	if ring == nil {
 		return
 	}
-	reg.Register(&DebugTraceTool{Server: debug.NewServer(ring)})
+	reg.Register(&DebugTraceTool{Server: tools.NewServer(ring)})
 }
