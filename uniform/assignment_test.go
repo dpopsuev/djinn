@@ -3,6 +3,8 @@ package uniform
 import (
 	"slices"
 	"testing"
+
+	"github.com/dpopsuev/djinn/uniform/persona"
 )
 
 func TestPrimordialGenSec(t *testing.T) {
@@ -14,8 +16,8 @@ func TestPrimordialGenSec(t *testing.T) {
 	if a.Mode != ModeAuto {
 		t.Fatalf("Mode = %q, want %q", a.Mode, ModeAuto)
 	}
-	if a.Persona != RolePersona[RoleGenSec] {
-		t.Fatalf("Persona = %q, want %q", a.Persona, RolePersona[RoleGenSec])
+	if a.Persona != persona.RolePersona[RoleGenSec] {
+		t.Fatalf("Persona = %q, want %q", a.Persona, persona.RolePersona[RoleGenSec])
 	}
 
 	// Must have capabilities from DefaultConfig gensec role.
@@ -49,8 +51,8 @@ func TestBroker(t *testing.T) {
 	if b.Mode != ModeAgent {
 		t.Fatalf("Mode = %q, want %q", b.Mode, ModeAgent)
 	}
-	if b.Persona != RolePersona[RoleGenSec] {
-		t.Fatalf("Persona = %q, want %q", b.Persona, RolePersona[RoleGenSec])
+	if b.Persona != persona.RolePersona[RoleGenSec] {
+		t.Fatalf("Persona = %q, want %q", b.Persona, persona.RolePersona[RoleGenSec])
 	}
 
 	// Broker has intake-only capabilities — no execution tools.
@@ -88,8 +90,8 @@ func TestSecretary(t *testing.T) {
 	if s.Mode != ModeAgent {
 		t.Fatalf("Mode = %q, want %q", s.Mode, ModeAgent)
 	}
-	if s.Persona != RolePersona[RoleExecutor] {
-		t.Fatalf("Persona = %q, want %q", s.Persona, RolePersona[RoleExecutor])
+	if s.Persona != persona.RolePersona[RoleExecutor] {
+		t.Fatalf("Persona = %q, want %q", s.Persona, persona.RolePersona[RoleExecutor])
 	}
 
 	// Scope passed through.
@@ -203,7 +205,7 @@ func TestDefaultAssignmentScheduler(t *testing.T) {
 			}
 
 			// Verify persona is set.
-			wantPersona := RolePersona[wantRole]
+			wantPersona := persona.RolePersona[wantRole]
 			if a.Persona != wantPersona {
 				t.Errorf("PlanAssignments(%q)[%d].Persona = %q, want %q",
 					tt.gear, i, a.Persona, wantPersona)

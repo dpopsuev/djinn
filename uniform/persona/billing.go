@@ -1,5 +1,5 @@
 // billing.go — per-agent token billing via Bugle Tracker.
-package uniform
+package persona
 
 import (
 	"fmt"

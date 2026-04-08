@@ -1,5 +1,5 @@
 // world.go — initializes Bugle facade for Djinn's agent state management.
-package uniform
+package persona
 
 import "github.com/dpopsuev/djinn/jerichoport"
 

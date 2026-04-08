@@ -1,6 +1,6 @@
 // persona.go — maps Djinn staff roles to Bugle personas.
 // Each role gets a stable persona identity that persists across LLM hotswap.
-package uniform
+package persona
 
 import "github.com/dpopsuev/djinn/jerichoport"
 

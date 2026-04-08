@@ -8,8 +8,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"sync"
 	"time"
+
+	"github.com/dpopsuev/djinn/uniform/persona"
 )
 
 // ErrPreFlightFailed is returned when a required pre-flight action fails.
@@ -42,7 +45,7 @@ func (e *Envelope) PreFlightAssignment() Assignment {
 		Role:    RoleGenSec,
 		Mode:    ModeAsk,
 		Scope:   AssignmentScope{ReadPaths: []string{"/"}},
-		Persona: RolePersona[RoleGenSec],
+		Persona: persona.RolePersona[RoleGenSec],
 	}
 }
 
@@ -52,7 +55,7 @@ func (e *Envelope) PostFlightAssignment() Assignment {
 		Role:    RoleInspector,
 		Mode:    ModeAsk,
 		Scope:   AssignmentScope{ReadPaths: []string{"/"}},
-		Persona: RolePersona[RoleInspector],
+		Persona: persona.RolePersona[RoleInspector],
 	}
 }
 

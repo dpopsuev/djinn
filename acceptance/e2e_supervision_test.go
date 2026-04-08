@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/jerichoport"
-	"github.com/dpopsuev/djinn/uniform"
+	"github.com/dpopsuev/djinn/uniform/persona"
 )
 
 // mockLauncher tracks Start/Stop calls for process supervision E2E testing.
@@ -49,7 +49,7 @@ func (m *mockLauncher) Healthy(_ context.Context, id jerichoport.EntityID) bool 
 func TestE2E_ProcessSupervision(t *testing.T) {
 	ctx := context.Background()
 	launcher := newMockLauncher()
-	sw := uniform.NewStaffWorld(launcher)
+	sw := persona.NewStaffWorld(launcher)
 
 	// Escape hatch for operations the facade doesn't expose yet.
 	pool := sw.Pool()

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"github.com/dpopsuev/djinn/uniform/persona"
 )
 
 func mockExecutor(outputs map[string]string, errs map[string]error) PhaseExecutor {
@@ -132,8 +134,8 @@ func TestPreFlightAssignment(t *testing.T) {
 	if a.Scope.WritePaths != nil {
 		t.Fatalf("WritePaths = %v, want nil", a.Scope.WritePaths)
 	}
-	if a.Persona != RolePersona[RoleGenSec] {
-		t.Fatalf("Persona = %q, want %q", a.Persona, RolePersona[RoleGenSec])
+	if a.Persona != persona.RolePersona[RoleGenSec] {
+		t.Fatalf("Persona = %q, want %q", a.Persona, persona.RolePersona[RoleGenSec])
 	}
 }
 
@@ -153,8 +155,8 @@ func TestPostFlightAssignment(t *testing.T) {
 	if a.Scope.WritePaths != nil {
 		t.Fatalf("WritePaths = %v, want nil", a.Scope.WritePaths)
 	}
-	if a.Persona != RolePersona[RoleInspector] {
-		t.Fatalf("Persona = %q, want %q", a.Persona, RolePersona[RoleInspector])
+	if a.Persona != persona.RolePersona[RoleInspector] {
+		t.Fatalf("Persona = %q, want %q", a.Persona, persona.RolePersona[RoleInspector])
 	}
 }
 

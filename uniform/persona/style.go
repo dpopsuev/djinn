@@ -10,7 +10,7 @@
 //
 // Default: MapCommunicationStyle (map[string]string in memory).
 // Sophia adapter (future): semantic preference learning across sessions.
-package uniform
+package persona
 
 // CommunicationStyle stores operator presentation preferences.
 // Keys are style dimensions, values are the current preference.

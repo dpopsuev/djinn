@@ -5,6 +5,8 @@ package uniform
 
 import (
 	"time"
+
+	"github.com/dpopsuev/djinn/uniform/persona"
 )
 
 // Mode constants — string aliases matching agent.Mode names.
@@ -25,7 +27,7 @@ type Assignment struct {
 	Capabilities []string         // tool capability names from StaffConfig
 	Budget       AssignmentBudget // resource limits
 	Scope        AssignmentScope  // filesystem access
-	Persona      string           // bugle persona name (from RolePersona)
+	Persona      string           // bugle persona name (from persona.RolePersona)
 	Model        string           // preferred model (optional override)
 }
 
@@ -53,7 +55,7 @@ func PrimordialGenSec() Assignment {
 		Role:         RoleGenSec,
 		Mode:         ModeAuto,
 		Capabilities: gensec.ToolCapabilities,
-		Persona:      RolePersona[RoleGenSec],
+		Persona:      persona.RolePersona[RoleGenSec],
 		Model:        gensec.Model,
 		Scope: AssignmentScope{
 			ReadPaths:  []string{"/"},
@@ -88,7 +90,7 @@ func Broker() Assignment {
 		Role:         RoleGenSec,
 		Mode:         ModeAgent,
 		Capabilities: brokerCapabilities,
-		Persona:      RolePersona[RoleGenSec],
+		Persona:      persona.RolePersona[RoleGenSec],
 		Scope: AssignmentScope{
 			ReadPaths:  []string{"/"},
 			WritePaths: nil,
@@ -103,7 +105,7 @@ func Secretary(scope AssignmentScope) Assignment {
 		Role:         RoleExecutor,
 		Mode:         ModeAgent,
 		Capabilities: secretaryCapabilities,
-		Persona:      RolePersona[RoleExecutor],
+		Persona:      persona.RolePersona[RoleExecutor],
 		Scope:        scope,
 	}
 }
@@ -154,7 +156,7 @@ func (d *defaultAssignmentScheduler) PlanAssignments(gear Gear) []Assignment {
 			Role:         ra.Role,
 			Mode:         role.Mode,
 			Capabilities: role.ToolCapabilities,
-			Persona:      RolePersona[ra.Role],
+			Persona:      persona.RolePersona[ra.Role],
 			Model:        role.Model,
 		}
 	}

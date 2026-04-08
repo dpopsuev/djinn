@@ -1,5 +1,5 @@
 // color.go — assigns Bugle ColorIdentity to staff roles for TUI rendering.
-package uniform
+package persona
 
 import "github.com/dpopsuev/djinn/jerichoport"
 
