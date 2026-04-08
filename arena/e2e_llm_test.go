@@ -9,6 +9,7 @@ package arena
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -42,6 +43,12 @@ func TestPoC_HTTPServer(t *testing.T) {
 		sess := contextmgr.New("poc-test", "claude-sonnet-4", workspace)
 
 		return func(ctx context.Context, prompt string) (string, error) {
+			// Start driver for this session
+			if err := drv.Start(ctx, ""); err != nil {
+				return "", fmt.Errorf("start driver: %w", err)
+			}
+			defer drv.Stop(ctx) //nolint:errcheck // best-effort
+
 			return agent.Run(ctx, agent.Config{
 				Driver:       drv,
 				Tools:        reg,
