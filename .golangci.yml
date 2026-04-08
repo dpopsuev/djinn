@@ -129,6 +129,7 @@ linters-settings:
         files:
           - "!**/tui/**"
           - "!**/cmd/**"
+          - "!**/test/**"
         deny:
           - pkg: "github.com/charmbracelet/bubbletea"
             desc: "only tui/ may import bubbletea — use terminal.ViewEvent"

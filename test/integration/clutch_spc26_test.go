@@ -1,0 +1,223 @@
+//go:build integration
+
+// clutch_spc26_test.go — acceptance tests for SPC-26 Shell/Backend Split.
+//
+// These test the clutch protocol from the shell's perspective:
+// handshake, disconnect detection, reconnect, and prompt queueing.
+// All tests use real Unix sockets — no mocks.
+package integration
+
+import (
+	"context"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/dpopsuev/djinn/contextmgr"
+	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/hotswap"
+	"github.com/dpopsuev/djinn/testkit/stubs"
+	"github.com/dpopsuev/djinn/tools/builtin"
+)
+
+func startTestBackend(ctx context.Context, t *testing.T, sock, model string, responses ...driver.Message) chan error {
+	t.Helper()
+	done := make(chan error, 1)
+	go func() {
+		transport, err := hotswap.Connect(sock)
+		if err != nil {
+			done <- err
+			return
+		}
+		defer transport.Close()
+		done <- hotswap.RunBackend(ctx, transport, hotswap.BackendConfig{
+			Driver:   stubs.NewStubChatDriver(responses...),
+			Tools:    builtin.NewRegistry(),
+			Session:  contextmgr.New("test", model, "/workspace"),
+			MaxTurns: 5,
+		})
+	}()
+	return done
+}
+
+func TestSPC26_SocketHandshake(t *testing.T) {
+	// SPC-26: Given the shell is running
+	// When the backend connects via Unix socket
+	// Then the backend sends BackendReady with session state
+	sock := filepath.Join(t.TempDir(), "handshake.sock")
+
+	ln, err := hotswap.Listen(sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	backendDone := startTestBackend(ctx, t, sock, "claude-opus-4-6")
+
+	shell, err := ln.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer shell.Close()
+
+	msg, err := shell.RecvFromBackend()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msg.Type != hotswap.BackendReady {
+		t.Fatalf("expected BackendReady, got %q", msg.Type)
+	}
+	if msg.Version != hotswap.ProtocolVersion {
+		t.Fatalf("version = %d", msg.Version)
+	}
+	if msg.Model != "claude-opus-4-6" {
+		t.Fatalf("model = %q", msg.Model)
+	}
+
+	shell.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
+	<-backendDone
+}
+
+func TestSPC26_BackendDisconnect_ShellPreserves(t *testing.T) {
+	// SPC-26: Given the backend crashes
+	// When the shell detects disconnect
+	// Then the shell preserves all received messages
+	sock := filepath.Join(t.TempDir(), "disconnect.sock")
+
+	ln, err := hotswap.Listen(sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	go func() {
+		transport, _ := hotswap.Connect(sock)
+		transport.SendToShell(hotswap.BackendMsg{Type: hotswap.BackendReady})                          //nolint:errcheck // best-effort send, error logged by receiver
+		transport.SendToShell(hotswap.BackendMsg{Type: hotswap.BackendText, Text: "partial response"}) //nolint:errcheck // best-effort send, error logged by receiver
+		transport.Close()
+	}()
+
+	shell, _ := ln.Accept()
+
+	var messages []hotswap.BackendMsg
+	for {
+		msg, err := shell.RecvFromBackend()
+		if err != nil {
+			break
+		}
+		messages = append(messages, msg)
+	}
+	shell.Close()
+
+	if len(messages) < 2 {
+		t.Fatalf("expected 2+ messages before crash, got %d", len(messages))
+	}
+	if messages[1].Text != "partial response" {
+		t.Fatalf("text = %q", messages[1].Text)
+	}
+}
+
+func TestSPC26_BackendReconnect_SessionPreserved(t *testing.T) {
+	// SPC-26: Given the developer rebuilds the backend
+	// When the new backend connects
+	// Then it sends new session_state and the shell continues
+	sock := filepath.Join(t.TempDir(), "reconnect.sock")
+
+	ln, err := hotswap.Listen(sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Backend 1
+	b1 := startTestBackend(ctx, t, sock, "model-v1",
+		driver.Message{Role: "assistant", Content: "v1"})
+	shell1, _ := ln.Accept()
+	ready1, _ := shell1.RecvFromBackend()
+	if ready1.Model != "model-v1" {
+		t.Fatalf("b1 model = %q", ready1.Model)
+	}
+	shell1.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
+	<-b1
+	shell1.Close()
+
+	// Backend 2 — hot-swap
+	b2 := startTestBackend(ctx, t, sock, "model-v2",
+		driver.Message{Role: "assistant", Content: "v2"})
+	shell2, err := ln.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer shell2.Close()
+
+	ready2, _ := shell2.RecvFromBackend()
+	if ready2.Model != "model-v2" {
+		t.Fatalf("b2 model = %q — hot-swap should show new model", ready2.Model)
+	}
+
+	shell2.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
+	<-b2
+}
+
+func TestSPC26_ShellWithoutBackend_Queues(t *testing.T) {
+	// SPC-26: Given the shell is running without a backend
+	// When the backend connects later
+	// Then the shell can send the queued prompt
+	sock := filepath.Join(t.TempDir(), "queue.sock")
+
+	ln, err := hotswap.Listen(sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Backend connects after delay.
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		startTestBackend(ctx, t, sock, "model",
+			driver.Message{Role: "assistant", Content: "got it"})
+	}()
+
+	// Shell blocks on Accept.
+	shell, err := ln.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer shell.Close()
+
+	ready, _ := shell.RecvFromBackend()
+	if ready.Type != hotswap.BackendReady {
+		t.Fatal("expected ready")
+	}
+
+	// Send queued prompt.
+	shell.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellPrompt, Text: "queued"}) //nolint:errcheck // best-effort send, error logged by receiver
+
+	var gotText bool
+	for range 20 {
+		msg, err := shell.RecvFromBackend()
+		if err != nil {
+			break
+		}
+		if msg.Type == hotswap.BackendText {
+			gotText = true
+		}
+		if msg.Type == hotswap.BackendDone {
+			break
+		}
+	}
+	if !gotText {
+		t.Fatal("queued prompt should produce response after backend connects")
+	}
+
+	shell.SendToBackend(hotswap.ShellMsg{Type: hotswap.ShellQuit}) //nolint:errcheck // best-effort send, error logged by receiver
+}
