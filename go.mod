@@ -19,6 +19,7 @@ require (
 
 require (
 	github.com/dominikbraun/graph v0.23.0 // indirect
+	github.com/dpopsuev/mirage v0.2.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
@@ -71,3 +72,5 @@ require (
 )
 
 replace github.com/dpopsuev/battery => ../battery
+
+replace github.com/dpopsuev/mirage => ../mirage

@@ -43,6 +43,8 @@ github.com/dominikbraun/graph v0.23.0 h1:TdZB4pPqCLFxYhdyMFb1TBdFxp8XLcJfTTBQucV
 github.com/dominikbraun/graph v0.23.0/go.mod h1:yOjYyogZLY1LSG9E33JWZJiq5k83Qy2C6POAuiViluc=
 github.com/dpopsuev/jericho v0.2.0 h1:4EdQmqYjh44NqHxq0RJjsmdRdiSlCPa0ByQXUshgKN8=
 github.com/dpopsuev/jericho v0.2.0/go.mod h1:Cru82tnh1k/LdDc4KbCCZnx/ORMNQgj9g5M8n2crj5s=
+github.com/dpopsuev/mirage v0.2.0 h1:As9DZyKBsP+iUrnHYnNkbWOLpyh9Vpm+oeCrAzGzTiA=
+github.com/dpopsuev/mirage v0.2.0/go.mod h1:FvPiq9KsYe69Fz4qA6Zv93x9YpGZI6r/y8brhOT54r4=
 github.com/dpopsuev/misbah v0.15.0 h1:/H3JJMtL8t6x1xoKosYZIsvyMsPIPK21towfWiYbzrc=
 github.com/dpopsuev/misbah v0.15.0/go.mod h1:BZ65oO8di3ASVQexLJ5OAMcr7QiI8dG3fW24mVwFn84=
 github.com/dpopsuev/parchment v0.2.0 h1:NMfcG6HcKfZaI2KGOZURdklL2yMT+A27wtd1s0kogKU=
