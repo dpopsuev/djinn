@@ -337,7 +337,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 
 	// Build tool registry with CompositeExecutor for MCP upgrade path (TSK-550).
 	registry := builtin.NewRegistry()
-	builtin.RegisterAeonShellTools(registry, ws.PrimaryPath(), HomeDir())
+	builtin.RegisterBuiltinTools(registry, ws.PrimaryPath(), HomeDir())
 	builtin.RegisterDebugTrace(registry, traceRing)
 	composite := builtin.NewCompositeExecutor(registry, mcpClient, telemetry.For(logResult.Logger, "tools"))
 	log.InfoContext(ctx, "tools registered", slog.Int(telemetry.KeyCount, len(composite.Names())))

@@ -1,6 +1,6 @@
 //go:build lab
 
-// lab_test.go — Aeon Shell Laboratory: baseline benchmarks.
+// lab_test.go — Djinn builtin Laboratory: baseline benchmarks.
 //
 // Measures latency and output size for each built-in tool on Djinn's own
 // codebase. This is the "before" snapshot — optimize tools, then prove

@@ -1,4 +1,4 @@
-// shell.go — Aeon Shell: 7 built-in tools that wrap Go packages in tools/.
+// shell.go — Djinn builtin: 7 built-in tools that wrap Go packages in tools/.
 //
 // These are the agent's "GNU tools" — plan, test, git, arch, discourse,
 // reconcile, latency. Each implements builtin.Tool and delegates to the

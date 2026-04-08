@@ -1,6 +1,6 @@
-// register.go — registers Aeon Shell tools into the builtin registry.
+// register.go — registers Djinn builtin tools into the builtin registry.
 //
-// RegisterAeonShellTools creates shared instances of the underlying Go
+// RegisterBuiltinTools creates shared instances of the underlying Go
 // libraries and registers all 7 shell tools: plan, test, git, arch,
 // discourse, reconcile, latency. Call after NewRegistry().
 package builtin
@@ -13,10 +13,10 @@ import (
 	"github.com/dpopsuev/djinn/tools"
 )
 
-// RegisterAeonShellTools registers the 8 Aeon Shell tools into the registry.
+// RegisterBuiltinTools registers the 8 Djinn builtin tools into the registry.
 // workDir is the primary workspace directory (used for git, arch, test, etc.).
 // dataDir is the data persistence directory (used for plan, discourse JSON files).
-func RegisterAeonShellTools(reg *Registry, workDir, dataDir string) {
+func RegisterBuiltinTools(reg *Registry, workDir, dataDir string) {
 	planStore := artifact.NewGraph("tasks", artifact.DefaultRegistry())
 	discourse := tools.NewDiscourseStore(filepath.Join(dataDir, "discourse.json"))
 	gitRepo := tools.NewGitRepo(workDir)
@@ -33,7 +33,7 @@ func RegisterAeonShellTools(reg *Registry, workDir, dataDir string) {
 }
 
 // RegisterDebugTrace registers the djinn_trace builtin tool for self-debugging.
-// Call after RegisterAeonShellTools if trace ring is available.
+// Call after RegisterBuiltinTools if trace ring is available.
 func RegisterDebugTrace(reg *Registry, ring *telemetry.Ring) {
 	if ring == nil {
 		return

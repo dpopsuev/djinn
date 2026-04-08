@@ -4,7 +4,7 @@
 // The tool validates the input and returns it as JSON. The TUI handler
 // intercepts render results and emits RenderPanelMsg to draw the panel.
 //
-// This is Aeon Shell tool #8: plan, test, git, arch, discourse, reconcile,
+// This is Djinn builtin tool #8: plan, test, git, arch, discourse, reconcile,
 // latency, render.
 package builtin
 

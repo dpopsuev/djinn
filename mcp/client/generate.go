@@ -82,7 +82,7 @@ func WriteConfigFile(dir string, servers []Server) (string, error) {
 	return path, nil
 }
 
-// DefaultServers returns the standard Aeon ecosystem MCP servers.
+// DefaultServers returns the standard Djinn ecosystem MCP servers.
 // These are the tools available to agents inside Misbah containers.
 func DefaultServers() []Server {
 	return []Server{

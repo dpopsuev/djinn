@@ -14,10 +14,10 @@ import (
 	"github.com/dpopsuev/djinn/tools"
 )
 
-func TestRegisterAeonShellTools(t *testing.T) {
+func TestRegisterBuiltinTools(t *testing.T) {
 	reg := NewRegistry()
 	dir := t.TempDir()
-	RegisterAeonShellTools(reg, dir, dir)
+	RegisterBuiltinTools(reg, dir, dir)
 
 	expected := []string{"plan", "test", "git", "arch", "discourse", "reconcile", "latency", "render"}
 	for _, name := range expected {
@@ -767,7 +767,7 @@ func TestLatencyTool_E2E_RecordAndQuery(t *testing.T) {
 func TestRegistry_MCPUpgradePath(t *testing.T) {
 	reg := NewRegistry()
 	dir := t.TempDir()
-	RegisterAeonShellTools(reg, dir, dir)
+	RegisterBuiltinTools(reg, dir, dir)
 
 	// Built-in plan tool exists.
 	original, err := reg.Get("plan")

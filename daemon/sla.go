@@ -1,4 +1,4 @@
-// sla.go — SLA/SLO definitions for Aeon Shell tools (GOL-37).
+// sla.go — SLA/SLO definitions for Djinn builtin tools (GOL-37).
 //
 // Each tool has P50/P95 latency targets and an error rate ceiling.
 // CheckSLA evaluates actual performance against targets.
@@ -41,7 +41,7 @@ func CheckSLA(sla ToolSLA, p50, p95 time.Duration, errorPct float64) SLAResult {
 	return r
 }
 
-// DefaultSLAs returns the SLA targets for all 8 Aeon Shell tools.
+// DefaultSLAs returns the SLA targets for all 8 Djinn builtin tools.
 func DefaultSLAs() map[string]ToolSLA {
 	return map[string]ToolSLA{
 		"plan":      {Name: "plan", P50Target: 10 * time.Millisecond, P95Target: 50 * time.Millisecond, MaxErrorPct: 0.01},
