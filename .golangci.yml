@@ -134,6 +134,24 @@ linters-settings:
             desc: "only tui/ may import bubbletea — use terminal.ViewEvent"
           - pkg: "github.com/charmbracelet/lipgloss"
             desc: "only tui/ may import lipgloss — use terminal.ViewEvent"
+      telemetry-leaf:
+        files:
+          - "**/telemetry/**"
+        deny:
+          - pkg: "github.com/dpopsuev/djinn/agent"
+            desc: "telemetry must stay leaf — fan-in=19, importing domain packages creates cycles"
+          - pkg: "github.com/dpopsuev/djinn/driver"
+            desc: "telemetry must stay leaf — fan-in=19, importing domain packages creates cycles"
+          - pkg: "github.com/dpopsuev/djinn/broker"
+            desc: "telemetry must stay leaf — fan-in=19, importing domain packages creates cycles"
+          - pkg: "github.com/dpopsuev/djinn/uniform"
+            desc: "telemetry must stay leaf — fan-in=19, importing domain packages creates cycles"
+          - pkg: "github.com/dpopsuev/djinn/tools"
+            desc: "telemetry must stay leaf — fan-in=19, importing domain packages creates cycles"
+          - pkg: "github.com/dpopsuev/djinn/workspace"
+            desc: "telemetry must stay leaf — fan-in=19, importing domain packages creates cycles"
+          - pkg: "github.com/dpopsuev/djinn/tui"
+            desc: "telemetry must stay leaf — fan-in=19, importing domain packages creates cycles"
 
   prealloc:
     simple: true

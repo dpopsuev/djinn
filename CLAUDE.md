@@ -41,9 +41,10 @@ The daemon that manages everything. Agents act freely inside their Mirage.
 |---|---|---|
 | **Parchment** | Artifact graph engine | v0.1.0 published |
 | **Ordo** | Rule resolution engine | v0.1.0 published |
-| **Oculus** | Symbol/architecture analysis | Pending extraction from Locus |
+| **Oculus** | Symbol/architecture analysis | v1.0.0 published |
 | **Troupe** | Agent mesh (Actor/Broker/Driver/ACP) | Direct import |
-| **Mirage** | Isolation facade (overlay/Kata/K8s sandbox) | v0.1 overlay, v0.2 planned |
+| **Mirage** | Isolation facade (overlay/Kata/K8s sandbox) | v0.2.0 published |
+| **Battery** | Agent-world interface contracts | v0.1.0 published |
 
 ### Built Systems
 - **Tool Envelope** (SPC-118): Gate/Enrich/Execute/Record pipeline
@@ -78,7 +79,7 @@ tesseractui              Macro                    Presentation
 Djinn is influenced by Toyota Production System, Lean Manufacturing, 5S, Kaizen, and Agile:
 - **JIT** (Just-in-Time): SupportScheduler spawns agents on demand, MCP tools load on connect
 - **Jidoka** (stop on defect): QualityGate + HookRunner + Sovereign override
-- **Andon** (visual signal): signal.Bus + watchdog + dashboard blinker
+- **Andon** (visual signal): telemetry.SignalBus + watchdog + dashboard blinker
 - **Kanban** (visual scheduling): KanbanPanel for artifact lifecycle
 - **Kaizen** (continuous improvement): Flywheel Gate proves each sprint makes the next easier
 - **Gemba** (go and see): CellSight — agent sees real code, operator sees agent thinking
@@ -127,4 +128,11 @@ Every boundary-crossing function must have structured logging:
 - **Orange** (before Green): `slog.Warn` on errors, denials, failures — "What went wrong?"
 - **Yellow** (after Green): `slog.Info/Debug` on success, decisions, metrics — "What happened? Are we healthy?"
 
-Use `djinnlog.KeyX` constants for ALL slog field keys. `djinnlog.For(log, "component")` for scoped loggers.
+Use `telemetry.KeyX` constants for ALL slog field keys. `telemetry.For(log, "component")` for scoped loggers.
+
+## Package Boundaries (depguard enforced)
+
+- Only `tui/` may import bubbletea/lipgloss
+- `telemetry/` is a leaf — must NOT import domain packages (fan-in=19, cycle risk)
+- Tool envelope types aliased from `battery/middleware` — single source of truth
+- Policy types aliased from `battery/policy` — single source of truth
