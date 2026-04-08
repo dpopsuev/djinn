@@ -10,6 +10,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
 	github.com/dpopsuev/battery v0.2.0
 	github.com/dpopsuev/jericho v0.2.0
+	github.com/dpopsuev/mirage v0.2.0
 	github.com/dpopsuev/misbah v0.15.0
 	github.com/dpopsuev/parchment v0.2.0
 	github.com/muesli/termenv v0.16.0
@@ -19,7 +20,6 @@ require (
 
 require (
 	github.com/dominikbraun/graph v0.23.0 // indirect
-	github.com/dpopsuev/mirage v0.2.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
