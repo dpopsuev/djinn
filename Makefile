@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags "-X github.com/dpopsuev/djinn/app.Version=$(VERSION)"
 
-.PHONY: build install test test-accept fmt lint lint-new lint-tui vet circuit coverage clean doctor preflight install-hooks smoke-claude smoke-vertex smoke-gemini smoke-codex smoke-cursor smoke-agents smoke-all
+.PHONY: build install test test-integration test-e2e fmt lint lint-new lint-tui vet circuit coverage cover-report cover-check clean doctor preflight install-hooks smoke-claude smoke-vertex smoke-gemini smoke-codex smoke-cursor smoke-agents smoke-all
 
 build:
 	go build $(LDFLAGS) ./cmd/djinn/
@@ -12,8 +12,11 @@ install:
 test:
 	go test ./... -race -count=1 -timeout=60s
 
-test-accept:
-	go test ./acceptance/ -race -v -timeout=60s
+test-integration:
+	go test -tags integration ./test/integration/ -race -v -timeout=60s
+
+test-e2e:
+	go test -tags e2e ./test/e2e/ -race -v -timeout=120s
 
 fmt:
 	go fmt ./...
@@ -35,7 +38,7 @@ lint-tui:
 	@! grep -rn '"#[0-9a-fA-F]\{6\}"' tui/ --include='*.go' | grep -v '_test.go' | grep -v 'colors.go' | grep -v 'theme.go' || (echo "FAIL: raw hex found outside colors.go/theme.go" && exit 1)
 	@echo "OK: no raw hex"
 
-circuit: fmt vet build lint lint-tui test test-accept
+circuit: fmt vet build lint lint-tui test
 	@echo "Circuit complete — all gates passed"
 
 smoke-claude:
@@ -64,6 +67,12 @@ preflight: fmt vet lint lint-tui test install
 coverage:
 	go test ./... -race -count=1 -coverprofile=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
+
+cover-report:
+	@go test ./... -race -count=1 -coverprofile=/dev/null -covermode=atomic 2>&1 | grep 'coverage:' | sed 's/.*github.com\/dpopsuev\/djinn\///' | awk '{pkg=$$1; for(i=1;i<=NF;i++) if($$i=="coverage:") print pkg, $$(i+1)}' | sort -t% -k2 -n
+
+cover-check:
+	@./scripts/cover-check.sh
 
 install-hooks:
 	@echo '#!/bin/sh' > .git/hooks/pre-commit
