@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 	"time"
@@ -21,6 +20,7 @@ import (
 	"github.com/dpopsuev/djinn/daemon"
 	"github.com/dpopsuev/djinn/djinnlog"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/terminal"
 	"github.com/dpopsuev/djinn/tools/builtin"
@@ -155,6 +155,9 @@ type Model struct {
 	sandboxExec    func(ctx context.Context, cmd []string) (string, string, error)
 	sandboxBackend string
 	sandboxLevel   string
+
+	// Orchestrator — agent lifecycle, separated from TUI.
+	runner *orchestrator.AgentRunner
 }
 
 // NewModel creates a new REPL model.
@@ -223,6 +226,21 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		sandboxLevel:   cfg.SandboxLevel,
 		hubRegistry:    cfg.HubRegistry,
 		term:           terminal.NewDjinn(),
+	}
+
+	m.runner = &orchestrator.AgentRunner{
+		Driver:        cfg.Driver,
+		Tools:         cfg.Tools,
+		Envelope:      cfg.Envelope,
+		Session:       cfg.Session,
+		SystemPrompt:  cfg.SystemPrompt,
+		MaxTurns:      cfg.MaxTurns,
+		Enforcer:      cfg.Enforcer,
+		Token:         cfg.Token,
+		Router:        cfg.Router,
+		Log:           log,
+		SandboxHandle: cfg.SandboxHandle,
+		SandboxExec:   cfg.SandboxExec,
 	}
 
 	// Use driver's context window for the monitor if available.
@@ -998,56 +1016,10 @@ func (m *Model) handleApproval(key string) (tea.Model, tea.Cmd) {
 func (m *Model) runAgent(prompt string) tea.Cmd {
 	mode := m.mode
 	ch := m.approvalCh
-	agentLog := djinnlog.For(m.log, "agent")
+	role := m.currentRole
 	return func() tea.Msg {
-		// Use slot router if available — filters tools by current role.
-		// Falls back to raw registry if no router configured.
-		var tools builtin.ToolExecutor = m.tools
-		if m.router != nil {
-			tools = m.router
-		}
-		cfg := agent.Config{
-			Driver:       m.chatDriver,
-			Tools:        tools,
-			Envelope:     m.envelope,
-			Session:      m.sess,
-			SystemPrompt: m.systemPrompt,
-			MaxTurns:     m.maxTurns,
-			ToolsEnabled: mode.ToolsEnabled(),
-			Mode:         mode,
-			Approve:      approvalForMode(mode, ch),
-			Enforcer:     m.enforcer,
-			Token:        m.token,
-			Handler:      globalHandler,
-			Log:          agentLog,
-		}
-
-		// Sandbox: everyone sandboxed except GenSec.
-		// GenSec is the root agent — it can jailbreak by design.
-		if m.sandboxHandle != "" && m.currentRole != roleGensec {
-			cfg.SandboxHandle = m.sandboxHandle
-			cfg.SandboxExec = m.sandboxExec
-			cfg.SandboxWorkDir = m.sess.WorkDir
-			cfg.SandboxMount = "/workspace"
-		}
-
-		result, err := agent.Run(m.ctx, cfg, prompt)
+		result, err := m.runner.RunAgent(m.ctx, prompt, mode, ch, globalHandler, role)
 		return tui.AgentDoneMsg{Result: result, Err: err}
-	}
-}
-
-// approvalForMode returns the approval function for the given mode.
-// In agent mode, blocks on the channel waiting for the UI decision.
-func approvalForMode(mode agent.Mode, ch chan bool) agent.ApprovalFunc {
-	switch mode {
-	case agent.ModeAuto:
-		return agent.AutoApprove
-	case agent.ModeAgent:
-		return func(_ driver.ToolCall) bool {
-			return <-ch
-		}
-	default:
-		return agent.DenyAll
 	}
 }
 
@@ -1173,28 +1145,13 @@ func mustMarshalStrings(ss []string) string {
 // runShellInline executes a shell command inline and streams output to OutputPanel.
 // Routes through SandboxExec when the current role is sandboxed.
 func (m *Model) runShellInline(cmd string) tea.Cmd {
+	role := m.currentRole
+	workDir := m.sess.WorkDir
 	return func() tea.Msg {
-		var stdout, stderr string
-		var err error
-
-		if m.sandboxExec != nil && m.currentRole != roleGensec {
-			stdout, stderr, err = m.sandboxExec(m.ctx, strings.Fields(cmd))
-		} else {
-			execCmd := exec.CommandContext(m.ctx, "bash", "-c", cmd)
-			execCmd.Dir = m.sess.WorkDir
-			out, execErr := execCmd.CombinedOutput()
-			stdout = string(out)
-			err = execErr
-		}
-
-		output := stdout
-		if stderr != "" {
-			output += "\n" + stderr
-		}
+		output, err := m.runner.RunShell(m.ctx, cmd, workDir, role)
 		if err != nil {
 			output += "\n" + tui.ErrorStyle.Render(err.Error())
 		}
-
 		globalHandler.OnText(tui.DimStyle.Render(output))
 		return tui.AgentDoneMsg{}
 	}

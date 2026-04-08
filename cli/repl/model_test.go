@@ -15,6 +15,7 @@ import (
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/orchestrator"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
 )
@@ -789,21 +790,21 @@ func TestModel_Init(t *testing.T) {
 // --- approvalForMode ---
 
 func TestApprovalForMode_Auto(t *testing.T) {
-	fn := approvalForMode(agent.ModeAuto, nil)
+	fn := orchestrator.ApprovalForMode(agent.ModeAuto, nil)
 	if !fn(driver.ToolCall{Name: "Bash"}) {
 		t.Fatal("auto mode should auto-approve")
 	}
 }
 
 func TestApprovalForMode_Ask(t *testing.T) {
-	fn := approvalForMode(agent.ModeAsk, nil)
+	fn := orchestrator.ApprovalForMode(agent.ModeAsk, nil)
 	if fn(driver.ToolCall{Name: "Bash"}) {
 		t.Fatal("ask mode should deny all")
 	}
 }
 
 func TestApprovalForMode_Plan(t *testing.T) {
-	fn := approvalForMode(agent.ModePlan, nil)
+	fn := orchestrator.ApprovalForMode(agent.ModePlan, nil)
 	if fn(driver.ToolCall{Name: "Bash"}) {
 		t.Fatal("plan mode should deny all")
 	}
@@ -812,7 +813,7 @@ func TestApprovalForMode_Plan(t *testing.T) {
 func TestApprovalForMode_Agent(t *testing.T) {
 	ch := make(chan bool, 1)
 	ch <- true
-	fn := approvalForMode(agent.ModeAgent, ch)
+	fn := orchestrator.ApprovalForMode(agent.ModeAgent, ch)
 	if !fn(driver.ToolCall{Name: "Bash"}) {
 		t.Fatal("agent mode should return channel value")
 	}
