@@ -5,7 +5,11 @@
 // required sections and status transitions. Zero external dependencies (domain layer).
 package artifact
 
-import "time"
+import (
+	"time"
+
+	"github.com/dpopsuev/parchment"
+)
 
 // Status is the lifecycle state of an artifact.
 type Status string
@@ -59,14 +63,9 @@ type Artifact struct {
 }
 
 // ComponentMap describes what code an artifact will create or modify.
-type ComponentMap struct {
-	Directories []string `json:"directories,omitempty"`
-	Files       []string `json:"files,omitempty"`
-	Symbols     []string `json:"symbols,omitempty"`
-}
+// Aliased from parchment — single source of truth.
+type ComponentMap = parchment.ComponentMap
 
 // Annotation is operator feedback on an artifact.
-type Annotation struct {
-	Kind    string `json:"kind"` // "+", "-", "~"
-	Comment string `json:"comment"`
-}
+// Aliased from parchment — single source of truth.
+type Annotation = parchment.Annotation
