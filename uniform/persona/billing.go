@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	jBilling "github.com/dpopsuev/jericho/billing"
-	"github.com/dpopsuev/jericho/world"
+	jBilling "github.com/dpopsuev/troupe/billing"
+	"github.com/dpopsuev/troupe/world"
 )
 
 // RecordUsage records token usage for an agent entity.

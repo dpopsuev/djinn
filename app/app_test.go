@@ -330,23 +330,10 @@ func TestCreateDriver_Codex(t *testing.T) {
 	}
 }
 
-func TestCreateDriver_ACP(t *testing.T) {
-	d, err := CreateDriver("acp", "cursor/sonnet-4", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d == nil {
-		t.Fatal("acp driver nil")
-	}
-}
-
-func TestCreateDriver_ACP_ModelSplit(t *testing.T) {
-	d, err := CreateDriver("acp", "gemini/gemini-2", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d == nil {
-		t.Fatal("acp driver nil")
+func TestCreateDriver_ACP_Disabled(t *testing.T) {
+	_, err := CreateDriver("acp", "cursor/sonnet-4", "")
+	if err == nil {
+		t.Fatal("acp driver should be disabled (Jericho→Troupe migration)")
 	}
 }
 

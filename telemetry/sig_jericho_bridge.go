@@ -6,7 +6,7 @@ package telemetry
 import (
 	"time"
 
-	jSignal "github.com/dpopsuev/jericho/signal"
+	jSignal "github.com/dpopsuev/troupe/signal"
 )
 
 // BugleBridge forwards signals between Djinn's SignalBus and Bugle's Bus.

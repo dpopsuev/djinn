@@ -3,8 +3,8 @@
 package persona
 
 import (
-	jPersona "github.com/dpopsuev/jericho/persona"
-	jSymbol "github.com/dpopsuev/jericho/symbol"
+	jIdentity2 "github.com/dpopsuev/troupe/identity"
+	// jSymbol merged into jIdentity2
 )
 
 // RolePersona maps a Djinn staff role to a Bugle persona name.
@@ -22,19 +22,19 @@ var RolePersona = map[string]string{
 
 // ResolvePersona returns the Bugle persona for a Djinn role.
 // Returns the persona and true if found, zero value and false otherwise.
-func ResolvePersona(role string) (jSymbol.Persona, bool) {
+func ResolvePersona(role string) (jIdentity2.Archetype, bool) {
 	personaName, ok := RolePersona[role]
 	if !ok {
-		return jSymbol.Persona{}, false
+		return jIdentity2.Archetype{}, false
 	}
-	return jPersona.ByName(personaName)
+	return jIdentity2.ByName(personaName)
 }
 
 // AllRolePersonas returns all role→persona mappings that resolve.
-func AllRolePersonas() map[string]jSymbol.Persona {
-	out := make(map[string]jSymbol.Persona, len(RolePersona))
+func AllRolePersonas() map[string]jIdentity2.Archetype {
+	out := make(map[string]jIdentity2.Archetype, len(RolePersona))
 	for role, name := range RolePersona {
-		if p, ok := jPersona.ByName(name); ok {
+		if p, ok := jIdentity2.ByName(name); ok {
 			out[role] = p
 		}
 		_ = name

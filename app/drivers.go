@@ -4,10 +4,9 @@ package app
 import (
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/dpopsuev/djinn/driver"
-	acpdriver "github.com/dpopsuev/djinn/driver/acp"
+	// acpdriver removed — Jericho ACP is dead, Troupe's ACP is internal
 	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	codexdriver "github.com/dpopsuev/djinn/driver/codex"
 	cursordriver "github.com/dpopsuev/djinn/driver/cursor"
@@ -62,22 +61,7 @@ func CreateDriver(driverName, model, systemPrompt string, log ...*slog.Logger) (
 		}
 		return codexdriver.New(driver.DriverConfig{Model: model}, opts...), nil
 	case "acp":
-		agentName := model
-		if agentName == "" {
-			agentName = "cursor"
-		}
-		if parts := strings.SplitN(agentName, "/", 2); len(parts) == 2 {
-			agentName = parts[0]
-			model = parts[1]
-		}
-		opts := []acpdriver.Option{}
-		if driverLog != nil {
-			opts = append(opts, acpdriver.WithLogger(driverLog))
-		}
-		if model != agentName {
-			opts = append(opts, acpdriver.WithModel(model))
-		}
-		return acpdriver.New(agentName, opts...)
+		return nil, fmt.Errorf("%w: acp driver temporarily disabled (Jericho→Troupe migration)", ErrDriverNotImpl)
 	case DriverOllama:
 		return nil, fmt.Errorf("%w: %s", ErrDriverNotImpl, driverName)
 	default:
