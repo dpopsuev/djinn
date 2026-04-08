@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dpopsuev/djinn/jerichoport"
+	jBilling "github.com/dpopsuev/jericho/billing"
+	"github.com/dpopsuev/jericho/world"
 )
 
 // RecordUsage records token usage for an agent entity.
-func RecordUsage(tracker *jerichoport.InMemoryTracker, entityID jerichoport.EntityID, role, step string, promptTokens, artifactTokens int) {
-	tracker.Record(&jerichoport.TokenRecord{
+func RecordUsage(tracker *jBilling.InMemoryTracker, entityID world.EntityID, role, step string, promptTokens, artifactTokens int) {
+	tracker.Record(&jBilling.TokenRecord{
 		CaseID:         fmt.Sprintf("agent-%d", entityID),
 		Step:           step,
 		Node:           role,

@@ -7,39 +7,41 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dpopsuev/djinn/jerichoport"
 	"github.com/dpopsuev/djinn/uniform/persona"
+	jAgent "github.com/dpopsuev/jericho/agent"
+	jPool "github.com/dpopsuev/jericho/pool"
+	"github.com/dpopsuev/jericho/world"
 )
 
 // mockLauncher tracks Start/Stop calls for process supervision E2E testing.
 type mockLauncher struct {
 	mu      sync.Mutex
-	started map[jerichoport.EntityID]bool
-	stopped map[jerichoport.EntityID]bool
+	started map[world.EntityID]bool
+	stopped map[world.EntityID]bool
 }
 
 func newMockLauncher() *mockLauncher {
 	return &mockLauncher{
-		started: make(map[jerichoport.EntityID]bool),
-		stopped: make(map[jerichoport.EntityID]bool),
+		started: make(map[world.EntityID]bool),
+		stopped: make(map[world.EntityID]bool),
 	}
 }
 
-func (m *mockLauncher) Start(_ context.Context, id jerichoport.EntityID, _ jerichoport.AgentConfig) error {
+func (m *mockLauncher) Start(_ context.Context, id world.EntityID, _ jPool.AgentConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.started[id] = true
 	return nil
 }
 
-func (m *mockLauncher) Stop(_ context.Context, id jerichoport.EntityID) error {
+func (m *mockLauncher) Stop(_ context.Context, id world.EntityID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.stopped[id] = true
 	return nil
 }
 
-func (m *mockLauncher) Healthy(_ context.Context, id jerichoport.EntityID) bool {
+func (m *mockLauncher) Healthy(_ context.Context, id world.EntityID) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.started[id] && !m.stopped[id]
@@ -57,7 +59,7 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 	pool := sw.Pool()
 
 	// --- Phase 1: Spawn GenSec as root ---
-	gensec, err := sw.Spawn(ctx, "gensec", jerichoport.AgentConfig{
+	gensec, err := sw.Spawn(ctx, "gensec", jPool.AgentConfig{
 		Role:  "gensec",
 		Model: "haiku",
 	})
@@ -73,7 +75,7 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 	pool.SetAutoReap(gensec.ID(), false) // GenSec explicitly reaps
 
 	// --- Phase 3: Spawn Scheduler under GenSec ---
-	scheduler, err := gensec.Spawn(ctx, "scheduler", jerichoport.AgentConfig{
+	scheduler, err := gensec.Spawn(ctx, "scheduler", jPool.AgentConfig{
 		Role:  "scheduler",
 		Model: "sonnet",
 	})
@@ -83,21 +85,21 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 	pool.SetAutoReap(scheduler.ID(), false) // Scheduler explicitly reaps
 
 	// --- Phase 4: Spawn 3 Executors under Scheduler ---
-	exec1, err := scheduler.Spawn(ctx, "executor", jerichoport.AgentConfig{
+	exec1, err := scheduler.Spawn(ctx, "executor", jPool.AgentConfig{
 		Role:  "executor",
 		Model: "opus",
 	})
 	if err != nil {
 		t.Fatalf("Spawn executor-1: %v", err)
 	}
-	exec2, err := scheduler.Spawn(ctx, "executor", jerichoport.AgentConfig{
+	exec2, err := scheduler.Spawn(ctx, "executor", jPool.AgentConfig{
 		Role:  "executor",
 		Model: "opus",
 	})
 	if err != nil {
 		t.Fatalf("Spawn executor-2: %v", err)
 	}
-	exec3, err := scheduler.Spawn(ctx, "executor", jerichoport.AgentConfig{
+	exec3, err := scheduler.Spawn(ctx, "executor", jPool.AgentConfig{
 		Role:  "executor",
 		Model: "opus",
 	})
@@ -161,13 +163,13 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 	}
 
 	// --- Phase 7: KillWithReason each executor with different exit codes ---
-	if err := exec1.KillWithReason(ctx, jerichoport.ExitSuccess); err != nil {
+	if err := exec1.KillWithReason(ctx, jPool.ExitSuccess); err != nil {
 		t.Fatalf("KillWithReason exec1: %v", err)
 	}
-	if err := exec2.KillWithReason(ctx, jerichoport.ExitBudget); err != nil {
+	if err := exec2.KillWithReason(ctx, jPool.ExitBudget); err != nil {
 		t.Fatalf("KillWithReason exec2: %v", err)
 	}
-	if err := exec3.KillWithReason(ctx, jerichoport.ExitError); err != nil {
+	if err := exec3.KillWithReason(ctx, jPool.ExitError); err != nil {
 		t.Fatalf("KillWithReason exec3: %v", err)
 	}
 
@@ -176,8 +178,8 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Wait exec1: %v", err)
 	}
-	if status1.Code != jerichoport.ExitSuccess {
-		t.Fatalf("exec1 exit code = %d, want ExitSuccess (%d)", status1.Code, jerichoport.ExitSuccess)
+	if status1.Code != jPool.ExitSuccess {
+		t.Fatalf("exec1 exit code = %d, want ExitSuccess (%d)", status1.Code, jPool.ExitSuccess)
 	}
 	if status1.Duration <= 0 {
 		t.Fatal("exec1 duration should be positive")
@@ -187,16 +189,16 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Wait exec2: %v", err)
 	}
-	if status2.Code != jerichoport.ExitBudget {
-		t.Fatalf("exec2 exit code = %d, want ExitBudget (%d)", status2.Code, jerichoport.ExitBudget)
+	if status2.Code != jPool.ExitBudget {
+		t.Fatalf("exec2 exit code = %d, want ExitBudget (%d)", status2.Code, jPool.ExitBudget)
 	}
 
 	status3, err := exec3.Wait(ctx)
 	if err != nil {
 		t.Fatalf("Wait exec3: %v", err)
 	}
-	if status3.Code != jerichoport.ExitError {
-		t.Fatalf("exec3 exit code = %d, want ExitError (%d)", status3.Code, jerichoport.ExitError)
+	if status3.Code != jPool.ExitError {
+		t.Fatalf("exec3 exit code = %d, want ExitError (%d)", status3.Code, jPool.ExitError)
 	}
 
 	// --- Phase 9: Verify zero zombies ---
@@ -206,12 +208,12 @@ func TestE2E_ProcessSupervision(t *testing.T) {
 
 	// --- Phase 10: Verify launcher tracked all starts and stops ---
 	launcher.mu.Lock()
-	for _, h := range []*jerichoport.Solo{gensec, scheduler, exec1, exec2, exec3} {
+	for _, h := range []*jAgent.Solo{gensec, scheduler, exec1, exec2, exec3} {
 		if !launcher.started[h.ID()] {
 			t.Errorf("entity %d was not started", h.ID())
 		}
 	}
-	for _, h := range []*jerichoport.Solo{scheduler, exec1, exec2, exec3} {
+	for _, h := range []*jAgent.Solo{scheduler, exec1, exec2, exec3} {
 		if !launcher.stopped[h.ID()] {
 			t.Errorf("entity %d was not stopped", h.ID())
 		}

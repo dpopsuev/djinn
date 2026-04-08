@@ -3,12 +3,12 @@ package persona
 import (
 	"testing"
 
-	"github.com/dpopsuev/djinn/jerichoport"
+	jSymbol "github.com/dpopsuev/jericho/symbol"
 )
 
 func TestAssignDisplay(t *testing.T) {
 	sw := &StaffWorld{
-		Registry: jerichoport.NewRegistry(),
+		Registry: jSymbol.NewRegistry(),
 	}
 
 	d, err := sw.AssignDisplay("executor", "refactor")
@@ -28,7 +28,7 @@ func TestAssignDisplay(t *testing.T) {
 
 func TestAssignDisplay_Unique(t *testing.T) {
 	sw := &StaffWorld{
-		Registry: jerichoport.NewRegistry(),
+		Registry: jSymbol.NewRegistry(),
 	}
 
 	d1, err := sw.AssignDisplay("executor", "auth")
