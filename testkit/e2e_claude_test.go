@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/driver"
@@ -100,7 +99,7 @@ func hello() string {
 		Cordons:      cordons,
 		Operator:     op,
 		Sandbox:      sandbox,
-		PlanFactory: func(intent ari.Intent) broker.WorkPlan {
+		PlanFactory: func(intent broker.Intent) broker.WorkPlan {
 			return broker.WorkPlan{
 				ID: intent.ID,
 				Stages: []broker.Stage{{
@@ -121,7 +120,7 @@ func hello() string {
 	b.Start(ctx)
 
 	// Send intent
-	op.SendIntent(ari.Intent{ID: "e2e-claude-1", Action: "edit"})
+	op.SendIntent(broker.Intent{ID: "e2e-claude-1", Action: "edit"})
 
 	// Wait for result
 	deadline := time.Now().Add(crossEcosystemTimeout)

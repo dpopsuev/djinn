@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/telemetry"
@@ -39,20 +38,20 @@ func (g *testGate) Validate(ctx context.Context, sandboxID string) error { retur
 type testOperator struct {
 	mu          sync.Mutex
 	events      []Event
-	results     []ari.Result
+	results     []Result
 	andons      []AndonBoard
-	permissions []ari.PermissionPayload
-	handler     func(ari.Intent)
-	permRespCh  chan ari.PermissionResponse
+	permissions []PermissionPayload
+	handler     func(Intent)
+	permRespCh  chan PermissionResponse
 }
 
 func newTestOperator() *testOperator {
 	return &testOperator{
-		permRespCh: make(chan ari.PermissionResponse, 10),
+		permRespCh: make(chan PermissionResponse, 10),
 	}
 }
 
-func (o *testOperator) OnIntent(handler func(ari.Intent)) {
+func (o *testOperator) OnIntent(handler func(Intent)) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.handler = handler
@@ -62,7 +61,7 @@ func (o *testOperator) EmitProgress(event Event) {
 	defer o.mu.Unlock()
 	o.events = append(o.events, event)
 }
-func (o *testOperator) EmitPermission(payload ari.PermissionPayload) {
+func (o *testOperator) EmitPermission(payload PermissionPayload) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.permissions = append(o.permissions, payload)
@@ -72,19 +71,19 @@ func (o *testOperator) EmitAndon(board AndonBoard) {
 	defer o.mu.Unlock()
 	o.andons = append(o.andons, board)
 }
-func (o *testOperator) EmitResult(result ari.Result) {
+func (o *testOperator) EmitResult(result Result) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.results = append(o.results, result)
 }
-func (o *testOperator) PermissionResponses() <-chan ari.PermissionResponse {
+func (o *testOperator) PermissionResponses() <-chan PermissionResponse {
 	return o.permRespCh
 }
 
-func (o *testOperator) getResults() []ari.Result {
+func (o *testOperator) getResults() []Result {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	out := make([]ari.Result, len(o.results))
+	out := make([]Result, len(o.results))
 	copy(out, o.results)
 	return out
 }
@@ -113,7 +112,7 @@ func newTestBrokerConfig(op *testOperator, bus *telemetry.SignalBus) *BrokerConf
 		Bus:          bus,
 		Cordons:      cordons,
 		Operator:     op,
-		PlanFactory: func(intent ari.Intent) WorkPlan {
+		PlanFactory: func(intent Intent) WorkPlan {
 			return WorkPlan{
 				ID: intent.ID,
 				Stages: []Stage{
@@ -129,7 +128,7 @@ func TestBroker_HandleIntent(t *testing.T) {
 	op := newTestOperator()
 	b := NewBroker(newTestBrokerConfig(op, bus))
 
-	b.HandleIntent(context.Background(), ari.Intent{ID: "int-1", Action: "fix"})
+	b.HandleIntent(context.Background(), Intent{ID: "int-1", Action: "fix"})
 
 	results := op.getResults()
 	if len(results) != 1 {
@@ -153,7 +152,7 @@ func TestBroker_WorkstreamTracking(t *testing.T) {
 	op := newTestOperator()
 	b := NewBroker(newTestBrokerConfig(op, bus))
 
-	b.HandleIntent(context.Background(), ari.Intent{ID: "ws-track", Action: "implement"})
+	b.HandleIntent(context.Background(), Intent{ID: "ws-track", Action: "implement"})
 
 	ws, ok := b.Workstreams().Get("ws-track")
 	if !ok {
@@ -202,7 +201,7 @@ func TestBroker_Start_IntentHandler(t *testing.T) {
 	op.mu.Lock()
 	h := op.handler
 	op.mu.Unlock()
-	h(ari.Intent{ID: "int-via-start", Action: "fix"})
+	h(Intent{ID: "int-via-start", Action: "fix"})
 
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
@@ -290,7 +289,7 @@ func TestBroker_CancelWorkstream(t *testing.T) {
 		Bus:      bus,
 		Cordons:  NewCordonRegistry(),
 		Operator: op,
-		PlanFactory: func(intent ari.Intent) WorkPlan {
+		PlanFactory: func(intent Intent) WorkPlan {
 			return WorkPlan{
 				ID:     intent.ID,
 				Stages: []Stage{{Name: "slow", Scope: workspace.TierScope{Level: workspace.Mod}, Prompt: "wait"}},
@@ -299,7 +298,7 @@ func TestBroker_CancelWorkstream(t *testing.T) {
 	}
 	b := NewBroker(cfg)
 
-	go b.HandleIntent(context.Background(), ari.Intent{ID: "cancel-me", Action: "fix"})
+	go b.HandleIntent(context.Background(), Intent{ID: "cancel-me", Action: "fix"})
 	time.Sleep(20 * time.Millisecond)
 
 	if err := b.CancelWorkstream("cancel-me"); err != nil {
@@ -366,7 +365,7 @@ func TestBroker_PermissionForwarding(t *testing.T) {
 	b.Start(ctx)
 
 	// Send a permission response — it should be forwarded to orchestrator via Submit
-	op.permRespCh <- ari.PermissionResponse{ExecID: "some-exec", Approved: true}
+	op.permRespCh <- PermissionResponse{ExecID: "some-exec", Approved: true}
 
 	// Give time for the goroutine to process
 	time.Sleep(20 * time.Millisecond)

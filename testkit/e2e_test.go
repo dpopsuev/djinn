@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/driver"
@@ -49,7 +48,7 @@ func TestE2E_StandardFlow_AllStubs(t *testing.T) {
 		Cordons:      cordons,
 		Operator:     op,
 		Sandbox:      sandbox,
-		PlanFactory: func(intent ari.Intent) broker.WorkPlan {
+		PlanFactory: func(intent broker.Intent) broker.WorkPlan {
 			return builders.StandardFourTierPlan(intent.ID)
 		},
 	})
@@ -58,7 +57,7 @@ func TestE2E_StandardFlow_AllStubs(t *testing.T) {
 	b.Start(ctx)
 
 	// Send intent
-	op.SendIntent(ari.Intent{ID: "e2e-1", Action: "implement"})
+	op.SendIntent(broker.Intent{ID: "e2e-1", Action: "implement"})
 
 	// Wait for result
 	deadline := time.Now().Add(5 * time.Second)
@@ -139,7 +138,7 @@ func TestE2E_GateFailure_StopsExecution(t *testing.T) {
 		Bus:          bus,
 		Cordons:      cordons,
 		Operator:     op,
-		PlanFactory: func(intent ari.Intent) broker.WorkPlan {
+		PlanFactory: func(intent broker.Intent) broker.WorkPlan {
 			return builders.NewWorkPlan(intent.ID).
 				AddStage("code", workspace.TierScope{Level: workspace.Mod, Name: "auth"}, "code it").
 				AddStage("test", workspace.TierScope{Level: workspace.Mod, Name: "tests"}, "test it").
@@ -150,7 +149,7 @@ func TestE2E_GateFailure_StopsExecution(t *testing.T) {
 	ctx := context.Background()
 	b.Start(ctx)
 
-	op.SendIntent(ari.Intent{ID: "fail-1", Action: "fix"})
+	op.SendIntent(broker.Intent{ID: "fail-1", Action: "fix"})
 
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {

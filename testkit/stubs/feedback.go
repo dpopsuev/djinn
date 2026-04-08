@@ -3,7 +3,7 @@ package stubs
 import (
 	"sync"
 
-	"github.com/dpopsuev/djinn/ari"
+	"github.com/dpopsuev/djinn/broker"
 )
 
 const (
@@ -17,7 +17,7 @@ type FeedbackStub struct {
 	mu        sync.Mutex
 	metrics   map[string]float64
 	threshold float64
-	alertCh   chan ari.Alert
+	alertCh   chan broker.Alert
 	fired     bool
 }
 
@@ -31,7 +31,7 @@ func NewFeedbackStub(threshold float64, initial map[string]float64) *FeedbackStu
 	return &FeedbackStub{
 		metrics:   m,
 		threshold: threshold,
-		alertCh:   make(chan ari.Alert, 10),
+		alertCh:   make(chan broker.Alert, 10),
 	}
 }
 
@@ -43,7 +43,7 @@ func (f *FeedbackStub) Query(metric string) float64 {
 }
 
 // Alerts implements EventIngressPort (driving side).
-func (f *FeedbackStub) Alerts() <-chan ari.Alert {
+func (f *FeedbackStub) Alerts() <-chan broker.Alert {
 	return f.alertCh
 }
 
@@ -58,7 +58,7 @@ func (f *FeedbackStub) SetMetric(metric string, value float64) {
 	f.mu.Unlock()
 
 	if shouldFire {
-		f.alertCh <- ari.Alert{
+		f.alertCh <- broker.Alert{
 			Source: feedbackStubSource,
 			Metric: metric,
 			Value:  value,

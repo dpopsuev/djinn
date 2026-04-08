@@ -12,7 +12,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/broker"
 	djinnconfig "github.com/dpopsuev/djinn/config"
@@ -407,14 +406,14 @@ func RunHeadless(args []string, stderr io.Writer) error {
 
 	b := broker.NewBroker(&broker.BrokerConfig{
 		Orchestrator: orch, Bus: bus, Cordons: cordons, Operator: op,
-		PlanFactory: func(intent ari.Intent) broker.WorkPlan { return df.ToWorkPlan(intent.ID) },
+		PlanFactory: func(intent broker.Intent) broker.WorkPlan { return df.ToWorkPlan(intent.ID) },
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	b.Start(ctx)
 
-	op.SendIntent(ari.Intent{ID: df.Name + "-1", Action: prompt})
+	op.SendIntent(broker.Intent{ID: df.Name + "-1", Action: prompt})
 
 	for {
 		select {

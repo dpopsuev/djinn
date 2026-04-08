@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"
 )
@@ -35,7 +34,7 @@ type Broker struct {
 	sandbox     SandboxPort
 	metrics     MetricsPort
 
-	planFactory func(ari.Intent) WorkPlan
+	planFactory func(Intent) WorkPlan
 
 	mu      sync.Mutex
 	running map[string]context.CancelFunc
@@ -51,7 +50,7 @@ type BrokerConfig struct {
 	Alerts        EventIngressPort
 	Sandbox       SandboxPort
 	Metrics       MetricsPort
-	PlanFactory   func(ari.Intent) WorkPlan
+	PlanFactory   func(Intent) WorkPlan
 	MaxConcurrent int // 0 = unlimited
 }
 
@@ -85,7 +84,7 @@ func NewBroker(cfg *BrokerConfig) *Broker {
 
 // Start wires up intent listeners, alert listeners, and the black-signal auto-cordon.
 func (b *Broker) Start(ctx context.Context) {
-	b.operator.OnIntent(func(intent ari.Intent) {
+	b.operator.OnIntent(func(intent Intent) {
 		go b.HandleIntent(ctx, intent)
 	})
 
@@ -110,7 +109,7 @@ func (b *Broker) Start(ctx context.Context) {
 }
 
 // HandleIntent processes a single intent: build plan, execute, relay events.
-func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
+func (b *Broker) HandleIntent(ctx context.Context, intent Intent) {
 	plan := b.planFactory(intent)
 	startedAt := time.Now()
 
@@ -146,7 +145,7 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 			slog.Int(telemetry.KeyQueuePos, queuePos),
 			slog.String(telemetry.KeyReason, "concurrency limit reached"),
 		)
-		b.operator.EmitResult(ari.Result{
+		b.operator.EmitResult(Result{
 			IntentID: intent.ID,
 			Success:  false,
 			Summary:  fmt.Sprintf("queued at position %d", queuePos),
@@ -173,7 +172,7 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 			slog.String(telemetry.KeyError, err.Error()),
 		)
 		b.workstreams.Complete(plan.ID, WorkstreamFailed)
-		b.operator.EmitResult(ari.Result{
+		b.operator.EmitResult(Result{
 			IntentID: intent.ID,
 			Success:  false,
 			Summary:  fmt.Sprintf("execute failed: %v", err),
@@ -212,7 +211,7 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 		)
 	}
 
-	b.operator.EmitResult(ari.Result{
+	b.operator.EmitResult(Result{
 		IntentID: intent.ID,
 		Success:  success,
 		Summary:  lastEvent.Message,
@@ -220,7 +219,7 @@ func (b *Broker) HandleIntent(ctx context.Context, intent ari.Intent) {
 
 	// Dequeue next pending workstream if any
 	if next := b.workstreams.Dequeue(); next != nil {
-		go b.HandleIntent(ctx, ari.Intent{
+		go b.HandleIntent(ctx, Intent{
 			ID:     next.IntentID,
 			Action: next.Action,
 		})
@@ -295,7 +294,7 @@ func (b *Broker) listenAlerts(ctx context.Context) {
 	}
 }
 
-func (b *Broker) handleAlert(ctx context.Context, alert ari.Alert) {
+func (b *Broker) handleAlert(ctx context.Context, alert Alert) {
 	b.bus.Emit(telemetry.Signal{
 		Workstream: alertWorkstreamPrefix + alert.Metric,
 		Level:      telemetry.Red,
@@ -304,7 +303,7 @@ func (b *Broker) handleAlert(ctx context.Context, alert ari.Alert) {
 		Message:    fmt.Sprintf("alert: %s = %.2f", alert.Metric, alert.Value),
 	})
 
-	intent := ari.Intent{
+	intent := Intent{
 		ID:     autoFixIntentPrefix + alert.Metric,
 		Action: "fix",
 		Payload: map[string]string{

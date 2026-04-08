@@ -3,24 +3,23 @@ package broker
 import (
 	"context"
 
-	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
 // OperatorPort is the driving port for operator interactions (intent in, events out).
 type OperatorPort interface {
-	OnIntent(handler func(ari.Intent))
+	OnIntent(handler func(Intent))
 	EmitProgress(event Event)
-	EmitPermission(payload ari.PermissionPayload)
+	EmitPermission(payload PermissionPayload)
 	EmitAndon(board AndonBoard)
-	EmitResult(result ari.Result)
-	PermissionResponses() <-chan ari.PermissionResponse
+	EmitResult(result Result)
+	PermissionResponses() <-chan PermissionResponse
 }
 
 // EventIngressPort is the driving port for external monitoring alerts.
 type EventIngressPort interface {
-	Alerts() <-chan ari.Alert
+	Alerts() <-chan Alert
 }
 
 // SandboxPort is the driven port for sandbox lifecycle management.

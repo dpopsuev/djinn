@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/driver"
@@ -69,7 +68,7 @@ func TestE2E_Integration_MisbahSandbox(t *testing.T) {
 		Cordons:      cordons,
 		Operator:     op,
 		Sandbox:      sandbox,
-		PlanFactory: func(intent ari.Intent) broker.WorkPlan {
+		PlanFactory: func(intent broker.Intent) broker.WorkPlan {
 			return builders.NewWorkPlan(intent.ID).
 				AddStage("code", wksp.TierScope{Level: wksp.Mod, Name: "test-module"}, "implement changes").
 				Build()
@@ -82,7 +81,7 @@ func TestE2E_Integration_MisbahSandbox(t *testing.T) {
 	b.Start(ctx)
 
 	// Send intent via operator
-	op.SendIntent(ari.Intent{ID: "integration-1", Action: "fix"})
+	op.SendIntent(broker.Intent{ID: "integration-1", Action: "fix"})
 
 	// Wait for result
 	deadline := time.Now().Add(integrationTimeout)

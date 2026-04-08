@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/ari"
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/broker"
 	"github.com/dpopsuev/djinn/driver"
@@ -43,7 +42,7 @@ func TestE2E_FeedbackLoop_AlertToFixToRecovery(t *testing.T) {
 		Alerts:       feedback, // EventIngressPort (driving)
 		Metrics:      feedback, // MetricsPort (driven)
 		Sandbox:      sandbox,
-		PlanFactory: func(intent ari.Intent) broker.WorkPlan {
+		PlanFactory: func(intent broker.Intent) broker.WorkPlan {
 			return broker.WorkPlan{
 				ID: intent.ID,
 				Stages: []broker.Stage{
