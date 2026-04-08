@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -836,126 +835,34 @@ func (m *Model) handleSubmit() (tea.Model, tea.Cmd) { //nolint:gocyclo,funlen //
 		input = preprocessFileRefs(input, m.sess.WorkDir)
 	}
 
-	// Handle /role before the general command dispatcher (needs Model access)
-	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/role" {
-		switch {
-		case len(cmd.Args) == 0:
-			names := make([]string, 0, len(m.roles))
-			for n := range m.roles {
-				names = append(names, n)
+	// Model-aware slash commands (need Model access for roles, sandbox, debug).
+	if cmd, ok := ParseCommand(input); ok {
+		switch cmd.Name {
+		case "/role":
+			m.handleRoleCmd(cmd)
+			return m, nil
+		case "/staff":
+			m.handleStaffCmd()
+			return m, nil
+		case "/jailbreak":
+			m.handleJailbreakCmd()
+			return m, nil
+		case "/briefing":
+			m.handleBriefingCmd()
+			return m, nil
+		case "/exec":
+			if shellCmd := m.handleExecCmd(cmd); shellCmd != "" {
+				execCmd := m.runShellInline(shellCmd)
+				return m, execCmd
 			}
-			sort.Strings(names)
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: fmt.Sprintf("current role: %s\navailable: %s",
-				m.currentRole, strings.Join(names, ", "))})
-		case cmd.Args[0] == "create" && len(cmd.Args) >= 3:
-			name, mode := cmd.Args[1], cmd.Args[2]
-			m.roles[name] = uniform.Role{
-				Name:             name,
-				Prompt:           fmt.Sprintf("You are %s. The operator created this role on the fly.", name),
-				Mode:             mode,
-				ToolCapabilities: []string{},
-			}
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: fmt.Sprintf("created role %q (mode: %s, capabilities: none — use /role capabilities %s to configure)", name, mode, name)})
-		default:
-			m.switchRole(cmd.Args[0])
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: fmt.Sprintf("switched to %s (manual override)", cmd.Args[0])})
+			return m, nil
+		case cmdDebug:
+			m.handleDebugCmd()
+			return m, nil
+		case "/mcp":
+			m.handleMCPCmd()
+			return m, nil
 		}
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
-		return m, nil
-	}
-
-	// Handle /staff — show all roles and their current state.
-	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/staff" {
-		var sb strings.Builder
-		sb.WriteString("Staff:\n")
-		names := make([]string, 0, len(m.roles))
-		for n := range m.roles {
-			names = append(names, n)
-		}
-		sort.Strings(names)
-		for _, name := range names {
-			role := m.roles[name]
-			indicator := "  "
-			if name == m.currentRole {
-				indicator = "→ "
-			}
-			sb.WriteString(fmt.Sprintf("%s%s (mode: %s, slots: %d)\n",
-				indicator, name, role.Mode, len(role.ToolCapabilities)))
-		}
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: sb.String()})
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
-		return m, nil
-	}
-
-	// Handle /jailbreak — toggle sandbox for GenSec only.
-	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/jailbreak" {
-		switch {
-		case m.currentRole != roleGensec:
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render("jailbreak: only GenSec (root agent) can toggle sandbox")})
-		case m.sandboxHandle == "":
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("jailbreak: no sandbox configured")})
-		default:
-			// GenSec starts unsandboxed. /jailbreak re-sandboxes GenSec (testing/lockdown).
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  GenSec is the root agent — always unsandboxed. Other roles are sandboxed by default.")})
-		}
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
-		return m, nil
-	}
-
-	// Handle /briefing
-	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/briefing" {
-		entries := m.roleMemory.Briefing()
-		if len(entries) == 0 {
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: "briefing: (empty)"})
-		} else {
-			var sb strings.Builder
-			sb.WriteString("Briefing:\n")
-			for _, e := range entries {
-				ts := e.Timestamp.Format("15:04:05")
-				fmt.Fprintf(&sb, "  [%s] %s\n", ts, e.Content)
-			}
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: sb.String()})
-		}
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
-		return m, nil
-	}
-
-	// Handle /exec — drop into sandbox shell.
-	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/exec" {
-		if len(cmd.Args) == 0 {
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: "usage: /exec <command>"})
-		} else {
-			shellCmd := strings.Join(cmd.Args, " ")
-			execCmd := m.runShellInline(shellCmd)
-			return m, execCmd
-		}
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
-		return m, nil
-	}
-
-	// Handle /debug — toggle trace debug panel.
-	if cmd, ok := ParseCommand(input); ok && cmd.Name == cmdDebug {
-		m.showDebug = !m.showDebug
-		state := "off"
-		if m.showDebug {
-			state = "on"
-		}
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("debug panel: " + state)})
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
-		return m, nil
-	}
-
-	// Handle /mcp — list registered tools by source.
-	if cmd, ok := ParseCommand(input); ok && cmd.Name == "/mcp" {
-		var sb strings.Builder
-		sb.WriteString("Registered Tools:\n")
-		for _, name := range m.tools.Names() {
-			fmt.Fprintf(&sb, "  %s %s\n", elements.Glyph(elements.StateDone), name)
-		}
-		sb.WriteString(elements.Dim(fmt.Sprintf("\n  %d tools total", len(m.tools.Names()))))
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: sb.String()})
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
-		return m, nil
 	}
 
 	// Slash command dispatch
