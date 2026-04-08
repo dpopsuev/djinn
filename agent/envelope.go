@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -25,33 +26,24 @@ import (
 var ErrToolDenied = errors.New("tool denied")
 
 // ToolGate decides if a tool call should proceed. Can reject.
-type ToolGate interface {
-	Check(ctx context.Context, tool string, input json.RawMessage) (ToolGateResult, error)
-}
+// Aliased from battery/middleware.Gate — single source of truth.
+type ToolGate = middleware.Gate
 
 // ToolGateResult is the outcome of a gate check.
-type ToolGateResult struct {
-	Allowed bool
-	Reason  string // why denied (empty if allowed)
-}
+// Aliased from battery/middleware.Verdict — single source of truth.
+type ToolGateResult = middleware.Verdict
 
 // SecurityGate is a marker interface for gates that enforce security policy.
-// EnvelopeBuilder.Build() requires at least one SecurityGate.
-type SecurityGate interface {
-	ToolGate
-	isSecurityGate()
-}
+// Aliased from battery/middleware.SecurityGate — single source of truth.
+type SecurityGate = middleware.SecurityGate
 
 // Enricher adds context before execution. Cannot reject the call.
-// Returns a string to append to the tool's response (empty = no enrichment).
-type Enricher interface {
-	Enrich(ctx context.Context, tool string, input json.RawMessage) (string, error)
-}
+// Aliased from battery/middleware.Enricher — single source of truth.
+type Enricher = middleware.Enricher
 
 // Recorder observes after execution. Cannot affect the result.
-type Recorder interface {
-	Record(ctx context.Context, tool string, input json.RawMessage, output string, err error, elapsed time.Duration)
-}
+// Aliased from battery/middleware.Recorder — single source of truth.
+type Recorder = middleware.Recorder
 
 // ToolEnvelope wraps a ToolExecutor with Gate/Enrich/Execute/Record pipeline.
 // Implements builtin.ToolExecutor — transparent to the agent loop.

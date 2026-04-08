@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -17,9 +18,8 @@ type allowGate struct{}
 func (allowGate) Check(_ context.Context, _ string, _ json.RawMessage) (ToolGateResult, error) {
 	return ToolGateResult{Allowed: true}, nil
 }
-func (allowGate) isSecurityGate() {}
 
-var _ SecurityGate = allowGate{}
+var _ ToolGate = allowGate{}
 
 type denyGate struct{ reason string }
 
@@ -172,7 +172,7 @@ func TestEnvelopeBuilder_Build_RequiresSecurityGate(t *testing.T) {
 
 func TestEnvelopeBuilder_Build_WithSecurityGate(t *testing.T) {
 	env, err := NewEnvelopeBuilder(&stubExecutor{}).
-		WithGate(allowGate{}).
+		WithGate(middleware.AsSecurityGate(allowGate{})).
 		Build()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -184,7 +184,7 @@ func TestEnvelopeBuilder_Build_WithSecurityGate(t *testing.T) {
 
 func TestEnvelopeBuilder_WithBundles(t *testing.T) {
 	env, err := NewEnvelopeBuilder(&stubExecutor{}).
-		WithGates(allowGate{}).
+		WithGates(middleware.AsSecurityGate(allowGate{})).
 		WithEnrichers(appendEnricher{text: "ctx"}).
 		WithRecorders(&spyRecorder{}).
 		Build()
@@ -206,7 +206,7 @@ func TestToolEnvelope_ImplementsToolExecutor(t *testing.T) {
 	// Compile-time check is in envelope.go via var _ statement.
 	// This test documents the contract.
 	env, _ := NewEnvelopeBuilder(&stubExecutor{}).
-		WithGate(allowGate{}).
+		WithGate(middleware.AsSecurityGate(allowGate{})).
 		Build()
 	names := env.Names()
 	if names == nil {

@@ -7,6 +7,7 @@ package agent
 import (
 	"errors"
 
+	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -86,9 +87,10 @@ func (b *EnvelopeBuilder) Build() (*ToolEnvelope, error) {
 // --- Bundles: pre-configured layer sets ---
 
 // SecurityBundle returns gates for policy enforcement. ALWAYS required.
+// Wraps PolicyGate with AsSecurityGate so EnvelopeBuilder recognizes it.
 func SecurityBundle(enforcer policy.ToolPolicyEnforcer, token policy.CapabilityToken) []ToolGate {
 	return []ToolGate{
-		&PolicyGate{enforcer: enforcer, token: token},
+		middleware.AsSecurityGate(&PolicyGate{enforcer: enforcer, token: token}),
 	}
 }
 

@@ -7,22 +7,14 @@
 // Denied calls return errors to the agent, not crashes.
 package policy
 
-import (
-	"context"
-	"encoding/json"
-)
+import batterypolicy "github.com/dpopsuev/battery/policy"
 
 // CapabilityToken defines what an agent is allowed to do.
 // Created at workspace load, immutable by the agent.
-type CapabilityToken struct {
-	WritablePaths []string // workspace repo paths the agent can write to
-	DeniedPaths   []string // config paths, always denied regardless of other rules
-	AllowedTools  []string // tool whitelist (empty = all tools allowed)
-	Tier          string   // eco, mod, sys — privilege level
-}
+// Aliased from battery/policy — single source of truth.
+type CapabilityToken = batterypolicy.CapabilityToken
 
 // ToolPolicyEnforcer gates every agent call. Returns nil if allowed,
 // error with reason if denied.
-type ToolPolicyEnforcer interface {
-	Check(ctx context.Context, token CapabilityToken, tool string, input json.RawMessage) error
-}
+// Aliased from battery/policy.Enforcer — single source of truth.
+type ToolPolicyEnforcer = batterypolicy.Enforcer

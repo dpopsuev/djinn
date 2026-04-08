@@ -35,11 +35,8 @@ func (g *PolicyGate) Check(ctx context.Context, tool string, input json.RawMessa
 	return ToolGateResult{Allowed: true}, nil
 }
 
-// isSecurityGate marks this as a SecurityGate — required by EnvelopeBuilder.
-func (g *PolicyGate) isSecurityGate() {}
-
 // Ensure interface compliance.
-var _ SecurityGate = (*PolicyGate)(nil)
+var _ ToolGate = (*PolicyGate)(nil)
 
 // --- Enrichers ---
 
