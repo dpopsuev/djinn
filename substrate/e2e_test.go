@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/dpopsuev/battery/middleware"
+	"github.com/dpopsuev/battery/testkit"
 	"github.com/dpopsuev/battery/tool"
 	"github.com/dpopsuev/djinn/arena"
 	"github.com/dpopsuev/djinn/substrate"
@@ -37,7 +38,7 @@ func TestE2E_Skeleton(t *testing.T) {
 		t.Fatalf("build envelope: %v", err)
 	}
 
-	sub := substrate.NewStubSubstrate(exec)
+	sub := substrate.NewStubSubstrate(exec, testkit.NewStubEventLog())
 	sub.SetEnvelope(env)
 
 	// 2. Define the scenario + referee

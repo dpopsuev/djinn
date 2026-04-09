@@ -11,6 +11,7 @@ package substrate
 import (
 	"context"
 
+	"github.com/dpopsuev/battery/event"
 	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/battery/service"
 	"github.com/dpopsuev/battery/tool"
@@ -28,6 +29,10 @@ type Substrate interface {
 
 	// Observe records a tool call observation.
 	Observe(ctx context.Context, obs Observation)
+
+	// EventLog returns the unified event log. All agent actions flow through it.
+	// The poka-yoke: no component can produce data outside this log.
+	EventLog() event.EventLog
 
 	// Spawn starts a new agent with the given config. Returns agent ID.
 	Spawn(ctx context.Context, cfg SpawnConfig) (string, error)

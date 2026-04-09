@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/battery/service"
+	"github.com/dpopsuev/battery/testkit"
 	"github.com/dpopsuev/battery/tool"
 )
 
@@ -20,7 +21,7 @@ func (stubExecutor) Names() []string  { return []string{"stub"} }
 
 func TestStubSubstrate_Tools(t *testing.T) {
 	exec := stubExecutor{}
-	s := NewStubSubstrate(exec)
+	s := NewStubSubstrate(exec, testkit.NewStubEventLog())
 
 	if s.Tools() == nil {
 		t.Fatal("Tools() should return executor")
@@ -32,7 +33,7 @@ func TestStubSubstrate_Tools(t *testing.T) {
 }
 
 func TestStubSubstrate_Observe(t *testing.T) {
-	s := NewStubSubstrate(stubExecutor{})
+	s := NewStubSubstrate(stubExecutor{}, testkit.NewStubEventLog())
 	ctx := context.Background()
 
 	s.Observe(ctx, Observation{AgentID: "exec-0", Tool: "Read", Duration: 42})
@@ -47,7 +48,7 @@ func TestStubSubstrate_Observe(t *testing.T) {
 }
 
 func TestStubSubstrate_SpawnAndKill(t *testing.T) {
-	s := NewStubSubstrate(stubExecutor{})
+	s := NewStubSubstrate(stubExecutor{}, testkit.NewStubEventLog())
 	ctx := context.Background()
 
 	id, err := s.Spawn(ctx, SpawnConfig{Role: "executor", Model: "haiku"})
@@ -70,7 +71,7 @@ func TestStubSubstrate_SpawnAndKill(t *testing.T) {
 }
 
 func TestStubSubstrate_Health(t *testing.T) {
-	s := NewStubSubstrate(stubExecutor{})
+	s := NewStubSubstrate(stubExecutor{}, testkit.NewStubEventLog())
 
 	h := s.Health()
 	if h.Status != service.Healthy {
