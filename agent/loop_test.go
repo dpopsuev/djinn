@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -329,4 +330,221 @@ func TestRun_ToolApprovalDenied(t *testing.T) {
 	}
 	_ = result
 	// Should have completed without crashing despite denied tool
+}
+
+// --- scriptedExecutor: local ToolExecutor for Run() tests ---
+// Avoids import cycle (agent → testkit/stubs → broker → agent).
+// Named to avoid collision with stubExecutor in envelope_test.go.
+
+type scriptedExecutor struct {
+	mu       sync.Mutex
+	handlers map[string]func(json.RawMessage) (string, error)
+	calls    []toolCallRecord
+}
+
+type toolCallRecord struct {
+	Name  string
+	Input json.RawMessage
+}
+
+func newScriptedExecutor() *scriptedExecutor {
+	return &scriptedExecutor{handlers: make(map[string]func(json.RawMessage) (string, error))}
+}
+
+func (e *scriptedExecutor) Register(name string, fn func(json.RawMessage) (string, error)) {
+	e.handlers[name] = fn
+}
+
+func (e *scriptedExecutor) Execute(_ context.Context, name string, input json.RawMessage) (string, error) {
+	e.mu.Lock()
+	e.calls = append(e.calls, toolCallRecord{Name: name, Input: input})
+	e.mu.Unlock()
+
+	fn, ok := e.handlers[name]
+	if !ok {
+		return "", errors.New("tool not found: " + name)
+	}
+	return fn(input)
+}
+
+func (e *scriptedExecutor) All() []builtin.Tool { return nil }
+func (e *scriptedExecutor) Names() []string     { return nil }
+
+func (e *scriptedExecutor) CallCount() int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return len(e.calls)
+}
+
+func (e *scriptedExecutor) Calls() []toolCallRecord {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	out := make([]toolCallRecord, len(e.calls))
+	copy(out, e.calls)
+	return out
+}
+
+// --- Layer 2: agent.Run() tool call execution tests ---
+
+func TestRun_ToolCallExecution(t *testing.T) {
+	// Turn 1: LLM requests Write tool
+	// Turn 2: LLM sees tool result, responds with "done"
+	d := newScriptedTestDriver(
+		[]driver.StreamEvent{
+			{Type: driver.EventText, Text: "I'll write the file"},
+			{Type: driver.EventToolUse, ToolCall: &driver.ToolCall{
+				ID:    "call-1",
+				Name:  "Write",
+				Input: json.RawMessage(`{"path":"test.txt","content":"hello"}`),
+			}},
+			{Type: driver.EventDone, Usage: &driver.Usage{OutputTokens: 15}},
+		},
+		[]driver.StreamEvent{
+			{Type: driver.EventText, Text: "done"},
+			{Type: driver.EventDone, Usage: &driver.Usage{OutputTokens: 5}},
+		},
+	)
+
+	executor := newScriptedExecutor()
+	executor.Register("Write", func(input json.RawMessage) (string, error) {
+		var args map[string]string
+		json.Unmarshal(input, &args) //nolint:errcheck // test
+		return "wrote " + args["path"], nil
+	})
+
+	sess := contextmgr.New("test-tool", "test-model", t.TempDir())
+	var handler testHandler
+
+	result, err := Run(context.Background(), Config{
+		Driver:       d,
+		Tools:        executor,
+		Session:      sess,
+		MaxTurns:     5,
+		ToolsEnabled: true,
+		Approve:      AutoApprove,
+		Handler:      &handler,
+	}, "write test.txt")
+
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if result != "done" {
+		t.Fatalf("result = %q, want %q", result, "done")
+	}
+
+	// Verify tool was called
+	if executor.CallCount() != 1 {
+		t.Fatalf("tool calls = %d, want 1", executor.CallCount())
+	}
+	call := executor.Calls()[0]
+	if call.Name != "Write" {
+		t.Fatalf("tool name = %q, want Write", call.Name)
+	}
+
+	// Verify handler received events
+	if len(handler.toolCalls) != 1 {
+		t.Fatalf("handler toolCalls = %d, want 1", len(handler.toolCalls))
+	}
+	if len(handler.toolResults) != 1 {
+		t.Fatalf("handler toolResults = %d, want 1", len(handler.toolResults))
+	}
+
+	// Verify session has full history: user + assistant(tool_call) + user(tool_result) + assistant(done)
+	if sess.History.Len() != 4 {
+		t.Fatalf("session history = %d, want 4", sess.History.Len())
+	}
+}
+
+func TestRun_ToolError(t *testing.T) {
+	// Turn 1: LLM requests a tool that fails
+	// Turn 2: LLM sees error result, responds gracefully
+	d := newScriptedTestDriver(
+		[]driver.StreamEvent{
+			{Type: driver.EventToolUse, ToolCall: &driver.ToolCall{
+				ID:    "call-1",
+				Name:  "Read",
+				Input: json.RawMessage(`{"path":"/nonexistent"}`),
+			}},
+			{Type: driver.EventDone, Usage: &driver.Usage{OutputTokens: 10}},
+		},
+		[]driver.StreamEvent{
+			{Type: driver.EventText, Text: "file not found"},
+			{Type: driver.EventDone, Usage: &driver.Usage{OutputTokens: 5}},
+		},
+	)
+
+	executor := newScriptedExecutor()
+	executor.Register("Read", func(_ json.RawMessage) (string, error) {
+		return "", errors.New("open /nonexistent: no such file")
+	})
+
+	sess := contextmgr.New("test-err", "test-model", t.TempDir())
+
+	result, err := Run(context.Background(), Config{
+		Driver:       d,
+		Tools:        executor,
+		Session:      sess,
+		MaxTurns:     5,
+		ToolsEnabled: true,
+		Approve:      AutoApprove,
+		Handler:      NilHandler{},
+	}, "read the file")
+
+	if err != nil {
+		t.Fatalf("Run should not error on tool failure: %v", err)
+	}
+	if result != "file not found" {
+		t.Fatalf("result = %q, want %q", result, "file not found")
+	}
+
+	// Tool was called, error result was sent back, agent continued
+	if executor.CallCount() != 1 {
+		t.Fatalf("tool calls = %d, want 1", executor.CallCount())
+	}
+}
+
+func TestRun_MaxTurnsExceeded(t *testing.T) {
+	// Every turn returns a tool call — should stop at max turns
+	infiniteToolTurn := []driver.StreamEvent{
+		{Type: driver.EventToolUse, ToolCall: &driver.ToolCall{
+			ID:    "call-inf",
+			Name:  "Noop",
+			Input: json.RawMessage(`{}`),
+		}},
+		{Type: driver.EventDone, Usage: &driver.Usage{OutputTokens: 5}},
+	}
+
+	d := newScriptedTestDriver(
+		infiniteToolTurn,
+		infiniteToolTurn,
+		infiniteToolTurn,
+		infiniteToolTurn, // 4th turn — won't be reached with MaxTurns=3
+	)
+
+	executor := newScriptedExecutor()
+	executor.Register("Noop", func(_ json.RawMessage) (string, error) {
+		return "ok", nil
+	})
+
+	sess := contextmgr.New("test-max", "test-model", t.TempDir())
+
+	_, err := Run(context.Background(), Config{
+		Driver:       d,
+		Tools:        executor,
+		Session:      sess,
+		MaxTurns:     3,
+		ToolsEnabled: true,
+		Approve:      AutoApprove,
+		Handler:      NilHandler{},
+	}, "loop forever")
+
+	// agent.Run() should complete without error — it just stops after max turns
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	// Exactly 3 tool calls (one per turn, 3 turns max)
+	if executor.CallCount() != 3 {
+		t.Fatalf("tool calls = %d, want 3", executor.CallCount())
+	}
 }
