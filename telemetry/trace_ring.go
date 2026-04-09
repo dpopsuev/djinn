@@ -9,16 +9,21 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/dpopsuev/battery/event"
 )
 
 // Ring is a bounded circular buffer of TraceEvents.
+// When EventLog is set, every Append also emits to it —
+// bridging Djinn's trace system to the unified event log.
 type Ring struct {
-	mu     sync.RWMutex
-	events []TraceEvent
-	cap    int
-	pos    int
-	count  int
-	nextID atomic.Int64
+	mu       sync.RWMutex
+	events   []TraceEvent
+	cap      int
+	pos      int
+	count    int
+	nextID   atomic.Int64
+	eventLog event.EventLog // optional: unified event log bridge
 }
 
 // NewRing creates a ring buffer with the given capacity.
@@ -27,6 +32,13 @@ func NewRing(capacity int) *Ring {
 		events: make([]TraceEvent, capacity),
 		cap:    capacity,
 	}
+}
+
+// WithEventLog bridges the Ring to a unified EventLog.
+// Every Append also emits to the EventLog. Call once at composition time.
+func (r *Ring) WithEventLog(log event.EventLog) *Ring {
+	r.eventLog = log
+	return r
 }
 
 // Append adds an event to the ring, assigning an ID and timestamp.
@@ -44,7 +56,13 @@ func (r *Ring) Append(e TraceEvent) string {
 	if r.count < r.cap {
 		r.count++
 	}
+	log := r.eventLog
 	r.mu.Unlock()
+
+	// Bridge to unified event log (outside lock).
+	if log != nil {
+		log.Emit(traceToEvent(e))
+	}
 
 	return e.ID
 }
@@ -143,6 +161,34 @@ func (r *Ring) Stats() RingStats {
 		stats.Newest = r.events[newest].Timestamp
 	}
 	return stats
+}
+
+// traceToEvent converts a TraceEvent to a battery Event.
+func traceToEvent(te TraceEvent) event.Event {
+	meta := make(map[string]string, len(te.Metadata)+4)
+	for k, v := range te.Metadata {
+		meta[k] = v
+	}
+	if te.Server != "" {
+		meta["server"] = te.Server
+	}
+	if te.Tool != "" {
+		meta["tool"] = te.Tool
+	}
+	if te.Latency > 0 {
+		meta["latency_ms"] = fmt.Sprintf("%d", te.Latency.Milliseconds())
+	}
+	if te.Error {
+		meta["error"] = "true"
+	}
+	return event.Event{
+		ID:        te.ID,
+		ParentID:  te.ParentID,
+		Timestamp: te.Timestamp,
+		Source:    string(te.Component),
+		Kind:      te.Action,
+		Meta:      meta,
+	}
 }
 
 // walk iterates events oldest-first. Caller must hold read lock.
