@@ -51,9 +51,11 @@ func TestPoC_HTTPServer(t *testing.T) {
 
 		systemPrompt := fmt.Sprintf(
 			"You are a Go developer. Write files using the Write tool. "+
-				"Use Bash to compile and run. All file paths MUST be absolute, "+
-				"rooted at %s. Example: %s/main.go",
-			workspace, workspace,
+				"Use Bash ONLY to compile (go build), NEVER to run the server. "+
+				"All file paths MUST be absolute, rooted at %s. "+
+				"Example: %s/main.go. "+
+				"After writing all files, compile with: cd %s && go build -o server .",
+			workspace, workspace, workspace,
 		)
 
 		return func(ctx context.Context, prompt string) (string, error) {
@@ -72,7 +74,7 @@ func TestPoC_HTTPServer(t *testing.T) {
 				Tools:        reg,
 				Session:      sess,
 				SystemPrompt: systemPrompt,
-				MaxTurns:     15,
+				MaxTurns:     10,
 				ToolsEnabled: true,
 				Mode:         agent.ModeAuto,
 				Approve:      agent.AutoApprove,
