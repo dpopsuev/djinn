@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	batteryTestkit "github.com/dpopsuev/battery/testkit"
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/artifact"
 	djinnconfig "github.com/dpopsuev/djinn/config"
@@ -233,7 +234,9 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	}
 
 	// Trace ring — observable by default (Flywheel Tier 4).
-	traceRing := telemetry.NewRing(1000) //nolint:mnd // 1000 events is a sensible default
+	// WithEventLog bridges all trace events to the unified event log (CMP-31).
+	eventLog := batteryTestkit.NewStubEventLog()
+	traceRing := telemetry.NewRing(1000).WithEventLog(eventLog) //nolint:mnd // 1000 events is a sensible default
 
 	// Hub mediators — DevOps phase coordination (GOL-58).
 	hubRegistry := daemon.NewRegistry()
