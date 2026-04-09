@@ -9,15 +9,36 @@ func HTTPServiceScenario() Scenario {
 		"http-service",
 		"Build a Go HTTP server with a /health endpoint that returns "+
 			"JSON {\"status\": \"ok\"} on GET requests. "+
-			"The server should listen on port 8080. "+
-			"Use only stdlib (net/http). Single main.go file.",
+			"The server should read the PORT environment variable for the listen port, "+
+			"defaulting to 8080 if not set. "+
+			"Use only stdlib (net/http, os). Single main.go file.",
 	)
 }
 
 // HTTPServiceFixture is a known-good HTTP server for testing the referee.
-// The referee should pass this without any LLM involvement.
-// HTTPServiceFixture is a known-good HTTP server for testing the referee.
-const HTTPServiceFixture = "package main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n)\n\nfunc main() {\n\tmux := http.NewServeMux()\n\tmux.HandleFunc(\"GET /health\", func(w http.ResponseWriter, r *http.Request) {\n\t\tw.Header().Set(\"Content-Type\", \"application/json\")\n\t\tfmt.Fprint(w, `{\"status\":\"ok\"}`)\n\t})\n\thttp.ListenAndServe(\":8080\", mux)\n}\n"
+// Reads PORT env var (set by referee for dynamic port allocation).
+// Falls back to 8080 if PORT is not set.
+const HTTPServiceFixture = `package main
+
+import (
+	"fmt"
+	"net/http"
+	"os"
+)
+
+func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, ` + "`" + `{"status":"ok"}` + "`" + `)
+	})
+	http.ListenAndServe(":"+port, mux)
+}
+`
 
 func init() {
 	// Override default timeout/budget for HTTP scenario.
