@@ -49,10 +49,17 @@ func TestPoC_HTTPServer(t *testing.T) {
 		// Convert tools for the driver
 		tools := registryToTools(reg)
 
+		systemPrompt := fmt.Sprintf(
+			"You are a Go developer. Write files using the Write tool. "+
+				"Use Bash to compile and run. All file paths MUST be absolute, "+
+				"rooted at %s. Example: %s/main.go",
+			workspace, workspace,
+		)
+
 		return func(ctx context.Context, prompt string) (string, error) {
 			drv := troupedriver.New(provider, model,
 				troupedriver.WithTools(tools),
-				troupedriver.WithSystemPrompt("You are a Go developer. Write files using the Write tool. Use Bash to compile. Work in the current directory."),
+				troupedriver.WithSystemPrompt(systemPrompt),
 			)
 
 			if err := drv.Start(ctx, ""); err != nil {
@@ -64,7 +71,7 @@ func TestPoC_HTTPServer(t *testing.T) {
 				Driver:       drv,
 				Tools:        reg,
 				Session:      sess,
-				SystemPrompt: "You are a Go developer. Write files using the Write tool. Use Bash to compile. Work in the current directory.",
+				SystemPrompt: systemPrompt,
 				MaxTurns:     15,
 				ToolsEnabled: true,
 				Mode:         agent.ModeAuto,
