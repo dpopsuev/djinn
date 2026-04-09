@@ -12,7 +12,7 @@ require (
 	github.com/dpopsuev/mirage v0.2.0
 	github.com/dpopsuev/misbah v0.15.0
 	github.com/dpopsuev/parchment v0.2.0
-	github.com/dpopsuev/troupe v0.4.4
+	github.com/dpopsuev/troupe v0.4.5
 	github.com/mozilla-ai/any-llm-go v0.9.0
 	github.com/muesli/termenv v0.16.0
 	go.uber.org/goleak v1.3.0
