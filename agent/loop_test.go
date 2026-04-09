@@ -3,48 +3,17 @@ package agent
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
-	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
-func sseTextResponse(text string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/event-stream")
-		fmt.Fprintf(w, `event: message_start
-data: {"type":"message_start","message":{"id":"msg-1","role":"assistant"}}
-
-event: content_block_start
-data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
-
-event: content_block_delta
-data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"%s"}}
-
-event: content_block_stop
-data: {"type":"content_block_stop","index":0}
-
-event: message_delta
-data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":10}}
-
-event: message_stop
-data: {"type":"message_stop"}
-
-`, text)
-	}
-}
-
 func TestRun_SimpleText(t *testing.T) {
-	srv := httptest.NewServer(sseTextResponse("Hello from Claude"))
-	defer srv.Close()
-
 	// Test collectResponse directly with event channels
 	events := make(chan driver.StreamEvent, 10)
 	events <- driver.StreamEvent{Type: driver.EventText, Text: "Hello "}
@@ -247,33 +216,56 @@ func (h *testHandler) OnToolResult(id, name, output string, _ bool) {
 func (h *testHandler) OnDone(*driver.Usage) { h.doneReceived = true }
 func (h *testHandler) OnError(error)        {}
 
-// --- Full Run() cycle tests ---
+// --- Full Run() cycle tests using scriptedTestDriver ---
 
-func newTestAPIDriver(t *testing.T, handler http.HandlerFunc) *claudedriver.APIDriver {
-	t.Helper()
-	srv := httptest.NewServer(handler)
-	t.Cleanup(srv.Close)
+// scriptedTestDriver is a minimal ChatDriver for testing agent.Run().
+// Defined locally to avoid import cycle (agent → testkit/stubs → broker → agent).
+type scriptedTestDriver struct {
+	mu      sync.Mutex
+	turns   [][]driver.StreamEvent
+	current int
+}
 
-	os.Setenv("ANTHROPIC_API_KEY", "test-key")
-	t.Cleanup(func() { os.Unsetenv("ANTHROPIC_API_KEY") })
+func newScriptedTestDriver(turns ...[]driver.StreamEvent) *scriptedTestDriver {
+	return &scriptedTestDriver{turns: turns}
+}
 
-	d, err := claudedriver.NewAPIDriver(
-		driver.DriverConfig{Model: "test-model", MaxTokens: 1024},
-		claudedriver.WithTools(builtin.NewRegistry()),
-		claudedriver.WithAPIURL(srv.URL),
-	)
-	if err != nil {
-		t.Fatalf("NewAPIDriver: %v", err)
-	}
-	if err := d.Start(context.Background(), ""); err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-	t.Cleanup(func() { d.Stop(context.Background()) })
-	return d
+func (d *scriptedTestDriver) Start(context.Context, driver.SandboxHandle) error { return nil }
+func (d *scriptedTestDriver) Stop(context.Context) error                        { return nil }
+func (d *scriptedTestDriver) Send(context.Context, driver.Message) error        { return nil }
+func (d *scriptedTestDriver) SendRich(context.Context, driver.RichMessage) error {
+	return nil
+}
+func (d *scriptedTestDriver) AppendAssistant(driver.RichMessage) {}
+func (d *scriptedTestDriver) SetSystemPrompt(string)             {}
+func (d *scriptedTestDriver) ContextWindow() int                 { return 200_000 }
+
+func (d *scriptedTestDriver) Chat(context.Context) (<-chan driver.StreamEvent, error) {
+	d.mu.Lock()
+	turn := d.current
+	d.current++
+	d.mu.Unlock()
+
+	ch := make(chan driver.StreamEvent, 20)
+	go func() {
+		defer close(ch)
+		if turn >= len(d.turns) {
+			ch <- driver.StreamEvent{Type: driver.EventText, Text: "(no more turns)"}
+			ch <- driver.StreamEvent{Type: driver.EventDone, Usage: &driver.Usage{}}
+			return
+		}
+		for _, e := range d.turns[turn] {
+			ch <- e
+		}
+	}()
+	return ch, nil
 }
 
 func TestRun_FullCycle_TextOnly(t *testing.T) {
-	d := newTestAPIDriver(t, sseTextResponse("Hello from the agent"))
+	d := newScriptedTestDriver([]driver.StreamEvent{
+		{Type: driver.EventText, Text: "Hello from the agent"},
+		{Type: driver.EventDone, Usage: &driver.Usage{OutputTokens: 10}},
+	})
 
 	sess := contextmgr.New("test-run", "test-model", t.TempDir())
 	var handler testHandler
@@ -306,50 +298,21 @@ func TestRun_FullCycle_TextOnly(t *testing.T) {
 }
 
 func TestRun_ToolApprovalDenied(t *testing.T) {
-	// Mock that returns a tool call
-	toolSSE := `event: message_start
-data: {"type":"message_start","message":{"id":"msg-1","role":"assistant"}}
+	d := newScriptedTestDriver(
+		// Turn 1: tool call
+		[]driver.StreamEvent{
+			{Type: driver.EventToolUse, ToolCall: &driver.ToolCall{
+				ID: "call-1", Name: "Bash", Input: json.RawMessage(`{}`),
+			}},
+			{Type: driver.EventDone, Usage: &driver.Usage{OutputTokens: 5}},
+		},
+		// Turn 2: text response after denied tool result
+		[]driver.StreamEvent{
+			{Type: driver.EventText, Text: "OK, tool was denied"},
+			{Type: driver.EventDone, Usage: &driver.Usage{OutputTokens: 5}},
+		},
+	)
 
-event: content_block_start
-data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"call-1","name":"Bash","input":{}}}
-
-event: content_block_stop
-data: {"type":"content_block_stop","index":0}
-
-event: message_delta
-data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":5}}
-
-event: message_stop
-data: {"type":"message_stop"}
-
-`
-
-	callCount := 0
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		w.Header().Set("Content-Type", "text/event-stream")
-		if callCount == 1 {
-			// First call: return tool use
-			fmt.Fprint(w, toolSSE)
-		} else {
-			// Second call (after tool result): return text
-			fmt.Fprint(w, `event: message_start
-data: {"type":"message_start","message":{"id":"msg-2","role":"assistant"}}
-
-event: content_block_delta
-data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"OK, tool was denied"}}
-
-event: message_delta
-data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}
-
-event: message_stop
-data: {"type":"message_stop"}
-
-`)
-		}
-	}
-
-	d := newTestAPIDriver(t, handler)
 	sess := contextmgr.New("test-denied", "test-model", t.TempDir())
 
 	result, err := Run(context.Background(), Config{

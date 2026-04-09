@@ -9,7 +9,6 @@ import (
 
 	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
-	claudedriver "github.com/dpopsuev/djinn/driver/claude"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -202,5 +201,3 @@ func TestBackendHandler_EventsReachShell(t *testing.T) {
 	}
 }
 
-// Verify unused import is satisfied
-var _ = claudedriver.NewAPIDriver

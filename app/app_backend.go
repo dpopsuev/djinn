@@ -22,10 +22,11 @@ import (
 
 	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
-	claudedriver "github.com/dpopsuev/djinn/driver/claude"
+	troupedriver "github.com/dpopsuev/djinn/driver/troupe"
 	"github.com/dpopsuev/djinn/hotswap"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
+	"github.com/dpopsuev/troupe/execution"
 )
 
 // RunBackendCmd starts the headless backend process.
@@ -147,17 +148,24 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 }
 
 // createBackendDriver creates the LLM driver for the backend process.
-// Separate from app_repl.go's CreateDriver to avoid circular dependencies.
 func createBackendDriver(name, model, systemPrompt string, logger *slog.Logger) (driver.ChatDriver, error) {
-	switch name {
-	case DriverClaude:
-		return claudedriver.NewAPIDriver(driver.DriverConfig{
-			Model: model,
-		},
-			claudedriver.WithAPISystemPrompt(systemPrompt),
-			claudedriver.WithLogger(logger),
-		)
-	default:
-		return nil, fmt.Errorf("%w: %s (supported: claude)", ErrUnknownDriver, name)
+	providerName, err := resolveProviderName(name)
+	if err != nil {
+		return nil, err
 	}
+	provider, err := execution.NewProviderByName(providerName)
+	if err != nil {
+		return nil, fmt.Errorf("create provider %q: %w", providerName, err)
+	}
+
+	opts := []troupedriver.Option{
+		troupedriver.WithTools(registryToAnyllmTools(builtin.NewRegistry())),
+	}
+	if logger != nil {
+		opts = append(opts, troupedriver.WithLogger(logger))
+	}
+	if systemPrompt != "" {
+		opts = append(opts, troupedriver.WithSystemPrompt(systemPrompt))
+	}
+	return troupedriver.New(provider, model, opts...), nil
 }

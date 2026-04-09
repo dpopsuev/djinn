@@ -300,18 +300,18 @@ func TestDefaultHomeDir(t *testing.T) {
 	}
 }
 
-func TestCreateDriver_Cursor(t *testing.T) {
-	d, err := CreateDriver(DriverCursor, "sonnet-4", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d == nil {
-		t.Fatal("cursor driver nil")
+func TestCreateDriver_Cursor_Disabled(t *testing.T) {
+	_, err := CreateDriver(DriverCursor, "sonnet-4", "")
+	if err == nil {
+		t.Fatal("cursor driver should be disabled (CLI subprocess drivers removed)")
 	}
 }
 
 func TestCreateDriver_Gemini(t *testing.T) {
-	d, err := CreateDriver("gemini", "", "")
+	os.Setenv("GEMINI_API_KEY", "test-key")
+	defer os.Unsetenv("GEMINI_API_KEY")
+
+	d, err := CreateDriver("gemini", "gemini-2.5-flash", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -320,25 +320,18 @@ func TestCreateDriver_Gemini(t *testing.T) {
 	}
 }
 
-func TestCreateDriver_Codex(t *testing.T) {
-	d, err := CreateDriver("codex", "", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d == nil {
-		t.Fatal("codex driver nil")
-	}
-}
-
-func TestCreateDriver_ACP_Disabled(t *testing.T) {
-	_, err := CreateDriver("acp", "cursor/sonnet-4", "")
+func TestCreateDriver_Codex_Disabled(t *testing.T) {
+	_, err := CreateDriver("codex", "", "")
 	if err == nil {
-		t.Fatal("acp driver should be disabled (Jericho→Troupe migration)")
+		t.Fatal("codex driver should be disabled (CLI subprocess drivers removed)")
 	}
 }
 
 func TestCreateDriver_WithLogger(t *testing.T) {
-	d, err := CreateDriver("cursor", "sonnet-4", "be helpful", nil)
+	os.Setenv("ANTHROPIC_API_KEY", "test-key")
+	defer os.Unsetenv("ANTHROPIC_API_KEY")
+
+	d, err := CreateDriver(DriverClaude, "claude-sonnet-4-6", "be helpful", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
