@@ -63,6 +63,10 @@ type RunMetrics struct {
 	CPUSeconds  float64       `json:"cpu_seconds"`
 	Pass        bool          `json:"pass"`
 	Score       float64       `json:"score"`
+
+	// Artifacts maps relative file paths to content for post-mortem audit.
+	// Populated after the run completes, before workspace cleanup.
+	Artifacts map[string]string `json:"artifacts,omitempty"`
 }
 
 // Operator drives the agent — feeds prompts, responds to approvals.
