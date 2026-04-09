@@ -14,11 +14,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/dpopsuev/djinn/telemetry"
@@ -112,7 +109,7 @@ func (r *Runner) Execute(ctx context.Context) (*RunMetrics, error) {
 	elapsed := time.Since(start)
 
 	// 7. Dump workspace artifacts for post-mortem audit
-	artifacts := dumpWorkspace(workspace, log)
+	artifacts := telemetry.DumpWorkspace(workspace)
 
 	// 8. Record metrics
 	metrics := &RunMetrics{
@@ -139,45 +136,6 @@ func (r *Runner) Execute(ctx context.Context) (*RunMetrics, error) {
 	return metrics, nil
 }
 
-// dumpWorkspace walks the workspace and captures all text file contents.
-// Binary files and files over 64KB are skipped. Compiled binaries excluded.
-func dumpWorkspace(workspace string, log *slog.Logger) map[string]string {
-	const maxFileSize = 64 * 1024
-
-	artifacts := make(map[string]string)
-	err := filepath.WalkDir(workspace, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil // skip unreadable
-		}
-		if d.IsDir() {
-			return nil
-		}
-
-		rel, _ := filepath.Rel(workspace, path)
-
-		// Skip binaries and build artifacts
-		if rel == "server" || strings.HasSuffix(rel, ".exe") || strings.HasPrefix(rel, ".") {
-			return nil
-		}
-
-		info, err := d.Info()
-		if err != nil || info.Size() > maxFileSize {
-			return nil
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-
-		artifacts[rel] = string(content)
-		return nil
-	})
-	if err != nil {
-		log.WarnContext(context.Background(), "arena: dump workspace failed", slog.String(telemetry.KeyError, err.Error()))
-	}
-	return artifacts
-}
 
 // RunBuilder composes a Runner from parts with validation.
 type RunBuilder struct {
