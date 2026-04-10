@@ -8,8 +8,8 @@ import (
 
 	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/battery/tool"
-	"github.com/dpopsuev/djinn/arena"
 	"github.com/dpopsuev/djinn/substrate"
+	"github.com/dpopsuev/djinn/testkit/arena"
 	"github.com/dpopsuev/troupe/testkit"
 )
 
