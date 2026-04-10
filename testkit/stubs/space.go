@@ -5,7 +5,9 @@
 package stubs
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -87,6 +89,64 @@ func (s *StubSpace) Reset() error {
 		os.RemoveAll(s.workDir + "/" + e.Name()) //nolint:errcheck // best-effort reset
 	}
 	return nil
+}
+
+func (s *StubSpace) Snapshot(name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snapDir := filepath.Join(s.workDir, ".snapshots", name)
+	if err := os.MkdirAll(snapDir, 0o755); err != nil {
+		return err
+	}
+	// Copy all files from workDir to snapshot (skip .snapshots dir)
+	entries, _ := os.ReadDir(s.workDir)
+	for _, e := range entries {
+		if e.Name() == ".snapshots" || e.IsDir() {
+			continue
+		}
+		data, _ := os.ReadFile(filepath.Join(s.workDir, e.Name()))
+		os.WriteFile(filepath.Join(snapDir, e.Name()), data, 0o600) //nolint:errcheck,gosec // test stub
+	}
+	return nil
+}
+
+func (s *StubSpace) Restore(name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snapDir := filepath.Join(s.workDir, ".snapshots", name)
+	if _, err := os.Stat(snapDir); err != nil {
+		return fmt.Errorf("snapshot %q not found: %w", name, err)
+	}
+	// Clear workDir (except .snapshots)
+	entries, _ := os.ReadDir(s.workDir)
+	for _, e := range entries {
+		if e.Name() == ".snapshots" {
+			continue
+		}
+		os.RemoveAll(filepath.Join(s.workDir, e.Name())) //nolint:errcheck // test stub
+	}
+	// Copy snapshot back
+	snapEntries, _ := os.ReadDir(snapDir)
+	for _, e := range snapEntries {
+		data, _ := os.ReadFile(filepath.Join(snapDir, e.Name()))
+		os.WriteFile(filepath.Join(s.workDir, e.Name()), data, 0o600) //nolint:errcheck,gosec // test stub
+	}
+	return nil
+}
+
+func (s *StubSpace) Snapshots() []string {
+	snapBase := filepath.Join(s.workDir, ".snapshots")
+	entries, err := os.ReadDir(snapBase)
+	if err != nil {
+		return nil
+	}
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if e.IsDir() {
+			names = append(names, e.Name())
+		}
+	}
+	return names
 }
 
 func (s *StubSpace) Destroy() error {
