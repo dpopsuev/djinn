@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -24,7 +24,7 @@ func TestSocketBackend_HandshakeOverSocket(t *testing.T) {
 	defer ln.Close()
 
 	// Start backend in a goroutine — it connects and sends BackendReady.
-	sess := contextmgr.New("test", "test-model", "/workspace")
+	sess := session.New("test", "test-model", "/workspace")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -84,7 +84,7 @@ func TestSocketBackend_PromptRoundTrip(t *testing.T) {
 	defer ln.Close()
 
 	// Backend with a stub driver that returns "pong".
-	sess := contextmgr.New("test", "test-model", "/workspace")
+	sess := session.New("test", "test-model", "/workspace")
 	stubDriver := stubs.NewStubChatDriver(driver.Message{
 		Role: driver.RoleAssistant, Content: "pong",
 	})

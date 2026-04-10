@@ -15,13 +15,13 @@ import (
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/artifact"
 	djinnconfig "github.com/dpopsuev/djinn/config"
-	"github.com/dpopsuev/djinn/contextmgr"
-	"github.com/dpopsuev/djinn/daemon"
 	"github.com/dpopsuev/djinn/hotswap"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
+	"github.com/dpopsuev/djinn/miraged"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/repl"
 	"github.com/dpopsuev/djinn/sandbox"
+	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools"
 	"github.com/dpopsuev/djinn/tools/builtin"
@@ -122,13 +122,13 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		}
 	}
 
-	store, err := contextmgr.NewStore(SessionDir())
+	store, err := session.NewStore(SessionDir())
 	if err != nil {
 		return fmt.Errorf("cannot open session store at %s: %w", SessionDir(), err)
 	}
 
 	// Session: resume, continue, or new
-	var sess *contextmgr.Session
+	var sess *session.Session
 	switch {
 	case *cont:
 		sess, err = LoadMostRecent(store)
@@ -139,7 +139,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	case *sessionName != "":
 		sess, err = store.Load(*sessionName)
 		if err != nil {
-			sess = contextmgr.New(*sessionName, driverConf.Model, Getwd())
+			sess = session.New(*sessionName, driverConf.Model, Getwd())
 			sess.Name = *sessionName
 			sess.Driver = driverConf.Name
 		} else {
@@ -147,7 +147,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		}
 	default:
 		id := fmt.Sprintf("djinn-%d", time.Now().Unix())
-		sess = contextmgr.New(id, driverConf.Model, Getwd())
+		sess = session.New(id, driverConf.Model, Getwd())
 		sess.Driver = driverConf.Name
 	}
 
@@ -198,7 +198,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		slug := strings.ReplaceAll(ws.PrimaryPath(), "/", "-")
 		claudeDir := filepath.Join(home, ".claude", "projects", slug)
 		if jsonl := findMostRecentJSONL(claudeDir); jsonl != "" {
-			imported, importErr := contextmgr.ImportClaudeSession(jsonl, 0)
+			imported, importErr := session.ImportClaudeSession(jsonl, 0)
 			if importErr == nil && imported.History.Len() > 0 {
 				for _, entry := range imported.Entries() {
 					sess.Append(entry)
@@ -209,8 +209,8 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	}
 
 	// Auto-discover project context
-	projectCtx := contextmgr.LoadProjectContext(sess.WorkDirs...)
-	assembledPrompt := contextmgr.BuildSystemPrompt(projectCtx, *systemPrompt)
+	projectCtx := session.LoadProjectContext(sess.WorkDirs...)
+	assembledPrompt := session.BuildSystemPrompt(projectCtx, *systemPrompt)
 
 	chatDriver, err := CreateDriver(driverConf.Name, sess.Model, assembledPrompt, logResult.Logger)
 	if err != nil {
@@ -239,12 +239,12 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	traceRing := telemetry.NewTraceProjection(1000).WithEventLog(eventLog) //nolint:mnd // 1000 events is a sensible default
 
 	// Hub mediators — DevOps phase coordination (GOL-58).
-	hubRegistry := daemon.NewRegistry()
-	hubCore := daemon.HubCore{
+	hubRegistry := miraged.NewRegistry()
+	hubCore := miraged.HubCore{
 		Tracer:  traceRing.For(telemetry.ComponentTool),
-		Display: daemon.NopDisplaySender{},
+		Display: miraged.NopDisplaySender{},
 	}
-	planHub := daemon.NewPlanHub(hubCore, artifact.NewGraph("session", artifact.DefaultRegistry()))
+	planHub := miraged.NewPlanHub(hubCore, artifact.NewGraph("session", artifact.DefaultRegistry()))
 	hubRegistry.Register(planHub)
 
 	// Connect MCP servers
@@ -321,8 +321,8 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		if evt.New == nil {
 			return
 		}
-		newCtx := contextmgr.LoadProjectContext(evt.New.Paths()...)
-		newPrompt := contextmgr.BuildSystemPrompt(newCtx, *systemPrompt)
+		newCtx := session.LoadProjectContext(evt.New.Paths()...)
+		newPrompt := session.BuildSystemPrompt(newCtx, *systemPrompt)
 		chatDriver.SetSystemPrompt(newPrompt)
 	})
 	wsBus.On("session", func(evt djinnws.Event) {
@@ -347,7 +347,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 
 	// Wrap composite executor in ToolHub for mediated execution (GOL-37).
 	toolTracker := tools.NewToolLatencyTracker()
-	toolHub := daemon.NewToolHub(hubCore, composite, toolTracker)
+	toolHub := miraged.NewToolHub(hubCore, composite, toolTracker)
 	hubRegistry.Register(toolHub)
 
 	// Build Tool Operation Envelope: SecurityBundle + EnrichmentBundle + ObservabilityBundle.

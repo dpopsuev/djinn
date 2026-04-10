@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/dpopsuev/djinn/agent"
-	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -14,7 +14,7 @@ import (
 type BackendConfig struct {
 	Driver       driver.ChatDriver
 	Tools        builtin.ToolExecutor
-	Session      *contextmgr.Session
+	Session      *session.Session
 	SystemPrompt string
 	MaxTurns     int
 }

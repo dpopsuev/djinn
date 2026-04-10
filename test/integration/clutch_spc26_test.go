@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/hotswap"
+	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -33,7 +33,7 @@ func startTestBackend(ctx context.Context, t *testing.T, sock, model string, res
 		done <- hotswap.RunBackend(ctx, transport, hotswap.BackendConfig{
 			Driver:   stubs.NewStubChatDriver(responses...),
 			Tools:    builtin.NewRegistry(),
-			Session:  contextmgr.New("test", model, "/workspace"),
+			Session:  session.New("test", model, "/workspace"),
 			MaxTurns: 5,
 		})
 	}()

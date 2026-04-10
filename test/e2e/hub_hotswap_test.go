@@ -208,7 +208,7 @@ func TestHub_E2E_FullRebuild(t *testing.T) {
 	defer be2.Close()
 	time.Sleep(50 * time.Millisecond)
 
-	// Backend 2 announces with restored contextmgr.
+	// Backend 2 announces with restored session.
 	be2.SendToShell(hotswap.BackendMsg{Type: hotswap.BackendReady, HistoryLen: 15}) //nolint:errcheck // best-effort send, error logged by receiver
 	r2, err := shell2.RecvFromBackend()
 	if err != nil {

@@ -5,30 +5,30 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 )
 
 func TestReplayHistory_ToolResultViaSendRich(t *testing.T) {
 	// DJN-BUG-17: user entries with tool_result Blocks must go through
 	// SendRich, not Send. Send strips Blocks → orphaned tool_use.
-	sess := contextmgr.New("replay-test", "test-model", "/workspace")
-	sess.Append(contextmgr.Entry{Role: "user", Content: "hello"})
-	sess.Append(contextmgr.Entry{
+	sess := session.New("replay-test", "test-model", "/workspace")
+	sess.Append(session.Entry{Role: "user", Content: "hello"})
+	sess.Append(session.Entry{
 		Role: "assistant",
 		Blocks: []driver.ContentBlock{
 			driver.NewTextBlock("Let me check."),
 			driver.NewToolUseBlock("call-1", "Bash", json.RawMessage(`{"cmd":"ls"}`)),
 		},
 	})
-	sess.Append(contextmgr.Entry{
+	sess.Append(session.Entry{
 		Role: "user",
 		Blocks: []driver.ContentBlock{
 			driver.NewToolResultBlock("call-1", "file1.go\nfile2.go", false),
 		},
 	})
-	sess.Append(contextmgr.Entry{Role: "assistant", Content: "I see two files."})
+	sess.Append(session.Entry{Role: "assistant", Content: "I see two files."})
 
 	stub := &stubs.StubChatDriver{}
 	stub.Start(context.Background(), "") //nolint:errcheck // error intentionally ignored
@@ -58,9 +58,9 @@ func TestReplayHistory_ToolResultViaSendRich(t *testing.T) {
 
 func TestReplayHistory_PlainUserViaSend(t *testing.T) {
 	// Plain user text (no Blocks) should go through Send, not SendRich.
-	sess := contextmgr.New("plain-test", "test-model", "/workspace")
-	sess.Append(contextmgr.Entry{Role: "user", Content: "hello"})
-	sess.Append(contextmgr.Entry{Role: "assistant", Content: "hi"})
+	sess := session.New("plain-test", "test-model", "/workspace")
+	sess.Append(session.Entry{Role: "user", Content: "hello"})
+	sess.Append(session.Entry{Role: "assistant", Content: "hi"})
 
 	stub := &stubs.StubChatDriver{}
 	stub.Start(context.Background(), "") //nolint:errcheck // error intentionally ignored

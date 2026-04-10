@@ -1,4 +1,4 @@
-// adapter.go — MisbahSandbox implements sandbox.Sandbox using the Misbah daemon.
+// adapter.go — MisbahSandbox implements sandbox.Sandbox using the Misbah miraged.
 // Bridges the broker.SandboxPort (tier-scoped) to sandbox.Sandbox (level+repos).
 // Fails fast if the Misbah daemon is unreachable at startup.
 package misbah
@@ -16,12 +16,12 @@ import (
 // DefaultSocketPath is the standard Misbah daemon socket location.
 const DefaultSocketPath = "/run/misbah/permission.sock"
 
-// MisbahSandbox implements sandbox.Sandbox backed by a Misbah daemon.
+// MisbahSandbox implements sandbox.Sandbox backed by a Misbah miraged.
 type MisbahSandbox struct {
 	port *SandboxPort
 }
 
-// NewMisbahSandbox creates a sandbox backed by the Misbah daemon.
+// NewMisbahSandbox creates a sandbox backed by the Misbah miraged.
 // Fails fast if the daemon is unreachable (security: never degrade silently).
 func NewMisbahSandbox(socketPath, workspace string) (*MisbahSandbox, error) {
 	conn, err := net.DialTimeout("unix", socketPath, 2*time.Second)

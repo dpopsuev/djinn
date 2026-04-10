@@ -9,8 +9,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/repl"
+	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/uniform"
@@ -22,7 +22,7 @@ import (
 //   - Auditor does NOT have FileEditing tools
 //   - GenSec has WorkTracking tools
 func TestE2E_StaffingPipeline(t *testing.T) {
-	sess := contextmgr.New("staff-test", "test-model", "/workspace")
+	sess := session.New("staff-test", "test-model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Driver:  &stubs.StubChatDriver{},
 		Tools:   builtin.NewRegistry(),

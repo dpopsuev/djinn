@@ -11,10 +11,10 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/agent"
-	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/miraged"
 	"github.com/dpopsuev/djinn/policy"
-	"github.com/dpopsuev/djinn/substrate"
+	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -25,7 +25,7 @@ type AgentFixture struct {
 	workspace *TestWorkspace
 	tools     builtin.ToolExecutor
 	driver    driver.ChatDriver
-	session   *contextmgr.Session
+	session   *session.Session
 	mode      agent.Mode
 	maxTurns  int
 }
@@ -64,7 +64,7 @@ func NewAgentFixture(t *testing.T, opts ...AgentOpt) *AgentFixture {
 		workspace: ws,
 		tools:     builtin.NewRegistry(),
 		driver:    &stubs.StubChatDriver{},
-		session:   contextmgr.New("test", "test-model", ws.Dir()),
+		session:   session.New("test", "test-model", ws.Dir()),
 		mode:      agent.ModeAgent,
 		maxTurns:  10,
 	}
@@ -80,7 +80,7 @@ func NewAgentFixture(t *testing.T, opts ...AgentOpt) *AgentFixture {
 
 // Run executes the agent with the given prompt and returns the result.
 func (f *AgentFixture) Run(ctx context.Context, prompt string) (string, error) {
-	actorFn := substrate.AgentActorFunc(substrate.AgentActorConfig{
+	actorFn := miraged.AgentActorFunc(miraged.AgentActorConfig{
 		Driver:   f.driver,
 		Tools:    f.tools,
 		Session:  f.session,

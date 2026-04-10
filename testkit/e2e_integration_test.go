@@ -23,7 +23,7 @@ const (
 	integrationTimeout  = 30 * time.Second
 )
 
-// TestE2E_Integration_MisbahSandbox runs the full flow with a real Misbah daemon.
+// TestE2E_Integration_MisbahSandbox runs the full flow with a real Misbah miraged.
 // Skipped if the daemon is not available.
 func TestE2E_Integration_MisbahSandbox(t *testing.T) {
 	socketPath := os.Getenv("MISBAH_DAEMON_SOCKET")

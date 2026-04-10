@@ -13,15 +13,15 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/agent"
-	"github.com/dpopsuev/djinn/contextmgr"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/substrate"
+	"github.com/dpopsuev/djinn/miraged"
+	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
 )
 
 func testModel() Model {
-	sess := contextmgr.New("test", "test-model", "/workspace")
+	sess := session.New("test", "test-model", "/workspace")
 	m := NewModel(Config{
 		Tools:   builtin.NewRegistry(),
 		Session: sess,
@@ -384,7 +384,7 @@ func TestModel_FlushStreamBuffer_Empty(t *testing.T) {
 }
 
 func TestModel_NewModel_DefaultMode(t *testing.T) {
-	sess := contextmgr.New("test", "model", "/workspace")
+	sess := session.New("test", "model", "/workspace")
 	m := NewModel(Config{Tools: builtin.NewRegistry(), Session: sess})
 	// Default role (gensec) overrides cfg.Mode — gensec is "plan"
 	if m.mode != agent.ModePlan {
@@ -393,7 +393,7 @@ func TestModel_NewModel_DefaultMode(t *testing.T) {
 }
 
 func TestModel_NewModel_ParsesMode(t *testing.T) {
-	sess := contextmgr.New("test", "model", "/workspace")
+	sess := session.New("test", "model", "/workspace")
 	m := NewModel(Config{Tools: builtin.NewRegistry(), Session: sess, Mode: "auto"})
 	// cfg.Mode="auto" is overridden by default role (gensec) which is "plan"
 	if m.mode != agent.ModePlan {
@@ -616,7 +616,7 @@ func (d *mockChatDriver) ContextWindow() int { return 200_000 }
 // testModelWithDriver creates a Model with a mock ChatDriver attached.
 func testModelWithDriver() (Model, *mockChatDriver) {
 	drv := &mockChatDriver{}
-	sess := contextmgr.New("test", "test-model", "/workspace")
+	sess := session.New("test", "test-model", "/workspace")
 	m := NewModel(Config{
 		Driver:  drv,
 		Tools:   builtin.NewRegistry(),
@@ -790,21 +790,21 @@ func TestModel_Init(t *testing.T) {
 // --- approvalForMode ---
 
 func TestApprovalForMode_Auto(t *testing.T) {
-	fn := substrate.ApprovalForMode(agent.ModeAuto, nil)
+	fn := miraged.ApprovalForMode(agent.ModeAuto, nil)
 	if !fn(driver.ToolCall{Name: "Bash"}) {
 		t.Fatal("auto mode should auto-approve")
 	}
 }
 
 func TestApprovalForMode_Ask(t *testing.T) {
-	fn := substrate.ApprovalForMode(agent.ModeAsk, nil)
+	fn := miraged.ApprovalForMode(agent.ModeAsk, nil)
 	if fn(driver.ToolCall{Name: "Bash"}) {
 		t.Fatal("ask mode should deny all")
 	}
 }
 
 func TestApprovalForMode_Plan(t *testing.T) {
-	fn := substrate.ApprovalForMode(agent.ModePlan, nil)
+	fn := miraged.ApprovalForMode(agent.ModePlan, nil)
 	if fn(driver.ToolCall{Name: "Bash"}) {
 		t.Fatal("plan mode should deny all")
 	}
@@ -813,7 +813,7 @@ func TestApprovalForMode_Plan(t *testing.T) {
 func TestApprovalForMode_Agent(t *testing.T) {
 	ch := make(chan bool, 1)
 	ch <- true
-	fn := substrate.ApprovalForMode(agent.ModeAgent, ch)
+	fn := miraged.ApprovalForMode(agent.ModeAgent, ch)
 	if !fn(driver.ToolCall{Name: "Bash"}) {
 		t.Fatal("agent mode should return channel value")
 	}

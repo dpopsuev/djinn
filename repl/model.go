@@ -15,11 +15,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/dpopsuev/djinn/agent"
-	"github.com/dpopsuev/djinn/contextmgr"
-	"github.com/dpopsuev/djinn/daemon"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/miraged"
 	"github.com/dpopsuev/djinn/policy"
-	"github.com/dpopsuev/djinn/substrate"
+	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/terminal"
 	"github.com/dpopsuev/djinn/tools/builtin"
@@ -71,13 +70,13 @@ type Model struct {
 	chatDriver   driver.ChatDriver
 	tools        builtin.ToolExecutor
 	envelope     *agent.ToolEnvelope // Envelope-based execution (nil = legacy inline path)
-	sess         *contextmgr.Session
+	sess         *session.Session
 	systemPrompt string
 	maxTurns     int
 	autoApprove  bool
 	mode         agent.Mode
-	approvalCh   chan bool         // bridges approval from UI to agent goroutine
-	store        *contextmgr.Store // auto-save after each turn
+	approvalCh   chan bool      // bridges approval from UI to agent goroutine
+	store        *session.Store // auto-save after each turn
 	enforcer     policy.ToolPolicyEnforcer
 	token        policy.CapabilityToken
 	log          *slog.Logger
@@ -125,7 +124,7 @@ type Model struct {
 	keys *tui.ModeTable
 
 	// Context relay
-	monitor *contextmgr.ContextMonitor
+	monitor *session.ContextMonitor
 
 	// TUI telemetry
 	filesEdited int  // count of files edited this session
@@ -135,7 +134,7 @@ type Model struct {
 	tuiRecorder *tui.TUIRecorder
 	debugPanel  *widgets.DebugPanel
 	showDebug   bool
-	hubRegistry *daemon.HubRegistry
+	hubRegistry *miraged.HubRegistry
 	planPanel   *widgets.PlanPanel
 
 	// Staff — role pipeline
@@ -156,7 +155,7 @@ type Model struct {
 	sandboxLevel   string
 
 	// Orchestrator — agent lifecycle, separated from TUI.
-	runner *substrate.AgentRunner
+	runner *miraged.AgentRunner
 }
 
 // NewModel creates a new REPL model.
@@ -227,7 +226,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		term:           terminal.NewDjinn(),
 	}
 
-	m.runner = &substrate.AgentRunner{
+	m.runner = &miraged.AgentRunner{
 		Driver:        cfg.Driver,
 		Tools:         cfg.Tools,
 		Envelope:      cfg.Envelope,
@@ -243,7 +242,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	}
 
 	// Use driver's context window for the monitor if available.
-	m.monitor = contextmgr.NewContextMonitor(contextmgr.WithContextSizer(m.chatDriver))
+	m.monitor = session.NewContextMonitor(session.WithContextSizer(m.chatDriver))
 
 	// Wire Terminal OnCommand handler for slash command backward compat.
 	m.term.OnCommand = func(_ context.Context, name string, args []string) (string, error) {
@@ -289,7 +288,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	// Plan panel — visible when plan artifacts exist.
 	if cfg.HubRegistry != nil {
 		if ph, ok := cfg.HubRegistry.Get("plan"); ok {
-			if planHub, ok := ph.(*daemon.PlanHub); ok {
+			if planHub, ok := ph.(*miraged.PlanHub); ok {
 				m.planPanel = widgets.NewPlanPanel(planHub.Graph)
 				m.layout.Register(layout.PanelSlot{
 					Panel: m.planPanel, Visible: func() bool { return len(m.planPanel.View(1)) > 20 }, //nolint:mnd // non-empty check
@@ -934,7 +933,7 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 
 // renderMOTD builds the welcome banner with logo and workspace info
 // inside a lipgloss rounded border box.
-func renderMOTD(sess *contextmgr.Session, tools builtin.ToolExecutor, version, currentRole string) string {
+func renderMOTD(sess *session.Session, tools builtin.ToolExecutor, version, currentRole string) string {
 	logo := tui.LogoStyle.Render(tui.DjinnLogo)
 
 	wsName := sess.Workspace

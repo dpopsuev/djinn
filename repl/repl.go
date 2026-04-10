@@ -7,10 +7,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/agent"
-	"github.com/dpopsuev/djinn/contextmgr"
-	"github.com/dpopsuev/djinn/daemon"
 	"github.com/dpopsuev/djinn/driver"
+	"github.com/dpopsuev/djinn/miraged"
 	"github.com/dpopsuev/djinn/policy"
+	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
@@ -23,25 +23,25 @@ type Config struct {
 	Driver        driver.ChatDriver
 	Tools         builtin.ToolExecutor
 	Envelope      *agent.ToolEnvelope // when set, agent loop uses Envelope.Execute() instead of inline checks
-	Session       *contextmgr.Session
+	Session       *session.Session
 	SystemPrompt  string
 	MaxTurns      int
 	AutoApprove   bool
 	Mode          string // "ask", "plan", "agent", "auto"
 	Log           *slog.Logger
 	Ring          *telemetry.RingHandler
-	Store         *contextmgr.Store         // for auto-save after each turn
+	Store         *session.Store            // for auto-save after each turn
 	InitialPrompt string                    // auto-submit on first render
 	WorkspaceBus  *workspace.Bus            // workspace event bus for /workspace-switch
 	Transport     interface{}               // clutch.Transport for hot-swap (nil = direct agent.Run)
 	Router        *uniform.ToolClearance    // capability-based tool routing (nil = use raw registry)
 	Enforcer      policy.ToolPolicyEnforcer // ToolPolicyEnforcer for agent call mediation
 	Token         policy.CapabilityToken
-	HealthReports []tui.HealthReport  // initial health from startup
-	Version       string              // app version for MOTD (set via ldflags)
-	TUIRecorder   *tui.TUIRecorder    // nil = disabled; captures rendered frames
-	TraceRing     *telemetry.TraceProjection     // nil = disabled; enables live MCP debugging
-	HubRegistry   *daemon.HubRegistry // nil = disabled; DevOps phase mediation
+	HealthReports []tui.HealthReport         // initial health from startup
+	Version       string                     // app version for MOTD (set via ldflags)
+	TUIRecorder   *tui.TUIRecorder           // nil = disabled; captures rendered frames
+	TraceRing     *telemetry.TraceProjection // nil = disabled; enables live MCP debugging
+	HubRegistry   *miraged.HubRegistry       // nil = disabled; DevOps phase mediation
 
 	// Sandbox: when set, all agents except GenSec run inside the sandbox.
 	SandboxHandle  string
