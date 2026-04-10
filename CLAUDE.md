@@ -69,11 +69,36 @@ Vezir (Control Plane — always running, supervised by OS init)
               Executor, Auditor, Inspector
 ```
 
+### RBAC (DJN-REF-77)
+
+```yaml
+# Capabilities → tools
+read: [Read, Glob, Grep]   write: [Write, Edit]      code: [Symbol, Build, Test, Lint]
+vcs: [VCS]                 observe: [Observe]         coordinate: [Assignment]
+shell: [Bash]              communicate: [Discourse, Notes]
+
+# Roles (composable, agent base = communicate)
+developer:  [agent, reader, writer, coder] + vcs
+architect:  [agent, reader, coder, observer, coordinator]
+qa:         [agent, reader, coder]
+operations: [agent, reader, observer]
+manager:    [agent, observer, coordinator]
+director:   [agent, manager] + shell
+operator:   [agent, developer, architect, qa, operations] + shell
+```
+
 ### Agents & Staff
 
-- **General Staff** (root scope `/`): Human Operator + GenSec + 2Sec. General Discourse forum.
-- **Project Staff** (project scope `/djinn/djinn`): Executor (Pos 1), Auditor (Pos 3), Inspector (Pos 4).
-- GenSec stewards General Discourse. 2Sec handles planning and scheduling.
+**PoC: General Staff only (scope `/`, flat, everyone sees all)**
+
+| Persona | Role | Purpose |
+|---|---|---|
+| Human Operator | operator | You. All capabilities. |
+| GenSec | director | Root agent (PID 1). Shell access. Stewards Discourse. |
+| 2Sec | manager | Plans, schedules, tracks assignments. |
+| Coder(s) | developer | Writes code. Plural — spawn multiple. |
+
+MVP adds Project Staff (scoped to `/djinn/troupe`) with Auditor (qa) and Inspector (operations).
 
 ### Libraries
 
