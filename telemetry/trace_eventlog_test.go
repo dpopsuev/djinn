@@ -3,7 +3,7 @@ package telemetry
 import (
 	"testing"
 
-	"github.com/dpopsuev/battery/testkit"
+	"github.com/dpopsuev/troupe/testkit"
 )
 
 func TestRing_BridgesToEventLog(t *testing.T) {
@@ -29,11 +29,17 @@ func TestRing_BridgesToEventLog(t *testing.T) {
 	if e.Kind != "tool_call" {
 		t.Fatalf("Kind = %q, want tool_call", e.Kind)
 	}
-	if e.Meta["tool"] != "Write" {
-		t.Fatalf("Meta[tool] = %q", e.Meta["tool"])
+
+	// Data is the full TraceEvent — type-assert to access fields
+	te, ok := e.Data.(TraceEvent)
+	if !ok {
+		t.Fatalf("Data is %T, want TraceEvent", e.Data)
+	}
+	if te.Tool != "Write" {
+		t.Fatalf("Tool = %q", te.Tool)
 	}
 	if e.ID == "" {
-		t.Fatal("ID should be set by Ring.Append")
+		t.Fatal("ID should be set")
 	}
 	if e.Timestamp.IsZero() {
 		t.Fatal("Timestamp should be set")
@@ -41,15 +47,8 @@ func TestRing_BridgesToEventLog(t *testing.T) {
 }
 
 func TestRing_NilEventLog_NoPanic(t *testing.T) {
-	ring := NewRing(100) // no WithEventLog
-
-	ring.Append(TraceEvent{
-		Component: ComponentAgent,
-		Action:    "turn",
-		Detail:    "turn 1",
-	})
-
-	// No panic, Ring works as before
+	ring := NewRing(100)
+	ring.Append(TraceEvent{Component: ComponentAgent, Action: "turn", Detail: "turn 1"})
 	if ring.Stats().Count != 1 {
 		t.Fatal("Ring should still work without EventLog")
 	}
@@ -69,17 +68,21 @@ func TestRing_EventLogMetadata(t *testing.T) {
 	})
 
 	e := log.Since(0)[0]
-	if e.Meta["server"] != "locus" {
-		t.Fatalf("server = %q", e.Meta["server"])
+	te, ok := e.Data.(TraceEvent)
+	if !ok {
+		t.Fatalf("Data is %T, want TraceEvent", e.Data)
 	}
-	if e.Meta["tool"] != "scan" {
-		t.Fatalf("tool = %q", e.Meta["tool"])
+	if te.Server != "locus" {
+		t.Fatalf("server = %q", te.Server)
 	}
-	if e.Meta["error"] != "true" {
-		t.Fatalf("error = %q", e.Meta["error"])
+	if te.Tool != "scan" {
+		t.Fatalf("tool = %q", te.Tool)
 	}
-	if e.Meta["path"] != "/tmp" {
-		t.Fatalf("path = %q", e.Meta["path"])
+	if !te.Error {
+		t.Fatal("error should be true")
+	}
+	if te.Metadata["path"] != "/tmp" {
+		t.Fatalf("path = %q", te.Metadata["path"])
 	}
 }
 
@@ -103,7 +106,5 @@ func TestRing_EventLogConcurrent(t *testing.T) {
 	}
 }
 
-// Note: Ring is NOT an EventLog — it's a bounded circular buffer that
-// BRIDGES to an EventLog. The EventLog contract (RunEventLogContract)
-// applies to the EventLog implementation, not to Ring itself.
-// Ring's semantics differ: circular eviction, TraceEvent types, no OnEmit.
+// Ring is NOT an EventLog — it's a CQRS projection (bounded read model).
+// EventLog is the write side. Ring bridges TO it via WithEventLog.

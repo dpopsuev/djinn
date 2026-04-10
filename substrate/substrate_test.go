@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/battery/service"
-	"github.com/dpopsuev/battery/testkit"
 	"github.com/dpopsuev/battery/tool"
+	"github.com/dpopsuev/troupe/testkit"
 )
 
 // stubExecutor is a minimal tool.Executor for testing.

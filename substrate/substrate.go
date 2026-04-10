@@ -11,10 +11,10 @@ package substrate
 import (
 	"context"
 
-	"github.com/dpopsuev/battery/event"
 	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/battery/service"
 	"github.com/dpopsuev/battery/tool"
+	"github.com/dpopsuev/troupe/signal"
 )
 
 // Substrate is the daemon interface. Consumers take what they need (ISP).
@@ -32,7 +32,7 @@ type Substrate interface {
 
 	// EventLog returns the unified event log. All agent actions flow through it.
 	// The poka-yoke: no component can produce data outside this log.
-	EventLog() event.EventLog
+	EventLog() signal.EventLog
 
 	// Spawn starts a new agent with the given config. Returns agent ID.
 	Spawn(ctx context.Context, cfg SpawnConfig) (string, error)

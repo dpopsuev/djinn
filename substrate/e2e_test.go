@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/dpopsuev/battery/middleware"
-	"github.com/dpopsuev/battery/testkit"
 	"github.com/dpopsuev/battery/tool"
 	"github.com/dpopsuev/djinn/arena"
 	"github.com/dpopsuev/djinn/substrate"
+	"github.com/dpopsuev/troupe/testkit"
 )
 
 // echoExecutor returns the tool name as output.

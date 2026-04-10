@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/dpopsuev/battery/event"
+	"github.com/dpopsuev/troupe/signal"
 )
 
 // Ring is a bounded circular buffer of TraceEvents.
@@ -23,7 +23,7 @@ type Ring struct {
 	pos      int
 	count    int
 	nextID   atomic.Int64
-	eventLog event.EventLog // optional: unified event log bridge
+	eventLog signal.EventLog // optional: unified event log bridge
 }
 
 // NewRing creates a ring buffer with the given capacity.
@@ -36,7 +36,7 @@ func NewRing(capacity int) *Ring {
 
 // WithEventLog bridges the Ring to a unified EventLog.
 // Every Append also emits to the EventLog. Call once at composition time.
-func (r *Ring) WithEventLog(log event.EventLog) *Ring {
+func (r *Ring) WithEventLog(log signal.EventLog) *Ring {
 	r.eventLog = log
 	return r
 }
@@ -163,31 +163,16 @@ func (r *Ring) Stats() RingStats {
 	return stats
 }
 
-// traceToEvent converts a TraceEvent to a battery Event.
-func traceToEvent(te TraceEvent) event.Event {
-	meta := make(map[string]string, len(te.Metadata)+4)
-	for k, v := range te.Metadata {
-		meta[k] = v
-	}
-	if te.Server != "" {
-		meta["server"] = te.Server
-	}
-	if te.Tool != "" {
-		meta["tool"] = te.Tool
-	}
-	if te.Latency > 0 {
-		meta["latency_ms"] = fmt.Sprintf("%d", te.Latency.Milliseconds())
-	}
-	if te.Error {
-		meta["error"] = "true"
-	}
-	return event.Event{
+// traceToEvent converts a TraceEvent to a signal Event.
+// TraceEvent itself becomes the typed Data payload.
+func traceToEvent(te TraceEvent) signal.Event {
+	return signal.Event{
 		ID:        te.ID,
 		ParentID:  te.ParentID,
 		Timestamp: te.Timestamp,
 		Source:    string(te.Component),
 		Kind:      te.Action,
-		Meta:      meta,
+		Data:      te,
 	}
 }
 

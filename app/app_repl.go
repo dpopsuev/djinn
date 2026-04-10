@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	batteryTestkit "github.com/dpopsuev/battery/testkit"
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/artifact"
 	djinnconfig "github.com/dpopsuev/djinn/config"
@@ -29,6 +28,7 @@ import (
 	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/uniform"
 	djinnws "github.com/dpopsuev/djinn/workspace"
+	troupeTestkit "github.com/dpopsuev/troupe/testkit"
 )
 
 // RunREPL starts the interactive REPL.
@@ -235,7 +235,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 
 	// Trace ring — observable by default (Flywheel Tier 4).
 	// WithEventLog bridges all trace events to the unified event log (CMP-31).
-	eventLog := batteryTestkit.NewStubEventLog()
+	eventLog := troupeTestkit.NewStubEventLog()
 	traceRing := telemetry.NewRing(1000).WithEventLog(eventLog) //nolint:mnd // 1000 events is a sensible default
 
 	// Hub mediators — DevOps phase coordination (GOL-58).

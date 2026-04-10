@@ -4,10 +4,10 @@ import (
 	"context"
 	"sync"
 
-	"github.com/dpopsuev/battery/event"
 	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/battery/service"
 	"github.com/dpopsuev/battery/tool"
+	"github.com/dpopsuev/troupe/signal"
 )
 
 // StubSubstrate implements Substrate for testing.
@@ -16,7 +16,7 @@ type StubSubstrate struct {
 	mu           sync.Mutex
 	tools        tool.Executor
 	envelope     *middleware.Envelope
-	eventLog     event.EventLog
+	eventLog     signal.EventLog
 	health       service.HealthReport
 	Observations []Observation
 	Spawned      []SpawnConfig
@@ -26,7 +26,7 @@ type StubSubstrate struct {
 var _ Substrate = (*StubSubstrate)(nil)
 
 // NewStubSubstrate creates a test Substrate with the given tool executor and event log.
-func NewStubSubstrate(tools tool.Executor, log event.EventLog) *StubSubstrate {
+func NewStubSubstrate(tools tool.Executor, log signal.EventLog) *StubSubstrate {
 	return &StubSubstrate{
 		tools:    tools,
 		eventLog: log,
@@ -36,7 +36,7 @@ func NewStubSubstrate(tools tool.Executor, log event.EventLog) *StubSubstrate {
 
 func (s *StubSubstrate) Tools() tool.Executor           { return s.tools }
 func (s *StubSubstrate) Envelope() *middleware.Envelope { return s.envelope }
-func (s *StubSubstrate) EventLog() event.EventLog       { return s.eventLog }
+func (s *StubSubstrate) EventLog() signal.EventLog      { return s.eventLog }
 
 func (s *StubSubstrate) Observe(_ context.Context, obs Observation) {
 	s.mu.Lock()
