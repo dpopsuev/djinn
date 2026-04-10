@@ -8,7 +8,7 @@ import (
 
 func TestRing_BridgesToEventLog(t *testing.T) {
 	log := testkit.NewStubEventLog()
-	ring := NewRing(100).WithEventLog(log)
+	ring := NewTraceProjection(100).WithEventLog(log)
 
 	ring.Append(TraceEvent{
 		Component: ComponentTool,
@@ -47,7 +47,7 @@ func TestRing_BridgesToEventLog(t *testing.T) {
 }
 
 func TestRing_NilEventLog_NoPanic(t *testing.T) {
-	ring := NewRing(100)
+	ring := NewTraceProjection(100)
 	ring.Append(TraceEvent{Component: ComponentAgent, Action: "turn", Detail: "turn 1"})
 	if ring.Stats().Count != 1 {
 		t.Fatal("Ring should still work without EventLog")
@@ -56,7 +56,7 @@ func TestRing_NilEventLog_NoPanic(t *testing.T) {
 
 func TestRing_EventLogMetadata(t *testing.T) {
 	log := testkit.NewStubEventLog()
-	ring := NewRing(100).WithEventLog(log)
+	ring := NewTraceProjection(100).WithEventLog(log)
 
 	ring.Append(TraceEvent{
 		Component: ComponentMCP,
@@ -88,7 +88,7 @@ func TestRing_EventLogMetadata(t *testing.T) {
 
 func TestRing_EventLogConcurrent(t *testing.T) {
 	log := testkit.NewStubEventLog()
-	ring := NewRing(100).WithEventLog(log)
+	ring := NewTraceProjection(100).WithEventLog(log)
 
 	done := make(chan struct{})
 	for range 20 {

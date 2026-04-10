@@ -34,7 +34,7 @@ func RegisterBuiltinTools(reg *Registry, workDir, dataDir string) {
 
 // RegisterDebugTrace registers the djinn_trace builtin tool for self-debugging.
 // Call after RegisterBuiltinTools if trace ring is available.
-func RegisterDebugTrace(reg *Registry, ring *telemetry.Ring) {
+func RegisterDebugTrace(reg *Registry, ring *telemetry.TraceProjection) {
 	if ring == nil {
 		return
 	}

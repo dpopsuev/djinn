@@ -8,7 +8,7 @@ import (
 )
 
 func TestExportImportRoundTrip(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	tr := r.For(ComponentMCP)
 
 	// Seed ring with diverse events.
@@ -29,7 +29,7 @@ func TestExportImportRoundTrip(t *testing.T) {
 		t.Fatalf("archive events = %d, want %d", len(archive.Events), len(original))
 	}
 
-	r2 := NewRing(100)
+	r2 := NewTraceProjection(100)
 	Import(archive, r2)
 
 	imported := r2.Last(100)
@@ -58,7 +58,7 @@ func TestExportImportRoundTrip(t *testing.T) {
 }
 
 func TestExportWithComponentFilter(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 
 	r.Append(TraceEvent{Component: ComponentMCP, Detail: "mcp1"})
 	r.Append(TraceEvent{Component: ComponentAgent, Detail: "agent1"})
@@ -79,7 +79,7 @@ func TestExportWithComponentFilter(t *testing.T) {
 }
 
 func TestSaveLoadJSON(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	tr := r.For(ComponentMCP)
 
 	rt := tr.Begin("call", "scan").WithServer("locus").WithTool("codograph.scan")
@@ -215,7 +215,7 @@ func TestDiffNoCommonKeys(t *testing.T) {
 }
 
 func TestExportEmpty(t *testing.T) {
-	r := NewRing(10)
+	r := NewTraceProjection(10)
 	archive := Export(r, "")
 	if archive == nil {
 		t.Fatal("export of empty ring should return non-nil archive")

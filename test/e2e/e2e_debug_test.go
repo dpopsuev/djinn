@@ -30,7 +30,7 @@ func TestAgentSelfDebugging_TraceStats(t *testing.T) {
 	}
 
 	// Create trace ring and debug server.
-	ring := telemetry.NewRing(100)
+	ring := telemetry.NewTraceProjection(100)
 	server := tools.NewServer(ring)
 
 	// Simulate some MCP activity.
@@ -58,7 +58,7 @@ func TestAgentSelfDebugging_TraceStats(t *testing.T) {
 }
 
 func TestAgentSelfDebugging_TraceHealth(t *testing.T) {
-	ring := telemetry.NewRing(100)
+	ring := telemetry.NewTraceProjection(100)
 	server := tools.NewServer(ring)
 
 	// Simulate errors on a server.
@@ -82,7 +82,7 @@ func TestAgentSelfDebugging_TraceHealth(t *testing.T) {
 }
 
 func TestAgentSelfDebugging_TraceList(t *testing.T) {
-	ring := telemetry.NewRing(100)
+	ring := telemetry.NewTraceProjection(100)
 	server := tools.NewServer(ring)
 
 	tracer := ring.For(telemetry.ComponentMCP)
@@ -104,7 +104,7 @@ func TestAgentSelfDebugging_TraceList(t *testing.T) {
 }
 
 func TestAgentSelfDebugging_BuiltinTool(t *testing.T) {
-	ring := telemetry.NewRing(100)
+	ring := telemetry.NewTraceProjection(100)
 
 	// Register via the same path app/ uses.
 	registry := builtin.NewRegistry()

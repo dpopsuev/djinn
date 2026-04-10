@@ -8,8 +8,8 @@ import (
 	"github.com/dpopsuev/djinn/telemetry"
 )
 
-func seedRing() *telemetry.Ring {
-	r := telemetry.NewRing(100)
+func seedRing() *telemetry.TraceProjection {
+	r := telemetry.NewTraceProjection(100)
 	parentID := r.Append(telemetry.TraceEvent{
 		Component: telemetry.ComponentAgent,
 		Action:    "turn",

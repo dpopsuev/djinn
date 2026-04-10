@@ -12,7 +12,7 @@ import (
 )
 
 func TestToolHub_Execute_Mediation(t *testing.T) {
-	ring := telemetry.NewRing(100)
+	ring := telemetry.NewTraceProjection(100)
 	bus := telemetry.NewSignalBus()
 	spy := &spyDisplay{}
 	core := HubCore{
@@ -53,7 +53,7 @@ func TestToolHub_Execute_Mediation(t *testing.T) {
 func TestToolHub_Execute_SLABreach(t *testing.T) {
 	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  telemetry.NewRing(100).For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTraceProjection(100).For(telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}

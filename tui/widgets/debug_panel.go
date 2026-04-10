@@ -21,14 +21,14 @@ import (
 // DebugPanel displays the live trace event stream.
 type DebugPanel struct {
 	id      string
-	ring    *telemetry.Ring
+	ring    *telemetry.TraceProjection
 	focused bool
 	scroll  int // offset from newest (0 = bottom)
 	limit   int // max events to display
 }
 
 // NewDebugPanel creates a debug panel backed by a trace ring.
-func NewDebugPanel(ring *telemetry.Ring) *DebugPanel {
+func NewDebugPanel(ring *telemetry.TraceProjection) *DebugPanel {
 	return &DebugPanel{
 		id:    "debug",
 		ring:  ring,

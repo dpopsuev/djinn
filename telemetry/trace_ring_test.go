@@ -6,7 +6,7 @@ import (
 )
 
 func TestRingAppendAndLast(t *testing.T) {
-	r := NewRing(5)
+	r := NewTraceProjection(5)
 
 	for i := range 3 {
 		r.Append(TraceEvent{
@@ -29,7 +29,7 @@ func TestRingAppendAndLast(t *testing.T) {
 }
 
 func TestRingWrapping(t *testing.T) {
-	r := NewRing(3)
+	r := NewTraceProjection(3)
 
 	// Add 5 events to a ring of capacity 3.
 	for i := range 5 {
@@ -50,7 +50,7 @@ func TestRingWrapping(t *testing.T) {
 }
 
 func TestRingLastMoreThanCount(t *testing.T) {
-	r := NewRing(10)
+	r := NewTraceProjection(10)
 	r.Append(TraceEvent{Detail: "only"})
 
 	events := r.Last(100)
@@ -60,7 +60,7 @@ func TestRingLastMoreThanCount(t *testing.T) {
 }
 
 func TestRingByParent(t *testing.T) {
-	r := NewRing(10)
+	r := NewTraceProjection(10)
 	parentID := r.Append(TraceEvent{Component: ComponentAgent, Action: "prompt", Detail: "root"})
 
 	r.Append(TraceEvent{ParentID: parentID, Component: ComponentMCP, Action: "call", Detail: "child1"})
@@ -74,7 +74,7 @@ func TestRingByParent(t *testing.T) {
 }
 
 func TestRingByComponent(t *testing.T) {
-	r := NewRing(10)
+	r := NewTraceProjection(10)
 	r.Append(TraceEvent{Component: ComponentMCP, Detail: "mcp1"})
 	r.Append(TraceEvent{Component: ComponentAgent, Detail: "agent1"})
 	r.Append(TraceEvent{Component: ComponentMCP, Detail: "mcp2"})
@@ -86,7 +86,7 @@ func TestRingByComponent(t *testing.T) {
 }
 
 func TestRingGet(t *testing.T) {
-	r := NewRing(10)
+	r := NewTraceProjection(10)
 	id := r.Append(TraceEvent{Detail: "findme"})
 
 	e, ok := r.Get(id)
@@ -104,7 +104,7 @@ func TestRingGet(t *testing.T) {
 }
 
 func TestRingSince(t *testing.T) {
-	r := NewRing(10)
+	r := NewTraceProjection(10)
 	before := time.Now()
 	time.Sleep(time.Millisecond)
 
@@ -117,7 +117,7 @@ func TestRingSince(t *testing.T) {
 }
 
 func TestRingStats(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	stats := r.Stats()
 	if stats.Count != 0 || stats.Capacity != 100 {
 		t.Errorf("empty ring: count=%d cap=%d", stats.Count, stats.Capacity)
@@ -136,7 +136,7 @@ func TestRingStats(t *testing.T) {
 }
 
 func TestRingIDAssignment(t *testing.T) {
-	r := NewRing(10)
+	r := NewTraceProjection(10)
 	id1 := r.Append(TraceEvent{Detail: "a"})
 	id2 := r.Append(TraceEvent{Detail: "b"})
 
@@ -149,7 +149,7 @@ func TestRingIDAssignment(t *testing.T) {
 }
 
 func TestRingTimestampAutoSet(t *testing.T) {
-	r := NewRing(10)
+	r := NewTraceProjection(10)
 	r.Append(TraceEvent{Detail: "auto"})
 
 	events := r.Last(1)

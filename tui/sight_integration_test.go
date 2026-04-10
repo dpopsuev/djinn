@@ -21,7 +21,7 @@ import (
 // verifies that each produces a valid, structured, prompt-injectable string.
 func TestCellSight_Integration_MultiProvider(t *testing.T) {
 	// --- Provider 1: DebugPanel with trace events ---
-	ring := telemetry.NewRing(64) //nolint:mnd // small ring for test
+	ring := telemetry.NewTraceProjection(64) //nolint:mnd // small ring for test
 	ring.Append(telemetry.TraceEvent{
 		Component: telemetry.ComponentMCP,
 		Action:    "call",
@@ -178,7 +178,7 @@ func TestCellSight_Integration_EmptyProviders(t *testing.T) {
 
 	t.Run("debug_panel_empty_ring", func(t *testing.T) {
 		// DebugPanel with empty ring (no events appended).
-		ring := telemetry.NewRing(16) //nolint:mnd // small ring for test
+		ring := telemetry.NewTraceProjection(16) //nolint:mnd // small ring for test
 		panel := widgets.NewDebugPanel(ring)
 		fc := panel.CellSight()
 
@@ -247,7 +247,7 @@ func TestCellSight_Integration_EmptyProviders(t *testing.T) {
 func TestSightGate_False_NoInjection(t *testing.T) {
 	// Both real panels return SightGate() == true by default.
 	// Verify the gate check logic works by simulating the model.go pattern.
-	ring := telemetry.NewRing(16) //nolint:mnd // small ring for test
+	ring := telemetry.NewTraceProjection(16) //nolint:mnd // small ring for test
 	ring.Append(telemetry.TraceEvent{
 		Component: telemetry.ComponentMCP,
 		Action:    "call",

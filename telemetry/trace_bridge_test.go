@@ -46,7 +46,7 @@ func (m *mockEmitter) get() []emittedSignal {
 }
 
 func TestBridgeStartStop(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	emitter := &mockEmitter{}
 	b := NewBridge(r, emitter, 10*time.Millisecond)
 
@@ -66,7 +66,7 @@ func TestBridgeStartStop(t *testing.T) {
 }
 
 func TestBridgeStopBeforeStart(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	emitter := &mockEmitter{}
 	b := NewBridge(r, emitter, 10*time.Millisecond)
 
@@ -75,7 +75,7 @@ func TestBridgeStopBeforeStart(t *testing.T) {
 }
 
 func TestBridgeEmitsAlert(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	now := time.Now()
 
 	// Seed 5 consecutive errors to trigger consecutive_errors alert.
@@ -129,7 +129,7 @@ func TestBridgeEmitsAlert(t *testing.T) {
 }
 
 func TestBridgeDebounce(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	now := time.Now()
 
 	// Seed errors that will trigger alerts on every check.
@@ -172,7 +172,7 @@ func TestBridgeDebounce(t *testing.T) {
 }
 
 func TestBridgeMultipleAlertTypes(t *testing.T) {
-	r := NewRing(200)
+	r := NewTraceProjection(200)
 	now := time.Now()
 
 	// Seed consecutive errors for one server/tool.
@@ -237,7 +237,7 @@ func TestBridgeSeverityMapping(t *testing.T) {
 	// verify Warning maps to "yellow" and Error maps to "red" via the
 	// alerts that the bridge processes.
 
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	now := time.Now()
 
 	// High error rate triggers SeverityWarning.

@@ -40,7 +40,7 @@ type Config struct {
 	HealthReports []tui.HealthReport  // initial health from startup
 	Version       string              // app version for MOTD (set via ldflags)
 	TUIRecorder   *tui.TUIRecorder    // nil = disabled; captures rendered frames
-	TraceRing     *telemetry.Ring     // nil = disabled; enables live MCP debugging
+	TraceRing     *telemetry.TraceProjection     // nil = disabled; enables live MCP debugging
 	HubRegistry   *daemon.HubRegistry // nil = disabled; DevOps phase mediation
 
 	// Sandbox: when set, all agents except GenSec run inside the sandbox.

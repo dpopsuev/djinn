@@ -25,11 +25,11 @@ var (
 
 // Server exposes TraceRing data via tool dispatch.
 type Server struct {
-	ring *telemetry.Ring
+	ring *telemetry.TraceProjection
 }
 
 // NewServer creates a debug server backed by the given trace ring.
-func NewServer(ring *telemetry.Ring) *Server {
+func NewServer(ring *telemetry.TraceProjection) *Server {
 	return &Server{ring: ring}
 }
 

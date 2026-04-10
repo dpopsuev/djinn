@@ -236,7 +236,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	// Trace ring — observable by default (Flywheel Tier 4).
 	// WithEventLog bridges all trace events to the unified event log (CMP-31).
 	eventLog := troupeTestkit.NewStubEventLog()
-	traceRing := telemetry.NewRing(1000).WithEventLog(eventLog) //nolint:mnd // 1000 events is a sensible default
+	traceRing := telemetry.NewTraceProjection(1000).WithEventLog(eventLog) //nolint:mnd // 1000 events is a sensible default
 
 	// Hub mediators — DevOps phase coordination (GOL-58).
 	hubRegistry := daemon.NewRegistry()

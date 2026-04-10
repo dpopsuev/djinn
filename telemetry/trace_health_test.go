@@ -6,7 +6,7 @@ import (
 )
 
 func TestAnalyzeConsecutiveErrors(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	now := time.Now()
 
 	// Seed 4 consecutive errors for server="locus", tool="scan".
@@ -45,7 +45,7 @@ func TestAnalyzeConsecutiveErrors(t *testing.T) {
 }
 
 func TestAnalyzeConsecutiveErrorsResetOnSuccess(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	now := time.Now()
 
 	// 2 errors, then a success, then 2 more errors — should NOT trigger (threshold=3).
@@ -77,7 +77,7 @@ func TestAnalyzeConsecutiveErrorsResetOnSuccess(t *testing.T) {
 }
 
 func TestAnalyzeBelowThreshold(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	now := time.Now()
 
 	// Only 2 consecutive errors (threshold is 3).
@@ -104,7 +104,7 @@ func TestAnalyzeBelowThreshold(t *testing.T) {
 }
 
 func TestAnalyzeErrorRate(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	now := time.Now()
 
 	// 10 calls: 5 errors, 5 successes = 50% error rate (threshold=20%).
@@ -138,7 +138,7 @@ func TestAnalyzeErrorRate(t *testing.T) {
 }
 
 func TestAnalyzeErrorRateBelowMinCalls(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	now := time.Now()
 
 	// Only 4 calls (minimum is 5) — all errors, but still shouldn't fire.
@@ -165,7 +165,7 @@ func TestAnalyzeErrorRateBelowMinCalls(t *testing.T) {
 }
 
 func TestAnalyzeLatencySpike(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	now := time.Now()
 
 	// First half (baseline): 6 events with ~10ms latency.
@@ -211,7 +211,7 @@ func TestAnalyzeLatencySpike(t *testing.T) {
 }
 
 func TestAnalyzeLatencyNoSpike(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	now := time.Now()
 
 	// 12 events, all with ~10ms latency — no spike.
@@ -238,7 +238,7 @@ func TestAnalyzeLatencyNoSpike(t *testing.T) {
 }
 
 func TestAnalyzeCleanRing(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	now := time.Now()
 
 	// All successful, normal latency.
@@ -271,7 +271,7 @@ func TestAnalyzeNilRing(t *testing.T) {
 }
 
 func TestAnalyzeEmptyRing(t *testing.T) {
-	r := NewRing(10)
+	r := NewTraceProjection(10)
 	cfg := DefaultHealthConfig()
 	cfg.Window = time.Hour
 	alerts := Analyze(r, cfg)
@@ -298,7 +298,7 @@ func TestDefaultHealthConfig(t *testing.T) {
 }
 
 func TestAnalyzeSkipsNonCallDoneEvents(t *testing.T) {
-	r := NewRing(100)
+	r := NewTraceProjection(100)
 	now := time.Now()
 
 	// Add events with action="call" (not "call_done") — should be ignored.
