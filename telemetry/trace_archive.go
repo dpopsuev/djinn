@@ -22,7 +22,7 @@ type Archive struct {
 
 // Export creates an archive from the ring buffer.
 // If component is non-empty, only events matching that component are included.
-func Export(r *Ring, component Component) *Archive {
+func Export(r *TraceProjection, component Component) *Archive {
 	var events []TraceEvent
 	if component != "" {
 		events = r.ByComponent(component)
@@ -37,7 +37,7 @@ func Export(r *Ring, component Component) *Archive {
 }
 
 // Import loads events from an archive into a ring buffer.
-func Import(a *Archive, r *Ring) {
+func Import(a *Archive, r *TraceProjection) {
 	for i := range a.Events {
 		r.Append(a.Events[i])
 	}

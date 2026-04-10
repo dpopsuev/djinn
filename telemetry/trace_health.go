@@ -52,7 +52,7 @@ func DefaultHealthConfig() HealthConfig {
 }
 
 // Analyze inspects the ring buffer for health anomalies.
-func Analyze(r *Ring, cfg HealthConfig) []HealthAlert {
+func Analyze(r *TraceProjection, cfg HealthConfig) []HealthAlert {
 	if r == nil {
 		return nil
 	}

@@ -13,10 +13,11 @@ import (
 	"github.com/dpopsuev/troupe/signal"
 )
 
-// Ring is a bounded circular buffer of TraceEvents.
+// TraceProjection is a bounded CQRS read model over the event log.
+// Optimized for recent-event queries (Last, ByComponent, Get, Stats).
 // When EventLog is set, every Append also emits to it —
 // bridging Djinn's trace system to the unified event log.
-type Ring struct {
+type TraceProjection struct {
 	mu       sync.RWMutex
 	events   []TraceEvent
 	cap      int
@@ -26,9 +27,9 @@ type Ring struct {
 	eventLog signal.EventLog // optional: unified event log bridge
 }
 
-// NewRing creates a ring buffer with the given capacity.
-func NewRing(capacity int) *Ring {
-	return &Ring{
+// NewTraceProjection creates a bounded projection with the given capacity.
+func NewTraceProjection(capacity int) *TraceProjection {
+	return &TraceProjection{
 		events: make([]TraceEvent, capacity),
 		cap:    capacity,
 	}
@@ -36,14 +37,14 @@ func NewRing(capacity int) *Ring {
 
 // WithEventLog bridges the Ring to a unified EventLog.
 // Every Append also emits to the EventLog. Call once at composition time.
-func (r *Ring) WithEventLog(log signal.EventLog) *Ring {
+func (r *TraceProjection) WithEventLog(log signal.EventLog) *TraceProjection {
 	r.eventLog = log
 	return r
 }
 
 // Append adds an event to the ring, assigning an ID and timestamp.
 // Returns the assigned event ID.
-func (r *Ring) Append(e TraceEvent) string {
+func (r *TraceProjection) Append(e TraceEvent) string {
 	id := r.nextID.Add(1)
 	e.ID = fmt.Sprintf("trace-%d", id)
 	if e.Timestamp.IsZero() {
@@ -68,7 +69,7 @@ func (r *Ring) Append(e TraceEvent) string {
 }
 
 // Last returns the most recent n events (oldest first).
-func (r *Ring) Last(n int) []TraceEvent {
+func (r *TraceProjection) Last(n int) []TraceEvent {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -88,7 +89,7 @@ func (r *Ring) Last(n int) []TraceEvent {
 }
 
 // Since returns all events after the given time (oldest first).
-func (r *Ring) Since(t time.Time) []TraceEvent {
+func (r *TraceProjection) Since(t time.Time) []TraceEvent {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -102,7 +103,7 @@ func (r *Ring) Since(t time.Time) []TraceEvent {
 }
 
 // ByParent returns all events with the given ParentID.
-func (r *Ring) ByParent(parentID string) []TraceEvent {
+func (r *TraceProjection) ByParent(parentID string) []TraceEvent {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -116,7 +117,7 @@ func (r *Ring) ByParent(parentID string) []TraceEvent {
 }
 
 // ByComponent returns events filtered by component.
-func (r *Ring) ByComponent(c Component) []TraceEvent {
+func (r *TraceProjection) ByComponent(c Component) []TraceEvent {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -130,7 +131,7 @@ func (r *Ring) ByComponent(c Component) []TraceEvent {
 }
 
 // Get returns a single event by ID.
-func (r *Ring) Get(id string) (TraceEvent, bool) {
+func (r *TraceProjection) Get(id string) (TraceEvent, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -146,7 +147,7 @@ func (r *Ring) Get(id string) (TraceEvent, bool) {
 }
 
 // Stats returns current ring buffer statistics.
-func (r *Ring) Stats() RingStats {
+func (r *TraceProjection) Stats() RingStats {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -177,9 +178,21 @@ func traceToEvent(te TraceEvent) signal.Event {
 }
 
 // walk iterates events oldest-first. Caller must hold read lock.
-func (r *Ring) walk(fn func(TraceEvent)) {
+func (r *TraceProjection) walk(fn func(TraceEvent)) {
 	start := (r.pos - r.count + r.cap) % r.cap
 	for i := range r.count {
 		fn(r.events[(start+i)%r.cap])
 	}
 }
+
+// --- Deprecated aliases for backward compatibility ---
+
+// Ring is the old name for TraceProjection. Use TraceProjection.
+//
+// Deprecated: use TraceProjection.
+type Ring = TraceProjection
+
+// NewRing is the old name for NewTraceProjection.
+//
+// Deprecated: use NewTraceProjection.
+var NewRing = NewTraceProjection

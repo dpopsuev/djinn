@@ -11,13 +11,13 @@ import "time"
 // Tracer is a component-scoped facade over a Ring.
 // Created via Ring.For(component).
 type Tracer struct {
-	ring      *Ring
+	ring      *TraceProjection
 	component Component
 }
 
 // For creates a component-scoped Tracer. The returned Tracer auto-fills
 // Component on every event. Safe to store and reuse.
-func (r *Ring) For(component Component) *Tracer {
+func (r *TraceProjection) For(component Component) *Tracer {
 	return &Tracer{ring: r, component: component}
 }
 

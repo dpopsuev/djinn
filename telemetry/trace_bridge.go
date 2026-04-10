@@ -19,7 +19,7 @@ type SignalEmitter interface {
 
 // Bridge watches the trace ring and auto-emits signals on health alerts.
 type Bridge struct {
-	ring     *Ring
+	ring     *TraceProjection
 	emitter  SignalEmitter
 	cfg      HealthConfig
 	interval time.Duration
@@ -31,7 +31,7 @@ type Bridge struct {
 }
 
 // NewBridge creates a trace-to-signal bridge.
-func NewBridge(ring *Ring, emitter SignalEmitter, interval time.Duration) *Bridge {
+func NewBridge(ring *TraceProjection, emitter SignalEmitter, interval time.Duration) *Bridge {
 	return &Bridge{
 		ring:     ring,
 		emitter:  emitter,
