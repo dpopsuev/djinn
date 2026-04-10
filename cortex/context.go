@@ -2,7 +2,7 @@
 // from multiple CLI conventions (Claude, Codex, Gemini, Cursor, Aider).
 // Walks up the directory tree to find files (like git finds .git).
 // Reads MEMORY.md from Claude Code's project memory path.
-package session
+package cortex
 
 import (
 	"os"

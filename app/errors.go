@@ -16,7 +16,7 @@ var (
 	ErrNoComponentData   = errors.New("no component data in frame (run with debug.tap_file enabled)")
 	ErrNoDriverDetected  = errors.New("no agent CLI found on PATH")
 	ErrUsageKill         = errors.New("kill requires a session name (usage: djinn kill <name>)")
-	ErrUsageImport       = errors.New("import requires source and file (usage: djinn import claude <session.jsonl> [-s name])")
+	ErrUsageImport       = errors.New("import requires source and file (usage: djinn import claude <cortex.jsonl> [-s name])")
 	ErrUsageConfigDump   = errors.New("usage: djinn config dump")
 	ErrUnknownConfigCmd  = errors.New("unknown config command")
 	ErrUsageWsCreate     = errors.New("usage: djinn workspace create <name> --repo <path> [--repo <path>...]")

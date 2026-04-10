@@ -1,5 +1,5 @@
 // search.go — fuzzy session search for telescope / attach picker.
-package session
+package cortex
 
 import "strings"
 

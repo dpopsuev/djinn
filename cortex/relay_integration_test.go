@@ -1,4 +1,4 @@
-package session
+package cortex
 
 import (
 	"context"
@@ -121,7 +121,7 @@ func TestRelayIntegration_FullLifecycle(t *testing.T) {
 	if !strings.Contains(backupEntries[0].Content, "[Session context]") {
 		t.Errorf("first entry should be session context, got: %q", backupEntries[0].Content)
 	}
-	// Backup session should inherit metadata from old session.
+	// Backup session should inherit metadata from old cortex.
 	if relay.backupSession.Driver != "acp" {
 		t.Errorf("backup Driver = %q, want acp", relay.backupSession.Driver)
 	}

@@ -198,7 +198,7 @@ func TestHub_BothHotSwap(t *testing.T) {
 	be1.Close()
 	time.Sleep(100 * time.Millisecond)
 
-	// Both reconnect. Backend sends BackendReady with restored session.
+	// Both reconnect. Backend sends BackendReady with restored cortex.
 	shell2 := connectToHub(t, sock, "shell")
 	defer shell2.Close()
 	be2 := connectToHub(t, sock, "backend")

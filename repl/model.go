@@ -15,10 +15,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/dpopsuev/djinn/agent"
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/miraged"
 	"github.com/dpopsuev/djinn/policy"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/terminal"
 	"github.com/dpopsuev/djinn/tools/builtin"
@@ -70,13 +70,13 @@ type Model struct {
 	chatDriver   driver.ChatDriver
 	tools        builtin.ToolExecutor
 	envelope     *agent.ToolEnvelope // Envelope-based execution (nil = legacy inline path)
-	sess         *session.Session
+	sess         *cortex.Session
 	systemPrompt string
 	maxTurns     int
 	autoApprove  bool
 	mode         agent.Mode
-	approvalCh   chan bool      // bridges approval from UI to agent goroutine
-	store        *session.Store // auto-save after each turn
+	approvalCh   chan bool     // bridges approval from UI to agent goroutine
+	store        *cortex.Store // auto-save after each turn
 	enforcer     policy.ToolPolicyEnforcer
 	token        policy.CapabilityToken
 	log          *slog.Logger
@@ -124,7 +124,7 @@ type Model struct {
 	keys *tui.ModeTable
 
 	// Context relay
-	monitor *session.ContextMonitor
+	monitor *cortex.ContextMonitor
 
 	// TUI telemetry
 	filesEdited int  // count of files edited this session
@@ -242,7 +242,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	}
 
 	// Use driver's context window for the monitor if available.
-	m.monitor = session.NewContextMonitor(session.WithContextSizer(m.chatDriver))
+	m.monitor = cortex.NewContextMonitor(cortex.WithContextSizer(m.chatDriver))
 
 	// Wire Terminal OnCommand handler for slash command backward compat.
 	m.term.OnCommand = func(_ context.Context, name string, args []string) (string, error) {
@@ -933,7 +933,7 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 
 // renderMOTD builds the welcome banner with logo and workspace info
 // inside a lipgloss rounded border box.
-func renderMOTD(sess *session.Session, tools builtin.ToolExecutor, version, currentRole string) string {
+func renderMOTD(sess *cortex.Session, tools builtin.ToolExecutor, version, currentRole string) string {
 	logo := tui.LogoStyle.Render(tui.DjinnLogo)
 
 	wsName := sess.Workspace

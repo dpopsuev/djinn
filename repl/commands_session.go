@@ -1,4 +1,4 @@
-// commands_session.go — session-related slash commands.
+// commands_cortex.go — session-related slash commands.
 package repl
 
 import (
@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	djinnconfig "github.com/dpopsuev/djinn/config"
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/session"
 )
 
 // Session command names.
@@ -27,7 +27,7 @@ const (
 // Default mode name.
 const defaultModeName = "agent"
 
-func executeModel(cmd Command, sess *session.Session) CommandResult {
+func executeModel(cmd Command, sess *cortex.Session) CommandResult {
 	if len(cmd.Args) > 0 {
 		sess.Model = cmd.Args[0]
 		return CommandResult{Output: fmt.Sprintf("model set to %s", cmd.Args[0])}
@@ -35,7 +35,7 @@ func executeModel(cmd Command, sess *session.Session) CommandResult {
 	return CommandResult{Output: fmt.Sprintf("current model: %s", sess.Model)}
 }
 
-func executeMode(cmd Command, sess *session.Session) CommandResult {
+func executeMode(cmd Command, sess *cortex.Session) CommandResult {
 	currentMode := sess.Mode
 	if currentMode == "" {
 		currentMode = defaultModeName
@@ -57,21 +57,21 @@ func executeMode(cmd Command, sess *session.Session) CommandResult {
 	return CommandResult{Output: fmt.Sprintf("current mode: %s", currentMode)}
 }
 
-func executeStatus(sess *session.Session) CommandResult {
+func executeStatus(sess *cortex.Session) CommandResult {
 	return CommandResult{
 		Output: fmt.Sprintf("session: %s | model: %s | turns: %d | tokens: ~%d",
 			sess.ID, sess.Model, sess.History.Len(), sess.TotalTokens()),
 	}
 }
 
-func executeCost(sess *session.Session) CommandResult {
+func executeCost(sess *cortex.Session) CommandResult {
 	return CommandResult{
 		Output: fmt.Sprintf("tokens used: ~%d (approximate)", sess.TotalTokens()),
 	}
 }
 
-func executeCompact(sess *session.Session) CommandResult {
-	before, after := session.Compact(sess, session.DefaultKeepRecent)
+func executeCompact(sess *cortex.Session) CommandResult {
+	before, after := cortex.Compact(sess, cortex.DefaultKeepRecent)
 	if before == after {
 		return CommandResult{Output: "nothing to compact (history too short)"}
 	}
@@ -80,7 +80,7 @@ func executeCompact(sess *session.Session) CommandResult {
 	}
 }
 
-func executeMemory(sess *session.Session) CommandResult {
+func executeMemory(sess *cortex.Session) CommandResult {
 	name := sess.Name
 	if name == "" {
 		name = sess.ID
@@ -91,7 +91,7 @@ func executeMemory(sess *session.Session) CommandResult {
 	}
 }
 
-func executeCopy(sess *session.Session) CommandResult {
+func executeCopy(sess *cortex.Session) CommandResult {
 	entries := sess.Entries()
 	if len(entries) == 0 {
 		return CommandResult{Output: "nothing to copy (empty history)"}
@@ -104,7 +104,7 @@ func executeCopy(sess *session.Session) CommandResult {
 	return CommandResult{Output: "no assistant response to copy"}
 }
 
-func executePermissions(sess *session.Session) CommandResult {
+func executePermissions(sess *cortex.Session) CommandResult {
 	mode := sess.Mode
 	if mode == "" {
 		mode = defaultModeName
@@ -121,8 +121,8 @@ func executePermissions(sess *session.Session) CommandResult {
 	}
 }
 
-func executeSessions(cmd Command, sess *session.Session) CommandResult {
-	store, err := session.NewStore(sess.WorkDir)
+func executeSessions(cmd Command, sess *cortex.Session) CommandResult {
+	store, err := cortex.NewStore(sess.WorkDir)
 	if err != nil {
 		// Try default session dir via home
 		return CommandResult{Output: "use 'djinn ls' to list sessions, 'djinn attach <name>' to resume"}
@@ -136,7 +136,7 @@ func executeSessions(cmd Command, sess *session.Session) CommandResult {
 	if len(cmd.Args) > 0 {
 		query = cmd.Args[0]
 	}
-	matches := session.Search(list, query)
+	matches := cortex.Search(list, query)
 
 	if len(matches) == 0 {
 		return CommandResult{Output: fmt.Sprintf("no sessions matching %q", query)}

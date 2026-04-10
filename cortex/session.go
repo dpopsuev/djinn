@@ -1,6 +1,6 @@
 // Package session manages conversation history and context for
 // multi-turn agent interactions.
-package session
+package cortex
 
 import (
 	"time"
@@ -45,7 +45,7 @@ type Session struct {
 	TraceSnapshot *telemetry.Archive `json:"trace_snapshot,omitempty"`
 }
 
-// New creates a new session.
+// New creates a new cortex.
 func New(id, model, workDir string) *Session {
 	now := time.Now()
 	return &Session{

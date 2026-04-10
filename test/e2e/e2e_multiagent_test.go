@@ -11,8 +11,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/dpopsuev/djinn/agent"
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/repl"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
@@ -125,7 +125,7 @@ func TestE2E_AgentOutputRouting(t *testing.T) {
 	drv := stubs.NewScriptedDriver(stubs.ScriptedStep{
 		TextDeltas: []string{"ok"},
 	})
-	sess := session.New("multi-test", "test-model", "/workspace")
+	sess := cortex.New("multi-test", "test-model", "/workspace")
 	m := repl.NewModel(repl.Config{
 		Driver:  drv,
 		Tools:   builtin.NewRegistry(),

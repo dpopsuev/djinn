@@ -16,9 +16,9 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/agent"
+	"github.com/dpopsuev/djinn/cortex"
 	troupedriver "github.com/dpopsuev/djinn/driver/troupe"
 	"github.com/dpopsuev/djinn/policy"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/troupe/execution"
 	anyllm "github.com/mozilla-ai/any-llm-go/providers"
@@ -44,7 +44,7 @@ func TestPoC_HTTPServer(t *testing.T) {
 	factory := func(workspace string) (ActorFunc, error) {
 		reg := builtin.NewRegistry()
 		builtin.RegisterBuiltinTools(reg, workspace, workspace)
-		sess := session.New("poc-test", model, workspace)
+		sess := cortex.New("poc-test", model, workspace)
 
 		// Convert tools for the driver
 		tools := registryToTools(reg)

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/cortex"
 )
 
 // Version is set via -ldflags at build time.
@@ -49,7 +49,7 @@ func init() {
 // Constants.
 const (
 	DefaultHomeDir    = ".djinn"
-	DefaultSessionDir = ".djinn/sessions"
+	DefaultSessionDir = ".djinn/cortexs"
 	DefaultModel      = "" // no default — djinn.yaml must specify
 	PollInterval      = 50 * time.Millisecond
 )
@@ -163,14 +163,14 @@ Override flags (prefer djinn.yaml):
   --verbose                           show log output
 
 Config (djinn.yaml):
-  driver.name, driver.model, mode, session.max_turns,
-  session.auto_approve, session.no_persist, sandbox.backend,
+  driver.name, driver.model, mode, cortex.max_turns,
+  cortex.auto_approve, cortex.no_persist, sandbox.backend,
   sandbox.level, debug.tap_file, debug.live_debug, debug.verbose
 `)
 }
 
-// LoadMostRecent loads the most recently updated session.
-func LoadMostRecent(store *session.Store) (*session.Session, error) {
+// LoadMostRecent loads the most recently updated cortex.
+func LoadMostRecent(store *cortex.Store) (*cortex.Session, error) {
 	list, err := store.List()
 	if err != nil {
 		return nil, err

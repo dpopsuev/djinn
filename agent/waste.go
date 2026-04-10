@@ -67,7 +67,7 @@ type WasteRecord struct {
 	Timestamp time.Time
 }
 
-// WasteMetrics summarizes waste across a session.
+// WasteMetrics summarizes waste across a cortex.
 type WasteMetrics struct {
 	Total     int
 	ByKind    map[WasteKind]int
@@ -96,7 +96,7 @@ type WasteClassifier struct {
 	log        *slog.Logger
 }
 
-// NewWasteClassifier creates a classifier that tracks waste across a session.
+// NewWasteClassifier creates a classifier that tracks waste across a cortex.
 func NewWasteClassifier(log *slog.Logger) *WasteClassifier {
 	if log == nil {
 		log = telemetry.Nop()
@@ -186,7 +186,7 @@ func (wc *WasteClassifier) ClassifyInventory(_, _ int) *WasteRecord {
 	return nil
 }
 
-// Metrics returns a snapshot of waste metrics across the session.
+// Metrics returns a snapshot of waste metrics across the cortex.
 func (wc *WasteClassifier) Metrics() WasteMetrics {
 	wc.mu.Lock()
 	defer wc.mu.Unlock()

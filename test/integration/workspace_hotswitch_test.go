@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/repl"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/workspace"
 )
@@ -59,7 +59,7 @@ func TestHotSwitch_WorkspaceSwitchCommand(t *testing.T) {
 	}
 	workspace.Save(ws)
 
-	sess := session.New("test", "model", "/old")
+	sess := cortex.New("test", "model", "/old")
 	sess.Workspace = "old"
 
 	result := repl.ExecuteCommand(repl.Command{
@@ -81,7 +81,7 @@ func TestHotSwitch_WorkspaceSwitchCommand(t *testing.T) {
 func TestHotSwitch_WorkspaceSwitchNotFound(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
-	sess := session.New("test", "model", "/work")
+	sess := cortex.New("test", "model", "/work")
 	result := repl.ExecuteCommand(repl.Command{
 		Name: "/workspace-switch",
 		Args: []string{"nonexistent"},
@@ -94,7 +94,7 @@ func TestHotSwitch_WorkspaceSwitchNotFound(t *testing.T) {
 
 func TestHotSwitch_WorkspaceAddEmitsEvent(t *testing.T) {
 	// This tests that /workspace-add modifies session WorkDirs
-	sess := session.New("test", "model", "/work")
+	sess := cortex.New("test", "model", "/work")
 	sess.WorkDirs = []string{"/original"}
 
 	result := repl.ExecuteCommand(repl.Command{
@@ -111,7 +111,7 @@ func TestHotSwitch_WorkspaceAddEmitsEvent(t *testing.T) {
 }
 
 func TestHotSwitch_HyphenatedCommands(t *testing.T) {
-	sess := session.New("test", "model", "/work")
+	sess := cortex.New("test", "model", "/work")
 
 	// /workspace-repos should work
 	result := repl.ExecuteCommand(repl.Command{Name: "/workspace-repos"}, sess)

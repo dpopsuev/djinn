@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/cortex"
 )
 
 // Command represents a parsed slash command.
@@ -64,7 +64,7 @@ func ParseCommand(input string) (Command, bool) {
 }
 
 // ExecuteCommand runs a slash command and returns the result.
-func ExecuteCommand(cmd Command, sess *session.Session) CommandResult { //nolint:gocyclo // command switch dispatch
+func ExecuteCommand(cmd Command, sess *cortex.Session) CommandResult { //nolint:gocyclo // command switch dispatch
 	switch cmd.Name {
 	// Lifecycle
 	case cmdExit, cmdQuit:

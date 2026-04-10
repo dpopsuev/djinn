@@ -10,9 +10,9 @@ import (
 	"log/slog"
 
 	"github.com/dpopsuev/djinn/agent"
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/policy"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -48,7 +48,7 @@ type AgentActorConfig struct {
 	Driver       driver.ChatDriver
 	Tools        builtin.ToolExecutor
 	Envelope     *agent.ToolEnvelope
-	Session      *session.Session
+	Session      *cortex.Session
 	SystemPrompt string
 	MaxTurns     int
 	Mode         agent.Mode

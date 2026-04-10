@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/cortex"
 )
 
 func TestSessionDir(t *testing.T) {
@@ -85,7 +85,7 @@ func TestCreateDriver_OllamaNotImplemented(t *testing.T) {
 }
 
 func TestLoadMostRecent_Empty(t *testing.T) {
-	store, _ := session.NewStore(t.TempDir())
+	store, _ := cortex.NewStore(t.TempDir())
 	_, err := LoadMostRecent(store)
 	if err == nil {
 		t.Fatal("expected error for empty session store")
@@ -94,16 +94,16 @@ func TestLoadMostRecent_Empty(t *testing.T) {
 
 func TestLoadMostRecent_WithSessions(t *testing.T) {
 	dir := t.TempDir()
-	store, _ := session.NewStore(dir)
+	store, _ := cortex.NewStore(dir)
 
-	s1 := session.New("s1", "model", "/work")
+	s1 := cortex.New("s1", "model", "/work")
 	s1.Name = "older"
-	s1.Append(session.Entry{Content: "old"})
+	s1.Append(cortex.Entry{Content: "old"})
 	store.Save(s1)
 
-	s2 := session.New("s2", "model", "/work")
+	s2 := cortex.New("s2", "model", "/work")
 	s2.Name = "newer"
-	s2.Append(session.Entry{Content: "new"})
+	s2.Append(cortex.Entry{Content: "new"})
 	store.Save(s2)
 
 	loaded, err := LoadMostRecent(store)
@@ -295,8 +295,8 @@ func TestDefaultHomeDir(t *testing.T) {
 	if DefaultHomeDir != ".djinn" {
 		t.Fatalf("DefaultHomeDir = %q, want .djinn", DefaultHomeDir)
 	}
-	if DefaultSessionDir != ".djinn/sessions" {
-		t.Fatalf("DefaultSessionDir = %q, want .djinn/sessions", DefaultSessionDir)
+	if DefaultSessionDir != ".djinn/cortexs" {
+		t.Fatalf("DefaultSessionDir = %q, want .djinn/cortexs", DefaultSessionDir)
 	}
 }
 

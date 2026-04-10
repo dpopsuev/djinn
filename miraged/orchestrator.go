@@ -12,9 +12,9 @@ import (
 	"strings"
 
 	"github.com/dpopsuev/djinn/agent"
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/policy"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/uniform"
@@ -26,7 +26,7 @@ type AgentRunner struct {
 	Driver       driver.ChatDriver
 	Tools        builtin.ToolExecutor
 	Envelope     *agent.ToolEnvelope
-	Session      *session.Session
+	Session      *cortex.Session
 	SystemPrompt string
 	MaxTurns     int
 	Enforcer     policy.ToolPolicyEnforcer

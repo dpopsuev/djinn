@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -111,7 +111,7 @@ func TestRunBackend_QuitImmediately(t *testing.T) {
 		tr.SendToBackend(ShellMsg{Type: ShellQuit})
 	}()
 
-	sess := session.New("test", "test-model", "/workspace")
+	sess := cortex.New("test", "test-model", "/workspace")
 	err := RunBackend(context.Background(), tr, BackendConfig{
 		Session:  sess,
 		Tools:    builtin.NewRegistry(),
@@ -125,9 +125,9 @@ func TestRunBackend_QuitImmediately(t *testing.T) {
 func TestRunBackend_SessionState(t *testing.T) {
 	tr := NewChannelTransport()
 
-	sess := session.New("sess-1", "claude-opus-4-6", "/workspace")
-	sess.Append(session.Entry{Content: "old message"})
-	sess.Append(session.Entry{Content: "another"})
+	sess := cortex.New("sess-1", "claude-opus-4-6", "/workspace")
+	sess.Append(cortex.Entry{Content: "old message"})
+	sess.Append(cortex.Entry{Content: "another"})
 
 	go func() {
 		msg, _ := tr.RecvFromBackend()
@@ -155,7 +155,7 @@ func TestRunBackend_TransportDisconnect(t *testing.T) {
 		tr.Close() // simulate disconnect
 	}()
 
-	sess := session.New("test", "model", "/workspace")
+	sess := cortex.New("test", "model", "/workspace")
 	err := RunBackend(context.Background(), tr, BackendConfig{
 		Session: sess,
 		Tools:   builtin.NewRegistry(),

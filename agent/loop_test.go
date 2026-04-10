@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
 
@@ -190,10 +190,10 @@ func TestCollectResponse_Thinking(t *testing.T) {
 }
 
 func TestSessionIntegration(t *testing.T) {
-	sess := session.New("test-sess", "test-model", "/workspace")
+	sess := cortex.New("test-sess", "test-model", "/workspace")
 
-	sess.Append(session.Entry{Role: driver.RoleUser, Content: "hello"})
-	sess.Append(session.Entry{Role: driver.RoleAssistant, Content: "hi"})
+	sess.Append(cortex.Entry{Role: driver.RoleUser, Content: "hello"})
+	sess.Append(cortex.Entry{Role: driver.RoleAssistant, Content: "hi"})
 
 	if sess.History.Len() != 2 {
 		t.Fatalf("history = %d, want 2", sess.History.Len())
@@ -268,7 +268,7 @@ func TestRun_FullCycle_TextOnly(t *testing.T) {
 		{Type: driver.EventDone, Usage: &driver.Usage{OutputTokens: 10}},
 	})
 
-	sess := session.New("test-run", "test-model", t.TempDir())
+	sess := cortex.New("test-run", "test-model", t.TempDir())
 	var handler testHandler
 
 	result, err := Run(context.Background(), Config{
@@ -314,7 +314,7 @@ func TestRun_ToolApprovalDenied(t *testing.T) {
 		},
 	)
 
-	sess := session.New("test-denied", "test-model", t.TempDir())
+	sess := cortex.New("test-denied", "test-model", t.TempDir())
 
 	result, err := Run(context.Background(), Config{
 		Driver:   d,
@@ -412,7 +412,7 @@ func TestRun_ToolCallExecution(t *testing.T) {
 		return "wrote " + args["path"], nil
 	})
 
-	sess := session.New("test-tool", "test-model", t.TempDir())
+	sess := cortex.New("test-tool", "test-model", t.TempDir())
 	var handler testHandler
 
 	result, err := Run(context.Background(), Config{
@@ -478,7 +478,7 @@ func TestRun_ToolError(t *testing.T) {
 		return "", errors.New("open /nonexistent: no such file")
 	})
 
-	sess := session.New("test-err", "test-model", t.TempDir())
+	sess := cortex.New("test-err", "test-model", t.TempDir())
 
 	result, err := Run(context.Background(), Config{
 		Driver:       d,
@@ -526,7 +526,7 @@ func TestRun_MaxTurnsExceeded(t *testing.T) {
 		return "ok", nil
 	})
 
-	sess := session.New("test-max", "test-model", t.TempDir())
+	sess := cortex.New("test-max", "test-model", t.TempDir())
 
 	_, err := Run(context.Background(), Config{
 		Driver:       d,

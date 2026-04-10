@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 )
 
@@ -23,28 +23,28 @@ func TestE2E_RelayContextSwap(t *testing.T) {
 	ctx := context.Background()
 
 	// --- Setup: Store, Monitor, Session, ScriptedDriver ---
-	store, err := session.NewStore(t.TempDir())
+	store, err := cortex.NewStore(t.TempDir())
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
 
-	monitor := session.NewContextMonitor(
-		session.WithMaxTokens(1000),
-		session.WithSpawnAt(0.80),
-		session.WithSwapAt(0.95),
+	monitor := cortex.NewContextMonitor(
+		cortex.WithMaxTokens(1000),
+		cortex.WithSpawnAt(0.80),
+		cortex.WithSwapAt(0.95),
 	)
 
 	// Build a session with enough history to trigger compaction during seed.
-	oldSess := session.New("e2e-relay", "opus-4", "/workspace")
+	oldSess := cortex.New("e2e-relay", "opus-4", "/workspace")
 	oldSess.Name = "e2e-relay"
 	oldSess.Driver = "acp"
 	oldSess.Workspace = "aeon"
-	oldSess.Append(session.Entry{Role: "user", Content: "implement auth module"})
-	oldSess.Append(session.Entry{Role: "assistant", Content: "Created auth package with JWT middleware."})
-	oldSess.Append(session.Entry{Role: "user", Content: "add unit tests"})
-	oldSess.Append(session.Entry{Role: "assistant", Content: "Added 12 tests, all green."})
-	oldSess.Append(session.Entry{Role: "user", Content: "add rate limiting"})
-	oldSess.Append(session.Entry{Role: "assistant", Content: "Token bucket rate limiter added."})
+	oldSess.Append(cortex.Entry{Role: "user", Content: "implement auth module"})
+	oldSess.Append(cortex.Entry{Role: "assistant", Content: "Created auth package with JWT middleware."})
+	oldSess.Append(cortex.Entry{Role: "user", Content: "add unit tests"})
+	oldSess.Append(cortex.Entry{Role: "assistant", Content: "Added 12 tests, all green."})
+	oldSess.Append(cortex.Entry{Role: "user", Content: "add rate limiting"})
+	oldSess.Append(cortex.Entry{Role: "assistant", Content: "Token bucket rate limiter added."})
 
 	if err := store.Save(oldSess); err != nil {
 		t.Fatalf("Save: %v", err)
@@ -57,7 +57,7 @@ func TestE2E_RelayContextSwap(t *testing.T) {
 	newDriver := stubs.NewScriptedDriver()
 	factoryCalled := false
 
-	relay := session.NewRelayManager(session.RelayConfig{
+	relay := cortex.NewRelayManager(cortex.RelayConfig{
 		Monitor: monitor,
 		Store:   store,
 		Session: oldSess,
@@ -82,7 +82,7 @@ func TestE2E_RelayContextSwap(t *testing.T) {
 	if drv != oldDriver {
 		t.Fatal("driver should not change below threshold")
 	}
-	if monitor.State() != session.MonitorIdle {
+	if monitor.State() != cortex.MonitorIdle {
 		t.Fatalf("state = %d, want MonitorIdle at 30%%", monitor.State())
 	}
 	if factoryCalled {
@@ -103,7 +103,7 @@ func TestE2E_RelayContextSwap(t *testing.T) {
 	if drv != oldDriver {
 		t.Fatal("active driver should remain old during spawn")
 	}
-	if monitor.State() != session.MonitorReady {
+	if monitor.State() != cortex.MonitorReady {
 		t.Fatalf("state = %d, want MonitorReady after spawn", monitor.State())
 	}
 	if !factoryCalled {
@@ -150,7 +150,7 @@ func TestE2E_RelayContextSwap(t *testing.T) {
 	}
 
 	// Monitor should be reset.
-	if monitor.State() != session.MonitorIdle {
+	if monitor.State() != cortex.MonitorIdle {
 		t.Fatalf("state = %d after swap, want MonitorIdle (reset)", monitor.State())
 	}
 	if monitor.TotalTokens() != 0 {
@@ -195,7 +195,7 @@ func TestE2E_RelayContextSwap(t *testing.T) {
 	if !strings.Contains(entries[0].Content, "[Session context]") {
 		t.Errorf("first entry should be session context, got: %q", entries[0].Content)
 	}
-	// New session should inherit metadata from old session.
+	// New session should inherit metadata from old cortex.
 	if sess.Driver != "acp" {
 		t.Errorf("new session Driver = %q, want acp", sess.Driver)
 	}
@@ -234,27 +234,27 @@ func TestE2E_RelayContextSwap(t *testing.T) {
 func TestE2E_RelayFallbackCompact(t *testing.T) {
 	ctx := context.Background()
 
-	store, _ := session.NewStore(t.TempDir())
-	monitor := session.NewContextMonitor(
-		session.WithMaxTokens(1000),
-		session.WithSpawnAt(0.80),
-		session.WithSwapAt(0.95),
+	store, _ := cortex.NewStore(t.TempDir())
+	monitor := cortex.NewContextMonitor(
+		cortex.WithMaxTokens(1000),
+		cortex.WithSpawnAt(0.80),
+		cortex.WithSwapAt(0.95),
 	)
 
 	// Build a session with enough entries to compact.
-	sess := session.New("fallback-e2e", "model", "/work")
+	sess := cortex.New("fallback-e2e", "model", "/work")
 	for i := range 10 {
 		role := "user"
 		if i%2 == 1 {
 			role = "assistant"
 		}
-		sess.Append(session.Entry{Role: role, Content: "message about topic " + string(rune('A'+i))})
+		sess.Append(cortex.Entry{Role: role, Content: "message about topic " + string(rune('A'+i))})
 	}
 	beforeEntries := sess.History.Len()
 
 	oldDriver := stubs.NewScriptedDriver()
 
-	relay := session.NewRelayManager(session.RelayConfig{
+	relay := cortex.NewRelayManager(cortex.RelayConfig{
 		Monitor:       monitor,
 		Store:         store,
 		Session:       sess,
@@ -285,7 +285,7 @@ func TestE2E_RelayFallbackCompact(t *testing.T) {
 	}
 
 	// Monitor should be back to idle (ready to try again next cycle).
-	if monitor.State() != session.MonitorIdle {
+	if monitor.State() != cortex.MonitorIdle {
 		t.Fatalf("state = %d, want MonitorIdle after fallback", monitor.State())
 	}
 }

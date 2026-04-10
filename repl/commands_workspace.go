@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dpopsuev/djinn/session"
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
@@ -18,7 +18,7 @@ const (
 	cmdWorkspaceSave   = "/workspace-save"
 )
 
-func executeWorkspaceSwitch(cmd Command, sess *session.Session) CommandResult {
+func executeWorkspaceSwitch(cmd Command, sess *cortex.Session) CommandResult {
 	if len(cmd.Args) < 1 {
 		return CommandResult{Output: "usage: /workspace-switch <name|file>"}
 	}
@@ -48,7 +48,7 @@ func executeWorkspaceSwitch(cmd Command, sess *session.Session) CommandResult {
 	return CommandResult{Output: fmt.Sprintf("switched to workspace %q (%d repos)", newWS.Name, len(newWS.Repos))}
 }
 
-func executeWorkspaceAdd(cmd Command, sess *session.Session) CommandResult {
+func executeWorkspaceAdd(cmd Command, sess *cortex.Session) CommandResult {
 	if len(cmd.Args) < 1 {
 		return CommandResult{Output: "usage: /workspace-add <path>"}
 	}
@@ -64,7 +64,7 @@ func executeWorkspaceAdd(cmd Command, sess *session.Session) CommandResult {
 	return CommandResult{Output: fmt.Sprintf("added repo: %s", dir)}
 }
 
-func executeWorkspaceRepos(sess *session.Session) CommandResult {
+func executeWorkspaceRepos(sess *cortex.Session) CommandResult {
 	if len(sess.WorkDirs) == 0 {
 		return CommandResult{Output: "no repos in workspace"}
 	}
@@ -75,14 +75,14 @@ func executeWorkspaceRepos(sess *session.Session) CommandResult {
 	return CommandResult{Output: strings.TrimRight(sb.String(), "\n")}
 }
 
-func executeWorkspaceSave(sess *session.Session) CommandResult {
+func executeWorkspaceSave(sess *cortex.Session) CommandResult {
 	if sess.Workspace == "" {
 		return CommandResult{Output: "name this workspace first: /workspace save <name>"}
 	}
 	return CommandResult{Output: fmt.Sprintf("workspace %q saved (use djinn workspace list to verify)", sess.Workspace)}
 }
 
-func executeWorkspace(cmd Command, sess *session.Session) CommandResult {
+func executeWorkspace(cmd Command, sess *cortex.Session) CommandResult {
 	if len(cmd.Args) == 0 {
 		wsName := sess.Workspace
 		if wsName == "" {

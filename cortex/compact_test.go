@@ -1,4 +1,4 @@
-package session
+package cortex
 
 import (
 	"strings"
@@ -106,7 +106,7 @@ func TestSeedSession_basic(t *testing.T) {
 		t.Error("first entry should contain summary text")
 	}
 
-	// Last two entries are the recent ones from old session.
+	// Last two entries are the recent ones from old cortex.
 	if entries[1].Content != "msg 2" {
 		t.Errorf("entries[1] = %q, want 'msg 2'", entries[1].Content)
 	}

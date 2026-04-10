@@ -1,4 +1,4 @@
-package session
+package cortex
 
 import (
 	"os"
@@ -9,7 +9,7 @@ import (
 func writeTestJSONL(t *testing.T, lines ...string) string {
 	t.Helper()
 	dir := t.TempDir()
-	path := filepath.Join(dir, "session.jsonl")
+	path := filepath.Join(dir, "cortex.jsonl")
 	f, _ := os.Create(path)
 	for _, line := range lines {
 		f.WriteString(line + "\n")

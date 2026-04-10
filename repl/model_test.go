@@ -13,15 +13,15 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/dpopsuev/djinn/agent"
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/miraged"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
 )
 
 func testModel() Model {
-	sess := session.New("test", "test-model", "/workspace")
+	sess := cortex.New("test", "test-model", "/workspace")
 	m := NewModel(Config{
 		Tools:   builtin.NewRegistry(),
 		Session: sess,
@@ -384,7 +384,7 @@ func TestModel_FlushStreamBuffer_Empty(t *testing.T) {
 }
 
 func TestModel_NewModel_DefaultMode(t *testing.T) {
-	sess := session.New("test", "model", "/workspace")
+	sess := cortex.New("test", "model", "/workspace")
 	m := NewModel(Config{Tools: builtin.NewRegistry(), Session: sess})
 	// Default role (gensec) overrides cfg.Mode — gensec is "plan"
 	if m.mode != agent.ModePlan {
@@ -393,7 +393,7 @@ func TestModel_NewModel_DefaultMode(t *testing.T) {
 }
 
 func TestModel_NewModel_ParsesMode(t *testing.T) {
-	sess := session.New("test", "model", "/workspace")
+	sess := cortex.New("test", "model", "/workspace")
 	m := NewModel(Config{Tools: builtin.NewRegistry(), Session: sess, Mode: "auto"})
 	// cfg.Mode="auto" is overridden by default role (gensec) which is "plan"
 	if m.mode != agent.ModePlan {
@@ -616,7 +616,7 @@ func (d *mockChatDriver) ContextWindow() int { return 200_000 }
 // testModelWithDriver creates a Model with a mock ChatDriver attached.
 func testModelWithDriver() (Model, *mockChatDriver) {
 	drv := &mockChatDriver{}
-	sess := session.New("test", "test-model", "/workspace")
+	sess := cortex.New("test", "test-model", "/workspace")
 	m := NewModel(Config{
 		Driver:  drv,
 		Tools:   builtin.NewRegistry(),

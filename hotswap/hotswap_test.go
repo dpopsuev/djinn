@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -39,7 +39,7 @@ func TestHotSwap_DisconnectReconnect(t *testing.T) {
 		backend1Done <- RunBackend(ctx, transport, BackendConfig{
 			Driver:   stubs.NewStubChatDriver(driver.Message{Role: "assistant", Content: "response-1"}),
 			Tools:    builtin.NewRegistry(),
-			Session:  session.New("b1", "model-1", "/workspace"),
+			Session:  cortex.New("b1", "model-1", "/workspace"),
 			MaxTurns: 5,
 		})
 	}()
@@ -97,7 +97,7 @@ func TestHotSwap_DisconnectReconnect(t *testing.T) {
 		backend2Done <- RunBackend(ctx, transport, BackendConfig{
 			Driver:   stubs.NewStubChatDriver(driver.Message{Role: "assistant", Content: "response-2"}),
 			Tools:    builtin.NewRegistry(),
-			Session:  session.New("b2", "model-2", "/workspace"),
+			Session:  cortex.New("b2", "model-2", "/workspace"),
 			MaxTurns: 5,
 		})
 	}()

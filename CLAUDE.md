@@ -136,7 +136,7 @@ cmd/djinn/     — TUI + CLI binary
 cmd/miraged/   — Data Plane daemon binary (rename from cmd/djinnd/)
 cmd/vezir/     — NEW: Control Plane daemon binary
 config/        — Config loading
-context/       — Context service (rename from contextmgr/)
+session/       — Session service (was contextmgr/; 'context' collides with stdlib)
 discourse/     — NEW: Planning service (natural language deliberation)
 driver/        — LLM driver (driver/troupe/)
 hotswap/       — Socket protocol (Vezir pre-work)

@@ -5,7 +5,7 @@
 //
 // The package is organized into the following files by concern:
 //
-//   - session.go     Core types: Entry, Session, New(), Append(), Entries()
+//   - cortex.go     Core types: Entry, Session, New(), Append(), Entries()
 //   - history.go     History with optional token budget, trim-on-append
 //   - store.go       Disk persistence: Save/Load/Delete/Archive (JSON files)
 //   - compact.go     Context compaction: Compact(), SeedSession(), ExtractSummaryText()
@@ -22,4 +22,4 @@
 //
 // RelayManager wraps ContextMonitor and Store to orchestrate the full
 // spawn -> seed -> swap -> archive lifecycle for context relay.
-package session
+package cortex

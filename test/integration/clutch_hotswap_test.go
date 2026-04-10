@@ -17,9 +17,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/hotswap"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -55,7 +55,7 @@ func TestClutch_BackendSendsReady(t *testing.T) {
 	transport := hotswap.NewChannelTransport()
 	defer transport.Close()
 
-	sess := session.New("test", "test-model", "/workspace")
+	sess := cortex.New("test", "test-model", "/workspace")
 	stubDriver := stubs.NewStubChatDriver(
 		driver.Message{Role: driver.RoleAssistant, Content: "hi"},
 	)
@@ -96,7 +96,7 @@ func TestClutch_QuitExitsCleanly(t *testing.T) {
 	transport := hotswap.NewChannelTransport()
 	defer transport.Close()
 
-	sess := session.New("test", "model", "/workspace")
+	sess := cortex.New("test", "model", "/workspace")
 	stubDriver := stubs.NewStubChatDriver(
 		driver.Message{Role: driver.RoleAssistant, Content: "done"},
 	)

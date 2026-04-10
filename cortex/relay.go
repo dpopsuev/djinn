@@ -1,4 +1,4 @@
-package session
+package cortex
 
 import (
 	"context"
@@ -197,7 +197,7 @@ func (r *RelayManager) spawnBackground(ctx context.Context) error {
 	return nil
 }
 
-// executeSwap atomically swaps active ↔ backup, archives old session.
+// executeSwap atomically swaps active ↔ backup, archives old cortex.
 // Must be called with r.mu held.
 func (r *RelayManager) executeSwap(ctx context.Context) error {
 	if r.backupDriver == nil || r.backupSession == nil {
@@ -217,7 +217,7 @@ func (r *RelayManager) executeSwap(ctx context.Context) error {
 			"former", formerAgent, "next", r.NextAgentID)
 	}
 
-	// Archive old session.
+	// Archive old cortex.
 	oldSession := r.activeSession
 	oldDriver := r.activeDriver
 

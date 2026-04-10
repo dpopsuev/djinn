@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/agent"
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/repl"
-	"github.com/dpopsuev/djinn/session"
 )
 
 func TestMode_AskDisablesTools(t *testing.T) {
@@ -44,10 +44,10 @@ func TestMode_AutoApprovesAll(t *testing.T) {
 }
 
 func TestMode_SwitchViaCommand(t *testing.T) {
-	sess := session.New("test", "model", "/workspace")
+	sess := cortex.New("test", "model", "/workspace")
 	result := repl.ExecuteCommand(repl.Command{Name: "/mode", Args: []string{"auto"}}, sess)
 	if sess.Mode != "auto" {
-		t.Fatalf("session.Mode = %q, want auto", sess.Mode)
+		t.Fatalf("cortex.Mode = %q, want auto", sess.Mode)
 	}
 	if result.ModeChange != "auto" {
 		t.Fatalf("ModeChange = %q", result.ModeChange)
@@ -56,9 +56,9 @@ func TestMode_SwitchViaCommand(t *testing.T) {
 
 func TestMode_PersistedOnSession(t *testing.T) {
 	dir := t.TempDir()
-	store, _ := session.NewStore(dir)
+	store, _ := cortex.NewStore(dir)
 
-	sess := session.New("test", "model", "/workspace")
+	sess := cortex.New("test", "model", "/workspace")
 	sess.Mode = "plan"
 	store.Save(sess)
 

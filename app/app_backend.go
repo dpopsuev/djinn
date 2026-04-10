@@ -20,10 +20,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
 	troupedriver "github.com/dpopsuev/djinn/driver/troupe"
 	"github.com/dpopsuev/djinn/hotswap"
-	"github.com/dpopsuev/djinn/session"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/troupe/execution"
@@ -78,22 +78,22 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 		modelName = DefaultModel
 	}
 
-	// Load session.
+	// Load cortex.
 	sessDir := SessionDir()
-	store, err := session.NewStore(sessDir)
+	store, err := cortex.NewStore(sessDir)
 	if err != nil {
 		return fmt.Errorf("session store: %w", err)
 	}
 
-	var sess *session.Session
+	var sess *cortex.Session
 	if *sessionName != "" {
 		sess, err = store.Load(*sessionName)
 		if err != nil {
-			sess = session.New(*sessionName, modelName, Getwd())
+			sess = cortex.New(*sessionName, modelName, Getwd())
 			sess.Name = *sessionName
 		}
 	} else {
-		sess = session.New(fmt.Sprintf("backend-%d", os.Getpid()), modelName, Getwd())
+		sess = cortex.New(fmt.Sprintf("backend-%d", os.Getpid()), modelName, Getwd())
 	}
 	sess.Driver = *driverName
 	sess.Model = modelName
@@ -103,13 +103,13 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 	if *wsFlag != "" {
 		workDir = *wsFlag
 	}
-	projectCtx := session.LoadProjectContext(workDir)
+	projectCtx := cortex.LoadProjectContext(workDir)
 
 	prompt := *systemPrompt
 	if *systemFile != "" {
 		prompt = ReadSystemFile(*systemFile)
 	}
-	assembledPrompt := session.BuildSystemPrompt(projectCtx, prompt)
+	assembledPrompt := cortex.BuildSystemPrompt(projectCtx, prompt)
 
 	// Create driver.
 	chatDriver, err := createBackendDriver(*driverName, modelName, assembledPrompt, log)

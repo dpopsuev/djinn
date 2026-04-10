@@ -1,4 +1,4 @@
-package session
+package cortex
 
 import (
 	"bufio"
@@ -33,7 +33,7 @@ type claudeContentBlock struct {
 }
 
 // ImportClaudeSession parses a Claude Code JSONL session file and
-// creates a Djinn session. Extracts user/assistant text messages,
+// creates a Djinn cortex. Extracts user/assistant text messages,
 // skips tool results and internal types.
 //
 // If tokenBudget > 0, compacts old messages to fit within budget
