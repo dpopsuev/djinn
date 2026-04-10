@@ -123,6 +123,47 @@ Troupe                   Olympiad            Agent Mesh
 /djinn/origami     — Origami
 ```
 
+## Desired Root Directory
+
+```
+agent/         — Agent loop (ReAct cycle)
+app/           — Composition root
+artifact/      — Parchment bridge
+assets/        — Logo, static files
+assignment/    — NEW: Execution service (structured work, downstream of Discourse)
+budget/        — NEW: Budget service (Observer + Controller, from telemetry/wd_budget)
+cmd/djinn/     — TUI + CLI binary
+cmd/miraged/   — Data Plane daemon binary (rename from cmd/djinnd/)
+cmd/vezir/     — NEW: Control Plane daemon binary
+config/        — Config loading
+context/       — Context service (rename from contextmgr/)
+discourse/     — NEW: Planning service (natural language deliberation)
+driver/        — LLM driver (driver/troupe/)
+hotswap/       — Socket protocol (Vezir pre-work)
+mcp/           — MCP client
+miraged/       — Data Plane internals (merge substrate/ + daemon/)
+policy/        — Battery policy bridge
+repl/          — Interactive composition root
+review/        — Code review, LSP
+sandbox/       — Space adapter (Mirage bridge)
+scripts/       — Build scripts
+telemetry/     — Pipe only (keys, TraceProjection, logging setup)
+terminal/      — System interface (AuthN/AuthZ facade)
+test/          — Integration / E2E tests
+testkit/       — Test infra
+  crucible/    — Test harness, scenarios, referee (rename from arena/)
+  stubs/       — Stubs
+tools/         — Tool implementations (builtin, composite)
+tui/           — Operator's visual client of Terminal
+undo/          — MutationTree (checkpoint/rollback)
+uniform/       — Spawn config, clearance, persona
+vessel/        — NEW: Agent harness interface + stub
+vezir/         — NEW: Control Plane internals (supervisor, reconciler, relay, builder)
+workspace/     — Workspace scope, bus, git
+```
+
+Changes from current: `broker/` deleted, `contextmgr/`→`context/`, `daemon/`+`substrate/`→`miraged/`, `cmd/djinnd/`→`cmd/miraged/`, `testkit/arena/`→`testkit/crucible/`. New: `budget/`, `discourse/`, `assignment/`, `vessel/`, `vezir/`, `cmd/vezir/`.
+
 ## Manufacturing Principles
 
 Djinn is influenced by Toyota Production System, Lean Manufacturing, 5S, Kaizen, and Agile:
