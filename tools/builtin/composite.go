@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"sort"
+	"strings"
 
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
 )
@@ -87,7 +88,14 @@ func (ce *CompositeExecutor) Execute(ctx context.Context, name string, input jso
 	if _, err := ce.builtin.Get(name); err == nil {
 		return ce.builtin.Execute(ctx, name, input)
 	}
-	// 3. Raw MCP tool name dispatch (e.g. "artifact" → scribe server).
+	// 3. Full MCP name dispatch (e.g. "mcp__scribe__artifact" → server=scribe, tool=artifact).
+	if ce.mcp != nil && strings.HasPrefix(name, "mcp__") {
+		parts := strings.SplitN(name, "__", 3)
+		if len(parts) == 3 {
+			return ce.mcp.Call(ctx, parts[1], parts[2], input)
+		}
+	}
+	// 4. Raw MCP tool name dispatch (e.g. "artifact" → scribe server).
 	if ce.mcp != nil {
 		idx := ce.buildMCPIndex()
 		if serverName, ok := idx[name]; ok {
