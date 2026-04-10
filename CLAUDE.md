@@ -73,11 +73,20 @@ Vezir (Control Plane — always running, supervised by OS init)
 
 ```yaml
 # Capabilities → tools
-read: [Read, Glob, Grep]   write: [Write, Edit]      code: [Symbol, Build, Test, Lint]
-vcs: [VCS]                 observe: [Observe]         coordinate: [Assignment]
-shell: [Bash]              communicate: [Discourse, Notes]
+read:        [Read, Glob, Grep]
+write:       [Write, Edit]
+code:        [Symbol, Build, Test, Lint]
+vcs:         [VCS]
+observe:     [Observe]
+coordinate:  [Assignment]       # push — managers only
+work:        [Task]             # pull — universal
+shell:       [Bash]
+communicate: [Discourse, Notes] # universal
 
-# Roles (composable, agent base = communicate)
+# Base role (every role composes this)
+agent: [communicate, work]
+
+# Roles (composable)
 developer:  [agent, reader, writer, coder] + vcs
 architect:  [agent, reader, coder, observer, coordinator]
 qa:         [agent, reader, coder]
@@ -86,6 +95,15 @@ manager:    [agent, observer, coordinator]
 director:   [agent, manager] + shell
 operator:   [agent, developer, architect, qa, operations] + shell
 ```
+
+### Task + Assignment (two-sided work model)
+
+- **Assignment** (push, coordinator cap): `assign`, `unassign`, `reassign`, `list` + opts
+- **Task** (pull, universal): `current`, `next`, `submit`, `board` + opts
+- **Gate on submit** (Jidoka): submit triggers gate (build/test/lint). Fail = stay. Pass = advance.
+- **Submit statuses**: done (gate judges), blocked (escalate), needs_review (want approval)
+- **Required comments** on ALL state-changing actions (Write, Edit, VCS, Task submit, Assignment)
+- System prompt lists ONLY available tools. No mention of unavailable tools.
 
 ### Agents & Staff
 
