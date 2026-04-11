@@ -2,7 +2,7 @@
 //
 // All methods return success with empty data. Used when no external planner
 // (e.g., Scribe) is connected.
-package miraged
+package substrate
 
 import "context"
 

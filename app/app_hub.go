@@ -42,7 +42,7 @@ func DefaultHubSocket() string {
 	return filepath.Join(dir, "hub.sock")
 }
 
-// RunHub starts the GenSec hub miraged.
+// RunHub starts the GenSec hub substrate.
 func RunHub(args []string, stderr io.Writer) error {
 	var socketPath string
 	var spawnBackend bool

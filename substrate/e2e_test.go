@@ -1,4 +1,4 @@
-package miraged_test
+package substrate_test
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/battery/tool"
-	"github.com/dpopsuev/djinn/miraged"
+	"github.com/dpopsuev/djinn/substrate"
 	"github.com/dpopsuev/djinn/testkit/crucible"
 	"github.com/dpopsuev/troupe/testkit"
 )
@@ -38,7 +38,7 @@ func TestE2E_Skeleton(t *testing.T) {
 		t.Fatalf("build envelope: %v", err)
 	}
 
-	sub := miraged.NewStubSubstrate(exec, testkit.NewStubEventLog())
+	sub := substrate.NewStubSubstrate(exec, testkit.NewStubEventLog())
 	sub.SetEnvelope(env)
 
 	// 2. Define the scenario + referee
@@ -63,7 +63,7 @@ func TestE2E_Skeleton(t *testing.T) {
 	}
 
 	// Substrate spawns an agent
-	agentID, err := sub.Spawn(ctx, miraged.SpawnConfig{
+	agentID, err := sub.Spawn(ctx, substrate.SpawnConfig{
 		Role:  "executor",
 		Model: "haiku",
 		Tools: []string{"Read", "Write", "Bash"},
@@ -79,7 +79,7 @@ func TestE2E_Skeleton(t *testing.T) {
 	}
 
 	// Substrate observes the tool call
-	sub.Observe(ctx, miraged.Observation{
+	sub.Observe(ctx, substrate.Observation{
 		AgentID:  agentID,
 		Tool:     "Write",
 		Duration: 50,

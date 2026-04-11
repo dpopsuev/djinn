@@ -1,4 +1,4 @@
-// djinnd — the Djinn Substrate miraged.
+// djinnd — the Djinn Substrate substrate.
 //
 // Stub: prints not-yet-implemented message.
 // The real daemon will manage agent lifecycle, space isolation,

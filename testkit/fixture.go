@@ -13,8 +13,8 @@ import (
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/miraged"
 	"github.com/dpopsuev/djinn/policy"
+	"github.com/dpopsuev/djinn/substrate"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 )
@@ -80,7 +80,7 @@ func NewAgentFixture(t *testing.T, opts ...AgentOpt) *AgentFixture {
 
 // Run executes the agent with the given prompt and returns the result.
 func (f *AgentFixture) Run(ctx context.Context, prompt string) (string, error) {
-	actorFn := miraged.AgentActorFunc(miraged.AgentActorConfig{
+	actorFn := substrate.AgentActorFunc(substrate.AgentActorConfig{
 		Driver:   f.driver,
 		Tools:    f.tools,
 		Session:  f.session,

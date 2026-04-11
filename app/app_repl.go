@@ -18,10 +18,10 @@ import (
 	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/hotswap"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
-	"github.com/dpopsuev/djinn/miraged"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/repl"
 	"github.com/dpopsuev/djinn/sandbox"
+	"github.com/dpopsuev/djinn/substrate"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools"
 	"github.com/dpopsuev/djinn/tools/builtin"
@@ -239,12 +239,12 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	traceRing := telemetry.NewTraceProjection(1000).WithEventLog(eventLog) //nolint:mnd // 1000 events is a sensible default
 
 	// Hub mediators — DevOps phase coordination (GOL-58).
-	hubRegistry := miraged.NewRegistry()
-	hubCore := miraged.HubCore{
+	hubRegistry := substrate.NewRegistry()
+	hubCore := substrate.HubCore{
 		Tracer:  traceRing.For(telemetry.ComponentTool),
-		Display: miraged.NopDisplaySender{},
+		Display: substrate.NopDisplaySender{},
 	}
-	planHub := miraged.NewPlanHub(hubCore, artifact.NewGraph("session", artifact.DefaultRegistry()))
+	planHub := substrate.NewPlanHub(hubCore, artifact.NewGraph("session", artifact.DefaultRegistry()))
 	hubRegistry.Register(planHub)
 
 	// Connect MCP servers
@@ -347,7 +347,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 
 	// Wrap composite executor in ToolHub for mediated execution (GOL-37).
 	toolTracker := tools.NewToolLatencyTracker()
-	toolHub := miraged.NewToolHub(hubCore, composite, toolTracker)
+	toolHub := substrate.NewToolHub(hubCore, composite, toolTracker)
 	hubRegistry.Register(toolHub)
 
 	// Build Tool Operation Envelope: SecurityBundle + EnrichmentBundle + ObservabilityBundle.

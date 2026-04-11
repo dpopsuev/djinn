@@ -2,7 +2,7 @@
 //
 // Each tool has P50/P95 latency targets and an error rate ceiling.
 // CheckSLA evaluates actual performance against targets.
-package miraged
+package substrate
 
 import "time"
 

@@ -6,7 +6,7 @@
 // into the tools, not as an interception layer.
 //
 // Responsibilities: Cache, Envelope, Observe, Plan, Spawn, Space.
-package miraged
+package substrate
 
 import (
 	"context"

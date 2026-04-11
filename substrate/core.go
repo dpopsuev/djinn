@@ -2,7 +2,7 @@
 //
 // Every DevOps phase hub embeds HubCore for unified access to tracing,
 // signals, and display. Five-step mediation: execute -> trace -> signal -> render -> sync.
-package miraged
+package substrate
 
 import (
 	"github.com/dpopsuev/djinn/telemetry"

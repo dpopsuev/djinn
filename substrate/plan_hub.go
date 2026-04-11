@@ -2,7 +2,7 @@
 //
 // Wraps artifact.Graph with five-step mediation: execute -> trace -> signal -> render -> sync.
 // Day 1: internal artifact.Graph only. Day 2: ExecutionPlannerPort for external sync.
-package miraged
+package substrate
 
 import (
 	"context"

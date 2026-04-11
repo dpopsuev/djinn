@@ -3,7 +3,7 @@
 //
 // Extracted from cli/repl/model.go (SRP: separate orchestration from TUI).
 // No tui imports — the caller wraps results into TUI messages.
-package miraged
+package substrate
 
 import (
 	"context"

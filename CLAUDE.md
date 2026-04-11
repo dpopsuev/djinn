@@ -24,25 +24,52 @@ Solution → Spec → Goal → Task → Code → Doc (pyramid descent)
 
 Each layer runs Decompose → Taxonomy → Compose. The pyramid IS Parchment artifact kinds.
 
-## Architecture: Three-Tier Runtime
+## Architecture
 
 ### Canonical Names
 
 | Name | Role | Description |
 |---|---|---|
 | **Vezir** | Control Plane | Supervisor daemon. Reconciliation loop, socket relay, builder/watcher. Stateless. |
-| **Miraged** | Data Plane | Node daemon. Workspace, EventLog, MCP routing. One per node. |
-| **Vessel** | Agent Harness | Tools, envelope, space, budget. One per agent/LLM session. |
+| **Substrate** | Node Mediator | Wires all node-local services. Revived name (was Miraged, dissolved for SRP). |
+| **Vessel** | Agent Harness | Tools, envelope, space, budget. LLM + Vessel = Djinn Agent. |
 | **Djinn** | Agent | LLM + Vessel. Ephemeral. Does the work. |
 | **Terminal** | System Interface | Programmatic facade. AuthN/AuthZ. All actors interact through Terminal. |
 | **TUI** | Human Interface | Operator's visual client of Terminal. |
+| **Mirage** | Space Isolation | Overlays, containment, snapshots. Library. |
+| **Lector** | File Understanding | File + symbol hot cache. Observes tool I/O, wraps Oculus. Substrate service. |
 | **EventLog** | Event Stream | Append-only. Troupe signal.EventLog. CQRS write side. |
-| **TraceProjection** | Read Model | Bounded query cache. CQRS read side. Was: Ring. |
-| **MutationTree** | Undo/Redo | Branching tree over EventLog + Workspace snapshots. |
-| **Workspace** | Working Dir | Mirage overlay. Agent reads/writes here. |
+| **MutationTree** | Undo/Redo | Persistent projection over EventLog + Workspace snapshots. |
+| **Workspace** | Working Dir | Mirage overlay. Two-tier manifest (ecosystem → project). |
 | **Discourse** | Planning | Natural language deliberation. Program. |
 | **Assignment** | Execution | Structured work unit downstream of Discourse. Process. |
 | **Crucible** | Test Harness | Scenarios + referee. Was: Arena. |
+
+### Knowledge Services (Relic ecosystem)
+
+| Name | Role | Description |
+|---|---|---|
+| **Relic** | Contract Library | Types (Node, Edge, Section), interfaces (RelicStore, TypedDAG[T]). |
+| **Reliquary** | Storage Engine | Dumb CRUD + structural invariants. SQLite per Realm. |
+| **Hierophant** | Context Enrichment | Context sandwich maker. Fans out to Seers, scores, budgets. Envelope Enrich phase. |
+| **Bishop** | Rules Seer | Scores rules by context. Reliquary(rules.db). |
+| **Pontiff** | Requirements Seer | Lifecycle, guards, cascade. Reliquary(requirements.db). |
+| **Abbot** | Plans Seer | Topo-sort, phase progress. Reliquary(plans.db). |
+| **Deacon** | Execution Seer | Assignment state machine. Reliquary(execution.db). |
+
+### Relic Layers & Kinds (5 layers, 12 kinds)
+
+```
+Governance: rule
+Problem:    need, defect, vulnerability
+Solution:   decision, spec, story
+Effort:     campaign, phase, goal, task
+Execution:  assignment
+```
+
+### RBAC Three-Entity Model (DJN-REF-77)
+
+Role HAS capabilities. Tool REQUIRES capabilities. ToolClearance filters where requires ⊆ capabilities.
 
 ### Domain Services (Battery pattern: Service = Observer + Controller + Data)
 
@@ -57,10 +84,11 @@ Vezir (Control Plane — always running, supervised by OS init)
   ├── Reconciler: desired state vs actual state loop
   └── Builder: watch source → compile → trigger restart
 
-  Miraged (Data Plane — supervised by Vezir)
-  ├── EventLog (mission-critical, persists across restarts)
-  ├── Workspace (Mirage overlay)
-  ├── Tool Envelope + MCP routing
+  Substrate (Node Mediator — supervised by Vezir)
+  ├── Mirage (space isolation — overlays, containment)
+  ├── Lector (file + symbol understanding — hot cache, observes tool I/O)
+  ├── Troupe (EventLog, actor mesh, signals)
+  ├── Hierophant connection (context enrichment from Seers)
   └── Vessels (one per agent session)
         └── Djinn(s) (agents, interact through Terminal)
             General Staff (root scope /):
@@ -68,6 +96,18 @@ Vezir (Control Plane — always running, supervised by OS init)
             Project Staff (project scope):
               Executor, Auditor, Inspector
 ```
+
+### Storage Tiers
+
+```
+Hot:   Lector cache (files, symbols) + Hierophant cache (assembled context)
+Cold:  Reliquary (knowledge Relics, SQLite per Realm)
+Log:   Troupe EventLog (temporal facts, append-only)
+```
+
+### Deployment: Monolith First
+
+Restructure + PoC + MVP: everything in one binary, all services as Go packages, function calls not network. v0.1.0: start decoupling Seers and Hierophant into standalone services.
 
 ### RBAC (DJN-REF-77)
 
@@ -130,17 +170,20 @@ MVP adds Project Staff (scoped to `/djinn/troupe`) with Auditor (qa) and Inspect
 | **Oculus** | Symbol/architecture analysis | v1.0.0 |
 
 ```
-Library (contract)       Daemon              Domain
-Mirage                   Miraged             Isolation / Data Plane
+Library (contract)       Service             Domain
+Relic                    Seers               Knowledge graph
+Mirage                   —                   Isolation
 Troupe                   Olympiad            Agent Mesh
-—                        Vezir               Control Plane (top of stack)
+—                        Reliquary           Dumb storage (SQLite)
+—                        Substrate           Node mediator
+—                        Vezir               Control Plane
 ```
 
 ### Built Systems
-- **Tool Envelope**: Gate/Enrich/Execute/Record pipeline
+- **Tool Envelope**: Gate/Enrich/Execute/Record pipeline. Hierophant enriches here.
 - **CompositeExecutor**: 3-tier tool routing (override → builtin → MCP)
-- **TraceProjection**: bounded CQRS read model over EventLog
-- **MutationTree**: checkpoint/rollback (undo/ package)
+- **MutationTree**: persistent projection over EventLog (undo/ package)
+- **Observe Tool**: introspection facade over EventLog (collapses TraceProjection)
 
 ## Day 0 / Day 1 / Day 2
 
@@ -176,21 +219,22 @@ assets/        — Logo, static files
 assignment/    — NEW: Execution service (structured work, downstream of Discourse)
 budget/        — NEW: Budget service (Observer + Controller, from telemetry/wd_budget)
 cmd/djinn/     — TUI + CLI binary
-cmd/miraged/   — Data Plane daemon binary (rename from cmd/djinnd/)
-cmd/vezir/     — NEW: Control Plane daemon binary
+cmd/vezir/     — Control Plane daemon binary
 config/        — Config loading
-cortex/        — Agent working memory: context window, warming, compaction, anchoring (was contextmgr/)
-discourse/     — NEW: Planning service (natural language deliberation)
+cortex/        — Agent working memory: context window, warming, compaction, anchoring
+discourse/     — Planning service (natural language deliberation)
 driver/        — LLM driver (driver/troupe/)
 hotswap/       — Socket protocol (Vezir pre-work)
+lector/        — NEW: File + symbol understanding, hot cache, observes tool I/O
 mcp/           — MCP client
-miraged/       — Data Plane internals (merge substrate/ + daemon/)
+observe/       — NEW: Introspection facade over EventLog (collapses TraceProjection)
 policy/        — Battery policy bridge
 repl/          — Interactive composition root
 review/        — Code review, LSP
 sandbox/       — Space adapter (Mirage bridge)
 scripts/       — Build scripts
-telemetry/     — Pipe only (keys, TraceProjection, logging setup)
+substrate/     — NEW: Node mediator (wires Mirage + Lector + Troupe + Vessels). Was: miraged/
+telemetry/     — Pipe only (keys, logging setup). TraceProjection collapsed into observe/
 terminal/      — System interface (AuthN/AuthZ facade)
 test/          — Integration / E2E tests
 testkit/       — Test infra
@@ -205,7 +249,7 @@ vezir/         — NEW: Control Plane internals (supervisor, reconciler, relay, 
 workspace/     — Workspace scope, bus, git
 ```
 
-Changes from current: `broker/` deleted, `contextmgr/`→`context/`, `daemon/`+`substrate/`→`miraged/`, `cmd/djinnd/`→`cmd/miraged/`, `testkit/arena/`→`testkit/crucible/`. New: `budget/`, `discourse/`, `assignment/`, `vessel/`, `vezir/`, `cmd/vezir/`.
+Changes from current: `miraged/`→`substrate/`, `cmd/miraged/` deleted. New: `lector/`, `observe/`, `substrate/`. TraceProjection moved from `telemetry/` to `observe/`.
 
 ## Manufacturing Principles
 

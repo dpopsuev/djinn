@@ -9,7 +9,7 @@ import (
 	"github.com/dpopsuev/djinn/budget"
 	"github.com/dpopsuev/djinn/discourse"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/miraged"
+	"github.com/dpopsuev/djinn/substrate"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/vessel"
 	"github.com/dpopsuev/djinn/vezir"
@@ -24,7 +24,7 @@ func TestSkeleton_AllStubsCompose(t *testing.T) {
 	eventLog := troupeTestkit.NewStubEventLog()
 
 	// 2. Vessel (stub — agent harness)
-	tools := miraged.NewStubSubstrate(nil, eventLog).Tools()
+	tools := substrate.NewStubSubstrate(nil, eventLog).Tools()
 	v := vessel.NewStubVessel(tools, eventLog, t.TempDir())
 
 	// 3. Verify Vessel provides what agents need

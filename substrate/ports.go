@@ -3,7 +3,7 @@
 // Day 1: all ports have nil-safe no-op behavior (hubs check nil before calling).
 // Day 2: adapters implement these against MCP servers (Scribe, Locus, Limes).
 // Pattern follows broker/ports.go and staff/ports.go conventions.
-package miraged
+package substrate
 
 import "context"
 

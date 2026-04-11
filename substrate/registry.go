@@ -1,7 +1,7 @@
 // registry.go — MediatorHub interface and HubRegistry (GOL-58).
 //
 // Each DevOps phase registers a hub. The registry provides lookup by name or phase.
-package miraged
+package substrate
 
 import "sort"
 

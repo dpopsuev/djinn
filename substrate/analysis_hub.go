@@ -1,7 +1,7 @@
 // analysis_hub.go — AnalysisHub mediates architecture analysis (GOL-53).
 //
 // Day 1: uses internal arch tool. Day 2: StructuralAnalyzerPort for Locus MCP.
-package miraged
+package substrate
 
 import (
 	"context"

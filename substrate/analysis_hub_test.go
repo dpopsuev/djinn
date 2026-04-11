@@ -1,4 +1,4 @@
-package miraged
+package substrate
 
 import (
 	"context"

@@ -2,7 +2,7 @@
 //
 // Wraps review.ReviewWindow and review.BudgetMonitor with five-step mediation.
 // Day 1: internal budget monitoring. Day 2: CodeReviewerPort for external reviews.
-package miraged
+package substrate
 
 import (
 	"context"

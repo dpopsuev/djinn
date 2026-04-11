@@ -2,7 +2,7 @@
 //
 // Sends DisplayMsg as tea.Msg to the program's message loop.
 // Nil-safe: no-op when program is nil.
-package miraged
+package substrate
 
 import tea "github.com/charmbracelet/bubbletea"
 

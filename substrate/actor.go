@@ -3,7 +3,7 @@
 // The Substrate spawns agents via Troupe's execution.ActorFunc.
 // This adapter wraps the existing agent loop so it can be used
 // in a Troupe Pool or called directly by the Substrate.
-package miraged
+package substrate
 
 import (
 	"context"

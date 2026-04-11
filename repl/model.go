@@ -17,8 +17,8 @@ import (
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
-	"github.com/dpopsuev/djinn/miraged"
 	"github.com/dpopsuev/djinn/policy"
+	"github.com/dpopsuev/djinn/substrate"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/terminal"
 	"github.com/dpopsuev/djinn/tools/builtin"
@@ -134,7 +134,7 @@ type Model struct {
 	tuiRecorder *tui.TUIRecorder
 	debugPanel  *widgets.DebugPanel
 	showDebug   bool
-	hubRegistry *miraged.HubRegistry
+	hubRegistry *substrate.HubRegistry
 	planPanel   *widgets.PlanPanel
 
 	// Staff — role pipeline
@@ -155,7 +155,7 @@ type Model struct {
 	sandboxLevel   string
 
 	// Orchestrator — agent lifecycle, separated from TUI.
-	runner *miraged.AgentRunner
+	runner *substrate.AgentRunner
 }
 
 // NewModel creates a new REPL model.
@@ -226,7 +226,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		term:           terminal.NewDjinn(),
 	}
 
-	m.runner = &miraged.AgentRunner{
+	m.runner = &substrate.AgentRunner{
 		Driver:        cfg.Driver,
 		Tools:         cfg.Tools,
 		Envelope:      cfg.Envelope,
@@ -288,7 +288,7 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	// Plan panel — visible when plan artifacts exist.
 	if cfg.HubRegistry != nil {
 		if ph, ok := cfg.HubRegistry.Get("plan"); ok {
-			if planHub, ok := ph.(*miraged.PlanHub); ok {
+			if planHub, ok := ph.(*substrate.PlanHub); ok {
 				m.planPanel = widgets.NewPlanPanel(planHub.Graph)
 				m.layout.Register(layout.PanelSlot{
 					Panel: m.planPanel, Visible: func() bool { return len(m.planPanel.View(1)) > 20 }, //nolint:mnd // non-empty check

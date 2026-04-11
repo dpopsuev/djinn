@@ -2,7 +2,7 @@
 //
 // Wraps builtin.ToolExecutor with five-step mediation: trace → execute →
 // measure → signal → render. Transparently drops in where raw Registry was used.
-package miraged
+package substrate
 
 import (
 	"context"

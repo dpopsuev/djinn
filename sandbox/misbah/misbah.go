@@ -1,4 +1,4 @@
-// Package misbah implements broker.SandboxPort using the Misbah miraged.
+// Package misbah implements broker.SandboxPort using the Misbah substrate.
 // Wraps daemon.Client with Agent Space operations (Diff, Commit, Events, Logs).
 package misbah
 
