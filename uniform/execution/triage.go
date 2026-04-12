@@ -3,7 +3,7 @@
 // TriagePrompt analyzes an incoming prompt, classifies its complexity,
 // checks budget constraints, and decides which gear to recommend.
 // DotForState maps triage state to a colored dot indicator for the TUI.
-package uniform
+package execution
 
 // TriageState represents the current phase of prompt triage.
 type TriageState string

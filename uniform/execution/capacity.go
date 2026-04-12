@@ -2,7 +2,7 @@
 // AgentCapacity uses Go slice-like len/cap semantics.
 // Cap is the max concurrent agents (operator-only).
 // Running (len) is currently active agents (managed by GenSec).
-package uniform
+package execution
 
 import (
 	"errors"

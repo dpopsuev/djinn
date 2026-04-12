@@ -4,6 +4,8 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/dpopsuev/djinn/uniform/execution"
+
 	"github.com/dpopsuev/djinn/uniform/persona"
 )
 
@@ -167,12 +169,12 @@ func TestDefaultAssignmentScheduler(t *testing.T) {
 	sched := DefaultAssignmentScheduler()
 
 	tests := []struct {
-		gear      Gear
+		gear      execution.Gear
 		wantRoles []string
 	}{
-		{GearE1, []string{"inspector"}},
-		{GearE2, []string{"scheduler", "inspector"}},
-		{GearE3, []string{"auditor", "scheduler", "inspector"}},
+		{execution.GearE1, []string{"inspector"}},
+		{execution.GearE2, []string{"scheduler", "inspector"}},
+		{execution.GearE3, []string{"auditor", "scheduler", "inspector"}},
 	}
 
 	cfg := DefaultConfig()
@@ -217,7 +219,7 @@ func TestDefaultAssignmentScheduler(t *testing.T) {
 func TestAssignmentSchedulerNone(t *testing.T) {
 	sched := DefaultAssignmentScheduler()
 
-	noAssignmentGears := []Gear{GearNone, GearRead, GearPlan, GearE0, GearAuto}
+	noAssignmentGears := []execution.Gear{execution.GearNone, execution.GearRead, execution.GearPlan, execution.GearE0, execution.GearAuto}
 	for _, g := range noAssignmentGears {
 		assignments := sched.PlanAssignments(g)
 		if assignments != nil {

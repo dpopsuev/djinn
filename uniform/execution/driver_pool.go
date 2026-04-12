@@ -2,7 +2,7 @@
 //
 // DriverPool manages ChatDriver instances keyed by "driverName/model",
 // reusing existing drivers and tracking the most recently accessed one.
-package uniform
+package execution
 
 import (
 	"context"

@@ -6,6 +6,7 @@ package uniform
 import (
 	"time"
 
+	"github.com/dpopsuev/djinn/uniform/execution"
 	"github.com/dpopsuev/djinn/uniform/persona"
 )
 
@@ -111,27 +112,27 @@ func Secretary(scope AssignmentScope) Assignment {
 }
 
 // AssignmentScheduler plans full Assignment objects for a gear.
-// It wraps and extends SupportScheduler with richer configuration.
+// It wraps and extends execution.SupportScheduler with richer configuration.
 type AssignmentScheduler interface {
-	PlanAssignments(gear Gear) []Assignment
+	PlanAssignments(gear execution.Gear) []Assignment
 }
 
-// defaultAssignmentScheduler wraps the existing SupportScheduler,
+// defaultAssignmentScheduler wraps the existing execution.SupportScheduler,
 // enriching each RoleAssignment into a full Assignment using defaults.
 type defaultAssignmentScheduler struct {
-	inner SupportScheduler
+	inner execution.SupportScheduler
 }
 
 // DefaultAssignmentScheduler returns an AssignmentScheduler backed by the
-// built-in SupportScheduler. Each planned role is enriched with persona,
+// built-in execution.SupportScheduler. Each planned role is enriched with persona,
 // mode, and capabilities from DefaultConfig.
 func DefaultAssignmentScheduler() AssignmentScheduler {
-	return &defaultAssignmentScheduler{inner: DefaultSupportScheduler()}
+	return &defaultAssignmentScheduler{inner: execution.DefaultSupportScheduler()}
 }
 
-// PlanAssignments calls the inner SupportScheduler.Plan and enriches each
+// PlanAssignments calls the inner execution.SupportScheduler.Plan and enriches each
 // RoleAssignment into a full Assignment using defaults from StaffConfig.
-func (d *defaultAssignmentScheduler) PlanAssignments(gear Gear) []Assignment {
+func (d *defaultAssignmentScheduler) PlanAssignments(gear execution.Gear) []Assignment {
 	planned := d.inner.Plan(gear)
 	if len(planned) == 0 {
 		return nil

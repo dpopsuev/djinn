@@ -1,7 +1,7 @@
 // gear.go — Gear system for Djinn staffing model.
 // Gears determine the execution mode and how many executors are spawned.
 // Auto-shift uses prompt complexity heuristics to pick the right gear.
-package uniform
+package execution
 
 import (
 	"errors"

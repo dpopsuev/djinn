@@ -7,6 +7,8 @@ package uniform
 
 import (
 	"context"
+
+	"github.com/dpopsuev/djinn/uniform/execution"
 )
 
 // Asker is the interface for querying any agent persona.
@@ -71,9 +73,9 @@ func (s *DialecticPlanStrategy) Refine(ctx context.Context, plan string) (string
 
 // PlanStrategyForGear returns the appropriate strategy based on gear level.
 // E0-E1: Direct (single-agent). E2+: Dialectic (multi-agent scrutiny).
-func PlanStrategyForGear(gear Gear, asker Asker) PlanStrategy {
+func PlanStrategyForGear(gear execution.Gear, asker Asker) PlanStrategy {
 	switch gear {
-	case GearE2, GearE3, GearAuto:
+	case execution.GearE2, execution.GearE3, execution.GearAuto:
 		if asker != nil {
 			return NewDialecticPlanStrategy(asker)
 		}

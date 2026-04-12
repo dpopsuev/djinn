@@ -11,6 +11,7 @@ import (
 
 	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/uniform"
+	"github.com/dpopsuev/djinn/uniform/execution"
 	"github.com/dpopsuev/djinn/workspace"
 )
 
@@ -36,7 +37,7 @@ type Djinn struct {
 
 	// Domain state
 	operation   uniform.Operation
-	capacity    *uniform.AgentCapacity
+	capacity    *execution.AgentCapacity
 	envelopeCfg uniform.EnvelopeConfig
 	scopePath   string
 	scopeType   string
@@ -75,7 +76,7 @@ type Djinn struct {
 func NewDjinn() *Djinn {
 	return &Djinn{
 		operation:   uniform.DefaultOperation(),
-		capacity:    uniform.NewAgentCapacity(1),
+		capacity:    execution.NewAgentCapacity(1),
 		envelopeCfg: uniform.DefaultEnvelopeConfig(),
 		scopePath:   "/",
 		mounts:      workspace.NewMountTable(slog.Default()),
@@ -463,7 +464,7 @@ func (d *Djinn) Operation() uniform.Operation {
 }
 
 // Capacity returns the agent capacity tracker.
-func (d *Djinn) Capacity() *uniform.AgentCapacity {
+func (d *Djinn) Capacity() *execution.AgentCapacity {
 	return d.capacity
 }
 
