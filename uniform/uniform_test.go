@@ -1,6 +1,9 @@
 package uniform
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestNewUniform_GenSec(t *testing.T) {
 	reg := NewRoleRegistry(DefaultRoles())
@@ -108,5 +111,40 @@ func TestNewUniform_Operator(t *testing.T) {
 		if !u.HasTool(tool) {
 			t.Errorf("operator should have %s", tool)
 		}
+	}
+}
+
+func TestUniform_SystemContext_ListsOnlyAllowedTools(t *testing.T) {
+	reg := NewRoleRegistry(DefaultRoles())
+	reqs := DefaultToolRequirements()
+	allTools := []string{"Read", "Write", "Bash", "assignment", "discourse", "plan"}
+
+	u := NewUniform("coder-1", []string{"developer"}, reg, reqs, allTools, "agent", "sonnet", "You are a Coder.")
+	ctx := u.SystemContext()
+
+	// Should mention allowed tools
+	if !strings.Contains(ctx, "Read") {
+		t.Error("system context should mention Read")
+	}
+	if !strings.Contains(ctx, "discourse") {
+		t.Error("system context should mention discourse")
+	}
+
+	// Should NOT mention tools the coder can't use
+	if strings.Contains(ctx, "Bash") {
+		t.Error("system context should NOT mention Bash for coder")
+	}
+	if strings.Contains(ctx, "assignment") {
+		t.Error("system context should NOT mention assignment for coder")
+	}
+
+	// Should include the prompt
+	if !strings.Contains(ctx, "You are a Coder") {
+		t.Error("system context should include persona prompt")
+	}
+
+	// Should include the restriction
+	if !strings.Contains(ctx, "Do not attempt") {
+		t.Error("system context should tell agent not to use unlisted tools")
 	}
 }

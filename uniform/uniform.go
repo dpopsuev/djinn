@@ -5,6 +5,8 @@
 // The agent sees only the tools in its Uniform. System prompt lists only these tools.
 package uniform
 
+import "strings"
+
 // Uniform is the resolved spawn config for an agent. Immutable after creation.
 // Contains the persona name, resolved capabilities, and filtered tool list.
 type Uniform struct {
@@ -77,4 +79,32 @@ func (u *Uniform) HasTool(name string) bool {
 		}
 	}
 	return false
+}
+
+// SystemContext returns a prompt fragment describing this agent's identity
+// and available tools. Append to the system prompt at spawn time.
+// Lists ONLY the tools in this Uniform — no mention of unavailable tools.
+func (u *Uniform) SystemContext() string {
+	if u.prompt == "" && len(u.tools) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	if u.prompt != "" {
+		b.WriteString(u.prompt)
+		b.WriteString("\n\n")
+	}
+
+	if len(u.tools) > 0 {
+		b.WriteString("You have access to these tools: ")
+		for i, t := range u.tools {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(t)
+		}
+		b.WriteString(".\nDo not attempt to use tools not listed above.")
+	}
+
+	return b.String()
 }
