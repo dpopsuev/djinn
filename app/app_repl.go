@@ -183,6 +183,17 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	}
 	sess.WorkDirs = ws.Paths()
 
+	// Load workspace manifest if it exists (GOL-145).
+	// Manifest populates a MountTable for virtual→host path translation.
+	mountTable := djinnws.NewMountTable(nil)
+	manifestPath := filepath.Join(HomeDir(), "workspaces", wsName+".yaml")
+	if manifest, mErr := djinnws.LoadManifest(manifestPath); mErr == nil {
+		if pErr := djinnws.PopulateMountTable(manifest, mountTable, nil); pErr == nil {
+			// Manifest loaded successfully — mount table ready.
+			_ = mountTable // TODO: wire into workspace.Bus for path translation
+		}
+	}
+
 	// Setup logging
 	logResult := telemetry.Setup(telemetry.Options{
 		Verbose: debugConf.Verbose,
