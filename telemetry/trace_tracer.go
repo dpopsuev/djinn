@@ -15,10 +15,20 @@ type Tracer struct {
 	component Component
 }
 
-// For creates a component-scoped Tracer. The returned Tracer auto-fills
-// Component on every event. Safe to store and reuse.
+// NewTracer creates a component-scoped Tracer backed by an EventLog.
+// New code should use this instead of TraceProjection.For().
+// Nil-safe: NewTracer(nil, _) returns nil, and nil Tracer methods are no-ops.
+func NewTracer(ring *TraceProjection, component Component) *Tracer {
+	if ring == nil {
+		return nil
+	}
+	return &Tracer{ring: ring, component: component}
+}
+
+// For creates a component-scoped Tracer.
+// Deprecated: use NewTracer instead. Kept for backward compatibility.
 func (r *TraceProjection) For(component Component) *Tracer {
-	return &Tracer{ring: r, component: component}
+	return NewTracer(r, component)
 }
 
 // Begin starts a timed round-trip. Call rt.End() to record latency.
