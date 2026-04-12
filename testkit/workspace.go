@@ -79,3 +79,40 @@ func (w *TestWorkspace) Destroy() error { return w.space.Destroy() }
 
 // IsReal returns true if backed by a real Mirage overlay (not a stub).
 func (w *TestWorkspace) IsReal() bool { return w.real }
+
+// HasFile checks if a file exists in the workspace.
+func (w *TestWorkspace) HasFile(relPath string) bool {
+	_, err := os.Stat(w.Dir() + "/" + relPath)
+	return err == nil
+}
+
+// ReadFile reads a file from the workspace.
+func (w *TestWorkspace) ReadFile(relPath string) (string, error) {
+	data, err := os.ReadFile(w.Dir() + "/" + relPath)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+// WriteFile seeds a file into the workspace.
+func (w *TestWorkspace) WriteFile(t *testing.T, relPath, content string) {
+	t.Helper()
+	path := w.Dir() + "/" + relPath
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("write seed file: %v", err)
+	}
+}
+
+// AgentTest wraps a test body with an isolated workspace.
+// Setup and teardown are invisible. The test author just uses ws.
+//
+//	testkit.AgentTest(t, func(ws *testkit.TestWorkspace) {
+//	    // ws.Dir() is the isolated workspace path
+//	    // ws.HasFile("hello.go") checks if agent wrote the file
+//	})
+func AgentTest(t *testing.T, fn func(ws *TestWorkspace)) {
+	t.Helper()
+	ws := NewTestWorkspace(t)
+	fn(ws)
+}
