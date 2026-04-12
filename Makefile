@@ -1,13 +1,22 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags "-X github.com/dpopsuev/djinn/app.Version=$(VERSION)"
 
-.PHONY: build install test test-integration test-e2e fmt lint lint-new lint-tui vet circuit coverage cover-report cover-check clean doctor preflight install-hooks smoke-claude smoke-vertex smoke-gemini smoke-codex smoke-cursor smoke-agents smoke-all
+.PHONY: build build-all install test test-integration test-e2e fmt lint lint-new lint-tui vet circuit coverage cover-report cover-check clean doctor preflight install-hooks dev smoke-claude smoke-vertex smoke-gemini smoke-codex smoke-cursor smoke-agents smoke-all
 
 build:
 	go build $(LDFLAGS) ./cmd/djinn/
 
+build-vezir:
+	go build $(LDFLAGS) -o vezir-bin ./cmd/vezir/
+
+build-all: build build-vezir
+
 install:
 	go install $(LDFLAGS) ./cmd/djinn/
+
+# Development with hot-swap: Vezir supervises Djinn, auto-restarts on change.
+dev: build-vezir
+	./vezir-bin --substrate ./cmd/djinn
 
 test:
 	go test ./... -race -count=1 -timeout=60s
@@ -17,6 +26,9 @@ test-integration:
 
 test-e2e:
 	go test -tags e2e ./test/e2e/ -race -v -timeout=120s
+
+test-exit-gate:
+	go test ./testkit/ -run TestE2E_RestructureExitGate -race -v -timeout=30s
 
 fmt:
 	go fmt ./...
