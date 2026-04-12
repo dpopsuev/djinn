@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 
 	"github.com/dpopsuev/djinn/artifact"
-	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools"
 )
 
@@ -32,11 +31,3 @@ func RegisterBuiltinTools(reg *Registry, workDir, dataDir string) {
 	reg.Register(&RenderTool{})
 }
 
-// RegisterDebugTrace registers the djinn_trace builtin tool for self-debugging.
-// Call after RegisterBuiltinTools if trace ring is available.
-func RegisterDebugTrace(reg *Registry, ring *telemetry.TraceProjection) {
-	if ring == nil {
-		return
-	}
-	reg.Register(&DebugTraceTool{Server: tools.NewServer(ring)})
-}
