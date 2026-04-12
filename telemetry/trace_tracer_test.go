@@ -7,7 +7,7 @@ import (
 
 func TestTracerBeginEnd(t *testing.T) {
 	r := NewTraceProjection(100)
-	tr := r.For(ComponentMCP)
+	tr := NewTracer(r, ComponentMCP)
 
 	rt := tr.Begin("call", "artifact.list")
 	time.Sleep(5 * time.Millisecond)
@@ -33,7 +33,7 @@ func TestTracerBeginEnd(t *testing.T) {
 
 func TestTracerAutoComponent(t *testing.T) {
 	r := NewTraceProjection(100)
-	tr := r.For(ComponentSignal)
+	tr := NewTracer(r, ComponentSignal)
 
 	tr.Event("emit", "budget yellow")
 
@@ -45,7 +45,7 @@ func TestTracerAutoComponent(t *testing.T) {
 
 func TestRoundTripChild(t *testing.T) {
 	r := NewTraceProjection(100)
-	tr := r.For(ComponentAgent)
+	tr := NewTracer(r, ComponentAgent)
 
 	parent := tr.Begin("turn", "turn 1/5")
 	child := parent.Child("tool_call", "Read main.go")
@@ -68,7 +68,7 @@ func TestRoundTripChild(t *testing.T) {
 
 func TestRoundTripWithServerTool(t *testing.T) {
 	r := NewTraceProjection(100)
-	tr := r.For(ComponentMCP)
+	tr := NewTracer(r, ComponentMCP)
 
 	rt := tr.Begin("call", "scanning").WithServer("locus").WithTool("codograph.scan")
 	rt.End()
@@ -84,7 +84,7 @@ func TestRoundTripWithServerTool(t *testing.T) {
 
 func TestRoundTripEndWithError(t *testing.T) {
 	r := NewTraceProjection(100)
-	tr := r.For(ComponentMCP)
+	tr := NewTracer(r, ComponentMCP)
 
 	rt := tr.Begin("call", "failing")
 	rt.EndWithError()
@@ -111,7 +111,7 @@ func TestNilTracerSafe(t *testing.T) {
 
 func TestTracerEvent(t *testing.T) {
 	r := NewTraceProjection(100)
-	tr := r.For(ComponentTUI)
+	tr := NewTracer(r, ComponentTUI)
 
 	tr.Event("render", "frame 42")
 

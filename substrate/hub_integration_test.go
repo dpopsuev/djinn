@@ -20,7 +20,7 @@ func TestPlanHub_AddSegment_Integration(t *testing.T) {
 	bus := telemetry.NewSignalBus()
 	spy := &spyDisplay{}
 	core := HubCore{
-		Tracer:  ring.For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(ring, telemetry.ComponentTool),
 		Signals: bus,
 		Display: spy,
 	}
@@ -97,7 +97,7 @@ func TestPlanHub_UpdateStatus_Integration(t *testing.T) {
 	ring := telemetry.NewTraceProjection(100)
 	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  ring.For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(ring, telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -167,7 +167,7 @@ func TestPlanHub_ClaimSegment_Integration(t *testing.T) {
 	bus := telemetry.NewSignalBus()
 	spy := &spyDisplay{}
 	core := HubCore{
-		Tracer:  ring.For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(ring, telemetry.ComponentTool),
 		Signals: bus,
 		Display: spy,
 	}
@@ -238,7 +238,7 @@ func TestPlanHub_FullLifecycle_Integration(t *testing.T) {
 	ring := telemetry.NewTraceProjection(100)
 	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  ring.For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(ring, telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -311,7 +311,7 @@ func TestPlanHub_MultipleSegments_Integration(t *testing.T) {
 	ring := telemetry.NewTraceProjection(100)
 	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  ring.For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(ring, telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -348,7 +348,7 @@ func TestToolHub_SLABreach_Integration(t *testing.T) {
 	ring := telemetry.NewTraceProjection(100)
 	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  ring.For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(ring, telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -433,7 +433,7 @@ func TestToolHub_SLABreach_Integration(t *testing.T) {
 func TestToolHub_NoSLABreach_FastExecution(t *testing.T) {
 	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  telemetry.NewTraceProjection(100).For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(telemetry.NewTraceProjection(100), telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -460,7 +460,7 @@ func TestToolHub_TracksMultipleTools(t *testing.T) {
 	ring := telemetry.NewTraceProjection(100)
 	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  ring.For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(ring, telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -506,7 +506,7 @@ func TestHubRegistry_RealHubs_Integration(t *testing.T) {
 	ring := telemetry.NewTraceProjection(100)
 	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  ring.For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(ring, telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}

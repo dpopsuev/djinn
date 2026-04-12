@@ -11,7 +11,7 @@ import (
 func TestPlanHub_SyncOnAdd(t *testing.T) {
 	spy := &spyPlanner{}
 	core := HubCore{
-		Tracer:  telemetry.NewTraceProjection(100).For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(telemetry.NewTraceProjection(100), telemetry.ComponentTool),
 		Signals: telemetry.NewSignalBus(),
 		Display: NopDisplaySender{},
 	}
@@ -29,7 +29,7 @@ func TestPlanHub_SyncOnAdd(t *testing.T) {
 func TestPlanHub_SyncOnComplete(t *testing.T) {
 	spy := &spyPlanner{}
 	core := HubCore{
-		Tracer:  telemetry.NewTraceProjection(100).For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(telemetry.NewTraceProjection(100), telemetry.ComponentTool),
 		Signals: telemetry.NewSignalBus(),
 		Display: NopDisplaySender{},
 	}

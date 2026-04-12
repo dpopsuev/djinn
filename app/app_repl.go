@@ -241,7 +241,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	// Hub mediators — DevOps phase coordination (GOL-58).
 	hubRegistry := substrate.NewRegistry()
 	hubCore := substrate.HubCore{
-		Tracer:  traceRing.For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(traceRing, telemetry.ComponentTool),
 		Display: substrate.NopDisplaySender{},
 	}
 	planHub := substrate.NewPlanHub(hubCore, artifact.NewGraph("session", artifact.DefaultRegistry()))
@@ -249,7 +249,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 
 	// Connect MCP servers
 	mcpClient := mcpclient.New(telemetry.For(logResult.Logger, "mcp"))
-	mcpClient.Tracer = traceRing.For(telemetry.ComponentMCP)
+	mcpClient.Tracer = telemetry.NewTracer(traceRing, telemetry.ComponentMCP)
 	defer mcpClient.Close()
 
 	// MCP config merge: djinn.yaml (LoadMCPConfig) + config registry (mcp_servers) + workspace MCP.

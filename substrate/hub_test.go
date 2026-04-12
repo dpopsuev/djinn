@@ -21,7 +21,7 @@ func TestHubCore_NilSafe(t *testing.T) {
 
 func TestHubCore_Trace(t *testing.T) {
 	ring := telemetry.NewTraceProjection(100)
-	core := HubCore{Tracer: ring.For(telemetry.ComponentTool)}
+	core := HubCore{Tracer: telemetry.NewTracer(ring, telemetry.ComponentTool)}
 	core.Trace("build", "hub test")
 
 	events := ring.Last(10)
@@ -135,7 +135,7 @@ func TestPlanHub_AddSegment_Mediation(t *testing.T) {
 	ring := telemetry.NewTraceProjection(100)
 	spy := &spyDisplay{}
 	core := HubCore{
-		Tracer:  ring.For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(ring, telemetry.ComponentTool),
 		Signals: bus,
 		Display: spy,
 	}
@@ -221,7 +221,7 @@ func TestCodeHub_RecordChange_Mediation(t *testing.T) {
 	ring := telemetry.NewTraceProjection(100)
 	spy := &spyDisplay{}
 	core := HubCore{
-		Tracer:  ring.For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(ring, telemetry.ComponentTool),
 		Display: spy,
 	}
 

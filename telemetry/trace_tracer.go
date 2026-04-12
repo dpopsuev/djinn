@@ -25,11 +25,6 @@ func NewTracer(ring *TraceProjection, component Component) *Tracer {
 	return &Tracer{ring: ring, component: component}
 }
 
-// For creates a component-scoped Tracer.
-// Deprecated: use NewTracer instead. Kept for backward compatibility.
-func (r *TraceProjection) For(component Component) *Tracer {
-	return NewTracer(r, component)
-}
 
 // Begin starts a timed round-trip. Call rt.End() to record latency.
 // Nil-safe: (*Tracer)(nil).Begin() returns a no-op RoundTrip.

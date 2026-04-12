@@ -11,7 +11,7 @@ func TestAnalysisHub_Day1_InternalOnly(t *testing.T) {
 	ring := telemetry.NewTraceProjection(100)
 	spy := &spyDisplay{}
 	core := HubCore{
-		Tracer:  ring.For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(ring, telemetry.ComponentTool),
 		Signals: telemetry.NewSignalBus(),
 		Display: spy,
 	}
@@ -49,7 +49,7 @@ func TestAnalysisHub_Day1_InternalOnly(t *testing.T) {
 func TestAnalysisHub_Day2_PortDelegation(t *testing.T) {
 	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  telemetry.NewTraceProjection(100).For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(telemetry.NewTraceProjection(100), telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}
@@ -91,7 +91,7 @@ func TestAnalysisHub_Day2_PortDelegation(t *testing.T) {
 func TestAnalysisHub_AnalyzerError(t *testing.T) {
 	bus := telemetry.NewSignalBus()
 	core := HubCore{
-		Tracer:  telemetry.NewTraceProjection(100).For(telemetry.ComponentTool),
+		Tracer:  telemetry.NewTracer(telemetry.NewTraceProjection(100), telemetry.ComponentTool),
 		Signals: bus,
 		Display: NopDisplaySender{},
 	}

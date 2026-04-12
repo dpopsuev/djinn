@@ -9,7 +9,7 @@ import (
 
 func TestExportImportRoundTrip(t *testing.T) {
 	r := NewTraceProjection(100)
-	tr := r.For(ComponentMCP)
+	tr := NewTracer(r, ComponentMCP)
 
 	// Seed ring with diverse events.
 	rt1 := tr.Begin("call", "scan repo").WithServer("locus").WithTool("codograph.scan")
@@ -80,7 +80,7 @@ func TestExportWithComponentFilter(t *testing.T) {
 
 func TestSaveLoadJSON(t *testing.T) {
 	r := NewTraceProjection(100)
-	tr := r.For(ComponentMCP)
+	tr := NewTracer(r, ComponentMCP)
 
 	rt := tr.Begin("call", "scan").WithServer("locus").WithTool("codograph.scan")
 	rt.End()
