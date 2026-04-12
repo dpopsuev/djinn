@@ -7,7 +7,7 @@ build:
 	go build $(LDFLAGS) ./cmd/djinn/
 
 build-vezir:
-	go build $(LDFLAGS) -o vezir-bin ./cmd/vezir/
+	go build $(LDFLAGS) -o bin/vezir ./cmd/vezir/
 
 build-all: build build-vezir
 
@@ -16,7 +16,7 @@ install:
 
 # Development with hot-swap: Vezir supervises Djinn, auto-restarts on change.
 dev: build-vezir
-	./vezir-bin --substrate ./cmd/djinn
+	./bin/vezir --substrate ./cmd/djinn
 
 test:
 	go test ./... -race -count=1 -timeout=60s
