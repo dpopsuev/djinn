@@ -14,6 +14,7 @@ import (
 	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/battery/service"
 	"github.com/dpopsuev/battery/tool"
+	djinncache "github.com/dpopsuev/djinn/cache"
 	"github.com/dpopsuev/djinn/vessel"
 	"github.com/dpopsuev/troupe/signal"
 )
@@ -32,6 +33,10 @@ type Substrate interface {
 
 	// EventLog returns the unified event log. All agent actions flow through it.
 	EventLog() signal.EventLog
+
+	// L2 returns the shared L2 cache. All Vessels write-through to this.
+	// Scope-tagged by agent ID for recovery.
+	L2() djinncache.Cache
 
 	// Vessel creates an agent harness for the given config.
 	// The Vessel wraps Tools, EventLog, and workspace into one interface.

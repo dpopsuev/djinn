@@ -7,6 +7,7 @@ import (
 	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/battery/service"
 	"github.com/dpopsuev/battery/tool"
+	djinncache "github.com/dpopsuev/djinn/cache"
 	"github.com/dpopsuev/djinn/vessel"
 	"github.com/dpopsuev/troupe/signal"
 )
@@ -18,6 +19,7 @@ type StubSubstrate struct {
 	tools        tool.Executor
 	envelope     *middleware.Envelope
 	eventLog     signal.EventLog
+	l2           djinncache.Cache
 	health       service.HealthReport
 	Observations []Observation
 	Spawned      []SpawnConfig
@@ -31,6 +33,7 @@ func NewStubSubstrate(tools tool.Executor, log signal.EventLog) *StubSubstrate {
 	return &StubSubstrate{
 		tools:    tools,
 		eventLog: log,
+		l2:       djinncache.NewMemCache(),
 		health:   service.HealthReport{Status: service.Healthy},
 	}
 }
@@ -59,6 +62,8 @@ func (s *StubSubstrate) Kill(_ context.Context, agentID string) error {
 	s.Killed = append(s.Killed, agentID)
 	return nil
 }
+
+func (s *StubSubstrate) L2() djinncache.Cache { return s.l2 }
 
 func (s *StubSubstrate) Vessel(cfg SpawnConfig) vessel.Vessel {
 	return vessel.NewStubVessel(s.tools, s.eventLog, "/tmp/workspace")
