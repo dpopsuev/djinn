@@ -372,8 +372,33 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		return fmt.Errorf("staff config: %w", err)
 	}
 
-	// Create tool clearance — filters tools by role's capabilities.
+	// Create tool clearance — filters tools by role's capabilities (legacy model).
 	slotRouter := uniform.NewToolClearance(staffCfg, composite, "gensec")
+
+	// RBAC: three-entity model (REF-77, GOL-96).
+	// Role HAS capabilities, Tool REQUIRES capabilities, Uniform filters.
+	roleRegistry := uniform.NewRoleRegistry(uniform.DefaultRoles())
+	toolReqs := uniform.DefaultToolRequirements()
+	agentUniform := uniform.NewUniform(
+		"gensec",
+		[]string{"director", "manager"},
+		roleRegistry,
+		toolReqs,
+		composite.Names(),
+		"plan",
+		sess.Model,
+		staffCfg.RoleMap()["gensec"].Prompt,
+	)
+	log.InfoContext(ctx, "uniform resolved",
+		slog.String(telemetry.KeyAgent, agentUniform.Persona()),
+		slog.Int(telemetry.KeyCount, len(agentUniform.Tools())),
+	)
+
+	// Append Uniform context to system prompt (agent sees only its tools).
+	if ctx := agentUniform.SystemContext(); ctx != "" {
+		assembledPrompt = assembledPrompt + "\n\n" + ctx
+		chatDriver.SetSystemPrompt(assembledPrompt)
+	}
 
 	// Sandbox: if configured, create an isolated environment.
 	// Sandbox: all agents run sandboxed by default. Only GenSec can jailbreak.
