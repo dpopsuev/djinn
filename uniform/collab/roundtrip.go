@@ -1,7 +1,7 @@
 // roundtrip.go — Human operator round-trip registry.
 // Tracks messages sent to the operator and whether they have been
 // acknowledged and responded to, enabling "pending message" tracking.
-package uniform
+package collab
 
 import (
 	"fmt"

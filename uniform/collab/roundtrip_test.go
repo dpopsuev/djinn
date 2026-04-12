@@ -1,4 +1,4 @@
-package uniform
+package collab
 
 import (
 	"sync"
