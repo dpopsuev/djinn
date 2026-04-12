@@ -22,11 +22,12 @@ type Relay struct {
 	substratePath string // Substrate's socket (Vezir connects here)
 	log           *slog.Logger
 
-	mu       sync.Mutex
-	listener net.Listener
-	tuiConn  net.Conn // current TUI connection
-	subConn  net.Conn // current Substrate connection
-	cancel   context.CancelFunc
+	mu           sync.Mutex
+	listener     net.Listener
+	tuiConn      net.Conn // current TUI connection
+	subConn      net.Conn // current Substrate connection
+	cancel       context.CancelFunc
+	bridgeCancel context.CancelFunc // cancels current bridge
 }
 
 // NewRelay creates a relay that listens on listenPath and connects to substratePath.
@@ -69,12 +70,17 @@ func (r *Relay) Start(ctx context.Context) error {
 // Called after Substrate restart. TUI stays connected.
 func (r *Relay) Reconnect(ctx context.Context) error {
 	r.mu.Lock()
-	// Close old Substrate connection.
+	// Cancel old bridge and force unblock io.Copy by closing old sub conn.
+	if r.bridgeCancel != nil {
+		r.bridgeCancel()
+	}
 	if r.subConn != nil {
 		r.subConn.Close()
 		r.subConn = nil
 	}
+	// Give old bridge goroutines time to exit.
 	r.mu.Unlock()
+	time.Sleep(50 * time.Millisecond)
 
 	// Connect to new Substrate with retries.
 	var conn net.Conn
@@ -105,7 +111,11 @@ func (r *Relay) Reconnect(ctx context.Context) error {
 
 	// Resume bidirectional copy if TUI is connected.
 	if tuiConn != nil {
-		go r.bridge(ctx, tuiConn, conn)
+		bridgeCtx, bridgeCancel := context.WithCancel(ctx)
+		r.mu.Lock()
+		r.bridgeCancel = bridgeCancel
+		r.mu.Unlock()
+		go r.bridge(bridgeCtx, tuiConn, conn)
 	}
 
 	return nil
@@ -164,7 +174,11 @@ func (r *Relay) acceptLoop(ctx context.Context) {
 
 		// Start bridging if Substrate is already connected.
 		if subConn != nil {
-			go r.bridge(ctx, conn, subConn)
+			bridgeCtx, bridgeCancel := context.WithCancel(ctx)
+			r.mu.Lock()
+			r.bridgeCancel = bridgeCancel
+			r.mu.Unlock()
+			go r.bridge(bridgeCtx, conn, subConn)
 		}
 	}
 }
