@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -24,7 +25,9 @@ type editInput struct {
 }
 
 // EditTool performs search-and-replace edits on files.
-type EditTool struct{}
+type EditTool struct {
+	WorkDir string // when set, relative paths resolve against this directory
+}
 
 func (t *EditTool) Name() string        { return editToolName }
 func (t *EditTool) Description() string { return editToolDesc }
@@ -48,6 +51,10 @@ func (t *EditTool) Execute(ctx context.Context, input json.RawMessage) (string, 
 	}
 	if in.Path == "" || in.OldString == "" {
 		return "", fmt.Errorf("edit: %w", ErrEmptyInput)
+	}
+
+	if t.WorkDir != "" && !filepath.IsAbs(in.Path) {
+		in.Path = filepath.Join(t.WorkDir, in.Path)
 	}
 
 	data, err := os.ReadFile(in.Path)

@@ -80,4 +80,6 @@ const (
 	KeyBytes        LogKey = "bytes"          // data size in bytes
 	KeyEntries      LogKey = "entries"        // entry count
 	KeyScopes       LogKey = "scopes"         // scope count
+	KeyVessel       LogKey = "vessel"         // vessel identifier
+	KeyWorkDir      LogKey = "work_dir"       // workspace directory path
 )

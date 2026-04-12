@@ -19,7 +19,9 @@ type globInput struct {
 }
 
 // GlobTool finds files by pattern.
-type GlobTool struct{}
+type GlobTool struct {
+	WorkDir string // when set, patterns resolve relative to this directory
+}
 
 func (t *GlobTool) Name() string        { return globToolName }
 func (t *GlobTool) Description() string { return globToolDesc }
@@ -44,9 +46,13 @@ func (t *GlobTool) Execute(ctx context.Context, input json.RawMessage) (string, 
 		return "", fmt.Errorf("glob: %w", ErrEmptyInput)
 	}
 
+	base := in.Path
+	if base == "" && t.WorkDir != "" {
+		base = t.WorkDir
+	}
 	pattern := in.Pattern
-	if in.Path != "" {
-		pattern = filepath.Join(in.Path, in.Pattern)
+	if base != "" {
+		pattern = filepath.Join(base, in.Pattern)
 	}
 
 	matches, err := filepath.Glob(pattern)

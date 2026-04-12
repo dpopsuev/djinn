@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -23,7 +24,9 @@ type grepInput struct {
 }
 
 // GrepTool searches files by regex pattern.
-type GrepTool struct{}
+type GrepTool struct {
+	WorkDir string // when set, relative paths resolve against this directory
+}
 
 func (t *GrepTool) Name() string        { return grepToolName }
 func (t *GrepTool) Description() string { return grepToolDesc }
@@ -47,6 +50,10 @@ func (t *GrepTool) Execute(ctx context.Context, input json.RawMessage) (string, 
 	}
 	if in.Pattern == "" || in.Path == "" {
 		return "", fmt.Errorf("grep: %w", ErrEmptyInput)
+	}
+
+	if t.WorkDir != "" && !filepath.IsAbs(in.Path) {
+		in.Path = filepath.Join(t.WorkDir, in.Path)
 	}
 
 	re, err := regexp.Compile(in.Pattern)

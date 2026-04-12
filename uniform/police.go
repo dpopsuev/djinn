@@ -10,12 +10,18 @@ import (
 	"github.com/dpopsuev/djinn/tools"
 )
 
+// Violation severity constants.
+const (
+	severityWarning  = "warning"
+	severityCritical = "critical"
+)
+
 // Violation records a single policy or behavioral violation.
 type Violation struct {
 	Kind      string // "sandbox_breach", "budget_exceeded", "tool_spam", "dangerous_output"
 	AgentID   string
 	Detail    string
-	Severity  string // "warning", "critical"
+	Severity  string // severityWarning or severityCritical
 	Timestamp time.Time
 }
 
@@ -61,7 +67,7 @@ func (p *AgentPolice) Observe(metrics *AgentMetrics, latency *tools.ToolLatencyT
 			Kind:      "budget_exceeded",
 			AgentID:   agentID,
 			Detail:    fmt.Sprintf("token usage %d exceeds budget %d", totalTokens, p.config.MaxTokens),
-			Severity:  "critical",
+			Severity:  severityCritical,
 			Timestamp: now,
 		})
 	}
@@ -72,7 +78,7 @@ func (p *AgentPolice) Observe(metrics *AgentMetrics, latency *tools.ToolLatencyT
 			Kind:      "budget_exceeded",
 			AgentID:   agentID,
 			Detail:    fmt.Sprintf("cost $%.4f exceeds budget $%.4f", cost, p.config.MaxCost),
-			Severity:  "critical",
+			Severity:  severityCritical,
 			Timestamp: now,
 		})
 	}

@@ -32,13 +32,20 @@ type Registry struct {
 
 // NewRegistry creates a registry with all built-in tools pre-registered.
 func NewRegistry() *Registry {
+	return NewRegistryWithWorkDir("")
+}
+
+// NewRegistryWithWorkDir creates a registry with all built-in tools rooted
+// at the given workspace directory. Relative paths in tool calls resolve
+// against workDir. Empty workDir preserves default behavior (process CWD).
+func NewRegistryWithWorkDir(workDir string) *Registry {
 	r := &Registry{tools: make(map[string]Tool)}
-	r.Register(&ReadTool{})
-	r.Register(&WriteTool{})
-	r.Register(&EditTool{})
-	r.Register(&BashTool{})
-	r.Register(&GlobTool{})
-	r.Register(&GrepTool{})
+	r.Register(&ReadTool{WorkDir: workDir})
+	r.Register(&WriteTool{WorkDir: workDir})
+	r.Register(&EditTool{WorkDir: workDir})
+	r.Register(&BashTool{WorkDir: workDir})
+	r.Register(&GlobTool{WorkDir: workDir})
+	r.Register(&GrepTool{WorkDir: workDir})
 	return r
 }
 

@@ -19,7 +19,9 @@ type writeInput struct {
 }
 
 // WriteTool creates or overwrites files.
-type WriteTool struct{}
+type WriteTool struct {
+	WorkDir string // when set, relative paths resolve against this directory
+}
 
 func (t *WriteTool) Name() string        { return writeToolName }
 func (t *WriteTool) Description() string { return writeToolDesc }
@@ -42,6 +44,10 @@ func (t *WriteTool) Execute(ctx context.Context, input json.RawMessage) (string,
 	}
 	if in.Path == "" {
 		return "", fmt.Errorf("write: %w", ErrEmptyInput)
+	}
+
+	if t.WorkDir != "" && !filepath.IsAbs(in.Path) {
+		in.Path = filepath.Join(t.WorkDir, in.Path)
 	}
 
 	dir := filepath.Dir(in.Path)

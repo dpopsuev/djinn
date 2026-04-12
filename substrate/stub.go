@@ -8,6 +8,7 @@ import (
 	"github.com/dpopsuev/battery/service"
 	"github.com/dpopsuev/battery/tool"
 	djinncache "github.com/dpopsuev/djinn/cache"
+	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/vessel"
 	"github.com/dpopsuev/troupe/signal"
 )
@@ -21,6 +22,7 @@ type StubSubstrate struct {
 	eventLog     signal.EventLog
 	l2           djinncache.Cache
 	health       service.HealthReport
+	workDir      string // workspace directory for Vessel creation
 	Observations []Observation
 	Spawned      []SpawnConfig
 	Killed       []string
@@ -66,7 +68,20 @@ func (s *StubSubstrate) Kill(_ context.Context, agentID string) error {
 func (s *StubSubstrate) L2() djinncache.Cache { return s.l2 }
 
 func (s *StubSubstrate) Vessel(cfg SpawnConfig) vessel.Vessel {
-	return vessel.NewStubVessel(s.tools, s.eventLog, "/tmp/workspace")
+	workDir := s.workDir
+	if workDir == "" {
+		workDir = "/tmp/workspace"
+	}
+	// Create workspace-rooted tools so relative paths resolve correctly.
+	reg := builtin.NewRegistryWithWorkDir(workDir)
+	return vessel.NewWorkspaceVessel(workDir, reg, s.eventLog)
+}
+
+// SetWorkDir configures the workspace directory for Vessel creation.
+func (s *StubSubstrate) SetWorkDir(dir string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.workDir = dir
 }
 
 func (s *StubSubstrate) Health() service.HealthReport {

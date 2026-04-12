@@ -21,7 +21,9 @@ type bashInput struct {
 }
 
 // BashTool executes shell commands.
-type BashTool struct{}
+type BashTool struct {
+	WorkDir string // when set, commands run with this as their working directory
+}
 
 func (t *BashTool) Name() string        { return bashToolName }
 func (t *BashTool) Description() string { return bashToolDesc }
@@ -55,6 +57,9 @@ func (t *BashTool) Execute(ctx context.Context, input json.RawMessage) (string, 
 	defer cancel()
 
 	cmd := exec.CommandContext(cmdCtx, "bash", "-c", in.Command)
+	if t.WorkDir != "" {
+		cmd.Dir = t.WorkDir
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

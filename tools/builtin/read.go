@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -20,7 +21,9 @@ type readInput struct {
 }
 
 // ReadTool reads files with optional line offset and limit.
-type ReadTool struct{}
+type ReadTool struct {
+	WorkDir string // when set, relative paths resolve against this directory
+}
 
 func (t *ReadTool) Name() string        { return readToolName }
 func (t *ReadTool) Description() string { return readToolDesc }
@@ -44,6 +47,10 @@ func (t *ReadTool) Execute(ctx context.Context, input json.RawMessage) (string, 
 	}
 	if in.Path == "" {
 		return "", fmt.Errorf("read: %w", ErrEmptyInput)
+	}
+
+	if t.WorkDir != "" && !filepath.IsAbs(in.Path) {
+		in.Path = filepath.Join(t.WorkDir, in.Path)
 	}
 
 	data, err := os.ReadFile(in.Path)
