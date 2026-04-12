@@ -4,18 +4,24 @@ LDFLAGS := -ldflags "-X github.com/dpopsuev/djinn/app.Version=$(VERSION)"
 .PHONY: build build-all install test test-integration test-e2e fmt lint lint-new lint-tui vet circuit coverage cover-report cover-check clean doctor preflight install-hooks dev smoke-claude smoke-vertex smoke-gemini smoke-codex smoke-cursor smoke-agents smoke-all
 
 build:
-	go build $(LDFLAGS) ./cmd/djinn/
+	@mkdir -p bin
+	go build $(LDFLAGS) -o bin/djinn ./cmd/djinn/
 
 build-vezir:
+	@mkdir -p bin
 	go build $(LDFLAGS) -o bin/vezir ./cmd/vezir/
 
 build-all: build build-vezir
+
+clean:
+	rm -rf bin/ coverage.out coverage.html
+	go clean -cache -testcache
 
 install:
 	go install $(LDFLAGS) ./cmd/djinn/
 
 # Development with hot-swap: Vezir supervises Djinn, auto-restarts on change.
-dev: build-vezir
+dev: build-all
 	./bin/vezir --substrate ./cmd/djinn
 
 test:
@@ -92,6 +98,3 @@ install-hooks:
 	@chmod +x .git/hooks/pre-commit
 	@echo "pre-commit hook installed (runs make lint-new)"
 
-clean:
-	rm -f coverage.out coverage.html
-	go clean -cache -testcache
