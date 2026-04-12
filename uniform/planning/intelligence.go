@@ -1,7 +1,7 @@
 // intelligence.go — Pre-flight intelligence gathering for the GenSec.
 // Scans the working directory for structural information that helps
 // the secretary make better delegation decisions.
-package uniform
+package planning
 
 import (
 	"context"

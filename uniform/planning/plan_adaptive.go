@@ -2,7 +2,7 @@
 //
 // After each task completes, checks for drift between planned vs actual.
 // If drift exceeds threshold, proposes re-planning via the inner strategy.
-package uniform
+package planning
 
 import (
 	"context"

@@ -3,7 +3,7 @@
 // PlanStrategy controls HOW a plan is refined: single-agent (Direct)
 // or multi-agent debate (Dialectic via Bugle CollectiveStrategy).
 // Selected by gear: E0-E1 = Direct, E2+ = Dialectic.
-package uniform
+package planning
 
 import (
 	"context"
