@@ -1,7 +1,7 @@
 // agent_handler.go — Bridges agent.EventHandler into the uniform pipeline.
 //
 // MetricsHandler implements agent.EventHandler and feeds AgentMetrics,
-// AgentPolice, DetectBottlenecks, and CheckCordon on every round-trip.
+// AgentPolice, quality.DetectBottlenecks, and quality.CheckCordon on every round-trip.
 // Violations and cordons emit to the SignalBus for downstream consumers
 // (SignalInterpreter, TUI, etc.).
 //
@@ -15,15 +15,16 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools"
+	"github.com/dpopsuev/djinn/uniform/quality"
 )
 
 // MetricsHandler bridges agent loop events into the uniform pipeline.
 // Implements agent.EventHandler (same method set, no import needed).
 type MetricsHandler struct {
 	mu      sync.Mutex
-	metrics *AgentMetrics
-	police  *AgentPolice
-	cordon  CordonConfig
+	metrics *quality.AgentMetrics
+	police  *quality.AgentPolice
+	cordon  quality.CordonConfig
 	bus     *telemetry.SignalBus
 	latency *tools.ToolLatencyTracker
 
@@ -37,11 +38,11 @@ type MetricsHandler struct {
 
 // NewMetricsHandler creates a handler that feeds the uniform pipeline.
 func NewMetricsHandler(
-	metrics *AgentMetrics,
-	police *AgentPolice,
+	metrics *quality.AgentMetrics,
+	police *quality.AgentPolice,
 	bus *telemetry.SignalBus,
 	latency *tools.ToolLatencyTracker,
-	cordonCfg CordonConfig,
+	cordonCfg quality.CordonConfig,
 ) *MetricsHandler {
 	return &MetricsHandler{
 		metrics: metrics,
@@ -99,7 +100,7 @@ func (h *MetricsHandler) OnDone(usage *driver.Usage) {
 	violations := h.police.Observe(h.metrics, h.latency)
 	for _, v := range violations {
 		level := telemetry.Yellow
-		if v.Severity == severityCritical {
+		if v.Severity == quality.SeverityCritical {
 			level = telemetry.Red
 		}
 		h.bus.Emit(telemetry.Signal{
@@ -111,7 +112,7 @@ func (h *MetricsHandler) OnDone(usage *driver.Usage) {
 	}
 
 	// Check cordon thresholds.
-	if c := CheckCordon(h.metrics, h.cordon); c != nil {
+	if c := quality.CheckCordon(h.metrics, h.cordon); c != nil {
 		h.bus.Emit(telemetry.Signal{
 			Level:    telemetry.Black,
 			Source:   h.metrics.AgentID,
@@ -121,7 +122,7 @@ func (h *MetricsHandler) OnDone(usage *driver.Usage) {
 	}
 
 	// Detect performance bottlenecks.
-	bottlenecks := DetectBottlenecks(h.metrics, h.latency)
+	bottlenecks := quality.DetectBottlenecks(h.metrics, h.latency)
 	for _, b := range bottlenecks {
 		h.bus.Emit(telemetry.Signal{
 			Level:    telemetry.Yellow,
@@ -151,7 +152,7 @@ func (h *MetricsHandler) StartTurn() {
 }
 
 // Metrics returns the underlying metrics for inspection.
-func (h *MetricsHandler) Metrics() *AgentMetrics { return h.metrics }
+func (h *MetricsHandler) Metrics() *quality.AgentMetrics { return h.metrics }
 
 // Police returns the underlying police for inspection.
-func (h *MetricsHandler) Police() *AgentPolice { return h.police }
+func (h *MetricsHandler) Police() *quality.AgentPolice { return h.police }

@@ -1,6 +1,6 @@
 // bottleneck.go — Bottleneck detection for the Djinn staffing model.
 // Analyzes agent metrics and tool latency to identify performance issues.
-package uniform
+package quality
 
 import (
 	"fmt"

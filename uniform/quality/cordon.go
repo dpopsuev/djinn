@@ -1,7 +1,7 @@
 // cordon.go — Cordon system for the Djinn staffing model.
 // A Cordon is an automatic safety brake that halts agent execution
 // when budget, time, or behavioral thresholds are breached.
-package uniform
+package quality
 
 import "time"
 

@@ -33,6 +33,7 @@ import (
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/uniform"
+	"github.com/dpopsuev/djinn/uniform/quality"
 	"github.com/dpopsuev/troupe/execution"
 	"github.com/dpopsuev/troupe/signal"
 	"github.com/stretchr/testify/suite"
@@ -82,9 +83,9 @@ func (s *AgentSuite) SetupTest() {
 
 	// Uniform pipeline — metrics, police, cordon feed into signal bus.
 	s.signalBus = telemetry.NewSignalBus()
-	metrics := uniform.NewAgentMetrics("test-agent", "test")
-	police := uniform.NewAgentPolice(uniform.DefaultCordonConfig())
-	s.metricsHandler = uniform.NewMetricsHandler(metrics, police, s.signalBus, nil, uniform.DefaultCordonConfig())
+	metrics := quality.NewAgentMetrics("test-agent", "test")
+	police := quality.NewAgentPolice(quality.DefaultCordonConfig())
+	s.metricsHandler = uniform.NewMetricsHandler(metrics, police, s.signalBus, nil, quality.DefaultCordonConfig())
 }
 
 // TearDownTest destroys the workspace after each test method.

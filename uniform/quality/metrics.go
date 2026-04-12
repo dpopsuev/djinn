@@ -1,6 +1,6 @@
 // metrics.go — Per-agent telemetry for the Djinn staffing model.
 // Tracks round-trips, token usage, cost, gate outcomes, and latency samples.
-package uniform
+package quality
 
 import (
 	"sync"

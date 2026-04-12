@@ -1,6 +1,6 @@
 // police.go — AgentPolice observes agent behavior and flags violations.
 // Works alongside the Cordon system: Cordon halts, Police records evidence.
-package uniform
+package quality
 
 import (
 	"fmt"
@@ -12,8 +12,8 @@ import (
 
 // Violation severity constants.
 const (
-	severityWarning  = "warning"
-	severityCritical = "critical"
+	SeverityWarning  = "warning"
+	SeverityCritical = "critical"
 )
 
 // Violation records a single policy or behavioral violation.
@@ -67,7 +67,7 @@ func (p *AgentPolice) Observe(metrics *AgentMetrics, latency *tools.ToolLatencyT
 			Kind:      "budget_exceeded",
 			AgentID:   agentID,
 			Detail:    fmt.Sprintf("token usage %d exceeds budget %d", totalTokens, p.config.MaxTokens),
-			Severity:  severityCritical,
+			Severity:  SeverityCritical,
 			Timestamp: now,
 		})
 	}
@@ -78,7 +78,7 @@ func (p *AgentPolice) Observe(metrics *AgentMetrics, latency *tools.ToolLatencyT
 			Kind:      "budget_exceeded",
 			AgentID:   agentID,
 			Detail:    fmt.Sprintf("cost $%.4f exceeds budget $%.4f", cost, p.config.MaxCost),
-			Severity:  severityCritical,
+			Severity:  SeverityCritical,
 			Timestamp: now,
 		})
 	}

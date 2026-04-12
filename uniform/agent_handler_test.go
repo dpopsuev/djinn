@@ -9,15 +9,16 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools"
+	"github.com/dpopsuev/djinn/uniform/quality"
 )
 
 func TestMetricsHandler_RecordsRoundTrips(t *testing.T) {
-	metrics := NewAgentMetrics("test-agent", "developer")
-	police := NewAgentPolice(DefaultCordonConfig())
+	metrics := quality.NewAgentMetrics("test-agent", "developer")
+	police := quality.NewAgentPolice(quality.DefaultCordonConfig())
 	bus := telemetry.NewSignalBus()
 	latency := tools.NewToolLatencyTracker()
 
-	h := NewMetricsHandler(metrics, police, bus, latency, DefaultCordonConfig())
+	h := NewMetricsHandler(metrics, police, bus, latency, quality.DefaultCordonConfig())
 	h.StartTurn()
 
 	h.OnText("hello")
@@ -32,9 +33,9 @@ func TestMetricsHandler_RecordsRoundTrips(t *testing.T) {
 }
 
 func TestMetricsHandler_PoliceEmitsBudgetViolation(t *testing.T) {
-	cfg := CordonConfig{MaxTokens: 100}
-	metrics := NewAgentMetrics("test-agent", "developer")
-	police := NewAgentPolice(cfg)
+	cfg := quality.CordonConfig{MaxTokens: 100}
+	metrics := quality.NewAgentMetrics("test-agent", "developer")
+	police := quality.NewAgentPolice(cfg)
 	bus := telemetry.NewSignalBus()
 	latency := tools.NewToolLatencyTracker()
 
@@ -63,9 +64,9 @@ func TestMetricsHandler_PoliceEmitsBudgetViolation(t *testing.T) {
 }
 
 func TestMetricsHandler_CordonEmitsBlackSignal(t *testing.T) {
-	cfg := CordonConfig{MaxTokens: 50}
-	metrics := NewAgentMetrics("test-agent", "developer")
-	police := NewAgentPolice(cfg)
+	cfg := quality.CordonConfig{MaxTokens: 50}
+	metrics := quality.NewAgentMetrics("test-agent", "developer")
+	police := quality.NewAgentPolice(cfg)
 	bus := telemetry.NewSignalBus()
 
 	h := NewMetricsHandler(metrics, police, bus, nil, cfg)
@@ -88,9 +89,9 @@ func TestMetricsHandler_CordonEmitsBlackSignal(t *testing.T) {
 }
 
 func TestMetricsHandler_InterpreterReceivesSignal(t *testing.T) {
-	cfg := CordonConfig{MaxTokens: 50}
-	metrics := NewAgentMetrics("test-agent", "developer")
-	police := NewAgentPolice(cfg)
+	cfg := quality.CordonConfig{MaxTokens: 50}
+	metrics := quality.NewAgentMetrics("test-agent", "developer")
+	police := quality.NewAgentPolice(cfg)
 	bus := telemetry.NewSignalBus()
 
 	h := NewMetricsHandler(metrics, police, bus, nil, cfg)
@@ -126,11 +127,11 @@ func TestMetricsHandler_InterpreterReceivesSignal(t *testing.T) {
 }
 
 func TestMetricsHandler_ErrorEmitsRedSignal(t *testing.T) {
-	metrics := NewAgentMetrics("test-agent", "developer")
-	police := NewAgentPolice(DefaultCordonConfig())
+	metrics := quality.NewAgentMetrics("test-agent", "developer")
+	police := quality.NewAgentPolice(quality.DefaultCordonConfig())
 	bus := telemetry.NewSignalBus()
 
-	h := NewMetricsHandler(metrics, police, bus, nil, DefaultCordonConfig())
+	h := NewMetricsHandler(metrics, police, bus, nil, quality.DefaultCordonConfig())
 	h.OnError(errors.New("no choices in response"))
 
 	signals := bus.Signals()
