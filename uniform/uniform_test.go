@@ -114,6 +114,52 @@ func TestNewUniform_Operator(t *testing.T) {
 	}
 }
 
+func TestNewUniform_DeniedTools(t *testing.T) {
+	reg := NewRoleRegistry(DefaultRoles())
+	reqs := DefaultToolRequirements()
+	allTools := []string{"Read", "Write", "Bash", "assignment"}
+
+	u := NewUniform("coder-1", []string{"developer"}, reg, reqs, allTools, "agent", "", "")
+
+	// Coder denied Bash (shell) and assignment (coordinate)
+	denied := u.Denied()
+	if len(denied) != 2 {
+		t.Errorf("expected 2 denied tools, got %d: %v", len(denied), denied)
+	}
+}
+
+func TestNewUniform_WarningOnUnknownRole(t *testing.T) {
+	reg := NewRoleRegistry(DefaultRoles())
+	reqs := DefaultToolRequirements()
+
+	u := NewUniform("test", []string{"nonexistent"}, reg, reqs, []string{"Read"}, "", "", "")
+
+	if len(u.Warnings()) == 0 {
+		t.Error("expected warning for unknown role")
+	}
+	found := false
+	for _, w := range u.Warnings() {
+		if strings.Contains(w, "unknown role") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected 'unknown role' warning, got: %v", u.Warnings())
+	}
+}
+
+func TestNewUniform_NoWarningsOnValidConfig(t *testing.T) {
+	reg := NewRoleRegistry(DefaultRoles())
+	reqs := DefaultToolRequirements()
+	allTools := []string{"Read", "Write", "discourse", "plan"}
+
+	u := NewUniform("coder", []string{"developer"}, reg, reqs, allTools, "agent", "", "")
+
+	if len(u.Warnings()) != 0 {
+		t.Errorf("expected no warnings, got: %v", u.Warnings())
+	}
+}
+
 func TestUniform_SystemContext_ListsOnlyAllowedTools(t *testing.T) {
 	reg := NewRoleRegistry(DefaultRoles())
 	reqs := DefaultToolRequirements()

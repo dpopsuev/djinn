@@ -389,14 +389,23 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		sess.Model,
 		staffCfg.RoleMap()["gensec"].Prompt,
 	)
+	// ORANGE: log resolution warnings.
+	for _, w := range agentUniform.Warnings() {
+		log.WarnContext(ctx, "uniform warning",
+			slog.String(telemetry.KeyAgent, agentUniform.Persona()),
+			slog.String(telemetry.KeyReason, w),
+		)
+	}
+	// YELLOW: log successful resolution.
 	log.InfoContext(ctx, "uniform resolved",
 		slog.String(telemetry.KeyAgent, agentUniform.Persona()),
 		slog.Int(telemetry.KeyCount, len(agentUniform.Tools())),
+		slog.Int("denied", len(agentUniform.Denied())),
 	)
 
 	// Append Uniform context to system prompt (agent sees only its tools).
-	if ctx := agentUniform.SystemContext(); ctx != "" {
-		assembledPrompt = assembledPrompt + "\n\n" + ctx
+	if uniformCtx := agentUniform.SystemContext(); uniformCtx != "" {
+		assembledPrompt = assembledPrompt + "\n\n" + uniformCtx
 		chatDriver.SetSystemPrompt(assembledPrompt)
 	}
 

@@ -14,9 +14,11 @@ type Uniform struct {
 	roles        []string
 	capabilities []Capability
 	tools        []string // tool names the agent can see and use
+	denied       []string // tool names filtered out by RBAC
 	mode         string   // ask, plan, agent, auto
 	model        string   // preferred LLM model
 	prompt       string   // system prompt text
+	warnings     []string // resolution warnings (ORANGE signals)
 }
 
 // NewUniform resolves a persona into a fully wired Uniform.
@@ -34,14 +36,47 @@ func NewUniform(
 	caps := registry.ResolvePersona(roles)
 	tools := requirements.Filter(availableTools, caps)
 
+	// Compute denied tools and warnings.
+	var denied []string
+	deniedSet := make(map[string]bool)
+	for _, t := range availableTools {
+		if !requirements.Allowed(t, caps) {
+			denied = append(denied, t)
+			deniedSet[t] = true
+		}
+	}
+
+	var warnings []string
+
+	// ORANGE: no capabilities resolved — agent can't do anything meaningful.
+	if len(caps) == 0 {
+		warnings = append(warnings, "no capabilities resolved for persona "+persona+" — check role definitions")
+	}
+
+	// ORANGE: no tools after filtering — agent has capabilities but no matching tools.
+	if len(caps) > 0 && len(tools) == 0 {
+		warnings = append(warnings, "all tools filtered out for persona "+persona+" — no tools require only these capabilities")
+	}
+
+	// ORANGE: unknown roles (resolved to nothing).
+	for _, r := range roles {
+		if len(registry.Resolve(r)) == 0 {
+			warnings = append(warnings, "unknown role "+r+" for persona "+persona)
+		}
+	}
+
+	_ = deniedSet // used for denied list
+
 	return &Uniform{
 		persona:      persona,
 		roles:        roles,
 		capabilities: caps,
 		tools:        tools,
+		denied:       denied,
 		mode:         mode,
 		model:        model,
 		prompt:       prompt,
+		warnings:     warnings,
 	}
 }
 
@@ -65,6 +100,13 @@ func (u *Uniform) Model() string { return u.model }
 
 // Prompt returns the system prompt text for this agent.
 func (u *Uniform) Prompt() string { return u.prompt }
+
+// Denied returns tool names that were filtered out by RBAC.
+func (u *Uniform) Denied() []string { return u.denied }
+
+// Warnings returns resolution warnings (ORANGE signals).
+// Empty means clean resolution. Callers should log these as slog.Warn.
+func (u *Uniform) Warnings() []string { return u.warnings }
 
 // HasCapability checks if this agent has a specific capability.
 func (u *Uniform) HasCapability(c Capability) bool {
