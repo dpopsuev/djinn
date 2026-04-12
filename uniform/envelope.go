@@ -42,20 +42,20 @@ func NewEnvelope(goalID string, cfg EnvelopeConfig) *Envelope {
 // PreFlightAssignment returns a read-only assignment for pre-flight recon.
 func (e *Envelope) PreFlightAssignment() Assignment {
 	return Assignment{
-		Role:    RoleGenSec,
+		Role:    "gensec",
 		Mode:    ModeAsk,
 		Scope:   AssignmentScope{ReadPaths: []string{"/"}},
-		Persona: persona.RolePersona[RoleGenSec],
+		Persona: persona.RolePersona["gensec"],
 	}
 }
 
 // PostFlightAssignment returns a read-only assignment for post-flight audit.
 func (e *Envelope) PostFlightAssignment() Assignment {
 	return Assignment{
-		Role:    RoleInspector,
+		Role:    "inspector",
 		Mode:    ModeAsk,
 		Scope:   AssignmentScope{ReadPaths: []string{"/"}},
-		Persona: persona.RolePersona[RoleInspector],
+		Persona: persona.RolePersona["inspector"],
 	}
 }
 

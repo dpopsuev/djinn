@@ -9,7 +9,7 @@ import (
 
 func TestUnitFromAssignment(t *testing.T) {
 	a := uniform.Assignment{
-		Role: uniform.RoleExecutor,
+		Role: "executor",
 		Mode: uniform.ModeAgent,
 		Scope: uniform.AssignmentScope{
 			ReadPaths:  []string{"/src"},
@@ -23,8 +23,8 @@ func TestUnitFromAssignment(t *testing.T) {
 
 	u := UnitFromAssignment(a)
 
-	if u.Role != uniform.RoleExecutor {
-		t.Fatalf("Unit.Role = %q, want %q", u.Role, uniform.RoleExecutor)
+	if u.Role != "executor" {
+		t.Fatalf("Unit.Role = %q, want %q", u.Role, "executor")
 	}
 	if len(u.Scope.RO) != 1 || u.Scope.RO[0] != "/src" {
 		t.Fatalf("Unit.Scope.RO = %v, want [/src]", u.Scope.RO)

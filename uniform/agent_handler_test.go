@@ -9,6 +9,7 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools"
+	"github.com/dpopsuev/djinn/uniform/control"
 	"github.com/dpopsuev/djinn/uniform/quality"
 )
 
@@ -98,7 +99,7 @@ func TestMetricsHandler_InterpreterReceivesSignal(t *testing.T) {
 
 	// Wire interpreter with a stub GenSec.
 	stub := &stubGenSec{response: `{"action":"throttle","reason":"budget","confidence":0.9}`}
-	interpreter := NewSignalInterpreter(bus, stub)
+	interpreter := control.NewSignalInterpreter(bus, stub)
 	interpreter.Start(context.Background())
 
 	// Blow budget — should flow through pipeline.
@@ -121,7 +122,7 @@ func TestMetricsHandler_InterpreterReceivesSignal(t *testing.T) {
 	}
 
 	// Decision should be parsed.
-	if entries[0].Decision.Action != ActionThrottle {
+	if entries[0].Decision.Action != control.ActionThrottle {
 		t.Fatalf("decision action = %q, want throttle", entries[0].Decision.Action)
 	}
 }
@@ -143,7 +144,7 @@ func TestMetricsHandler_ErrorEmitsRedSignal(t *testing.T) {
 	}
 }
 
-// stubGenSec implements GenSecAgent for testing.
+// stubGenSec implements Asker for testing.
 type stubGenSec struct {
 	response string
 	asked    int

@@ -9,6 +9,13 @@ import (
 	"context"
 )
 
+// Asker is the interface for querying any agent persona.
+// Consumer-defined (ISP) — each package defines its own.
+// Not role-specific — any persona can satisfy this.
+type Asker interface {
+	Ask(ctx context.Context, content string) (string, error)
+}
+
 // PlanStrategy refines a plan draft. Different strategies produce
 // different levels of scrutiny.
 type PlanStrategy interface {
@@ -30,11 +37,11 @@ func (s *DirectPlanStrategy) Refine(_ context.Context, plan string) (string, err
 // collective to refine the plan. Thesis proposes, antithesis challenges,
 // convergence produces a stronger plan.
 type DialecticPlanStrategy struct {
-	asker GenSecAgent // GenSec for thesis/antithesis prompts
+	asker Asker // GenSec for thesis/antithesis prompts
 }
 
 // NewDialecticPlanStrategy creates a dialectic planning strategy.
-func NewDialecticPlanStrategy(asker GenSecAgent) *DialecticPlanStrategy {
+func NewDialecticPlanStrategy(asker Asker) *DialecticPlanStrategy {
 	return &DialecticPlanStrategy{asker: asker}
 }
 
@@ -64,7 +71,7 @@ func (s *DialecticPlanStrategy) Refine(ctx context.Context, plan string) (string
 
 // PlanStrategyForGear returns the appropriate strategy based on gear level.
 // E0-E1: Direct (single-agent). E2+: Dialectic (multi-agent scrutiny).
-func PlanStrategyForGear(gear Gear, asker GenSecAgent) PlanStrategy {
+func PlanStrategyForGear(gear Gear, asker Asker) PlanStrategy {
 	switch gear {
 	case GearE2, GearE3, GearAuto:
 		if asker != nil {

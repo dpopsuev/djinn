@@ -3,7 +3,7 @@
 // Each pillar (budget, drift, performance, lifecycle) has a prompt template
 // that formats signal data into a structured GenSec prompt. GenSec responds
 // with JSON: {"action": "...", "reason": "...", "confidence": 0.N}.
-package uniform
+package control
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ type SignalContext struct {
 	TasksTotal     int
 	TasksDone      int
 	BudgetPct      float64 // 0.0-1.0
-	ActiveGear     Gear
+	ActiveGear     string  // Gear name (e.g., "E0", "E2", "A")
 	RecentSignals  []telemetry.Signal
 	DriftScore     float64 // 0-100 for structure pillar
 	DriftViolation string  // most severe violation

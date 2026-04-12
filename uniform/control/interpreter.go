@@ -4,7 +4,7 @@
 // Green zone costs zero LLM tokens. Yellow+ signals are formatted into structured
 // prompts and sent to GenSec via the Bugle facade.Agent.Ask() interface.
 // Responses are parsed into Decisions and routed through the zone system.
-package uniform
+package control
 
 import (
 	"context"
@@ -14,16 +14,16 @@ import (
 	"github.com/dpopsuev/djinn/telemetry"
 )
 
-// GenSecAgent is the interface the interpreter uses to communicate with GenSec.
-// Satisfied by troupe actor and any mock.
-type GenSecAgent interface {
+// Asker is the interface for querying any agent persona.
+// Not GenSec-specific — any persona can answer questions.
+type Asker interface {
 	Ask(ctx context.Context, content string) (string, error)
 }
 
 // SignalInterpreter connects the signal bus to GenSec's stochastic interpretation layer.
 type SignalInterpreter struct {
 	bus        *telemetry.SignalBus
-	gensec     GenSecAgent
+	gensec     Asker
 	audit      AuditLog
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -35,7 +35,7 @@ type SignalInterpreter struct {
 }
 
 // NewSignalInterpreter creates an interpreter wired to a signal bus and GenSec agent.
-func NewSignalInterpreter(bus *telemetry.SignalBus, gensec GenSecAgent) *SignalInterpreter {
+func NewSignalInterpreter(bus *telemetry.SignalBus, gensec Asker) *SignalInterpreter {
 	return &SignalInterpreter{
 		bus:    bus,
 		gensec: gensec,

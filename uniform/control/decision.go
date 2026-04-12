@@ -6,7 +6,7 @@
 //   - Yellow: GenSec interprets, operator notified
 //   - Orange: GenSec proposes, operator can override
 //   - Red:    operator must approve before action is taken
-package uniform
+package control
 
 import (
 	"encoding/json"

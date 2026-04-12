@@ -1,4 +1,4 @@
-package uniform
+package control
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/dpopsuev/djinn/telemetry"
 )
 
-// mockGenSec implements GenSecAgent for testing.
+// mockGenSec implements Asker for testing.
 type mockGenSec struct {
 	mu        sync.Mutex
 	calls     []string
@@ -95,7 +95,7 @@ func TestYellowZoneCallsGenSec(t *testing.T) {
 			TasksTotal: 5,
 			TasksDone:  3,
 			BudgetPct:  0.85,
-			ActiveGear: GearE1,
+			ActiveGear: "E1",
 		}
 	})
 
@@ -312,7 +312,7 @@ func TestFormatSignalPrompt(t *testing.T) {
 		TasksTotal: 10,
 		TasksDone:  7,
 		BudgetPct:  0.80,
-		ActiveGear: GearE2,
+		ActiveGear: "E2",
 	}
 
 	prompt := FormatSignalPrompt(s, ctx)

@@ -33,7 +33,6 @@ func TestNextRole_UnknownSignalDefaultsToGenSec(t *testing.T) {
 }
 
 func TestNextRole_GateFailLoopsToExecutor(t *testing.T) {
-	// Gate fail and inspector reject both loop back to executor
 	if NextRole(SignalGateFailed) != "executor" {
 		t.Fatal("gate fail should return to executor")
 	}
@@ -43,8 +42,42 @@ func TestNextRole_GateFailLoopsToExecutor(t *testing.T) {
 }
 
 func TestNextRole_ExecutorDoneIsNotARole(t *testing.T) {
-	// Executor done triggers the gate, not a role switch
 	if NextRole(SignalExecutorDone) != "" {
 		t.Fatal("executor done should return empty (gate fires, not role)")
+	}
+}
+
+func TestNextRole_CustomTransitions(t *testing.T) {
+	custom := []Transition{
+		{Signal: SignalTasksPlanned, ToRole: "cogs"},
+		{Signal: SignalPromptReceived, ToRole: "gensec"},
+		{Signal: SignalGatePassed, ToRole: "inspector"},
+	}
+
+	// Custom role routes correctly without code changes.
+	if got := NextRole(SignalTasksPlanned, custom); got != "cogs" {
+		t.Fatalf("custom transition: got %q, want cogs", got)
+	}
+
+	// Other signals still work.
+	if got := NextRole(SignalPromptReceived, custom); got != "gensec" {
+		t.Fatalf("standard transition: got %q, want gensec", got)
+	}
+
+	// Unknown signal falls back to gensec.
+	if got := NextRole(Signal(999), custom); got != "gensec" {
+		t.Fatalf("unknown signal: got %q, want gensec", got)
+	}
+}
+
+func TestNextRole_DefaultTransitionsBackwardCompat(t *testing.T) {
+	// Calling without transitions uses defaults — backward compatible.
+	defaults := DefaultTransitions()
+	for _, tr := range defaults {
+		withDefault := NextRole(tr.Signal)
+		withExplicit := NextRole(tr.Signal, defaults)
+		if withDefault != withExplicit {
+			t.Errorf("signal %d: default=%q explicit=%q", tr.Signal, withDefault, withExplicit)
+		}
 	}
 }

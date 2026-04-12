@@ -50,11 +50,11 @@ type defaultSupportScheduler struct{}
 func (defaultSupportScheduler) Plan(g Gear) []RoleAssignment {
 	switch g {
 	case GearE1:
-		return []RoleAssignment{{Role: RoleInspector}}
+		return []RoleAssignment{{Role: "inspector"}}
 	case GearE2:
-		return []RoleAssignment{{Role: RoleScheduler}, {Role: RoleInspector}}
+		return []RoleAssignment{{Role: "scheduler"}, {Role: "inspector"}}
 	case GearE3:
-		return []RoleAssignment{{Role: RoleAuditor}, {Role: RoleScheduler}, {Role: RoleInspector}}
+		return []RoleAssignment{{Role: "auditor"}, {Role: "scheduler"}, {Role: "inspector"}}
 	default:
 		return nil
 	}

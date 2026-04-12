@@ -17,13 +17,13 @@ import (
 type AdaptiveStrategy struct {
 	inner     PlanStrategy
 	store     *artifact.Graph
-	asker     GenSecAgent
+	asker     Asker
 	threshold float64 // re-plan if completed/total ratio diverges by this much
 }
 
 // NewAdaptiveStrategy creates an adaptive planning strategy.
 // Threshold is the drift tolerance (0.0-1.0). Default: 0.2 (20% drift triggers re-plan).
-func NewAdaptiveStrategy(inner PlanStrategy, store *artifact.Graph, asker GenSecAgent, threshold float64) *AdaptiveStrategy {
+func NewAdaptiveStrategy(inner PlanStrategy, store *artifact.Graph, asker Asker, threshold float64) *AdaptiveStrategy {
 	if threshold <= 0 {
 		threshold = 0.2 //nolint:mnd // 20% drift tolerance
 	}

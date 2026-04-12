@@ -22,7 +22,7 @@ const (
 // It bridges the gear system (which spawns support roles) with the
 // composition system (which instantiates Units in Formations).
 type Assignment struct {
-	Role         string           // staff role name (e.g. RoleGenSec, RoleExecutor)
+	Role         string           // staff role name (e.g. "gensec", "executor")
 	Mode         string           // agent mode: "ask", "plan", "agent", "auto"
 	Capabilities []string         // tool capability names from StaffConfig
 	Budget       AssignmentBudget // resource limits
@@ -49,13 +49,13 @@ type AssignmentScope struct {
 func PrimordialGenSec() Assignment {
 	cfg := DefaultConfig()
 	roles := cfg.RoleMap()
-	gensec := roles[RoleGenSec]
+	gensec := roles["gensec"]
 
 	return Assignment{
-		Role:         RoleGenSec,
+		Role:         "gensec",
 		Mode:         ModeAuto,
 		Capabilities: gensec.ToolCapabilities,
-		Persona:      persona.RolePersona[RoleGenSec],
+		Persona:      persona.RolePersona["gensec"],
 		Model:        gensec.Model,
 		Scope: AssignmentScope{
 			ReadPaths:  []string{"/"},
@@ -87,10 +87,10 @@ var secretaryCapabilities = []string{
 // Mode=agent, intake-only capabilities (routing, interpretation, delegation).
 func Broker() Assignment {
 	return Assignment{
-		Role:         RoleGenSec,
+		Role:         "gensec",
 		Mode:         ModeAgent,
 		Capabilities: brokerCapabilities,
-		Persona:      persona.RolePersona[RoleGenSec],
+		Persona:      persona.RolePersona["gensec"],
 		Scope: AssignmentScope{
 			ReadPaths:  []string{"/"},
 			WritePaths: nil,
@@ -102,10 +102,10 @@ func Broker() Assignment {
 // Mode=agent, scoped to the provided paths, execution capabilities.
 func Secretary(scope AssignmentScope) Assignment {
 	return Assignment{
-		Role:         RoleExecutor,
+		Role:         "executor",
 		Mode:         ModeAgent,
 		Capabilities: secretaryCapabilities,
-		Persona:      persona.RolePersona[RoleExecutor],
+		Persona:      persona.RolePersona["executor"],
 		Scope:        scope,
 	}
 }

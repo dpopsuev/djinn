@@ -122,8 +122,8 @@ func TestPreFlightAssignment(t *testing.T) {
 	env := NewEnvelope("goal-1", DefaultEnvelopeConfig())
 	a := env.PreFlightAssignment()
 
-	if a.Role != RoleGenSec {
-		t.Fatalf("Role = %q, want %q", a.Role, RoleGenSec)
+	if a.Role != "gensec" {
+		t.Fatalf("Role = %q, want %q", a.Role, "gensec")
 	}
 	if a.Mode != ModeAsk {
 		t.Fatalf("Mode = %q, want %q", a.Mode, ModeAsk)
@@ -134,8 +134,8 @@ func TestPreFlightAssignment(t *testing.T) {
 	if a.Scope.WritePaths != nil {
 		t.Fatalf("WritePaths = %v, want nil", a.Scope.WritePaths)
 	}
-	if a.Persona != persona.RolePersona[RoleGenSec] {
-		t.Fatalf("Persona = %q, want %q", a.Persona, persona.RolePersona[RoleGenSec])
+	if a.Persona != persona.RolePersona["gensec"] {
+		t.Fatalf("Persona = %q, want %q", a.Persona, persona.RolePersona["gensec"])
 	}
 }
 
@@ -143,8 +143,8 @@ func TestPostFlightAssignment(t *testing.T) {
 	env := NewEnvelope("goal-1", DefaultEnvelopeConfig())
 	a := env.PostFlightAssignment()
 
-	if a.Role != RoleInspector {
-		t.Fatalf("Role = %q, want %q", a.Role, RoleInspector)
+	if a.Role != "inspector" {
+		t.Fatalf("Role = %q, want %q", a.Role, "inspector")
 	}
 	if a.Mode != ModeAsk {
 		t.Fatalf("Mode = %q, want %q", a.Mode, ModeAsk)
@@ -155,8 +155,8 @@ func TestPostFlightAssignment(t *testing.T) {
 	if a.Scope.WritePaths != nil {
 		t.Fatalf("WritePaths = %v, want nil", a.Scope.WritePaths)
 	}
-	if a.Persona != persona.RolePersona[RoleInspector] {
-		t.Fatalf("Persona = %q, want %q", a.Persona, persona.RolePersona[RoleInspector])
+	if a.Persona != persona.RolePersona["inspector"] {
+		t.Fatalf("Persona = %q, want %q", a.Persona, persona.RolePersona["inspector"])
 	}
 }
 

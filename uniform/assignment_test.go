@@ -10,20 +10,20 @@ import (
 func TestPrimordialGenSec(t *testing.T) {
 	a := PrimordialGenSec()
 
-	if a.Role != RoleGenSec {
-		t.Fatalf("Role = %q, want %q", a.Role, RoleGenSec)
+	if a.Role != "gensec" {
+		t.Fatalf("Role = %q, want %q", a.Role, "gensec")
 	}
 	if a.Mode != ModeAuto {
 		t.Fatalf("Mode = %q, want %q", a.Mode, ModeAuto)
 	}
-	if a.Persona != persona.RolePersona[RoleGenSec] {
-		t.Fatalf("Persona = %q, want %q", a.Persona, persona.RolePersona[RoleGenSec])
+	if a.Persona != persona.RolePersona["gensec"] {
+		t.Fatalf("Persona = %q, want %q", a.Persona, persona.RolePersona["gensec"])
 	}
 
 	// Must have capabilities from DefaultConfig gensec role.
 	cfg := DefaultConfig()
 	roles := cfg.RoleMap()
-	wantCaps := roles[RoleGenSec].ToolCapabilities
+	wantCaps := roles["gensec"].ToolCapabilities
 	if len(a.Capabilities) != len(wantCaps) {
 		t.Fatalf("Capabilities len = %d, want %d", len(a.Capabilities), len(wantCaps))
 	}
@@ -45,14 +45,14 @@ func TestPrimordialGenSec(t *testing.T) {
 func TestBroker(t *testing.T) {
 	b := Broker()
 
-	if b.Role != RoleGenSec {
-		t.Fatalf("Role = %q, want %q", b.Role, RoleGenSec)
+	if b.Role != "gensec" {
+		t.Fatalf("Role = %q, want %q", b.Role, "gensec")
 	}
 	if b.Mode != ModeAgent {
 		t.Fatalf("Mode = %q, want %q", b.Mode, ModeAgent)
 	}
-	if b.Persona != persona.RolePersona[RoleGenSec] {
-		t.Fatalf("Persona = %q, want %q", b.Persona, persona.RolePersona[RoleGenSec])
+	if b.Persona != persona.RolePersona["gensec"] {
+		t.Fatalf("Persona = %q, want %q", b.Persona, persona.RolePersona["gensec"])
 	}
 
 	// Broker has intake-only capabilities — no execution tools.
@@ -84,14 +84,14 @@ func TestSecretary(t *testing.T) {
 	}
 	s := Secretary(scope)
 
-	if s.Role != RoleExecutor {
-		t.Fatalf("Role = %q, want %q", s.Role, RoleExecutor)
+	if s.Role != "executor" {
+		t.Fatalf("Role = %q, want %q", s.Role, "executor")
 	}
 	if s.Mode != ModeAgent {
 		t.Fatalf("Mode = %q, want %q", s.Mode, ModeAgent)
 	}
-	if s.Persona != persona.RolePersona[RoleExecutor] {
-		t.Fatalf("Persona = %q, want %q", s.Persona, persona.RolePersona[RoleExecutor])
+	if s.Persona != persona.RolePersona["executor"] {
+		t.Fatalf("Persona = %q, want %q", s.Persona, persona.RolePersona["executor"])
 	}
 
 	// Scope passed through.
@@ -170,9 +170,9 @@ func TestDefaultAssignmentScheduler(t *testing.T) {
 		gear      Gear
 		wantRoles []string
 	}{
-		{GearE1, []string{RoleInspector}},
-		{GearE2, []string{RoleScheduler, RoleInspector}},
-		{GearE3, []string{RoleAuditor, RoleScheduler, RoleInspector}},
+		{GearE1, []string{"inspector"}},
+		{GearE2, []string{"scheduler", "inspector"}},
+		{GearE3, []string{"auditor", "scheduler", "inspector"}},
 	}
 
 	cfg := DefaultConfig()
