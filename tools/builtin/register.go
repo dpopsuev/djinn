@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/dpopsuev/djinn/artifact"
+	"github.com/dpopsuev/djinn/assignment"
 	"github.com/dpopsuev/djinn/tools"
 )
 
@@ -29,5 +30,6 @@ func RegisterBuiltinTools(reg *Registry, workDir, dataDir string) {
 	reg.Register(&ReconcileTool{PlanStore: planStore, WorkDir: workDir})
 	reg.Register(&LatencyTool{Tracker: tracker})
 	reg.Register(&RenderTool{})
+	reg.Register(&AssignmentTool{Manager: assignment.NewStubManager()})
 }
 
