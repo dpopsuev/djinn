@@ -138,10 +138,13 @@ type Model struct {
 	planPanel   *widgets.PlanPanel
 
 	// Staff — role pipeline
-	currentRole string
-	roleMemory  *memory.RoleMemory
-	roles       map[string]uniform.Role
-	staffCfg    *uniform.StaffConfig
+	currentRole  string
+	roleMemory   *memory.RoleMemory
+	roles        map[string]uniform.Role
+	staffCfg     *uniform.StaffConfig
+	roleRegistry *uniform.RoleRegistry
+	toolReqs     *uniform.ToolRequirements
+	toolRegistry interface{ Names() []string } // for RBAC filtering (CompositeExecutor or Registry)
 	term        *terminal.Djinn // Terminal facade — domain state + event stream
 
 	// Multi-agent monitoring
@@ -308,6 +311,8 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 	m.staffCfg = staffCfg
 	m.roles = staffCfg.RoleMap()
 	m.roleMemory = memory.NewRoleMemory()
+	m.roleRegistry = uniform.NewRoleRegistry(uniform.DefaultRoles())
+	m.toolReqs = uniform.DefaultToolRequirements()
 	m.currentRole = roleGensec
 	if defaultRole, ok := m.roles[roleGensec]; ok {
 		if newMode, err := agent.ParseMode(defaultRole.Mode); err == nil {
@@ -670,8 +675,16 @@ func (m *Model) switchRole(roleName string) {
 		m.mode = newMode
 	}
 
-	// Update tool restrictions: resolve capability names to actual tool names.
-	m.token.AllowedTools = m.staffCfg.ResolveToolNames(role.ToolCapabilities)
+	// Update tool restrictions via RBAC model (REF-77).
+	// Map old role names to new RBAC roles for capability resolution.
+	rbacRoles := roleNameToRBAC(roleName)
+	caps := m.roleRegistry.ResolvePersona(rbacRoles)
+	if m.toolRegistry != nil {
+		m.token.AllowedTools = m.toolReqs.Filter(m.toolRegistry.Names(), caps)
+	} else {
+		// Fallback to legacy resolution if no tool registry available.
+		m.token.AllowedTools = m.staffCfg.ResolveToolNames(role.ToolCapabilities)
+	}
 	if m.router != nil {
 		m.router.SetRole(roleName)
 	}
@@ -687,6 +700,24 @@ func (m *Model) switchRole(roleName string) {
 	})
 	m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render(
 		fmt.Sprintf("  → %s", roleName))})
+}
+
+// roleNameToRBAC maps old persona names to new RBAC role stacks (REF-77).
+func roleNameToRBAC(name string) []string {
+	switch name {
+	case roleGensec:
+		return []string{"director", "manager"}
+	case roleExecutor:
+		return []string{"developer"}
+	case "auditor":
+		return []string{"qa"}
+	case "scheduler":
+		return []string{"architect"}
+	case "inspector":
+		return []string{"operations"}
+	default:
+		return []string{name}
+	}
 }
 
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) { //nolint:gocyclo,funlen // keybinding dispatch is inherently branchy
