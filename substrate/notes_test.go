@@ -1,9 +1,17 @@
 package substrate
 
-import "testing"
+import (
+	"testing"
+
+	djinncache "github.com/dpopsuev/djinn/cache"
+)
+
+func newTestBoard() *NoteBoard {
+	return NewNoteBoard(djinncache.NewMemCache())
+}
 
 func TestNoteBoard_LeaveAndRead(t *testing.T) {
-	board := NewNoteBoard()
+	board := newTestBoard()
 
 	board.Leave(Note{From: "operator", To: "coder-1", Key: "heads-up", Title: "Code freeze Thursday", Body: "Don't merge after Thursday."})
 
@@ -32,7 +40,7 @@ func TestNoteBoard_LeaveAndRead(t *testing.T) {
 }
 
 func TestNoteBoard_Broadcast(t *testing.T) {
-	board := NewNoteBoard()
+	board := newTestBoard()
 	board.Leave(Note{From: "operator", To: "*", Key: "announcement", Title: "Using Vertex AI", Body: "Switch to Vertex."})
 
 	// All agents see broadcast.
@@ -54,7 +62,7 @@ func TestNoteBoard_Broadcast(t *testing.T) {
 }
 
 func TestNoteBoard_SaveLatest(t *testing.T) {
-	board := NewNoteBoard()
+	board := newTestBoard()
 	board.SaveLatest("coder-1", "Was working on TSK-921", "Step 3/5, found fan-in issue.")
 
 	// New agent spawning in coder-1's role sees the latest.
@@ -78,7 +86,7 @@ func TestNoteBoard_SaveLatest(t *testing.T) {
 }
 
 func TestNoteBoard_ReadNotFound(t *testing.T) {
-	board := NewNoteBoard()
+	board := newTestBoard()
 	_, err := board.Read("coder-1", "nonexistent")
 	if err == nil {
 		t.Fatal("expected error for missing note")
@@ -86,7 +94,7 @@ func TestNoteBoard_ReadNotFound(t *testing.T) {
 }
 
 func TestNoteBoard_CrossAgent(t *testing.T) {
-	board := NewNoteBoard()
+	board := newTestBoard()
 	board.Leave(Note{From: "coder-2", To: "coder-1", Key: "coordinate", Title: "I'm in telemetry/", Body: "Don't touch telemetry/, I'm refactoring it."})
 
 	// coder-1 sees coder-2's note.
@@ -98,5 +106,28 @@ func TestNoteBoard_CrossAgent(t *testing.T) {
 	// coder-2 doesn't see its own note to coder-1.
 	if len(board.Pending("coder-2")) != 0 {
 		t.Fatal("coder-2 should NOT see note addressed to coder-1")
+	}
+}
+
+func TestNoteBoard_SharesL2WithCache(t *testing.T) {
+	// Notes and file cache share the same L2 — no collision because of "note:" prefix.
+	l2 := djinncache.NewMemCache()
+	board := NewNoteBoard(l2)
+
+	// File data in L2.
+	l2.Put("coder-1", "file:/main.go", []byte("package main"))
+
+	// Note in L2.
+	board.Leave(Note{From: "operator", To: "coder-1", Key: "heads-up", Title: "Hi"})
+
+	// Pending only returns notes, not file entries.
+	pending := board.Pending("coder-1")
+	if len(pending) != 1 {
+		t.Fatalf("pending = %d, want 1 (note only, not file)", len(pending))
+	}
+
+	// File is still in L2.
+	if _, ok := l2.Get("coder-1", "file:/main.go"); !ok {
+		t.Fatal("file should still be in L2")
 	}
 }

@@ -1,14 +1,16 @@
-// notes.go — sticky notes in Substrate. Expire on read.
-// Not a Relic. Not in Reliquary. In-memory per node, file backup for restart.
-// Agents access notes through Substrate. Cross-agent notes go through Substrate.
-// "Latest" auto-note saved on agent death, read by successor on spawn.
+// notes.go — sticky notes in Substrate, backed by L2 cache.
+// Typed wrapper over cache.Cache. Notes are L2 entries with "note:" key prefix.
+// Expire on read. Cross-agent via scope. Broadcast via "*" scope.
 package substrate
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
+	"strings"
 	"time"
+
+	djinncache "github.com/dpopsuev/djinn/cache"
 )
 
 // ErrNoteNotFound is returned when a note key does not exist.
@@ -24,102 +26,109 @@ type Note struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// NoteBoard holds sticky notes in Substrate. Thread-safe.
-// Notes expire on read. "Latest" auto-note key is "_latest".
+const notePrefix = "note:"
+
+// NoteBoard is a typed wrapper over L2 cache for sticky notes.
+// Notes are L2 entries with "note:" key prefix. Thread-safety via L2 cache.
 type NoteBoard struct {
-	mu    sync.RWMutex
-	notes map[string][]Note // keyed by "to" agent ID
+	l2 djinncache.Cache
 }
 
-// NewNoteBoard creates an empty note board.
-func NewNoteBoard() *NoteBoard {
-	return &NoteBoard{notes: make(map[string][]Note)}
+// NewNoteBoard creates a note board backed by an L2 cache.
+func NewNoteBoard(l2 djinncache.Cache) *NoteBoard {
+	return &NoteBoard{l2: l2}
 }
 
 // Leave adds a note for an agent. Use "*" for broadcast.
 func (b *NoteBoard) Leave(n Note) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
 	if n.CreatedAt.IsZero() {
 		n.CreatedAt = time.Now().UTC()
 	}
-	b.notes[n.To] = append(b.notes[n.To], n)
+	data, err := json.Marshal(n)
+	if err != nil {
+		return
+	}
+	b.l2.Put(n.To, notePrefix+n.Key, data)
 }
 
-// Pending returns unread note titles for an agent (for prompt enrichment nag).
+// Pending returns unread notes for an agent (for prompt enrichment nag).
 // Includes broadcast notes ("*"). Does NOT expire them.
 func (b *NoteBoard) Pending(agentID string) []Note {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-
-	pending := make([]Note, 0, len(b.notes[agentID])+len(b.notes["*"]))
-	pending = append(pending, b.notes[agentID]...)
-	pending = append(pending, b.notes["*"]...)
-	return pending
-}
-
-// Read returns a note's body and expires it (deletes).
-// Returns error if not found.
-func (b *NoteBoard) Read(agentID, key string) (Note, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	// Check agent-specific notes.
-	if notes, ok := b.notes[agentID]; ok {
-		for i, n := range notes {
-			if n.Key == key {
-				b.notes[agentID] = append(notes[:i], notes[i+1:]...)
-				return n, nil
+	var pending []Note
+	// Agent-specific notes.
+	for _, key := range b.l2.Keys(agentID) {
+		if !strings.HasPrefix(key, notePrefix) {
+			continue
+		}
+		if data, ok := b.l2.Get(agentID, key); ok {
+			var n Note
+			if err := json.Unmarshal(data, &n); err == nil {
+				pending = append(pending, n)
 			}
 		}
 	}
-
-	// Check broadcast notes.
-	if notes, ok := b.notes["*"]; ok {
-		for i, n := range notes {
-			if n.Key == key {
-				b.notes["*"] = append(notes[:i], notes[i+1:]...)
-				return n, nil
+	// Broadcast notes.
+	for _, key := range b.l2.Keys("*") {
+		if !strings.HasPrefix(key, notePrefix) {
+			continue
+		}
+		if data, ok := b.l2.Get("*", key); ok {
+			var n Note
+			if err := json.Unmarshal(data, &n); err == nil {
+				pending = append(pending, n)
 			}
+		}
+	}
+	return pending
+}
+
+// Read returns a note's body and expires it (deletes from L2).
+// Returns error if not found.
+func (b *NoteBoard) Read(agentID, key string) (Note, error) {
+	cacheKey := notePrefix + key
+
+	// Check agent-specific.
+	if data, ok := b.l2.Get(agentID, cacheKey); ok {
+		b.l2.Evict(agentID, cacheKey)
+		var n Note
+		if err := json.Unmarshal(data, &n); err == nil {
+			return n, nil
+		}
+	}
+
+	// Check broadcast.
+	if data, ok := b.l2.Get("*", cacheKey); ok {
+		b.l2.Evict("*", cacheKey)
+		var n Note
+		if err := json.Unmarshal(data, &n); err == nil {
+			return n, nil
 		}
 	}
 
 	return Note{}, fmt.Errorf("%w: %s/%s", ErrNoteNotFound, agentID, key)
 }
 
-// SaveLatest auto-saves a "latest" note for an agent (on death).
-// Overwrites any previous "_latest" note for that agent.
+// SaveLatest auto-saves a "_latest" note for an agent (on death).
+// Overwrites any previous "_latest" note.
 func (b *NoteBoard) SaveLatest(agentID, title, body string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	// Remove existing _latest for this agent.
-	if notes, ok := b.notes[agentID]; ok {
-		for i, n := range notes {
-			if n.Key == "_latest" {
-				b.notes[agentID] = append(notes[:i], notes[i+1:]...)
-				break
-			}
-		}
-	}
-
-	b.notes[agentID] = append(b.notes[agentID], Note{
-		From:      "system",
-		To:        agentID,
-		Key:       "_latest",
-		Title:     title,
-		Body:      body,
-		CreatedAt: time.Now().UTC(),
+	b.Leave(Note{
+		From:  "system",
+		To:    agentID,
+		Key:   "_latest",
+		Title: title,
+		Body:  body,
 	})
 }
 
-// Count returns total unread notes across all agents.
+// Count returns total unread notes across all scopes.
 func (b *NoteBoard) Count() int {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
 	total := 0
-	for _, notes := range b.notes {
-		total += len(notes)
+	for _, scope := range b.l2.Scopes() {
+		for _, key := range b.l2.Keys(scope) {
+			if strings.HasPrefix(key, notePrefix) {
+				total++
+			}
+		}
 	}
 	return total
 }
