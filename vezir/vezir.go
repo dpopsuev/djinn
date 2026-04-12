@@ -1,12 +1,12 @@
 // Package vezir defines the Control Plane daemon interface.
 // Supervisor (Erlang OTP-style), reconciliation loop, socket relay,
 // builder/watcher. Stateless — reads desired state from config,
-// observes actual state from Miraged health, acts on diff.
+// observes actual state from Substrate health, acts on diff.
 package vezir
 
 import "context"
 
-// Vezir is the Control Plane. Supervises Miraged and TUI processes.
+// Vezir is the Control Plane. Supervises Substrate and TUI processes.
 type Vezir interface {
 	// Start begins supervision. Blocks until context is canceled.
 	Start(ctx context.Context) error
@@ -20,8 +20,8 @@ type Vezir interface {
 
 // HealthReport summarizes the state of supervised processes.
 type HealthReport struct {
-	Miraged ProcessState `json:"miraged"`
-	TUI     ProcessState `json:"tui"`
+	Substrate ProcessState `json:"substrate"`
+	TUI       ProcessState `json:"tui"`
 }
 
 // ProcessState describes a supervised process.

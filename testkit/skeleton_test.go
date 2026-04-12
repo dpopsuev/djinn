@@ -53,8 +53,8 @@ func TestSkeleton_AllStubsCompose(t *testing.T) {
 	// 5. Vezir (stub — control plane)
 	vz := vezir.NewStubVezir()
 	health := vz.Health()
-	if !health.Miraged.Running {
-		t.Fatal("Vezir stub should report Miraged running")
+	if !health.Substrate.Running {
+		t.Fatal("Vezir stub should report Substrate running")
 	}
 
 	// 6. Budget (stub — observer + controller)

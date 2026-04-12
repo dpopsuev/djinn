@@ -17,8 +17,8 @@ type StubVezir struct {
 func NewStubVezir() *StubVezir {
 	return &StubVezir{
 		health: HealthReport{
-			Miraged: ProcessState{Running: true},
-			TUI:     ProcessState{Running: true},
+			Substrate: ProcessState{Running: true},
+			TUI:       ProcessState{Running: true},
 		},
 	}
 }
