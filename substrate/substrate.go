@@ -14,12 +14,12 @@ import (
 	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/battery/service"
 	"github.com/dpopsuev/battery/tool"
+	"github.com/dpopsuev/djinn/vessel"
 	"github.com/dpopsuev/troupe/signal"
 )
 
-// Substrate is the daemon interface. Consumers take what they need (ISP).
-// The full interface is the composition root — most consumers use one or
-// two methods, not all of them.
+// Substrate is the node mediator interface. Wires all node-local services.
+// Consumers take what they need (ISP).
 type Substrate interface {
 	// Tools returns the tool executor with Envelope middleware applied.
 	Tools() tool.Executor
@@ -31,8 +31,11 @@ type Substrate interface {
 	Observe(ctx context.Context, obs Observation)
 
 	// EventLog returns the unified event log. All agent actions flow through it.
-	// The poka-yoke: no component can produce data outside this log.
 	EventLog() signal.EventLog
+
+	// Vessel creates an agent harness for the given config.
+	// The Vessel wraps Tools, EventLog, and workspace into one interface.
+	Vessel(cfg SpawnConfig) vessel.Vessel
 
 	// Spawn starts a new agent with the given config. Returns agent ID.
 	Spawn(ctx context.Context, cfg SpawnConfig) (string, error)

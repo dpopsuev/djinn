@@ -7,6 +7,7 @@ import (
 	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/battery/service"
 	"github.com/dpopsuev/battery/tool"
+	"github.com/dpopsuev/djinn/vessel"
 	"github.com/dpopsuev/troupe/signal"
 )
 
@@ -57,6 +58,10 @@ func (s *StubSubstrate) Kill(_ context.Context, agentID string) error {
 	defer s.mu.Unlock()
 	s.Killed = append(s.Killed, agentID)
 	return nil
+}
+
+func (s *StubSubstrate) Vessel(cfg SpawnConfig) vessel.Vessel {
+	return vessel.NewStubVessel(s.tools, s.eventLog, "/tmp/workspace")
 }
 
 func (s *StubSubstrate) Health() service.HealthReport {
