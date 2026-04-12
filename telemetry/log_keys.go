@@ -74,4 +74,10 @@ const (
 	KeyIntentID     LogKey = "intent_id"      // operator intent identifier
 	KeySource       LogKey = "source"         // event source (e.g., watchdog name)
 	KeyQueuePos     LogKey = "queue_position" // position in queue
+	KeyCache        LogKey = "cache"          // cache name (L1, L2)
+	KeyScope        LogKey = "scope"          // cache scope (agent ID)
+	KeyKey          LogKey = "key"            // cache key
+	KeyBytes        LogKey = "bytes"          // data size in bytes
+	KeyEntries      LogKey = "entries"        // entry count
+	KeyScopes       LogKey = "scopes"         // scope count
 )
