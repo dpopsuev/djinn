@@ -102,6 +102,13 @@ func (s *Supervisor) Run(ctx context.Context) error {
 	}
 }
 
+// ResetRestarts resets the restart counter (e.g. after stable period).
+func (s *Supervisor) ResetRestarts() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.restarts = 0
+}
+
 func (s *Supervisor) spawn(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

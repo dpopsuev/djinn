@@ -270,7 +270,7 @@ Build the forge before the sword. Every DX investment compounds.
 - **Stub with implementation.** Every new interface ships with a testkit stub in the same PR. Not after, not later — together. `var _ Interface = (*StubImpl)(nil)` is the first line written.
 - **Red first.** Write the failing test using the stub before implementing the real code. If you can't write a test, the interface is wrong.
 - **E2E skeleton before features.** Wire stubs end-to-end to prove interfaces compose. The skeleton runs before any real backend exists.
-- **Stubs at every boundary.** Mirage has StubSpace. Troupe has MockActor + StubProvider + StubEventLog. Miraged has StubSubstrate. No exceptions.
+- **Stubs at every boundary.** Mirage has StubSpace. Troupe has MockActor + StubProvider + StubEventLog. Substrate has StubSubstrate. Lector has StubLector. Observe has StubObserver. Vezir has StubVezir. No exceptions.
 - **Observable by default.** Every stub records call history. Every boundary logs. No "add tracing later."
 
 The forge grows with the swords — not as a separate phase.
@@ -278,6 +278,9 @@ The forge grows with the swords — not as a separate phase.
 ## Working with Djinn
 
 ```bash
+# Development with hot-swap (Vezir supervises, auto-restarts on change)
+go run ./cmd/vezir/ --substrate ./cmd/djinn
+
 # Build
 go build ./...
 
@@ -292,6 +295,15 @@ mcp__locus__analysis preset=architecture_review
 mcp__locus__analysis solid_scan
 mcp__locus__analysis drift
 ```
+
+### Vezir (hot-swap development)
+Vezir is a separate binary that supervises Djinn (Substrate). During development:
+1. Run `go run ./cmd/vezir/` — Vezir starts, spawns Substrate
+2. Edit code — Vezir's watcher detects change, rebuilds, restarts Substrate
+3. TUI connects to Vezir's socket — stays connected through restarts
+4. Agent context survives via L2 cache (write-through, scope-tagged)
+
+Vezir is the ONLY decoupled piece from day 0. Everything else is monolith.
 
 Consult Scribe for task details:
 ```
