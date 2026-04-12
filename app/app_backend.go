@@ -159,7 +159,7 @@ func createBackendDriver(name, model, systemPrompt string, logger *slog.Logger) 
 	}
 
 	opts := []troupedriver.Option{
-		troupedriver.WithTools(registryToAnyllmTools(builtin.NewRegistry())),
+		troupedriver.WithBatteryTools(builtin.NewRegistry().All()),
 	}
 	if logger != nil {
 		opts = append(opts, troupedriver.WithLogger(logger))

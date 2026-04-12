@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	batterytool "github.com/dpopsuev/battery/tool"
 	anyllm "github.com/mozilla-ai/any-llm-go/providers"
 
 	"github.com/dpopsuev/djinn/driver"
@@ -48,6 +49,33 @@ func WithSystemPrompt(prompt string) Option {
 // WithTools sets the tool definitions sent to the provider.
 func WithTools(tools []anyllm.Tool) Option {
 	return func(d *ChatDriver) { d.tools = tools }
+}
+
+// WithBatteryTools converts Battery tool.Tool interfaces to anyllm.Tool
+// schemas and sets them on the driver. This is the canonical bridge between
+// Battery's tool contracts and the LLM provider's function calling API.
+// Use this instead of WithTools when you have a builtin.Registry.
+func WithBatteryTools(tools []batterytool.Tool) Option {
+	return func(d *ChatDriver) {
+		d.tools = convertBatteryTools(tools)
+	}
+}
+
+func convertBatteryTools(tools []batterytool.Tool) []anyllm.Tool {
+	result := make([]anyllm.Tool, 0, len(tools))
+	for _, t := range tools {
+		var params map[string]any
+		_ = json.Unmarshal(t.InputSchema(), &params)
+		result = append(result, anyllm.Tool{
+			Type: "function",
+			Function: anyllm.Function{
+				Name:        t.Name(),
+				Description: t.Description(),
+				Parameters:  params,
+			},
+		})
+	}
+	return result
 }
 
 // WithMaxTokens sets the maximum output tokens per completion.

@@ -140,6 +140,5 @@ func (s *AgentSuite) createDriver() (*troupedriver.ChatDriver, error) {
 	}
 
 	model := os.Getenv("DJINN_MODEL")
-	tools := registryToAnyllmTools(s.registry)
-	return troupedriver.New(p, model, troupedriver.WithTools(tools)), nil
+	return troupedriver.New(p, model, troupedriver.WithBatteryTools(s.registry.All())), nil
 }

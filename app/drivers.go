@@ -5,7 +5,6 @@
 package app
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/troupe/execution"
-	anyllm "github.com/mozilla-ai/any-llm-go/providers"
 )
 
 // CreateDriver creates a ChatDriver for the given backend name and model.
@@ -36,7 +34,7 @@ func CreateDriver(driverName, model, systemPrompt string, log ...*slog.Logger) (
 	}
 
 	opts := []troupedriver.Option{
-		troupedriver.WithTools(registryToAnyllmTools(builtin.NewRegistry())),
+		troupedriver.WithBatteryTools(builtin.NewRegistry().All()),
 	}
 	if driverLog != nil {
 		opts = append(opts, troupedriver.WithLogger(driverLog))
@@ -64,21 +62,3 @@ func resolveProviderName(driverName string) (string, error) {
 	}
 }
 
-// registryToAnyllmTools converts a builtin.Registry to anyllm.Tool definitions.
-func registryToAnyllmTools(reg *builtin.Registry) []anyllm.Tool {
-	all := reg.All()
-	tools := make([]anyllm.Tool, 0, len(all))
-	for _, t := range all {
-		var params map[string]any
-		_ = json.Unmarshal(t.InputSchema(), &params)
-		tools = append(tools, anyllm.Tool{
-			Type: "function",
-			Function: anyllm.Function{
-				Name:        t.Name(),
-				Description: t.Description(),
-				Parameters:  params,
-			},
-		})
-	}
-	return tools
-}
