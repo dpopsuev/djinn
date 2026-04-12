@@ -17,6 +17,7 @@ import (
 	djinnconfig "github.com/dpopsuev/djinn/config"
 	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/hotswap"
+	mcpPkg "github.com/dpopsuev/djinn/mcp"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/repl"
@@ -262,6 +263,19 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	mcpClient := mcpclient.New(telemetry.For(logResult.Logger, "mcp"))
 	mcpClient.Tracer = telemetry.NewTracer(traceRing, telemetry.ComponentMCP)
 	defer mcpClient.Close()
+
+	// MCP manifest: three-tier merge (GOL-148).
+	// Load new-style manifest if available (Strangler Fig alongside old config).
+	mcpManifestPath := filepath.Join(HomeDir(), "mcp.yaml")
+	if manifest, mErr := mcpPkg.LoadMCPManifest(mcpManifestPath); mErr == nil {
+		secretsPath := filepath.Join(HomeDir(), "mcp_secrets.yaml")
+		if secrets, sErr := mcpPkg.LoadMCPSecrets(secretsPath); sErr == nil {
+			mcpPkg.ApplySecrets(manifest, secrets)
+		}
+		log.InfoContext(ctx, "mcp manifest loaded",
+			slog.Int(telemetry.KeyCount, len(manifest.Servers)),
+		)
+	}
 
 	// MCP config merge: djinn.yaml (LoadMCPConfig) + config registry (mcp_servers) + workspace MCP.
 	// Priority: workspace > config registry > djinn.yaml loader.
