@@ -1,6 +1,9 @@
 package lector
 
-import "sync"
+import (
+	"strings"
+	"sync"
+)
 
 var _ Lector = (*StubLector)(nil)
 
@@ -92,6 +95,49 @@ func (s *StubLector) OnFileDelete(path string) {
 	s.Deletes = append(s.Deletes, path)
 	delete(s.files, path)
 	delete(s.syms, path)
+}
+
+func (s *StubLector) SymbolsForFile(file string) []Symbol {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	// StubLector stores by scope (package), not file. Search all scopes.
+	var out []Symbol
+	for _, syms := range s.syms {
+		for _, sym := range syms {
+			if sym.File == file {
+				out = append(out, sym)
+			}
+		}
+	}
+	return out
+}
+
+func (s *StubLector) FuzzyFiles(query string) []FileEntry {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var results []FileEntry
+	q := strings.ToLower(query)
+	for _, f := range s.files {
+		if strings.Contains(strings.ToLower(f.Path), q) {
+			results = append(results, f)
+		}
+	}
+	return results
+}
+
+func (s *StubLector) FuzzySymbols(query string) []Symbol {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var results []Symbol
+	q := strings.ToLower(query)
+	for _, syms := range s.syms {
+		for _, sym := range syms {
+			if strings.Contains(strings.ToLower(sym.Name), q) {
+				results = append(results, sym)
+			}
+		}
+	}
+	return results
 }
 
 // --- Test helpers ---

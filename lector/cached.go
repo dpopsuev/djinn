@@ -68,6 +68,18 @@ func (c *CachedLector) Dependents(pkg string) []string {
 	return c.inner.Dependents(pkg)
 }
 
+func (c *CachedLector) SymbolsForFile(file string) []Symbol {
+	return c.inner.SymbolsForFile(file)
+}
+
+func (c *CachedLector) FuzzyFiles(query string) []FileEntry {
+	return c.inner.FuzzyFiles(query)
+}
+
+func (c *CachedLector) FuzzySymbols(query string) []Symbol {
+	return c.inner.FuzzySymbols(query)
+}
+
 // --- Observer (write) — write-through to L2 ---
 
 func (c *CachedLector) OnFileRead(path string) {

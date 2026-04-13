@@ -34,11 +34,20 @@ type Index interface {
 	// Symbols returns all symbols in the given package scope.
 	Symbols(scope string) []Symbol
 
+	// SymbolsForFile returns symbols extracted from a specific file.
+	SymbolsForFile(file string) []Symbol
+
 	// Imports returns all packages that the given package imports.
 	Imports(pkg string) []string
 
 	// Dependents returns all packages that import the given package.
 	Dependents(pkg string) []string
+
+	// FuzzyFiles searches the file index by path substring. Ranked results.
+	FuzzyFiles(query string) []FileEntry
+
+	// FuzzySymbols searches the symbol index by name. Ranked results.
+	FuzzySymbols(query string) []Symbol
 }
 
 // Observer is the write interface — Lector watches tool I/O through this.
