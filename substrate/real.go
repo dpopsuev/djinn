@@ -19,6 +19,7 @@ import (
 	canonPkg "github.com/dpopsuev/djinn/canon"
 	"github.com/dpopsuev/djinn/hook"
 	lectorPkg "github.com/dpopsuev/djinn/lector"
+	litmusPkg "github.com/dpopsuev/djinn/litmus"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/vessel"
@@ -47,6 +48,7 @@ type RealSubstrate struct {
 	// L2 Cache Services (GOL-174, GOL-152, NED-55).
 	canon  canonPkg.Canon   // VCS state cache
 	lector lectorPkg.Lector // symbol cache
+	litmus litmusPkg.Litmus // build/test result cache
 
 	// Lifecycle tracking.
 	observations []Observation
@@ -85,9 +87,12 @@ func New(workDir string, opts ...Option) *RealSubstrate {
 		s.canon = canonPkg.NewRealCanon(workDir, s.l2, s.log)
 	}
 	// Auto-create Lector if not provided (GOL-152).
-	// Default: StubLector (no Oculus). RealLector wired when Oculus available.
 	if s.lector == nil {
-		s.lector = lectorPkg.NewStubLector()
+		s.lector = lectorPkg.NewRealLector(workDir, s.log)
+	}
+	// Auto-create Litmus if not provided (GOL-175).
+	if s.litmus == nil {
+		s.litmus = litmusPkg.NewRealLitmus(workDir, s.log)
 	}
 
 	// ORANGE: warn about missing integration wiring (GOL-162).
@@ -169,6 +174,11 @@ func WithCanon(c canonPkg.Canon) Option {
 // WithLector sets the symbol cache service (GOL-152).
 func WithLector(l lectorPkg.Lector) Option {
 	return func(s *RealSubstrate) { s.lector = l }
+}
+
+// WithLitmus sets the build/test result cache service (GOL-175).
+func WithLitmus(l litmusPkg.Litmus) Option {
+	return func(s *RealSubstrate) { s.litmus = l }
 }
 
 // --- Module Grouping ---
@@ -255,6 +265,9 @@ func (s *RealSubstrate) Canon() canonPkg.Canon { return s.canon }
 
 // Lector returns the symbol cache service (nil if not configured).
 func (s *RealSubstrate) Lector() lectorPkg.Lector { return s.lector }
+
+// Litmus returns the build/test result cache (nil if not configured).
+func (s *RealSubstrate) Litmus() litmusPkg.Litmus { return s.litmus }
 
 // SetHookDispatcher sets the hook dispatcher after construction (late binding).
 func (s *RealSubstrate) SetHookDispatcher(d *hook.EventDispatcher) { s.dispatcher = d }

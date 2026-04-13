@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 
 	canonPkg "github.com/dpopsuev/djinn/canon"
+	litmusPkg "github.com/dpopsuev/djinn/litmus"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -112,19 +113,22 @@ func (t *PlanTool) Execute(_ context.Context, input json.RawMessage) (string, er
 // ── TestTool ────────────────────────────────────────────────────────────
 
 // TestTool wraps `go test -json` execution and tools.ParseGoTestJSON.
+// When Litmus is set, serves cached results for unchanged packages (GOL-175).
 type TestTool struct {
 	WorkDir string
+	Litmus  litmusPkg.Litmus // optional: cache-backed test results
 }
 
 func (t *TestTool) Name() string        { return "test" }
-func (t *TestTool) Description() string { return "Run go tests and parse results: run or parse" }
+func (t *TestTool) Description() string { return "Run go tests and parse results: run, parse, status" }
 func (t *TestTool) InputSchema() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
 		"properties": {
-			"action":  {"type": "string", "enum": ["run", "parse"]},
+			"action":  {"type": "string", "enum": ["run", "parse", "status"]},
 			"args":    {"type": "array", "items": {"type": "string"}},
-			"data":    {"type": "string"}
+			"data":    {"type": "string"},
+			"package": {"type": "string"}
 		},
 		"required": ["action"]
 	}`)
@@ -132,15 +136,31 @@ func (t *TestTool) InputSchema() json.RawMessage {
 
 func (t *TestTool) Execute(ctx context.Context, input json.RawMessage) (string, error) {
 	var req struct {
-		Action string   `json:"action"`
-		Args   []string `json:"args"`
-		Data   string   `json:"data"`
+		Action  string   `json:"action"`
+		Args    []string `json:"args"`
+		Data    string   `json:"data"`
+		Package string   `json:"package"`
 	}
 	if err := json.Unmarshal(input, &req); err != nil {
 		return "", fmt.Errorf("test: %w", err)
 	}
 
 	switch req.Action {
+	case "status":
+		if t.Litmus == nil {
+			return "", fmt.Errorf("test status: Litmus not configured")
+		}
+		pkg := req.Package
+		if pkg == "" {
+			pkg = "./..."
+		}
+		r, ok := t.Litmus.TestResult(pkg)
+		if !ok {
+			return `{"cached": false}`, nil
+		}
+		j, _ := json.Marshal(r)
+		return string(j), nil
+
 	case "run":
 		args := []string{"test", "-json"}
 		if len(req.Args) > 0 {
