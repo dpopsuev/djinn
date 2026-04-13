@@ -58,11 +58,11 @@ func TestSkeleton_AllStubsCompose(t *testing.T) {
 
 	// 6. Discourse (stub — planning)
 	forum := discourse.NewStubForum()
-	threadID, err := forum.Post("refactor", "should we split the driver?")
+	threadID, err := forum.Post("refactor", discourse.Message{From: "operator", Content: "should we split the driver?"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := forum.Reply(threadID, "yes, use TroupeChatDriver"); err != nil {
+	if err := forum.Reply(threadID, discourse.Message{From: "gensec", Content: "yes, use TroupeChatDriver"}); err != nil {
 		t.Fatal(err)
 	}
 	threads := forum.Threads("refactor")
