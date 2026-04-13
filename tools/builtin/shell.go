@@ -8,6 +8,8 @@ package builtin
 import (
 	"context"
 	"encoding/json"
+
+	canonPkg "github.com/dpopsuev/djinn/canon"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -179,18 +181,23 @@ func (t *TestTool) Execute(ctx context.Context, input json.RawMessage) (string, 
 // ── GitTool ─────────────────────────────────────────────────────────────
 
 // GitTool wraps tools.GitRepo for structured git operations.
+// When Canon is set, serves cached results for status/log/blame (GOL-174).
 type GitTool struct {
-	Repo *tools.GitRepo
+	Repo  *tools.GitRepo
+	Canon canonPkg.Canon // optional: cache-backed VCS queries
 }
 
 func (t *GitTool) Name() string        { return "git" }
-func (t *GitTool) Description() string { return "Structured git operations: status, diff, log, branch" }
+func (t *GitTool) Description() string {
+	return "Structured git operations: status, diff, log, branch, blame"
+}
 func (t *GitTool) InputSchema() json.RawMessage {
 	return json.RawMessage(`{
 		"type": "object",
 		"properties": {
-			"action": {"type": "string", "enum": ["status", "diff", "log", "branch"]},
-			"n":      {"type": "integer"}
+			"action": {"type": "string", "enum": ["status", "diff", "log", "branch", "blame"]},
+			"n":      {"type": "integer"},
+			"file":   {"type": "string"}
 		},
 		"required": ["action"]
 	}`)
@@ -200,6 +207,7 @@ func (t *GitTool) Execute(ctx context.Context, input json.RawMessage) (string, e
 	var req struct {
 		Action string `json:"action"`
 		N      int    `json:"n"`
+		File   string `json:"file"`
 	}
 	if err := json.Unmarshal(input, &req); err != nil {
 		return "", fmt.Errorf("git: %w", err)
@@ -207,6 +215,15 @@ func (t *GitTool) Execute(ctx context.Context, input json.RawMessage) (string, e
 
 	switch req.Action {
 	case "status":
+		// Canon path: cached dirty files.
+		if t.Canon != nil {
+			files, err := t.Canon.DirtyFiles()
+			if err == nil {
+				j, _ := json.Marshal(files)
+				return string(j), nil
+			}
+			// Canon failed, fall through to Repo.
+		}
 		status, err := t.Repo.Status(ctx)
 		if err != nil {
 			return "", fmt.Errorf("git status: %w", err)
@@ -226,6 +243,14 @@ func (t *GitTool) Execute(ctx context.Context, input json.RawMessage) (string, e
 		if n <= 0 {
 			n = 10
 		}
+		// Canon path: cached commits.
+		if t.Canon != nil {
+			commits, err := t.Canon.RecentCommits(n)
+			if err == nil {
+				j, _ := json.Marshal(commits)
+				return string(j), nil
+			}
+		}
 		commits, err := t.Repo.Log(ctx, n)
 		if err != nil {
 			return "", fmt.Errorf("git log: %w", err)
@@ -239,6 +264,21 @@ func (t *GitTool) Execute(ctx context.Context, input json.RawMessage) (string, e
 			return "", fmt.Errorf("git branch: %w", err)
 		}
 		return branch, nil
+
+	case "blame":
+		if req.File == "" {
+			return "", fmt.Errorf("git blame: file is required")
+		}
+		// Canon path: cached blame.
+		if t.Canon != nil {
+			lines, err := t.Canon.Blame(req.File)
+			if err == nil {
+				j, _ := json.Marshal(lines)
+				return string(j), nil
+			}
+		}
+		// Fallback: exec git blame directly.
+		return "", fmt.Errorf("git blame: Canon required (no fallback implemented)")
 
 	default:
 		return "", fmt.Errorf("git: unknown action %q", req.Action)
