@@ -31,7 +31,6 @@ import (
 	"github.com/dpopsuev/djinn/uniform"
 	"github.com/dpopsuev/djinn/uniform/quality"
 	djinnws "github.com/dpopsuev/djinn/workspace"
-	troupeTestkit "github.com/dpopsuev/troupe/testkit"
 )
 
 // RunREPL starts the interactive REPL.
@@ -247,9 +246,11 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		sess.History.Clear()
 	}
 
+	// Substrate — composition root for all node-local services (GOL-159).
+	sub := substrate.New(Getwd(), substrate.DefaultServices()...)
+
 	// Trace ring — observable by default (Flywheel Tier 4).
-	// WithEventLog bridges all trace events to the unified event log (CMP-31).
-	eventLog := troupeTestkit.NewStubEventLog()
+	eventLog := sub.EventLog()
 	traceRing := telemetry.NewTraceProjection(1000).WithEventLog(eventLog) //nolint:mnd // 1000 events is a sensible default
 
 	// Hub mediators — DevOps phase coordination (GOL-58).

@@ -24,6 +24,7 @@ import (
 	"github.com/dpopsuev/djinn/driver"
 	troupedriver "github.com/dpopsuev/djinn/driver/troupe"
 	"github.com/dpopsuev/djinn/hotswap"
+	"github.com/dpopsuev/djinn/substrate"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/troupe/execution"
@@ -131,16 +132,15 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 		sess.History.Clear()
 	}
 
-	// Build tool registry.
-	registry := builtin.NewRegistry()
-	builtin.RegisterBuiltinTools(registry, ".", HomeDir())
+	// Substrate — composition root for backend services (GOL-159).
+	sub := substrate.New(workDir, substrate.DefaultServices()...)
 
 	log.Info("backend ready", "model", modelName, "driver", *driverName, "session", sess.Name)
 
 	// Run the backend loop — blocks until shell sends Quit or context cancels.
 	return hotswap.RunBackend(ctx, transport, hotswap.BackendConfig{
 		Driver:       chatDriver,
-		Tools:        registry,
+		Tools:        sub.Tools(),
 		Session:      sess,
 		SystemPrompt: assembledPrompt,
 		MaxTurns:     *maxTurns,
