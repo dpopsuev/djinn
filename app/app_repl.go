@@ -205,6 +205,9 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	log := telemetry.For(logResult.Logger, "app")
 	log.Info("session starting", "driver", driverConf.Name, "model", driverConf.Model, "mode", modeConf.Mode)
 
+	// Live model catalog discovery (GOL-162, TSK-1099).
+	_ = DiscoverModels(context.Background(), telemetry.For(logResult.Logger, "arsenal"))
+
 	// Auto-import Claude session for new empty sessions
 	if sess.History.Len() == 0 && ws.PrimaryPath() != "" {
 		home, _ := os.UserHomeDir()
@@ -247,7 +250,8 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	}
 
 	// Substrate — composition root for all node-local services (GOL-159, GOL-162).
-	sub := substrate.New(Getwd(), substrate.IntegrationServices(telemetry.For(logResult.Logger, "trace"))...)
+	eventLogPath := filepath.Join(HomeDir(), "events.jsonl")
+	sub := substrate.New(Getwd(), substrate.IntegrationServices(telemetry.For(logResult.Logger, "trace"), eventLogPath)...)
 	traceRing := sub.TraceProjection()
 	toolRecorder := sub.ToolRecorder()
 

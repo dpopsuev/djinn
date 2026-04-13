@@ -3,6 +3,8 @@ package substrate
 import (
 	"bytes"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -152,8 +154,25 @@ func TestSubstrate_WithHookDispatcher(t *testing.T) {
 	}
 }
 
+func TestSubstrate_IntegrationServices_Durable(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "events.jsonl")
+	sub := New(t.TempDir(), IntegrationServices(nil, logPath)...)
+
+	// Emit an event — should persist.
+	sub.EventLog().Emit(signal.Event{Kind: "test.durable", Source: "test"})
+
+	if sub.EventLog().Len() != 1 {
+		t.Fatalf("EventLog.Len = %d, want 1", sub.EventLog().Len())
+	}
+
+	// Verify file exists.
+	if _, err := os.Stat(logPath); err != nil {
+		t.Fatalf("event log file should exist: %v", err)
+	}
+}
+
 func TestSubstrate_IntegrationServices(t *testing.T) {
-	sub := New(t.TempDir(), IntegrationServices(nil)...)
+	sub := New(t.TempDir(), IntegrationServices(nil, "")...)
 
 	if sub.EventLog() == nil {
 		t.Error("EventLog nil")

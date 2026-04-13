@@ -18,6 +18,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/dpopsuev/djinn/cortex"
@@ -133,7 +134,8 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 	}
 
 	// Substrate — composition root for backend services (GOL-159, GOL-162).
-	sub := substrate.New(workDir, substrate.IntegrationServices(telemetry.For(log, "trace"))...)
+	eventLogPath := filepath.Join(HomeDir(), "events.jsonl")
+	sub := substrate.New(workDir, substrate.IntegrationServices(telemetry.For(log, "trace"), eventLogPath)...)
 
 	log.Info("backend ready", "model", modelName, "driver", *driverName, "session", sess.Name)
 

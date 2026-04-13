@@ -161,8 +161,11 @@ func DefaultServices() []Option {
 // IntegrationServices returns options for the full trace + recorder + director
 // stack (GOL-162). Builds on DefaultServices and adds TraceProjection,
 // ToolEventRecorder, and LocalDirector. Pass a logger for YELLOW summaries.
-func IntegrationServices(log *slog.Logger) []Option {
-	eventLog := signal.NewMemLog()
+// eventLogPath: when non-empty, uses DurableJSONLines (events survive restarts).
+// When empty, uses in-memory MemLog (tests, ephemeral sessions).
+func IntegrationServices(log *slog.Logger, eventLogPath string) []Option {
+	eventLog := createEventLog(eventLogPath, log)
+
 	ring := telemetry.NewTraceProjection(1000).WithEventLog(eventLog) //nolint:mnd // sensible default
 	if log != nil {
 		ring.WithLogger(log)
@@ -177,6 +180,29 @@ func IntegrationServices(log *slog.Logger) []Option {
 		WithToolRecorder(recorder),
 		WithDirector(dir),
 	}
+}
+
+// createEventLog builds the EventLog: durable if path is set, in-memory otherwise.
+func createEventLog(path string, log *slog.Logger) signal.EventLog {
+	if path == "" {
+		return signal.NewMemLog()
+	}
+	durable, err := signal.NewDurableJSONLines(path)
+	if err != nil {
+		if log != nil {
+			log.WarnContext(context.Background(), "durable event log failed, falling back to memory",
+				slog.String(telemetry.KeyPath, path),
+				slog.String(telemetry.KeyError, err.Error()),
+			)
+		}
+		return signal.NewMemLog()
+	}
+	if count, rErr := durable.Replay(); rErr == nil && log != nil && count > 0 {
+		log.InfoContext(context.Background(), "event log replayed",
+			slog.Int(telemetry.KeyCount, count),
+		)
+	}
+	return durable
 }
 
 // --- Substrate Interface ---
