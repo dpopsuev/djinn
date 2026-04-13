@@ -224,6 +224,9 @@ func (s *RealSubstrate) ToolRecorder() *ToolEventRecorder { return s.recorder }
 // HookDispatcher returns the unified hook runtime (nil if not configured).
 func (s *RealSubstrate) HookDispatcher() *hook.EventDispatcher { return s.dispatcher }
 
+// SetHookDispatcher sets the hook dispatcher after construction (late binding).
+func (s *RealSubstrate) SetHookDispatcher(d *hook.EventDispatcher) { s.dispatcher = d }
+
 func (s *RealSubstrate) Observe(_ context.Context, obs Observation) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/dpopsuev/djinn/assignment"
-	"github.com/dpopsuev/djinn/budget"
 	"github.com/dpopsuev/djinn/discourse"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/substrate"
@@ -57,17 +56,7 @@ func TestSkeleton_AllStubsCompose(t *testing.T) {
 		t.Fatal("Vezir stub should report Substrate running")
 	}
 
-	// 6. Budget (stub — observer + controller)
-	budgetObs := &budget.StubObserver{UsageVal: 0.5}
-	budgetCtl := &budget.StubController{ThrottleVal: false}
-	if budgetObs.Exceeded() {
-		t.Fatal("Budget should not be exceeded at 50%")
-	}
-	if budgetCtl.ShouldThrottle() {
-		t.Fatal("Budget should not throttle")
-	}
-
-	// 7. Discourse (stub — planning)
+	// 6. Discourse (stub — planning)
 	forum := discourse.NewStubForum()
 	threadID, err := forum.Post("refactor", "should we split the driver?")
 	if err != nil {

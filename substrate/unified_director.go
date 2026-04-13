@@ -222,6 +222,23 @@ func (d *UnifiedDirector) Direct(ctx context.Context, _ troupe.Broker) (<-chan t
 // Scheduler returns the underlying Scheduler for role lookup.
 func (d *UnifiedDirector) Scheduler() Scheduler { return d.scheduler }
 
+// --- Approval ---
+
+// ApprovalForMode returns the approval function for the given mode.
+// Auto mode auto-approves, agent mode blocks on channel, others deny.
+func ApprovalForMode(mode agent.Mode, ch chan bool) agent.ApprovalFunc {
+	switch mode {
+	case agent.ModeAuto:
+		return agent.AutoApprove
+	case agent.ModeAgent:
+		return func(_ driver.ToolCall) bool {
+			return <-ch
+		}
+	default:
+		return agent.DenyAll
+	}
+}
+
 // resolveTools returns the effective tool executor (router or raw tools).
 func (d *UnifiedDirector) resolveTools() builtin.ToolExecutor {
 	if d.router != nil {

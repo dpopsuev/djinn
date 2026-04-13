@@ -17,6 +17,7 @@ import (
 	"github.com/dpopsuev/djinn/artifact"
 	djinnconfig "github.com/dpopsuev/djinn/config"
 	"github.com/dpopsuev/djinn/cortex"
+	"github.com/dpopsuev/djinn/hook"
 	"github.com/dpopsuev/djinn/hotswap"
 	mcpPkg "github.com/dpopsuev/djinn/mcp"
 	mcpclient "github.com/dpopsuev/djinn/mcp/client"
@@ -254,6 +255,21 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	sub := substrate.New(Getwd(), substrate.IntegrationServices(telemetry.For(logResult.Logger, "trace"), eventLogPath)...)
 	traceRing := sub.TraceProjection()
 	toolRecorder := sub.ToolRecorder()
+
+	// Hook system — YAML-defined deterministic hooks (GOL-161).
+	hooksPath := filepath.Join(HomeDir(), "hooks.yaml")
+	if hooksData, hErr := os.ReadFile(hooksPath); hErr == nil {
+		hooksCfg, parseErr := hook.ParseHooks(hooksData)
+		if parseErr != nil {
+			log.WarnContext(context.Background(), "hooks.yaml parse error", slog.String(telemetry.KeyError, parseErr.Error()))
+		} else {
+			dispatcher := hook.New(hooksCfg.Hooks, sub.EventLog(),
+				hook.WithLogger(telemetry.For(logResult.Logger, "hook")),
+			)
+			sub.SetHookDispatcher(dispatcher)
+			log.InfoContext(context.Background(), "hooks loaded", slog.Int(telemetry.KeyCount, len(hooksCfg.Hooks)))
+		}
+	}
 
 	// Hub mediators — DevOps phase coordination (GOL-58).
 	hubRegistry := substrate.NewRegistry()
