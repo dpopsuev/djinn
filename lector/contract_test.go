@@ -1,6 +1,10 @@
 package lector
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 // RunLectorContract runs the Liskov contract test suite against any Lector.
 func RunLectorContract(t *testing.T, factory func(t *testing.T) Lector) {
@@ -89,6 +93,66 @@ func TestStubLector_Contract(t *testing.T) {
 		})
 		return s
 	})
+}
+
+// --- Run contract against RealLector ---
+
+func TestRealLector_Contract(t *testing.T) {
+	RunLectorContract(t, func(t *testing.T) Lector {
+		t.Helper()
+		dir := t.TempDir()
+		goFile := filepath.Join(dir, "main.go")
+		if err := os.WriteFile(goFile, []byte("package main\n\nfunc Foo() {}\nfunc bar() {}\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		l := NewRealLector(dir, nil)
+		l.OnFileRead(goFile)
+		return l
+	})
+}
+
+func TestRealLector_IndexesGoSymbols(t *testing.T) {
+	dir := t.TempDir()
+	goFile := filepath.Join(dir, "handler.go")
+	code := "package auth\n\ntype Handler struct{}\n\nfunc NewHandler() *Handler { return &Handler{} }\n"
+	if err := os.WriteFile(goFile, []byte(code), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	l := NewRealLector(dir, nil)
+	l.OnFileRead(goFile)
+
+	syms := l.SymbolsForFile(goFile)
+	if len(syms) == 0 {
+		t.Fatal("expected symbols from Go file")
+	}
+
+	var foundHandler bool
+	for _, s := range syms {
+		if s.Name == "Handler" {
+			foundHandler = true
+		}
+	}
+	if !foundHandler {
+		t.Errorf("expected Handler symbol, got: %v", syms)
+	}
+}
+
+func TestRealLector_FuzzySymbolSearch(t *testing.T) {
+	dir := t.TempDir()
+	goFile := filepath.Join(dir, "types.go")
+	code := "package main\n\ntype ValidateToken struct{}\ntype ValidateSession struct{}\ntype HandleAuth struct{}\n"
+	if err := os.WriteFile(goFile, []byte(code), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	l := NewRealLector(dir, nil)
+	l.OnFileRead(goFile)
+
+	results := l.FuzzySymbols("validate")
+	if len(results) < 2 {
+		t.Fatalf("expected >=2 matches for 'validate', got %d: %v", len(results), results)
+	}
 }
 
 // --- Fuzzy search specific tests ---

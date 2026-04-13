@@ -11,6 +11,7 @@ require (
 	github.com/dpopsuev/battery v0.6.0
 	github.com/dpopsuev/mirage v0.3.0
 	github.com/dpopsuev/misbah v0.15.0
+	github.com/dpopsuev/oculus v0.0.0
 	github.com/dpopsuev/parchment v0.2.0
 	github.com/dpopsuev/troupe v0.10.0
 	github.com/mozilla-ai/any-llm-go v0.9.0
@@ -43,6 +44,7 @@ require (
 	github.com/openai/openai-go v1.12.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
@@ -54,8 +56,11 @@ require (
 	go.opentelemetry.io/otel v1.39.0 // indirect
 	go.opentelemetry.io/otel/metric v1.39.0 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
-	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/crypto v0.48.0 // indirect
+	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/tools v0.42.0 // indirect
+	gonum.org/v1/gonum v0.17.0 // indirect
 	google.golang.org/api v0.197.0 // indirect
 	google.golang.org/genai v1.49.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
@@ -100,16 +105,18 @@ require (
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/yuin/goldmark v1.7.13 // indirect
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
-	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/net v0.50.0 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/term v0.38.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/term v0.40.0 // indirect
+	golang.org/x/text v0.34.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 )
 
 replace github.com/dpopsuev/battery => ../battery
 
 replace github.com/dpopsuev/mirage => ../mirage
+
+replace github.com/dpopsuev/oculus => ../oculus
 
 replace github.com/dpopsuev/troupe => ../troupe
