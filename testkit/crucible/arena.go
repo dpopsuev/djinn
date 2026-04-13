@@ -15,6 +15,10 @@ import (
 
 // Referee verifies a scenario's acceptance criteria against a built project.
 // Deterministic — no LLM in the referee, only programmatic checks.
+//
+// For event-driven scoring during a run, use referee.Referee (GOL-164).
+// This interface remains valid for post-run workspace verification.
+// Bridge via referee.EmitWorkspaceResult() to feed results into the scorecard.
 type Referee interface {
 	Check(ctx context.Context, scenarioID, projectPath string) (CheckResult, error)
 }
