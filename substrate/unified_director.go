@@ -10,6 +10,8 @@ package substrate
 import (
 	"context"
 	"log/slog"
+	"os/exec"
+	"strings"
 
 	troupe "github.com/dpopsuev/troupe"
 	"github.com/dpopsuev/troupe/director"
@@ -178,6 +180,25 @@ func (d *UnifiedDirector) Run(ctx context.Context, prompt string, mode agent.Mod
 	}
 
 	return output, err
+}
+
+// --- Shell execution ---
+
+// RunShell executes a shell command, routing through sandbox if needed.
+func (d *UnifiedDirector) RunShell(ctx context.Context, cmd, workDir, currentRole string) (string, error) {
+	if d.sandboxExec != nil && currentRole != "gensec" {
+		stdout, stderr, err := d.sandboxExec(ctx, strings.Fields(cmd))
+		output := stdout
+		if stderr != "" {
+			output += "\n" + stderr
+		}
+		return output, err
+	}
+
+	execCmd := exec.CommandContext(ctx, "bash", "-c", cmd) //nolint:gosec // operator-initiated shell commands
+	execCmd.Dir = workDir
+	out, err := execCmd.CombinedOutput()
+	return string(out), err
 }
 
 // --- troupe/director.Director interface ---

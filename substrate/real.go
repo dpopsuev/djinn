@@ -20,7 +20,6 @@ import (
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/vessel"
-	"github.com/dpopsuev/troupe/director"
 	"github.com/dpopsuev/troupe/signal"
 )
 
@@ -37,8 +36,8 @@ type RealSubstrate struct {
 	l2       djinncache.Cache
 	log      *slog.Logger
 
-	// Orchestration (GOL-162).
-	director   director.Director          // troupe Director interface — LocalDirector or external
+	// Orchestration (GOL-162, GOL-163).
+	scheduler  Scheduler                  // role routing: signal → next role
 	ring       *telemetry.TraceProjection // trace ring with TraceID propagation
 	recorder   *ToolEventRecorder         // bridges tool calls → EventLog
 	dispatcher *hook.EventDispatcher      // unified hook runtime (GOL-161)
@@ -76,8 +75,8 @@ func New(workDir string, opts ...Option) *RealSubstrate {
 	}
 
 	// ORANGE: warn about missing integration wiring (GOL-162).
-	if s.director == nil {
-		s.log.WarnContext(context.Background(), "substrate: no Director configured — orchestration unavailable",
+	if s.scheduler == nil {
+		s.log.WarnContext(context.Background(), "substrate: no Scheduler configured — role routing unavailable",
 			slog.String(telemetry.KeyComponent, "substrate"),
 		)
 	}
@@ -122,10 +121,9 @@ func WithSubstrateLogger(l *slog.Logger) Option {
 	return func(s *RealSubstrate) { s.log = l }
 }
 
-// WithDirector sets the orchestration Director (troupe/director.Director).
-// LocalDirector for built-in pipeline, CircuitDirector for Origami, etc.
-func WithDirector(d director.Director) Option {
-	return func(s *RealSubstrate) { s.director = d }
+// WithScheduler sets the role routing function (signal → next role).
+func WithScheduler(sched Scheduler) Option {
+	return func(s *RealSubstrate) { s.scheduler = sched }
 }
 
 // WithTraceProjection sets the trace ring with EventLog bridge and TraceID propagation.
@@ -171,14 +169,13 @@ func IntegrationServices(log *slog.Logger, eventLogPath string) []Option {
 		ring.WithLogger(log)
 	}
 	recorder := NewToolEventRecorder(eventLog, ring.TraceID)
-	dir := NewLocalDirector(DefaultScheduler())
 
 	return []Option{
 		WithEventLog(eventLog),
 		WithL2Cache(djinncache.NewMemCache()),
 		WithTraceProjection(ring),
 		WithToolRecorder(recorder),
-		WithDirector(dir),
+		WithScheduler(DefaultScheduler()),
 	}
 }
 
@@ -215,8 +212,8 @@ func (s *RealSubstrate) L2() djinncache.Cache           { return s.l2 }
 // WorkDir returns the workspace directory.
 func (s *RealSubstrate) WorkDir() string { return s.workDir }
 
-// Director returns the orchestration Director (nil if not configured).
-func (s *RealSubstrate) Director() director.Director { return s.director }
+// Scheduler returns the role routing function (nil if not configured).
+func (s *RealSubstrate) SchedulerRef() Scheduler { return s.scheduler }
 
 // TraceProjection returns the trace ring (nil if not configured).
 func (s *RealSubstrate) TraceProjection() *telemetry.TraceProjection { return s.ring }

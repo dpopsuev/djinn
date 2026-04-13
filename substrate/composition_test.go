@@ -10,23 +10,18 @@ import (
 
 	"github.com/dpopsuev/djinn/hook"
 	"github.com/dpopsuev/djinn/telemetry"
-	"github.com/dpopsuev/troupe/director"
 	"github.com/dpopsuev/troupe/signal"
 )
 
-// Contract: Substrate.New composes Director + Recorder + TraceProjection
-// through a single functional options call. GOL-162, TSK-1078.
+// Contract: Substrate.New composes Scheduler + Recorder + TraceProjection
+// through a single functional options call. GOL-162, TSK-1078, GOL-163.
 
-func TestSubstrate_WithDirector(t *testing.T) {
-	dir := NewLocalDirector(DefaultScheduler())
-	sub := New(t.TempDir(), WithDirector(dir))
+func TestSubstrate_WithScheduler(t *testing.T) {
+	sub := New(t.TempDir(), WithScheduler(DefaultScheduler()))
 
-	if sub.Director() == nil {
-		t.Fatal("Director() should not be nil after WithDirector")
+	if sub.SchedulerRef() == nil {
+		t.Fatal("SchedulerRef() should not be nil after WithScheduler")
 	}
-
-	// Director satisfies troupe interface.
-	var _ director.Director = sub.Director()
 }
 
 func TestSubstrate_WithToolRecorder(t *testing.T) {
@@ -59,12 +54,11 @@ func TestSubstrate_CompositionRoot_AllWired(t *testing.T) {
 	eventLog := signal.NewMemLog()
 	ring := telemetry.NewTraceProjection(100).WithEventLog(eventLog)
 	ring.SetTraceID("intent-123")
-	dir := NewLocalDirector(DefaultScheduler())
 	rec := NewToolEventRecorder(eventLog, ring.TraceID)
 
 	sub := New(t.TempDir(),
 		WithEventLog(eventLog),
-		WithDirector(dir),
+		WithScheduler(DefaultScheduler()),
 		WithTraceProjection(ring),
 		WithToolRecorder(rec),
 	)
@@ -73,8 +67,8 @@ func TestSubstrate_CompositionRoot_AllWired(t *testing.T) {
 	if sub.EventLog() == nil {
 		t.Error("EventLog nil")
 	}
-	if sub.Director() == nil {
-		t.Error("Director nil")
+	if sub.SchedulerRef() == nil {
+		t.Error("Scheduler nil")
 	}
 	if sub.TraceProjection() == nil {
 		t.Error("TraceProjection nil")
@@ -103,8 +97,8 @@ func TestSubstrate_WarnsOnMissingIntegration(t *testing.T) {
 	_ = New(t.TempDir(), WithSubstrateLogger(logger))
 
 	output := buf.String()
-	if !strings.Contains(output, "no Director configured") {
-		t.Error("expected Director warning in log output")
+	if !strings.Contains(output, "no Scheduler configured") {
+		t.Error("expected Scheduler warning in log output")
 	}
 	if !strings.Contains(output, "no ToolRecorder configured") {
 		t.Error("expected ToolRecorder warning in log output")
@@ -122,18 +116,16 @@ func TestSubstrate_NoWarnings_WhenFullyWired(t *testing.T) {
 	eventLog := signal.NewMemLog()
 	ring := telemetry.NewTraceProjection(100).WithEventLog(eventLog)
 	rec := NewToolEventRecorder(eventLog, nil)
-	dir := NewLocalDirector(DefaultScheduler())
-
 	_ = New(t.TempDir(),
 		WithSubstrateLogger(logger),
 		WithEventLog(eventLog),
-		WithDirector(dir),
+		WithScheduler(DefaultScheduler()),
 		WithTraceProjection(ring),
 		WithToolRecorder(rec),
 	)
 
 	output := buf.String()
-	if strings.Contains(output, "no Director") || strings.Contains(output, "no ToolRecorder") || strings.Contains(output, "no TraceProjection") {
+	if strings.Contains(output, "no Scheduler") || strings.Contains(output, "no ToolRecorder") || strings.Contains(output, "no TraceProjection") {
 		t.Errorf("expected no warnings when fully wired, got: %s", output)
 	}
 }
@@ -177,8 +169,8 @@ func TestSubstrate_IntegrationServices(t *testing.T) {
 	if sub.EventLog() == nil {
 		t.Error("EventLog nil")
 	}
-	if sub.Director() == nil {
-		t.Error("Director nil")
+	if sub.SchedulerRef() == nil {
+		t.Error("Scheduler nil")
 	}
 	if sub.TraceProjection() == nil {
 		t.Error("TraceProjection nil")
@@ -195,13 +187,12 @@ func TestSubstrate_IntegrationServices(t *testing.T) {
 	sub.TraceProjection().SetTraceID("")
 }
 
-func TestSubstrate_Defaults_NilDirector(t *testing.T) {
-	// Without WithDirector, Director() returns nil. Not an error — REPL
-	// creates the director in its own composition root.
+func TestSubstrate_Defaults_NilScheduler(t *testing.T) {
+	// Without WithScheduler, SchedulerRef() returns nil.
 	sub := New(t.TempDir(), DefaultServices()...)
 
-	if sub.Director() != nil {
-		t.Error("Director should be nil without WithDirector")
+	if sub.SchedulerRef() != nil {
+		t.Error("Scheduler should be nil without WithScheduler")
 	}
 	if sub.TraceProjection() != nil {
 		t.Error("TraceProjection should be nil without WithTraceProjection")

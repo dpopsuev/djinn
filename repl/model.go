@@ -158,7 +158,7 @@ type Model struct {
 	sandboxLevel   string
 
 	// Orchestrator — agent lifecycle, separated from TUI.
-	runner *substrate.AgentRunner
+	runner *substrate.UnifiedDirector
 }
 
 // NewModel creates a new REPL model.
@@ -229,20 +229,17 @@ func NewModel(cfg Config) Model { //nolint:gocritic // Config is a value type us
 		term:           terminal.NewDjinn(),
 	}
 
-	m.runner = &substrate.AgentRunner{
-		Driver:        cfg.Driver,
-		Tools:         cfg.Tools,
-		Envelope:      cfg.Envelope,
-		Session:       cfg.Session,
-		SystemPrompt:  cfg.SystemPrompt,
-		MaxTurns:      cfg.MaxTurns,
-		Enforcer:      cfg.Enforcer,
-		Token:         cfg.Token,
-		Router:        cfg.Router,
-		Log:           log,
-		SandboxHandle: cfg.SandboxHandle,
-		SandboxExec:   cfg.SandboxExec,
-	}
+	m.runner = substrate.NewUnifiedDirector(cfg.Driver, cfg.Tools,
+		substrate.WithEnvelope(cfg.Envelope),
+		substrate.WithSession(cfg.Session),
+		substrate.WithSystemPrompt(cfg.SystemPrompt),
+		substrate.WithMaxTurns(cfg.MaxTurns),
+		substrate.WithPolicies(cfg.Enforcer, cfg.Token),
+		substrate.WithToolRouter(cfg.Router),
+		substrate.WithDirectorLogger(log),
+		substrate.WithSandbox(cfg.SandboxHandle, cfg.SandboxExec),
+		substrate.WithSchedulerForDirector(substrate.DefaultScheduler()),
+	)
 
 	// Use driver's context window for the monitor if available.
 	m.monitor = cortex.NewContextMonitor(cortex.WithContextSizer(m.chatDriver))
@@ -783,7 +780,7 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 	ch := m.approvalCh
 	role := m.currentRole
 	return func() tea.Msg {
-		result, err := m.runner.RunAgent(m.ctx, prompt, mode, ch, globalHandler, role)
+		result, err := m.runner.Run(m.ctx, prompt, mode, ch, globalHandler, role)
 		return tui.AgentDoneMsg{Result: result, Err: err}
 	}
 }

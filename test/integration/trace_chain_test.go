@@ -23,7 +23,7 @@ import (
 //   - Djinn TraceProjection (ring → EventLog bridge)
 //   - MetricsHandler (cognitive events: Think, Decide, GiveUp)
 //   - ToolEventRecorder (tool.executed events)
-//   - LocalDirector (troupe/director.Director interface)
+//   - Director lifecycle events (simulated)
 //
 // LLM is not involved — this tests the plumbing, not the model.
 func TestTraceChain_ByTraceID_ReturnsFullStory(t *testing.T) {
@@ -46,25 +46,15 @@ func TestTraceChain_ByTraceID_ReturnsFullStory(t *testing.T) {
 	recorder := substrate.NewToolEventRecorder(eventLog, ring.TraceID)
 	middleware.SetDefaultRecorder(recorder)
 
-	// LocalDirector — Troupe Director interface.
-	director := substrate.NewLocalDirector(substrate.DefaultScheduler())
-
 	// --- Act: simulate the agent loop ---
 
-	// 1. Director starts orchestration.
-	ch, err := director.Direct(context.Background(), nil)
-	if err != nil {
-		t.Fatalf("Director.Direct: %v", err)
-	}
-	// Drain director events (LocalDirector emits Started then closes).
-	for e := range ch {
-		eventLog.Emit(signal.Event{
-			TraceID: traceID,
-			Source:  "director",
-			Kind:    string(e.Kind),
-			Data:    e.Step,
-		})
-	}
+	// 1. Director starts orchestration (simulated lifecycle event).
+	eventLog.Emit(signal.Event{
+		TraceID: traceID,
+		Source:  "director",
+		Kind:    "started",
+		Data:    "unified-director",
+	})
 
 	// 2. Agent thinks about the problem.
 	handler.StartTurn()

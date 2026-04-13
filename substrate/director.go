@@ -1,55 +1,21 @@
-// director.go — LocalDirector implements troupe/director.Director
-// using config-driven transitions. The Origami seam.
+// director.go — Scheduler: config-driven role routing.
 //
-// LocalDirector is Djinn's built-in orchestrator: linear pipeline,
-// YAML-driven transitions, zero LLM cost for role routing.
-// Origami provides CircuitDirector for graph-based orchestration.
-// Both satisfy the same interface — swap at composition root.
+// Scheduler is a pure function: signal + currentRole → nextRole.
+// Reads from a YAML-driven transition table. No LLM, no lifecycle.
 //
-// DJN-TSK-1059
+// UnifiedDirector (unified_director.go) uses Scheduler for role routing
+// and adds full agent orchestration (Run, Direct, sandbox, policies).
+//
+// DJN-TSK-1059, GOL-163
 package substrate
 
-import (
-	"context"
-
-	troupe "github.com/dpopsuev/troupe"
-	"github.com/dpopsuev/troupe/director"
-
-	"github.com/dpopsuev/djinn/uniform"
-)
-
-var _ director.Director = (*LocalDirector)(nil)
+import "github.com/dpopsuev/djinn/uniform"
 
 // Scheduler resolves the next role for a given signal.
 // Extracted interface so external orchestrators (Origami) can plug in.
 type Scheduler interface {
 	NextRole(signal uniform.Signal, currentRole string) string
 }
-
-// LocalDirector is Djinn's built-in Director. Linear pipeline
-// driven by a config transition table. Implements troupe director.Director.
-type LocalDirector struct {
-	scheduler Scheduler
-}
-
-// NewLocalDirector creates a Director backed by the given Scheduler.
-func NewLocalDirector(s Scheduler) *LocalDirector {
-	return &LocalDirector{scheduler: s}
-}
-
-// Direct executes the orchestration plan. For LocalDirector this is
-// event-driven — it emits a single uniform.Transition event per signal.
-// The REPL drives the loop; Direct provides the contract.
-func (d *LocalDirector) Direct(ctx context.Context, broker troupe.Broker) (<-chan troupe.Event, error) {
-	ch := make(chan troupe.Event, 1)
-	ch <- troupe.Event{Kind: troupe.Started, Step: "local-director"}
-	close(ch)
-	return ch, nil
-}
-
-// Scheduler returns the underlying Scheduler for direct lookup.
-// Used by repl/model.go for synchronous NextRole calls.
-func (d *LocalDirector) Scheduler() Scheduler { return d.scheduler }
 
 // TransitionScheduler implements Scheduler using a config-driven transition table.
 type TransitionScheduler struct {

@@ -1,12 +1,9 @@
 package substrate
 
 import (
-	"context"
 	"testing"
 
 	"github.com/dpopsuev/djinn/uniform"
-
-	troupe "github.com/dpopsuev/troupe"
 )
 
 func TestTransitionScheduler_DefaultPipeline(t *testing.T) {
@@ -72,40 +69,7 @@ func TestTransitionScheduler_UnknownSignalFallback(t *testing.T) {
 	}
 }
 
-func TestLocalDirector_ImplementsDirector(t *testing.T) {
-	d := NewLocalDirector(DefaultScheduler())
-	ch, err := d.Direct(context.Background(), nil)
-	if err != nil {
-		t.Fatalf("Direct: %v", err)
-	}
-
-	var events []troupe.Event
-	for ev := range ch {
-		events = append(events, ev)
-	}
-	if len(events) == 0 {
-		t.Fatal("expected at least one event")
-	}
-	if events[0].Kind != troupe.Started {
-		t.Fatalf("first event kind = %q, want started", events[0].Kind)
-	}
-}
-
-func TestLocalDirector_SchedulerAccessor(t *testing.T) {
-	s := DefaultScheduler()
-	d := NewLocalDirector(s)
-
-	if d.Scheduler() != s {
-		t.Fatal("Scheduler() should return the underlying scheduler")
-	}
-
-	got := d.Scheduler().NextRole(uniform.SignalGatePassed, "executor")
-	if got != "inspector" {
-		t.Fatalf("via accessor: got %q, want inspector", got)
-	}
-}
-
-// stubScheduler verifies the interface is swappable.
+// stubScheduler verifies the Scheduler interface is swappable.
 type stubScheduler struct {
 	called bool
 	result string
@@ -116,11 +80,10 @@ func (s *stubScheduler) NextRole(_ uniform.Signal, _ string) string {
 	return s.result
 }
 
-func TestLocalDirector_CustomScheduler(t *testing.T) {
+func TestTransitionScheduler_CustomSchedulerInterface(t *testing.T) {
 	stub := &stubScheduler{result: "custom-role"}
-	d := NewLocalDirector(stub)
 
-	got := d.Scheduler().NextRole(uniform.SignalTasksPlanned, "gensec")
+	got := stub.NextRole(uniform.SignalTasksPlanned, "gensec")
 	if got != "custom-role" {
 		t.Fatalf("custom scheduler: got %q, want custom-role", got)
 	}
