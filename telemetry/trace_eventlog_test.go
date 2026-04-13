@@ -106,5 +106,61 @@ func TestRing_EventLogConcurrent(t *testing.T) {
 	}
 }
 
+func TestRing_TraceID_Propagation(t *testing.T) {
+	log := testkit.NewStubEventLog()
+	ring := NewTraceProjection(100).WithEventLog(log)
+
+	// Set intent-level trace ID.
+	ring.SetTraceID("intent-42")
+
+	ring.Append(TraceEvent{Component: ComponentAgent, Action: "turn", Detail: "first"})
+	ring.Append(TraceEvent{Component: ComponentTool, Action: "call", Detail: "second"})
+
+	// Explicit TraceID overrides inherited.
+	ring.Append(TraceEvent{TraceID: "other-trace", Component: ComponentMCP, Action: "call", Detail: "third"})
+
+	events := log.Since(0)
+	if len(events) != 3 {
+		t.Fatalf("events = %d, want 3", len(events))
+	}
+
+	// First two inherit from ring.
+	if events[0].TraceID != "intent-42" {
+		t.Errorf("events[0].TraceID = %q, want intent-42", events[0].TraceID)
+	}
+	if events[1].TraceID != "intent-42" {
+		t.Errorf("events[1].TraceID = %q, want intent-42", events[1].TraceID)
+	}
+	// Third has explicit override.
+	if events[2].TraceID != "other-trace" {
+		t.Errorf("events[2].TraceID = %q, want other-trace", events[2].TraceID)
+	}
+
+	// TraceEvent Data also carries it.
+	te, ok := events[0].Data.(TraceEvent)
+	if !ok {
+		t.Fatalf("Data is %T, want TraceEvent", events[0].Data)
+	}
+	if te.TraceID != "intent-42" {
+		t.Errorf("TraceEvent.TraceID = %q, want intent-42", te.TraceID)
+	}
+
+	// Verify TraceID accessor.
+	if ring.TraceID() != "intent-42" {
+		t.Errorf("TraceID() = %q, want intent-42", ring.TraceID())
+	}
+
+	// Clear trace ID.
+	ring.SetTraceID("")
+	ring.Append(TraceEvent{Component: ComponentAgent, Action: "idle", Detail: "fourth"})
+	events = log.Since(3)
+	if len(events) != 1 {
+		t.Fatalf("events after clear = %d, want 1", len(events))
+	}
+	if events[0].TraceID != "" {
+		t.Errorf("events[3].TraceID = %q, want empty after clear", events[0].TraceID)
+	}
+}
+
 // Ring is NOT an EventLog — it's a CQRS projection (bounded read model).
 // EventLog is the write side. Ring bridges TO it via WithEventLog.

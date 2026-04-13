@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/agent/symbol"
 	"github.com/dpopsuev/djinn/artifact"
@@ -253,6 +254,10 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	eventLog := sub.EventLog()
 	traceRing := telemetry.NewTraceProjection(1000).WithEventLog(eventLog) //nolint:mnd // 1000 events is a sensible default
 
+	// Default tool recorder — bridges Battery Recorder to Troupe EventLog (GOL-162).
+	toolRecorder := substrate.NewToolEventRecorder(eventLog, traceRing.TraceID)
+	middleware.SetDefaultRecorder(toolRecorder)
+
 	// Hub mediators — DevOps phase coordination (GOL-58).
 	hubRegistry := substrate.NewRegistry()
 	hubCore := substrate.HubCore{
@@ -385,6 +390,7 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		WithGates(agent.SecurityBundle(enforcer, capToken)...).
 		WithEnrichers(agent.EnrichmentBundle(symbolPopulator)...).
 		WithRecorders(agent.ObservabilityBundle(wasteClassifier)...).
+		WithRecorder(toolRecorder).
 		Build()
 	if envelopeErr != nil {
 		return fmt.Errorf("build envelope: %w", envelopeErr)

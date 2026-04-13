@@ -145,6 +145,36 @@ func TestEventLogObserver_Health_StuckAgent(t *testing.T) {
 	}
 }
 
+func TestEventLogObserver_Trace_FilterByTraceID(t *testing.T) {
+	log := signal.NewMemLog()
+	log.Emit(signal.Event{TraceID: "tr-1", Source: "agent", Kind: "turn", Data: "a"})
+	log.Emit(signal.Event{TraceID: "tr-2", Source: "tool", Kind: "call", Data: "b"})
+	log.Emit(signal.Event{TraceID: "tr-1", Source: "tool", Kind: "call", Data: "c"})
+	log.Emit(signal.Event{Source: "mcp", Kind: "call", Data: "no trace"})
+
+	obs := NewEventLogObserver(log)
+
+	// Filter by trace ID.
+	lines, err := obs.Trace(TraceOpts{TraceID: "tr-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 lines for tr-1, got %d", len(lines))
+	}
+	for _, l := range lines {
+		if l.TraceID != "tr-1" {
+			t.Errorf("line.TraceID = %q, want tr-1", l.TraceID)
+		}
+	}
+
+	// No filter returns all.
+	all, _ := obs.Trace(TraceOpts{})
+	if len(all) != 4 {
+		t.Fatalf("expected 4 total lines, got %d", len(all))
+	}
+}
+
 func TestEventLogObserver_Health_Empty(t *testing.T) {
 	obs := NewEventLogObserver(signal.NewMemLog())
 	report, err := obs.Health()

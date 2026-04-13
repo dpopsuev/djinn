@@ -57,11 +57,17 @@ func (o *EventLogObserver) Trace(opts TraceOpts) ([]TraceLine, error) {
 			continue
 		}
 
+		// Filter by trace ID.
+		if opts.TraceID != "" && e.TraceID != opts.TraceID {
+			continue
+		}
+
 		line := TraceLine{
 			Timestamp: e.Timestamp,
 			Source:    e.Source,
 			Kind:      e.Kind,
 			Summary:   formatSummary(e),
+			TraceID:   e.TraceID,
 		}
 
 		// Extract duration from TraceEvent data if present.

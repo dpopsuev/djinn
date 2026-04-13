@@ -16,6 +16,7 @@ import (
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools"
 	"github.com/dpopsuev/djinn/uniform/quality"
+	"github.com/dpopsuev/troupe/signal"
 )
 
 // MetricsHandler bridges agent loop events into the uniform pipeline.
@@ -27,6 +28,10 @@ type MetricsHandler struct {
 	cordon  quality.CordonConfig
 	bus     *telemetry.SignalBus
 	latency *tools.ToolLatencyTracker
+
+	// Cognitive event emission (GOL-162).
+	eventLog  signal.EventLog // optional: emit cognitive events
+	traceFunc func() string   // returns current trace ID
 
 	// Per-turn state
 	turnStart time.Time
@@ -53,6 +58,25 @@ func NewMetricsHandler(
 	}
 }
 
+// WithCognitiveEvents enables cognitive event emission to the EventLog.
+// traceFunc returns the current intent-level trace ID (may return "").
+func (h *MetricsHandler) WithCognitiveEvents(log signal.EventLog, traceFunc func() string) *MetricsHandler {
+	h.eventLog = log
+	h.traceFunc = traceFunc
+	return h
+}
+
+func (h *MetricsHandler) traceID() string {
+	if h.traceFunc != nil {
+		return h.traceFunc()
+	}
+	return ""
+}
+
+func (h *MetricsHandler) source() string {
+	return h.metrics.AgentID
+}
+
 func (h *MetricsHandler) OnText(_ string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -62,14 +86,21 @@ func (h *MetricsHandler) OnText(_ string) {
 	}
 }
 
-func (h *MetricsHandler) OnThinking(_ string) {}
+func (h *MetricsHandler) OnThinking(text string) {
+	if h.eventLog != nil {
+		h.eventLog.Emit(signal.Think(h.traceID(), h.source(), text))
+	}
+}
 
-func (h *MetricsHandler) OnToolCall(_ driver.ToolCall) {
+func (h *MetricsHandler) OnToolCall(call driver.ToolCall) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if !h.gotFirst {
 		h.ttft = time.Since(h.turnStart)
 		h.gotFirst = true
+	}
+	if h.eventLog != nil {
+		h.eventLog.Emit(signal.Decide(h.traceID(), h.source(), call.Name))
 	}
 }
 
@@ -140,6 +171,9 @@ func (h *MetricsHandler) OnError(err error) {
 		Category: telemetry.CategoryLifecycle,
 		Message:  "agent error: " + err.Error(),
 	})
+	if h.eventLog != nil {
+		h.eventLog.Emit(signal.GiveUp(h.traceID(), h.source(), err.Error()))
+	}
 }
 
 // StartTurn marks the beginning of a new agent turn.

@@ -23,6 +23,7 @@ const (
 type TraceEvent struct {
 	ID        string            `json:"id"`                  // unique: trace-1, trace-2, ...
 	ParentID  string            `json:"parent_id,omitempty"` // round-trip correlation
+	TraceID   string            `json:"trace_id,omitempty"`  // intent-level correlation (GOL-162)
 	Timestamp time.Time         `json:"ts"`
 	Component Component         `json:"component"`
 	Action    string            `json:"action"`           // call, result, emit, prompt, response, claim

@@ -20,6 +20,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/driver"
 	troupedriver "github.com/dpopsuev/djinn/driver/troupe"
@@ -134,6 +135,9 @@ func RunBackendCmd(args []string, stderr io.Writer) error {
 
 	// Substrate — composition root for backend services (GOL-159).
 	sub := substrate.New(workDir, substrate.DefaultServices()...)
+
+	// Default tool recorder — bridges Battery Recorder to Troupe EventLog (GOL-162).
+	middleware.SetDefaultRecorder(substrate.NewToolEventRecorder(sub.EventLog(), nil))
 
 	log.Info("backend ready", "model", modelName, "driver", *driverName, "session", sess.Name)
 

@@ -61,6 +61,17 @@ func (s *StubObserver) Trace(opts TraceOpts) ([]TraceLine, error) {
 		result = filtered
 	}
 
+	// Filter by trace ID.
+	if opts.TraceID != "" {
+		var filtered []TraceLine
+		for _, t := range result {
+			if t.TraceID == opts.TraceID {
+				filtered = append(filtered, t)
+			}
+		}
+		result = filtered
+	}
+
 	// Limit to last N.
 	last := opts.Last
 	if last <= 0 {

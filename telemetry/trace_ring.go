@@ -24,6 +24,7 @@ type TraceProjection struct {
 	pos      int
 	count    int
 	nextID   atomic.Int64
+	traceID  string          // current intent-level trace ID (GOL-162)
 	eventLog signal.EventLog // optional: unified event log bridge
 }
 
@@ -42,7 +43,23 @@ func (r *TraceProjection) WithEventLog(log signal.EventLog) *TraceProjection {
 	return r
 }
 
+// SetTraceID sets the intent-level trace ID for all subsequent events.
+// Call when a new operator prompt arrives. Pass "" to clear.
+func (r *TraceProjection) SetTraceID(traceID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.traceID = traceID
+}
+
+// TraceID returns the current intent-level trace ID.
+func (r *TraceProjection) TraceID() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.traceID
+}
+
 // Append adds an event to the ring, assigning an ID and timestamp.
+// If the event has no TraceID, inherits the current one from SetTraceID.
 // Returns the assigned event ID.
 func (r *TraceProjection) Append(e TraceEvent) string {
 	id := r.nextID.Add(1)
@@ -52,6 +69,10 @@ func (r *TraceProjection) Append(e TraceEvent) string {
 	}
 
 	r.mu.Lock()
+	// Inherit trace ID if not explicitly set.
+	if e.TraceID == "" && r.traceID != "" {
+		e.TraceID = r.traceID
+	}
 	r.events[r.pos] = e
 	r.pos = (r.pos + 1) % r.cap
 	if r.count < r.cap {
@@ -170,6 +191,7 @@ func traceToEvent(te TraceEvent) signal.Event {
 	return signal.Event{
 		ID:        te.ID,
 		ParentID:  te.ParentID,
+		TraceID:   te.TraceID,
 		Timestamp: te.Timestamp,
 		Source:    string(te.Component),
 		Kind:      te.Action,

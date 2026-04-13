@@ -13,6 +13,7 @@ type TraceLine struct {
 	Kind      string    // event kind (tool_call, agent_turn, error, etc.)
 	Summary   string    // human-readable one-liner
 	Duration  int64     // milliseconds (0 if not applicable)
+	TraceID   string    // intent-level correlation (GOL-162)
 }
 
 // HealthReport summarizes system health across all agents.
@@ -26,9 +27,10 @@ type HealthReport struct {
 
 // TraceOpts controls what Trace returns.
 type TraceOpts struct {
-	Last   int    // return last N events (default 50)
-	Kind   string // filter by event kind (empty = all)
-	Source string // filter by agent/component (empty = all)
+	Last    int    // return last N events (default 50)
+	Kind    string // filter by event kind (empty = all)
+	Source  string // filter by agent/component (empty = all)
+	TraceID string // filter by intent-level trace ID (empty = all)
 }
 
 // Observer is the introspection interface. Implementations query EventLog

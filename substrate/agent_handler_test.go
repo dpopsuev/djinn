@@ -11,6 +11,7 @@ import (
 	"github.com/dpopsuev/djinn/tools"
 	"github.com/dpopsuev/djinn/uniform/control"
 	"github.com/dpopsuev/djinn/uniform/quality"
+	"github.com/dpopsuev/troupe/signal"
 )
 
 func TestMetricsHandler_RecordsRoundTrips(t *testing.T) {
@@ -142,6 +143,69 @@ func TestMetricsHandler_ErrorEmitsRedSignal(t *testing.T) {
 	if signals[0].Level != telemetry.Red {
 		t.Fatalf("level = %v, want Red", signals[0].Level)
 	}
+}
+
+func TestMetricsHandler_CognitiveEvents(t *testing.T) {
+	metrics := quality.NewAgentMetrics("test-agent", "developer")
+	police := quality.NewAgentPolice(quality.DefaultCordonConfig())
+	bus := telemetry.NewSignalBus()
+	eventLog := signal.NewMemLog()
+
+	h := NewMetricsHandler(metrics, police, bus, nil, quality.DefaultCordonConfig())
+	h.WithCognitiveEvents(eventLog, func() string { return "intent-99" })
+
+	h.StartTurn()
+
+	// Thinking emits Think.
+	h.OnThinking("analyzing the auth module")
+
+	// Tool call emits Decide.
+	h.OnToolCall(driver.ToolCall{Name: "Read", ID: "tc-1"})
+
+	// Error emits GiveUp.
+	h.OnError(errors.New("context canceled"))
+
+	events := eventLog.Since(-1)
+	if len(events) != 3 {
+		t.Fatalf("expected 3 cognitive events, got %d", len(events))
+	}
+
+	// Think event.
+	if events[0].Kind != signal.KindThink {
+		t.Errorf("events[0].Kind = %q, want %q", events[0].Kind, signal.KindThink)
+	}
+	if events[0].TraceID != "intent-99" {
+		t.Errorf("events[0].TraceID = %q, want intent-99", events[0].TraceID)
+	}
+	if events[0].Source != "test-agent" {
+		t.Errorf("events[0].Source = %q, want test-agent", events[0].Source)
+	}
+
+	// Decide event.
+	if events[1].Kind != signal.KindDecide {
+		t.Errorf("events[1].Kind = %q, want %q", events[1].Kind, signal.KindDecide)
+	}
+	if events[1].Data != "Read" {
+		t.Errorf("events[1].Data = %v, want Read", events[1].Data)
+	}
+
+	// GiveUp event.
+	if events[2].Kind != signal.KindGiveUp {
+		t.Errorf("events[2].Kind = %q, want %q", events[2].Kind, signal.KindGiveUp)
+	}
+}
+
+func TestMetricsHandler_CognitiveEvents_NilEventLog(t *testing.T) {
+	metrics := quality.NewAgentMetrics("test-agent", "developer")
+	police := quality.NewAgentPolice(quality.DefaultCordonConfig())
+	bus := telemetry.NewSignalBus()
+
+	// No WithCognitiveEvents — should not panic.
+	h := NewMetricsHandler(metrics, police, bus, nil, quality.DefaultCordonConfig())
+	h.StartTurn()
+	h.OnThinking("should not panic")
+	h.OnToolCall(driver.ToolCall{Name: "Read", ID: "tc-1"})
+	h.OnError(errors.New("should not panic"))
 }
 
 // stubGenSec implements Asker for testing.
