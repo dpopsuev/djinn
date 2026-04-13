@@ -8,11 +8,11 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
-	github.com/dpopsuev/battery v0.4.0
+	github.com/dpopsuev/battery v0.6.0
 	github.com/dpopsuev/mirage v0.3.0
 	github.com/dpopsuev/misbah v0.15.0
 	github.com/dpopsuev/parchment v0.2.0
-	github.com/dpopsuev/troupe v0.9.0
+	github.com/dpopsuev/troupe v0.10.0
 	github.com/mozilla-ai/any-llm-go v0.9.0
 	github.com/muesli/termenv v0.16.0
 	github.com/stretchr/testify v1.11.1
