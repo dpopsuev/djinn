@@ -10,9 +10,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/cortex"
 	"github.com/dpopsuev/djinn/repl"
+	"github.com/dpopsuev/djinn/sandbox"
 	"github.com/dpopsuev/djinn/testkit/stubs"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
@@ -166,7 +166,7 @@ func TestE2E_AgentOutputRouting(t *testing.T) {
 	_ = final3
 }
 
-// TestE2E_PathTranslation verifies agent.TranslatePath correctly rewrites
+// TestE2E_PathTranslation verifies sandbox.TranslatePath correctly rewrites
 // host workspace paths to jail mount paths.
 func TestE2E_PathTranslation(t *testing.T) {
 	tests := []struct {
@@ -222,7 +222,7 @@ func TestE2E_PathTranslation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := agent.TranslatePath(tt.input, tt.hostWorkDir, tt.jailMount)
+			result := sandbox.TranslatePath(tt.input, tt.hostWorkDir, tt.jailMount)
 
 			if tt.wantPath == "" {
 				// Just verify no crash on empty/no-match cases.

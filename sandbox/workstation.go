@@ -3,7 +3,7 @@
 // A Workstation is bound to one artifact task and survives agent relay.
 // Agents attach/detach — the workstation (tools, sandbox, scratch paper) persists.
 // Attach fails if the workstation is occupied (must Detach first).
-package agent
+package sandbox
 
 import (
 	"context"

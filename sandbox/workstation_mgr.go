@@ -2,7 +2,7 @@
 //
 // Creates, tracks, assigns, and releases workstations. Thread-safe.
 // Auto-generates WorkstationIDs from an incrementing counter.
-package agent
+package sandbox
 
 import (
 	"context"

@@ -1,7 +1,7 @@
 // sandbox.go — path translation for jail-mounted workspaces.
 // When an agent runs inside a sandbox, file paths in tool inputs
 // need translation from host paths to jail mount paths.
-package agent
+package sandbox
 
 import (
 	"encoding/json"
