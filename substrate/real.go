@@ -78,6 +78,11 @@ func New(workDir string, opts ...Option) *RealSubstrate {
 		s.tools = reg
 	}
 
+	// Auto-create Canon if not provided (GOL-174).
+	if s.canon == nil {
+		s.canon = canonPkg.NewRealCanon(workDir, s.l2, s.log)
+	}
+
 	// ORANGE: warn about missing integration wiring (GOL-162).
 	if s.scheduler == nil {
 		s.log.WarnContext(context.Background(), "substrate: no Scheduler configured — role routing unavailable",

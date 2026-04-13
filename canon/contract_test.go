@@ -2,6 +2,8 @@ package canon
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -132,6 +134,22 @@ func TestFakeCanon_Contract(t *testing.T) {
 
 // --- Additional FakeCanon tests ---
 
+// --- Run contract against RealCanon ---
+
+func TestRealCanon_Contract(t *testing.T) {
+	RunCanonContract(t, func(t *testing.T) Canon {
+		t.Helper()
+		dir := t.TempDir()
+		// Bootstrap a git repo (reuse FakeCanon for setup).
+		fake, err := NewFakeCanon(dir)
+		if err != nil {
+			t.Fatalf("setup: %v", err)
+		}
+		_ = fake // only needed for git init + initial commit
+		return NewRealCanon(dir, nil, nil)
+	})
+}
+
 func TestFakeCanon_DirtyFiles(t *testing.T) {
 	dir := t.TempDir()
 	fake, err := NewFakeCanon(dir)
@@ -162,6 +180,63 @@ func TestFakeCanon_DirtyFiles(t *testing.T) {
 	}
 	if dirty[0] != "new.go" {
 		t.Fatalf("dirty file = %q, want new.go", dirty[0])
+	}
+}
+
+// --- Crash recovery: mtime change detection ---
+
+func TestRealCanon_CrashRecovery_MtimeDetectsChange(t *testing.T) {
+	dir := t.TempDir()
+	_, err := NewFakeCanon(dir) // bootstrap git repo
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c := NewRealCanon(dir, nil, nil)
+
+	// Cache the hash.
+	h1, err := c.ContentHash("README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Simulate crash: externally modify the file (not through Canon).
+	path := filepath.Join(dir, "README.md")
+	time.Sleep(10 * time.Millisecond) // ensure mtime differs
+	if err := os.WriteFile(path, []byte("# modified externally\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// New Canon instance (simulating restart after crash).
+	c2 := NewRealCanon(dir, nil, nil)
+
+	h2, err := c2.ContentHash("README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if h1 == h2 {
+		t.Fatal("hash should change after external modification — mtime detection failed")
+	}
+}
+
+func TestRealCanon_MtimeCacheHit(t *testing.T) {
+	dir := t.TempDir()
+	_, err := NewFakeCanon(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c := NewRealCanon(dir, nil, nil)
+
+	// First call: computes hash.
+	h1, _ := c.ContentHash("README.md")
+
+	// Second call: same mtime → cache hit (no rehash).
+	h2, _ := c.ContentHash("README.md")
+
+	if h1 != h2 {
+		t.Fatal("same file, same mtime, different hash — cache broken")
 	}
 }
 
