@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dpopsuev/djinn/substrate"
 	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/uniform"
 	"github.com/dpopsuev/djinn/uniform/execution"
@@ -38,7 +39,7 @@ type Djinn struct {
 	// Domain state
 	operation   uniform.Operation
 	capacity    *execution.AgentCapacity
-	envelopeCfg uniform.EnvelopeConfig
+	envelopeCfg substrate.EnvelopeConfig
 	scopePath   string
 	scopeType   string
 	startedAt   time.Time
@@ -77,7 +78,7 @@ func NewDjinn() *Djinn {
 	return &Djinn{
 		operation:   uniform.DefaultOperation(),
 		capacity:    execution.NewAgentCapacity(1),
-		envelopeCfg: uniform.DefaultEnvelopeConfig(),
+		envelopeCfg: substrate.DefaultEnvelopeConfig(),
 		scopePath:   "/",
 		mounts:      workspace.NewMountTable(slog.Default()),
 		sightMgr:    tui.NewSightManager(nil), // TODO: inject real logger from app
@@ -469,7 +470,7 @@ func (d *Djinn) Capacity() *execution.AgentCapacity {
 }
 
 // EnvelopeConfig returns the current envelope configuration.
-func (d *Djinn) EnvelopeConfig() uniform.EnvelopeConfig {
+func (d *Djinn) EnvelopeConfig() substrate.EnvelopeConfig {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.envelopeCfg

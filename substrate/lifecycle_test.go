@@ -1,9 +1,11 @@
-package uniform
+package substrate
 
 import (
 	"context"
 	"errors"
 	"testing"
+
+	"github.com/dpopsuev/djinn/uniform"
 
 	"github.com/dpopsuev/djinn/uniform/persona"
 )
@@ -125,8 +127,8 @@ func TestPreFlightAssignment(t *testing.T) {
 	if a.Role != "gensec" {
 		t.Fatalf("Role = %q, want %q", a.Role, "gensec")
 	}
-	if a.Mode != ModeAsk {
-		t.Fatalf("Mode = %q, want %q", a.Mode, ModeAsk)
+	if a.Mode != uniform.ModeAsk {
+		t.Fatalf("Mode = %q, want %q", a.Mode, uniform.ModeAsk)
 	}
 	if len(a.Scope.ReadPaths) != 1 || a.Scope.ReadPaths[0] != "/" {
 		t.Fatalf("ReadPaths = %v, want [/]", a.Scope.ReadPaths)
@@ -146,8 +148,8 @@ func TestPostFlightAssignment(t *testing.T) {
 	if a.Role != "inspector" {
 		t.Fatalf("Role = %q, want %q", a.Role, "inspector")
 	}
-	if a.Mode != ModeAsk {
-		t.Fatalf("Mode = %q, want %q", a.Mode, ModeAsk)
+	if a.Mode != uniform.ModeAsk {
+		t.Fatalf("Mode = %q, want %q", a.Mode, uniform.ModeAsk)
 	}
 	if len(a.Scope.ReadPaths) != 1 || a.Scope.ReadPaths[0] != "/" {
 		t.Fatalf("ReadPaths = %v, want [/]", a.Scope.ReadPaths)

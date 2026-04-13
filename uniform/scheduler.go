@@ -28,21 +28,21 @@ type Transition struct {
 	ToRole   string `yaml:"to_role"`             // empty = no transition (e.g., gate fires)
 }
 
-// defaultFallbackRole is the role returned when no transition matches a signal.
-const defaultFallbackRole = "gensec"
+// DefaultFallbackRole is the role returned when no transition matches a signal.
+const DefaultFallbackRole = "gensec"
 
 // DefaultTransitions returns the standard 5-role pipeline transitions.
 // Override or extend via StaffConfig.Transitions in YAML.
 func DefaultTransitions() []Transition {
 	return []Transition{
-		{Signal: SignalPromptReceived, ToRole: defaultFallbackRole},
+		{Signal: SignalPromptReceived, ToRole: DefaultFallbackRole},
 		{Signal: SignalNeedCaptured, ToRole: "auditor"},
 		{Signal: SignalSpecStamped, ToRole: "scheduler"},
 		{Signal: SignalTasksPlanned, ToRole: "executor"},
 		{Signal: SignalExecutorDone, ToRole: ""},
 		{Signal: SignalGatePassed, ToRole: "inspector"},
 		{Signal: SignalGateFailed, ToRole: "executor"},
-		{Signal: SignalInspectorApproved, ToRole: defaultFallbackRole},
+		{Signal: SignalInspectorApproved, ToRole: DefaultFallbackRole},
 		{Signal: SignalInspectorRejected, ToRole: "executor"},
 	}
 }
@@ -61,5 +61,5 @@ func NextRole(signal Signal, transitions ...[]Transition) string {
 			return t.ToRole
 		}
 	}
-	return defaultFallbackRole
+	return DefaultFallbackRole
 }

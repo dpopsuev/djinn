@@ -2,7 +2,7 @@
 // The Envelope wraps goal execution with automatic pre/post-flight phases
 // and buffer checkpoints. GenSec uses this to schedule invisible recon
 // before execution and audit afterward.
-package uniform
+package substrate
 
 import (
 	"context"
@@ -10,7 +10,10 @@ import (
 	"fmt"
 
 	"sync"
+
 	"time"
+
+	"github.com/dpopsuev/djinn/uniform"
 
 	"github.com/dpopsuev/djinn/uniform/persona"
 )
@@ -40,21 +43,21 @@ func NewEnvelope(goalID string, cfg EnvelopeConfig) *Envelope {
 }
 
 // PreFlightAssignment returns a read-only assignment for pre-flight recon.
-func (e *Envelope) PreFlightAssignment() Assignment {
-	return Assignment{
+func (e *Envelope) PreFlightAssignment() uniform.Assignment {
+	return uniform.Assignment{
 		Role:    "gensec",
-		Mode:    ModeAsk,
-		Scope:   AssignmentScope{ReadPaths: []string{"/"}},
+		Mode:    uniform.ModeAsk,
+		Scope:   uniform.AssignmentScope{ReadPaths: []string{"/"}},
 		Persona: persona.RolePersona["gensec"],
 	}
 }
 
 // PostFlightAssignment returns a read-only assignment for post-flight audit.
-func (e *Envelope) PostFlightAssignment() Assignment {
-	return Assignment{
+func (e *Envelope) PostFlightAssignment() uniform.Assignment {
+	return uniform.Assignment{
 		Role:    "inspector",
-		Mode:    ModeAsk,
-		Scope:   AssignmentScope{ReadPaths: []string{"/"}},
+		Mode:    uniform.ModeAsk,
+		Scope:   uniform.AssignmentScope{ReadPaths: []string{"/"}},
 		Persona: persona.RolePersona["inspector"],
 	}
 }

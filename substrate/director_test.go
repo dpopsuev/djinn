@@ -1,8 +1,10 @@
-package uniform
+package substrate
 
 import (
 	"context"
 	"testing"
+
+	"github.com/dpopsuev/djinn/uniform"
 
 	troupe "github.com/dpopsuev/troupe"
 )
@@ -11,18 +13,18 @@ func TestTransitionScheduler_DefaultPipeline(t *testing.T) {
 	s := DefaultScheduler()
 
 	tests := []struct {
-		signal Signal
+		signal uniform.Signal
 		want   string
 	}{
-		{SignalPromptReceived, "gensec"},
-		{SignalNeedCaptured, "auditor"},
-		{SignalSpecStamped, "scheduler"},
-		{SignalTasksPlanned, "executor"},
-		{SignalExecutorDone, ""},
-		{SignalGatePassed, "inspector"},
-		{SignalGateFailed, "executor"},
-		{SignalInspectorApproved, "gensec"},
-		{SignalInspectorRejected, "executor"},
+		{uniform.SignalPromptReceived, "gensec"},
+		{uniform.SignalNeedCaptured, "auditor"},
+		{uniform.SignalSpecStamped, "scheduler"},
+		{uniform.SignalTasksPlanned, "executor"},
+		{uniform.SignalExecutorDone, ""},
+		{uniform.SignalGatePassed, "inspector"},
+		{uniform.SignalGateFailed, "executor"},
+		{uniform.SignalInspectorApproved, "gensec"},
+		{uniform.SignalInspectorRejected, "executor"},
 	}
 	for _, tt := range tests {
 		got := s.NextRole(tt.signal, "")
@@ -33,39 +35,39 @@ func TestTransitionScheduler_DefaultPipeline(t *testing.T) {
 }
 
 func TestTransitionScheduler_CustomRole(t *testing.T) {
-	custom := []Transition{
-		{Signal: SignalTasksPlanned, ToRole: "cogs"},
-		{Signal: SignalPromptReceived, ToRole: "gensec"},
+	custom := []uniform.Transition{
+		{Signal: uniform.SignalTasksPlanned, ToRole: "cogs"},
+		{Signal: uniform.SignalPromptReceived, ToRole: "gensec"},
 	}
 	s := NewTransitionScheduler(custom)
 
-	if got := s.NextRole(SignalTasksPlanned, ""); got != "cogs" {
+	if got := s.NextRole(uniform.SignalTasksPlanned, ""); got != "cogs" {
 		t.Fatalf("custom transition: got %q, want cogs", got)
 	}
 }
 
 func TestTransitionScheduler_FromRoleSpecific(t *testing.T) {
-	transitions := []Transition{
-		{Signal: SignalGatePassed, FromRole: "executor", ToRole: "inspector"},
-		{Signal: SignalGatePassed, FromRole: "cogs", ToRole: "gensec"},
-		{Signal: SignalGatePassed, ToRole: "auditor"}, // fallback for other roles
+	transitions := []uniform.Transition{
+		{Signal: uniform.SignalGatePassed, FromRole: "executor", ToRole: "inspector"},
+		{Signal: uniform.SignalGatePassed, FromRole: "cogs", ToRole: "gensec"},
+		{Signal: uniform.SignalGatePassed, ToRole: "auditor"}, // fallback for other roles
 	}
 	s := NewTransitionScheduler(transitions)
 
-	if got := s.NextRole(SignalGatePassed, "executor"); got != "inspector" {
+	if got := s.NextRole(uniform.SignalGatePassed, "executor"); got != "inspector" {
 		t.Fatalf("from executor: got %q, want inspector", got)
 	}
-	if got := s.NextRole(SignalGatePassed, "cogs"); got != "gensec" {
+	if got := s.NextRole(uniform.SignalGatePassed, "cogs"); got != "gensec" {
 		t.Fatalf("from cogs: got %q, want gensec", got)
 	}
-	if got := s.NextRole(SignalGatePassed, "unknown"); got != "auditor" {
+	if got := s.NextRole(uniform.SignalGatePassed, "unknown"); got != "auditor" {
 		t.Fatalf("from unknown: got %q, want auditor (fallback)", got)
 	}
 }
 
 func TestTransitionScheduler_UnknownSignalFallback(t *testing.T) {
 	s := DefaultScheduler()
-	if got := s.NextRole(Signal(999), ""); got != "gensec" {
+	if got := s.NextRole(uniform.Signal(999), ""); got != "gensec" {
 		t.Fatalf("unknown signal: got %q, want gensec", got)
 	}
 }
@@ -97,7 +99,7 @@ func TestLocalDirector_SchedulerAccessor(t *testing.T) {
 		t.Fatal("Scheduler() should return the underlying scheduler")
 	}
 
-	got := d.Scheduler().NextRole(SignalGatePassed, "executor")
+	got := d.Scheduler().NextRole(uniform.SignalGatePassed, "executor")
 	if got != "inspector" {
 		t.Fatalf("via accessor: got %q, want inspector", got)
 	}
@@ -109,7 +111,7 @@ type stubScheduler struct {
 	result string
 }
 
-func (s *stubScheduler) NextRole(_ Signal, _ string) string {
+func (s *stubScheduler) NextRole(_ uniform.Signal, _ string) string {
 	s.called = true
 	return s.result
 }
@@ -118,7 +120,7 @@ func TestLocalDirector_CustomScheduler(t *testing.T) {
 	stub := &stubScheduler{result: "custom-role"}
 	d := NewLocalDirector(stub)
 
-	got := d.Scheduler().NextRole(SignalTasksPlanned, "gensec")
+	got := d.Scheduler().NextRole(uniform.SignalTasksPlanned, "gensec")
 	if got != "custom-role" {
 		t.Fatalf("custom scheduler: got %q, want custom-role", got)
 	}

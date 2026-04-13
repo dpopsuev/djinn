@@ -6,7 +6,7 @@
 // (SignalInterpreter, TUI, etc.).
 //
 // DJN-TSK-1056
-package uniform
+package substrate
 
 import (
 	"sync"

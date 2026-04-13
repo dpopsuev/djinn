@@ -2,7 +2,7 @@
 // The Envelope wraps every agent goal with invisible pre-flight (recon),
 // buffer checkpoints (during execution), and post-flight (audit) phases.
 // GenSec schedules these automatically.
-package uniform
+package substrate
 
 import "time"
 

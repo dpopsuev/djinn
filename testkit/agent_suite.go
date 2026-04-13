@@ -30,6 +30,7 @@ import (
 	troupedriver "github.com/dpopsuev/djinn/driver/troupe"
 	"github.com/dpopsuev/djinn/observe"
 	"github.com/dpopsuev/djinn/policy"
+	"github.com/dpopsuev/djinn/substrate"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/uniform"
@@ -62,7 +63,7 @@ type AgentSuite struct {
 
 	// Uniform pipeline — metrics, police, cordon, bottleneck.
 	signalBus      *telemetry.SignalBus
-	metricsHandler *uniform.MetricsHandler
+	metricsHandler *substrate.MetricsHandler
 }
 
 // SetupTest creates an isolated workspace before each test method.
@@ -85,7 +86,7 @@ func (s *AgentSuite) SetupTest() {
 	s.signalBus = telemetry.NewSignalBus()
 	metrics := quality.NewAgentMetrics("test-agent", "test")
 	police := quality.NewAgentPolice(quality.DefaultCordonConfig())
-	s.metricsHandler = uniform.NewMetricsHandler(metrics, police, s.signalBus, nil, quality.DefaultCordonConfig())
+	s.metricsHandler = substrate.NewMetricsHandler(metrics, police, s.signalBus, nil, quality.DefaultCordonConfig())
 }
 
 // TearDownTest destroys the workspace after each test method.
@@ -328,4 +329,4 @@ func (c *compositeHandler) OnError(err error) {
 func (s *AgentSuite) SignalBus() *telemetry.SignalBus { return s.signalBus }
 
 // MetricsHandler returns the uniform pipeline's metrics handler.
-func (s *AgentSuite) MetricsHandler() *uniform.MetricsHandler { return s.metricsHandler }
+func (s *AgentSuite) MetricsHandler() *substrate.MetricsHandler { return s.metricsHandler }

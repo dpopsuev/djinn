@@ -7,13 +7,15 @@
 // Both satisfy the same interface — swap at composition root.
 //
 // DJN-TSK-1059
-package uniform
+package substrate
 
 import (
 	"context"
 
 	troupe "github.com/dpopsuev/troupe"
 	"github.com/dpopsuev/troupe/director"
+
+	"github.com/dpopsuev/djinn/uniform"
 )
 
 var _ director.Director = (*LocalDirector)(nil)
@@ -21,7 +23,7 @@ var _ director.Director = (*LocalDirector)(nil)
 // Scheduler resolves the next role for a given signal.
 // Extracted interface so external orchestrators (Origami) can plug in.
 type Scheduler interface {
-	NextRole(signal Signal, currentRole string) string
+	NextRole(signal uniform.Signal, currentRole string) string
 }
 
 // LocalDirector is Djinn's built-in Director. Linear pipeline
@@ -36,7 +38,7 @@ func NewLocalDirector(s Scheduler) *LocalDirector {
 }
 
 // Direct executes the orchestration plan. For LocalDirector this is
-// event-driven — it emits a single Transition event per signal.
+// event-driven — it emits a single uniform.Transition event per signal.
 // The REPL drives the loop; Direct provides the contract.
 func (d *LocalDirector) Direct(ctx context.Context, broker troupe.Broker) (<-chan troupe.Event, error) {
 	ch := make(chan troupe.Event, 1)
@@ -51,26 +53,26 @@ func (d *LocalDirector) Scheduler() Scheduler { return d.scheduler }
 
 // TransitionScheduler implements Scheduler using a config-driven transition table.
 type TransitionScheduler struct {
-	transitions []Transition
+	transitions []uniform.Transition
 	fallback    string
 }
 
 // NewTransitionScheduler creates a Scheduler from a transition table.
-func NewTransitionScheduler(transitions []Transition) *TransitionScheduler {
+func NewTransitionScheduler(transitions []uniform.Transition) *TransitionScheduler {
 	return &TransitionScheduler{
 		transitions: transitions,
-		fallback:    defaultFallbackRole,
+		fallback:    uniform.DefaultFallbackRole,
 	}
 }
 
 // DefaultScheduler creates a Scheduler with the standard 5-role pipeline.
 func DefaultScheduler() *TransitionScheduler {
-	return NewTransitionScheduler(DefaultTransitions())
+	return NewTransitionScheduler(uniform.DefaultTransitions())
 }
 
 // NextRole resolves the target role for a signal.
 // Checks FromRole-specific transitions first, then any-role transitions.
-func (s *TransitionScheduler) NextRole(signal Signal, currentRole string) string {
+func (s *TransitionScheduler) NextRole(signal uniform.Signal, currentRole string) string {
 	// First pass: match signal + fromRole.
 	for _, t := range s.transitions {
 		if t.Signal == signal && t.FromRole != "" && t.FromRole == currentRole {
