@@ -26,9 +26,9 @@ func TestRegisterBuiltinTools(t *testing.T) {
 		}
 	}
 
-	// Original 6 + 8 shell + 1 assignment = 15 total.
-	if len(reg.Names()) != 15 {
-		t.Fatalf("total tools = %d, want 15", len(reg.Names()))
+	// Original 6 + 8 shell + 1 assignment + 1 symbol = 16 total.
+	if len(reg.Names()) != 16 {
+		t.Fatalf("total tools = %d, want 16", len(reg.Names()))
 	}
 }
 

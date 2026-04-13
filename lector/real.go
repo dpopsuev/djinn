@@ -20,6 +20,7 @@ import (
 	"go/token"
 
 	"github.com/dpopsuev/djinn/telemetry"
+	"github.com/sahilm/fuzzy"
 )
 
 var _ Lector = (*RealLector)(nil)
@@ -110,12 +111,19 @@ func (l *RealLector) Dependents(pkg string) []string {
 func (l *RealLector) FuzzyFiles(query string) []FileEntry {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
-	q := strings.ToLower(query)
-	var results []FileEntry
+
+	// Build searchable list.
+	paths := make([]string, 0, len(l.files))
+	entries := make([]FileEntry, 0, len(l.files))
 	for _, f := range l.files {
-		if strings.Contains(strings.ToLower(f.Path), q) {
-			results = append(results, f)
-		}
+		paths = append(paths, f.Path)
+		entries = append(entries, f)
+	}
+
+	matches := fuzzy.Find(query, paths)
+	results := make([]FileEntry, 0, len(matches))
+	for _, m := range matches {
+		results = append(results, entries[m.Index])
 	}
 	return results
 }
@@ -123,14 +131,21 @@ func (l *RealLector) FuzzyFiles(query string) []FileEntry {
 func (l *RealLector) FuzzySymbols(query string) []Symbol {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
-	q := strings.ToLower(query)
-	var results []Symbol
+
+	// Flatten all symbols into searchable list.
+	var names []string
+	var allSyms []Symbol
 	for _, syms := range l.symbols {
 		for _, s := range syms {
-			if strings.Contains(strings.ToLower(s.Name), q) {
-				results = append(results, s)
-			}
+			names = append(names, s.Name)
+			allSyms = append(allSyms, s)
 		}
+	}
+
+	matches := fuzzy.Find(query, names)
+	results := make([]Symbol, 0, len(matches))
+	for _, m := range matches {
+		results = append(results, allSyms[m.Index])
 	}
 	return results
 }

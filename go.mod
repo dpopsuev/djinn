@@ -11,11 +11,11 @@ require (
 	github.com/dpopsuev/battery v0.6.0
 	github.com/dpopsuev/mirage v0.3.0
 	github.com/dpopsuev/misbah v0.15.0
-	github.com/dpopsuev/oculus v0.0.0
 	github.com/dpopsuev/parchment v0.2.0
 	github.com/dpopsuev/troupe v0.10.0
 	github.com/mozilla-ai/any-llm-go v0.9.0
 	github.com/muesli/termenv v0.16.0
+	github.com/sahilm/fuzzy v0.1.1
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/goleak v1.3.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -44,7 +44,6 @@ require (
 	github.com/openai/openai-go v1.12.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
@@ -57,9 +56,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.39.0 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/tools v0.42.0 // indirect
 	gonum.org/v1/gonum v0.17.0 // indirect
 	google.golang.org/api v0.197.0 // indirect
 	google.golang.org/genai v1.49.0 // indirect

@@ -10,6 +10,7 @@ import (
 
 	"github.com/dpopsuev/djinn/artifact"
 	"github.com/dpopsuev/djinn/assignment"
+	"github.com/dpopsuev/djinn/lector"
 	"github.com/dpopsuev/djinn/tools"
 )
 
@@ -31,5 +32,17 @@ func RegisterBuiltinTools(reg *Registry, workDir, dataDir string) {
 	reg.Register(&LatencyTool{Tracker: tracker})
 	reg.Register(&RenderTool{})
 	reg.Register(&AssignmentTool{Manager: assignment.NewStubManager()})
+	reg.Register(&SymbolTool{Lector: lector.NewStubLector()})
+}
+
+// SetLector replaces the Symbol tool's Lector with a real implementation.
+// Call after RegisterBuiltinTools when a RealLector is available.
+func SetLector(reg *Registry, l lector.Lector) {
+	for _, t := range reg.All() {
+		if st, ok := t.(*SymbolTool); ok {
+			st.Lector = l
+			return
+		}
+	}
 }
 
