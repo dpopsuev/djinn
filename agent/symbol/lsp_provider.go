@@ -2,7 +2,7 @@
 //
 // Wraps review/lsp.Client for textDocument/documentSymbol.
 // References() is Day 2 — stub returns ErrNotConnected for now.
-package agent
+package symbol
 
 import (
 	"context"

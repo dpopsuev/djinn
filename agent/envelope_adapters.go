@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/dpopsuev/djinn/agent/symbol"
 	"github.com/dpopsuev/djinn/policy"
+	"github.com/dpopsuev/djinn/uniform/quality"
 )
 
 // --- Gates ---
@@ -40,13 +42,13 @@ var _ ToolGate = (*PolicyGate)(nil)
 
 // --- Enrichers ---
 
-// SymbolEnricher wraps SymbolGraphPopulator. Fires on Edit tool only.
+// SymbolEnricher wraps symbol.SymbolGraphPopulator. Fires on Edit tool only.
 type SymbolEnricher struct {
-	populator *SymbolGraphPopulator
+	populator *symbol.SymbolGraphPopulator
 }
 
-// NewSymbolEnricher creates an enricher from a SymbolGraphPopulator.
-func NewSymbolEnricher(populator *SymbolGraphPopulator) *SymbolEnricher {
+// NewSymbolEnricher creates an enricher from a symbol.SymbolGraphPopulator.
+func NewSymbolEnricher(populator *symbol.SymbolGraphPopulator) *SymbolEnricher {
 	return &SymbolEnricher{populator: populator}
 }
 
@@ -76,13 +78,13 @@ var _ Enricher = (*SymbolEnricher)(nil)
 
 // --- Recorders ---
 
-// WasteRecorder wraps WasteClassifier as a Recorder.
+// WasteRecorder wraps quality.WasteClassifier as a Recorder.
 type WasteRecorder struct {
-	classifier *WasteClassifier
+	classifier *quality.WasteClassifier
 }
 
-// NewWasteRecorder creates a recorder from a WasteClassifier.
-func NewWasteRecorder(classifier *WasteClassifier) *WasteRecorder {
+// NewWasteRecorder creates a recorder from a quality.WasteClassifier.
+func NewWasteRecorder(classifier *quality.WasteClassifier) *WasteRecorder {
 	return &WasteRecorder{classifier: classifier}
 }
 

@@ -3,10 +3,10 @@ package tui
 import (
 	"time"
 
-	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/driver"
 	"github.com/dpopsuev/djinn/tui/core"
 	"github.com/dpopsuev/djinn/tui/layout"
+	"github.com/dpopsuev/djinn/uniform/quality"
 )
 
 // Custom tea.Msg types for bridging agent events to Bubbletea.
@@ -211,7 +211,7 @@ type QueueRemoveMsg struct{ Index int }
 // Waste detection messages (GOL-37).
 type WasteMetricsMsg struct {
 	Total     int
-	ByKind    map[agent.WasteKind]int
+	ByKind    map[quality.WasteKind]int
 	WasteRate float64 // waste / total calls
 }
 

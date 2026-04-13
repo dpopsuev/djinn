@@ -3,7 +3,7 @@
 // Port defined at consumer (agent/) per DIP. Providers live in separate files:
 // RegexProvider (regex_provider.go), ASTProvider (ast_provider.go),
 // LSPProvider (lsp_provider.go).
-package agent
+package symbol
 
 import (
 	"context"

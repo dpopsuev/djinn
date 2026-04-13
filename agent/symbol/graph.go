@@ -2,7 +2,7 @@
 //
 // Tries providers in order (first success wins), builds the impact table,
 // and renders it as a structured prompt injection.
-package agent
+package symbol
 
 import (
 	"context"

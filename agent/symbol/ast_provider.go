@@ -3,7 +3,7 @@
 // Uses go/ast + go/parser for precise declaration extraction.
 // More accurate than regex — handles methods, receivers, and interface declarations.
 // Single-file only; cross-file references fall back to RegexProvider.
-package agent
+package symbol
 
 import (
 	"context"

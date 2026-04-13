@@ -3,7 +3,7 @@
 // Day 1a: works for any language with simple declaration patterns.
 // Go patterns: func, type, var, const at top-level.
 // References: grep for symbol name across the workspace directory.
-package agent
+package symbol
 
 import (
 	"bufio"

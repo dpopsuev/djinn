@@ -6,8 +6,10 @@ package agent
 
 import (
 	"github.com/dpopsuev/battery/middleware"
+	"github.com/dpopsuev/djinn/agent/symbol"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/tools/builtin"
+	"github.com/dpopsuev/djinn/uniform/quality"
 )
 
 // EnvelopeBuilder constructs a ToolEnvelope with typed layers.
@@ -29,14 +31,14 @@ func SecurityBundle(enforcer policy.ToolPolicyEnforcer, token policy.CapabilityT
 }
 
 // EnrichmentBundle returns enrichers for pre-edit context.
-func EnrichmentBundle(symbols *SymbolGraphPopulator) []Enricher {
+func EnrichmentBundle(symbols *symbol.SymbolGraphPopulator) []Enricher {
 	return []Enricher{
 		&SymbolEnricher{populator: symbols},
 	}
 }
 
 // ObservabilityBundle returns recorders for waste classification.
-func ObservabilityBundle(waste *WasteClassifier) []Recorder {
+func ObservabilityBundle(waste *quality.WasteClassifier) []Recorder {
 	return []Recorder{
 		&WasteRecorder{classifier: waste},
 	}

@@ -3,7 +3,7 @@
 // Tracks attempted/approved/denied counts per MetricKind.
 // ComplianceRate = approved / attempted. Extensible via MetricKind constants.
 // New domains add constants without changing the struct (OCP).
-package agent
+package quality
 
 import "sync"
 

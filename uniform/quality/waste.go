@@ -6,7 +6,7 @@
 //
 // Overproduction and inventory are deferred classifiers — they require
 // multi-turn context that isn't available at tool-call time.
-package agent
+package quality
 
 import (
 	"context"

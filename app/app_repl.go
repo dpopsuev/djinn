@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/dpopsuev/djinn/agent"
+	"github.com/dpopsuev/djinn/agent/symbol"
 	"github.com/dpopsuev/djinn/artifact"
 	djinnconfig "github.com/dpopsuev/djinn/config"
 	"github.com/dpopsuev/djinn/cortex"
@@ -28,6 +29,7 @@ import (
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/tui"
 	"github.com/dpopsuev/djinn/uniform"
+	"github.com/dpopsuev/djinn/uniform/quality"
 	djinnws "github.com/dpopsuev/djinn/workspace"
 	troupeTestkit "github.com/dpopsuev/troupe/testkit"
 )
@@ -375,8 +377,8 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 	hubRegistry.Register(toolHub)
 
 	// Build Tool Operation Envelope: SecurityBundle + EnrichmentBundle + ObservabilityBundle.
-	symbolPopulator := agent.NewSymbolGraphPopulator(telemetry.For(logResult.Logger, "symbol"), &agent.RegexProvider{})
-	wasteClassifier := agent.NewWasteClassifier(telemetry.For(logResult.Logger, "waste"))
+	symbolPopulator := symbol.NewSymbolGraphPopulator(telemetry.For(logResult.Logger, "symbol"), &symbol.RegexProvider{})
+	wasteClassifier := quality.NewWasteClassifier(telemetry.For(logResult.Logger, "waste"))
 
 	envelope, envelopeErr := agent.NewEnvelopeBuilder(toolHub).
 		WithGates(agent.SecurityBundle(enforcer, capToken)...).

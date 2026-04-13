@@ -16,9 +16,11 @@ import (
 	"log/slog"
 
 	"github.com/dpopsuev/djinn/agent"
+	"github.com/dpopsuev/djinn/agent/symbol"
 	"github.com/dpopsuev/djinn/policy"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
+	"github.com/dpopsuev/djinn/uniform/quality"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -39,8 +41,8 @@ func RunServe(_ []string, stderr io.Writer) error {
 	}
 
 	// Middleware: SymbolGraph enricher + WasteClassifier recorder.
-	symbolPopulator := agent.NewSymbolGraphPopulator(log, &agent.RegexProvider{})
-	wasteClassifier := agent.NewWasteClassifier(telemetry.For(log, "waste"))
+	symbolPopulator := symbol.NewSymbolGraphPopulator(log, &symbol.RegexProvider{})
+	wasteClassifier := quality.NewWasteClassifier(telemetry.For(log, "waste"))
 
 	// Build envelope with all three layers.
 	envelope, err := agent.NewEnvelopeBuilder(registry).
