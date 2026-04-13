@@ -145,7 +145,7 @@ type Model struct {
 	roleRegistry *uniform.RoleRegistry
 	toolReqs     *uniform.ToolRequirements
 	toolRegistry interface{ Names() []string } // for RBAC filtering (CompositeExecutor or Registry)
-	term        *terminal.Djinn // Terminal facade — domain state + event stream
+	term         *terminal.Djinn               // Terminal facade — domain state + event stream
 
 	// Multi-agent monitoring
 	agentsPanel  *widgets.AgentsPanel
@@ -359,37 +359,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocy
 		return m.handleKey(msg)
 
 	case tui.SubmitMsg:
-		// InputPanel emitted a submit. Queue during streaming, process during input.
-		if m.state == stateStreaming || m.state == stateToolApproval {
-			m.queuePanel.Update(tui.QueueAddMsg{Prompt: msg.Value})
-			return m, nil
-		}
-		// Not streaming — submit directly.
-		m.inputPanel.Update(tui.InputAddHistoryMsg(msg))
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.UserStyle.Render(tui.LabelUser) + msg.Value})
-		m.state = stateStreaming
-		m.dashboard.Update(tui.DashboardUIStateMsg{State: "STREAMING"})
-		m.lastUsage = nil
-		m.lastError = ""
-		m.spinnerActive = true
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
-
-		// Inject cell sight into prompt if the active panel supports it (GOL-62).
-		// SightManager gates override panel's own SightGate, and field
-		// sensitivity overrides allow operator-controlled reveal/hide.
-		prompt := msg.Value
-		sightMgr := m.term.SightManager()
-		if provider, ok := m.focus.Active().(tui.Sighted); ok {
-			panelGate := provider.SightGate()
-			mgrGate := sightMgr.IsGateOpen(provider.CellSight().PanelID)
-			if panelGate && mgrGate {
-				if cs := provider.CellSight(); !cs.IsEmpty() {
-					cs = sightMgr.ApplyCellSight(cs)
-					prompt = cs.FormatPrompt() + "\n\n" + prompt
-				}
-			}
-		}
-		return m, tea.Batch(m.runAgent(prompt), m.spin.Tick, tickCmd())
+		return m.handleSubmitMsg(msg)
 
 	case spinner.TickMsg:
 		if m.spinnerActive {
@@ -399,153 +369,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocritic,gocy
 		}
 		return m, nil
 
-	case tui.TextMsg:
-		m.spinnerActive = false
-		m.isThinking = false
-		if m.outputMode == outputChunked {
-			m.chunkedBuf.WriteString(string(msg))
-		} else {
-			m.outputPanel.Update(msg) // OutputPanel handles TextMsg via streamBuf
-		}
-		return m, nil
-
-	case tui.ThinkingMsg:
-		m.isThinking = true
-		m.dashboard.Update(tui.DashboardUIStateMsg{State: "THINKING"})
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: elements.Dim(string(msg))})
-		return m, nil
-
-	case tui.ToolCallMsg:
-		envID := fmt.Sprintf("tool-%d", m.outputPanel.LineCount())
-		env := widgets.NewEnvelopePanel(envID, msg.Call.Name, string(msg.Call.Input))
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: env.View(m.width)})
-		m.activeToolIdx = m.outputPanel.LineCount() - 1
-		if m.envelopes == nil {
-			m.envelopes = make(map[int]*widgets.EnvelopePanel)
-		}
-		m.envelopes[m.activeToolIdx] = env
-
-		if m.mode == agent.ModeAgent && !m.autoApprove {
-			m.state = stateToolApproval
-			m.dashboard.Update(tui.DashboardUIStateMsg{State: "APPROVAL"})
-			m.pendingTool = &msg.Call
-		}
-		return m, nil
-
-	case tui.ToolResultMsg:
-		// Track file edits for status line.
-		if !msg.IsError && (msg.Name == "Write" || msg.Name == "Edit") {
-			m.filesEdited++
-		}
-		if m.activeToolIdx >= 0 && m.activeToolIdx < m.outputPanel.LineCount() {
-			if env, ok := m.envelopes[m.activeToolIdx]; ok {
-				env.SetResult(msg.Output, msg.IsError)
-				m.outputPanel.Update(tui.OutputSetLineMsg{Index: m.activeToolIdx, Line: env.View(m.width)})
-			}
-			m.activeToolIdx = -1
-		} else {
-			state := elements.StateDone
-			if msg.IsError {
-				state = elements.StateError
-			}
-			line := "  " + tui.ToolStatus(msg.Name, state, 0) + " " + tui.DimStyle.Render(truncate(msg.Output, 100))
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: line})
-		}
-		return m, nil
-
-	case tui.DoneMsg:
-		m.lastUsage = msg.Usage
-		if msg.Usage != nil {
-			m.totalIn += msg.Usage.InputTokens
-			m.totalOut += msg.Usage.OutputTokens
-			m.monitor.Record(msg.Usage.InputTokens, msg.Usage.OutputTokens)
-		}
-		return m, nil
-
-	case tui.ErrorMsg:
-		m.lastError = msg.Error()
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render("error: " + msg.Error())})
-		return m, nil
+	case tui.TextMsg, tui.ThinkingMsg, tui.ToolCallMsg, tui.ToolResultMsg, tui.DoneMsg, tui.ErrorMsg:
+		return m.handleStreamEvent(msg)
 
 	case tui.AgentDoneMsg:
-		m.rawStreamLine.Reset()
-		if m.store != nil {
-			if err := m.store.Save(m.sess); err != nil {
-				m.log.Warn("auto-save failed", "error", err)
-			}
-		}
-		// Flush remaining buffers
-		if m.outputMode == outputChunked && m.chunkedBuf.Len() > 0 {
-			if m.outputPanel.LineCount() > 0 {
-				last := m.outputPanel.LineCount() - 1
-				m.outputPanel.Update(tui.OutputSetLineMsg{Index: last, Line: m.outputPanel.Lines()[last] + m.chunkedBuf.String()})
-			}
-			m.chunkedBuf.Reset()
-		}
-		m.outputPanel.Update(tui.FlushStreamMsg{})
-		// Render completed response as markdown
-		if m.outputPanel.LineCount() > 0 {
-			last := m.outputPanel.LineCount() - 1
-			raw := m.outputPanel.Lines()[last]
-			prefix := ""
-			if after, found := strings.CutPrefix(raw, prefix); found {
-				rendered := tui.RenderMarkdown(after)
-				m.outputPanel.Update(tui.OutputSetLineMsg{Index: last, Line: prefix + rendered})
-			}
-		}
-		if msg.Err != nil {
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render("error: " + msg.Err.Error())})
-		}
-		if m.lastUsage != nil {
-			m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.StatusStyle.Render(fmt.Sprintf("[tokens: %d in, %d out]",
-				m.lastUsage.InputTokens, m.lastUsage.OutputTokens))})
-		}
-		m.outputPanel.Update(tui.OutputAppendMsg{Line: ""})
-		m.state = stateInput
-		m.focus.FocusPanel(1)
-		m.inputPanel.Update(tui.InputFocusMsg{})
-
-		// Context relay: log approaching thresholds.
-		if u := m.monitor.Usage(); u > 0.5 {
-			m.log.Info("context usage", "pct", fmt.Sprintf("%.0f%%", u*100), "state", m.monitor.State())
-		}
-
-		// Drain prompt queue — auto-submit first queued prompt.
-		if m.queuePanel.Len() > 0 {
-			next := m.queuePanel.Items()[0]
-			m.queuePanel.Update(tui.QueueDrainMsg{})
-			return m, func() tea.Msg { return tui.SubmitMsg{Value: next} }
-		}
-
-		// Auto-transition: role-based gate check.
-		switch {
-		case m.currentRole == roleExecutor:
-			gate := &uniform.MakeCircuitGate{}
-			gateDir := m.sess.WorkDir
-			if m.activeWorktree != "" {
-				gateDir = m.activeWorktree
-			}
-			result, gateErr := gate.Check(m.ctx, gateDir)
-			if gateErr != nil {
-				m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render("gate error: " + gateErr.Error())})
-			}
-			if result.Passed {
-				m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ToolSuccessStyle.Render("  ✓ gate passed")})
-				next := uniform.NextRole(uniform.SignalGatePassed)
-				m.switchRole(next)
-			} else {
-				for _, d := range result.Diagnostics {
-					m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.ErrorStyle.Render(
-						fmt.Sprintf("  ✗ %s: %s", d.Source, truncate(d.Message, 200)))})
-				}
-				m.outputPanel.Update(tui.OutputAppendMsg{Line: tui.DimStyle.Render("  gate failed — fix and try again")})
-			}
-		case m.currentRole != roleGensec:
-			m.switchRole(roleGensec)
-		default:
-			m.dashboard.Update(tui.DashboardUIStateMsg{State: "GENSEC"})
-		}
-		return m, nil
+		return m.handleAgentDone(msg)
 
 	case tui.AgentStatusMsg:
 		m.agentsPanel.Update(msg)
