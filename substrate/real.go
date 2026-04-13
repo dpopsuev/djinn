@@ -16,6 +16,7 @@ import (
 	"github.com/dpopsuev/battery/service"
 	"github.com/dpopsuev/battery/tool"
 	djinncache "github.com/dpopsuev/djinn/cache"
+	canonPkg "github.com/dpopsuev/djinn/canon"
 	"github.com/dpopsuev/djinn/hook"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
@@ -41,6 +42,9 @@ type RealSubstrate struct {
 	ring       *telemetry.TraceProjection // trace ring with TraceID propagation
 	recorder   *ToolEventRecorder         // bridges tool calls → EventLog
 	dispatcher *hook.EventDispatcher      // unified hook runtime (GOL-161)
+
+	// L2 Cache Services (GOL-174, NED-55).
+	canon canonPkg.Canon // VCS state cache
 
 	// Lifecycle tracking.
 	observations []Observation
@@ -145,6 +149,11 @@ func WithHookDispatcher(d *hook.EventDispatcher) Option {
 	return func(s *RealSubstrate) { s.dispatcher = d }
 }
 
+// WithCanon sets the VCS cache service (GOL-174).
+func WithCanon(c canonPkg.Canon) Option {
+	return func(s *RealSubstrate) { s.canon = c }
+}
+
 // --- Module Grouping ---
 
 // DefaultServices returns options for a batteries-included Substrate.
@@ -223,6 +232,9 @@ func (s *RealSubstrate) ToolRecorder() *ToolEventRecorder { return s.recorder }
 
 // HookDispatcher returns the unified hook runtime (nil if not configured).
 func (s *RealSubstrate) HookDispatcher() *hook.EventDispatcher { return s.dispatcher }
+
+// Canon returns the VCS cache service (nil if not configured).
+func (s *RealSubstrate) Canon() canonPkg.Canon { return s.canon }
 
 // SetHookDispatcher sets the hook dispatcher after construction (late binding).
 func (s *RealSubstrate) SetHookDispatcher(d *hook.EventDispatcher) { s.dispatcher = d }
