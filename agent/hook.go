@@ -1,5 +1,9 @@
 // hook.go — HookRunner: shell command interception at tool boundaries.
 //
+// Deprecated: Use hook.EventDispatcher instead (GOL-161). This file is
+// retained for backward compatibility until the REPL migrates to the
+// unified hook system. Convert via hook.ConvertLegacy().
+//
 // HookRunner implements BOTH ToolGate (pre) and Recorder (post):
 //   - ToolGate.Check(): runs pre_tool_use hooks before execution
 //   - Recorder.Record(): runs post_tool_use hooks after execution

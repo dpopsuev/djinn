@@ -16,6 +16,7 @@ import (
 	"github.com/dpopsuev/battery/service"
 	"github.com/dpopsuev/battery/tool"
 	djinncache "github.com/dpopsuev/djinn/cache"
+	"github.com/dpopsuev/djinn/hook"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/djinn/tools/builtin"
 	"github.com/dpopsuev/djinn/vessel"
@@ -37,9 +38,10 @@ type RealSubstrate struct {
 	log      *slog.Logger
 
 	// Orchestration (GOL-162).
-	director director.Director          // troupe Director interface — LocalDirector or external
-	ring     *telemetry.TraceProjection // trace ring with TraceID propagation
-	recorder *ToolEventRecorder         // bridges tool calls → EventLog
+	director   director.Director          // troupe Director interface — LocalDirector or external
+	ring       *telemetry.TraceProjection // trace ring with TraceID propagation
+	recorder   *ToolEventRecorder         // bridges tool calls → EventLog
+	dispatcher *hook.EventDispatcher      // unified hook runtime (GOL-161)
 
 	// Lifecycle tracking.
 	observations []Observation
@@ -140,6 +142,11 @@ func WithToolRecorder(r *ToolEventRecorder) Option {
 	}
 }
 
+// WithHookDispatcher sets the unified hook runtime (GOL-161).
+func WithHookDispatcher(d *hook.EventDispatcher) Option {
+	return func(s *RealSubstrate) { s.dispatcher = d }
+}
+
 // --- Module Grouping ---
 
 // DefaultServices returns options for a batteries-included Substrate.
@@ -190,6 +197,9 @@ func (s *RealSubstrate) TraceProjection() *telemetry.TraceProjection { return s.
 
 // ToolRecorder returns the tool event recorder (nil if not configured).
 func (s *RealSubstrate) ToolRecorder() *ToolEventRecorder { return s.recorder }
+
+// HookDispatcher returns the unified hook runtime (nil if not configured).
+func (s *RealSubstrate) HookDispatcher() *hook.EventDispatcher { return s.dispatcher }
 
 func (s *RealSubstrate) Observe(_ context.Context, obs Observation) {
 	s.mu.Lock()

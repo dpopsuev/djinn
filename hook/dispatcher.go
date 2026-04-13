@@ -35,6 +35,12 @@ type EventDispatcher struct {
 	eventLog signal.EventLog
 	spawnFn  SpawnFunc
 	log      *slog.Logger
+
+	// Stats (YELLOW, TSK-1075).
+	dispatched int64
+	denied     int64
+	errors     int64
+	statsMu    sync.Mutex
 }
 
 // Option configures an EventDispatcher.
@@ -117,13 +123,17 @@ func (d *EventDispatcher) Check(ctx context.Context, tool string, input json.Raw
 			continue
 		}
 
+		d.incDispatched()
+
 		if h.Action.Shell != "" {
 			if allowed, reason := d.runShell(ctx, *h, tool, input); !allowed {
+				d.incDenied()
 				return middleware.Verdict{Allowed: false, Reason: reason}, nil
 			}
 		}
 
 		if h.Action.Deny != "" {
+			d.incDenied()
 			return middleware.Verdict{Allowed: false, Reason: h.Action.Deny}, nil
 		}
 	}
@@ -229,6 +239,28 @@ func (d *EventDispatcher) runShell(ctx context.Context, h Hook, tool string, inp
 	}
 	return true, ""
 }
+
+// DispatchStats returns hook dispatch metrics.
+type DispatchStats struct {
+	Dispatched int64 // total hook evaluations
+	Denied     int64 // pre-tool denials
+	Errors     int64 // action execution errors
+}
+
+// Stats returns current dispatch metrics.
+func (d *EventDispatcher) Stats() DispatchStats {
+	d.statsMu.Lock()
+	defer d.statsMu.Unlock()
+	return DispatchStats{
+		Dispatched: d.dispatched,
+		Denied:     d.denied,
+		Errors:     d.errors,
+	}
+}
+
+func (d *EventDispatcher) incDispatched() { d.statsMu.Lock(); d.dispatched++; d.statsMu.Unlock() }
+func (d *EventDispatcher) incDenied()     { d.statsMu.Lock(); d.denied++; d.statsMu.Unlock() }
+func (d *EventDispatcher) incErrors()     { d.statsMu.Lock(); d.errors++; d.statsMu.Unlock() } //nolint:unused // wired when shell hooks report errors
 
 // Interface compliance.
 var (

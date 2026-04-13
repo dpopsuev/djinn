@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dpopsuev/djinn/hook"
 	"github.com/dpopsuev/djinn/telemetry"
 	"github.com/dpopsuev/troupe/director"
 	"github.com/dpopsuev/troupe/signal"
@@ -132,6 +133,22 @@ func TestSubstrate_NoWarnings_WhenFullyWired(t *testing.T) {
 	output := buf.String()
 	if strings.Contains(output, "no Director") || strings.Contains(output, "no ToolRecorder") || strings.Contains(output, "no TraceProjection") {
 		t.Errorf("expected no warnings when fully wired, got: %s", output)
+	}
+}
+
+func TestSubstrate_WithHookDispatcher(t *testing.T) {
+	eventLog := signal.NewMemLog()
+	dispatcher := hook.New([]hook.Hook{
+		{Name: "test", On: hook.PhasePreToolUse, Match: hook.Matcher{Tool: "Bash"}, Action: hook.Action{Deny: "no"}},
+	}, eventLog)
+
+	sub := New(t.TempDir(), WithHookDispatcher(dispatcher))
+
+	if sub.HookDispatcher() == nil {
+		t.Fatal("HookDispatcher should not be nil")
+	}
+	if len(sub.HookDispatcher().Hooks()) != 1 {
+		t.Fatalf("hooks = %d, want 1", len(sub.HookDispatcher().Hooks()))
 	}
 }
 
