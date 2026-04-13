@@ -72,6 +72,24 @@ func New(workDir string, opts ...Option) *RealSubstrate {
 		builtin.RegisterBuiltinTools(reg, workDir, workDir)
 		s.tools = reg
 	}
+
+	// ORANGE: warn about missing integration wiring (GOL-162).
+	if s.director == nil {
+		s.log.WarnContext(context.Background(), "substrate: no Director configured — orchestration unavailable",
+			slog.String(telemetry.KeyComponent, "substrate"),
+		)
+	}
+	if s.recorder == nil {
+		s.log.WarnContext(context.Background(), "substrate: no ToolRecorder configured — tool calls not traced",
+			slog.String(telemetry.KeyComponent, "substrate"),
+		)
+	}
+	if s.ring == nil {
+		s.log.WarnContext(context.Background(), "substrate: no TraceProjection configured — TraceID propagation disabled",
+			slog.String(telemetry.KeyComponent, "substrate"),
+		)
+	}
+
 	return s
 }
 
@@ -130,6 +148,27 @@ func DefaultServices() []Option {
 	return []Option{
 		WithEventLog(signal.NewMemLog()),
 		WithL2Cache(djinncache.NewMemCache()),
+	}
+}
+
+// IntegrationServices returns options for the full trace + recorder + director
+// stack (GOL-162). Builds on DefaultServices and adds TraceProjection,
+// ToolEventRecorder, and LocalDirector. Pass a logger for YELLOW summaries.
+func IntegrationServices(log *slog.Logger) []Option {
+	eventLog := signal.NewMemLog()
+	ring := telemetry.NewTraceProjection(1000).WithEventLog(eventLog) //nolint:mnd // sensible default
+	if log != nil {
+		ring.WithLogger(log)
+	}
+	recorder := NewToolEventRecorder(eventLog, ring.TraceID)
+	dir := NewLocalDirector(DefaultScheduler())
+
+	return []Option{
+		WithEventLog(eventLog),
+		WithL2Cache(djinncache.NewMemCache()),
+		WithTraceProjection(ring),
+		WithToolRecorder(recorder),
+		WithDirector(dir),
 	}
 }
 

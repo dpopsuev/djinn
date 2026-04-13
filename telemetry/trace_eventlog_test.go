@@ -1,6 +1,9 @@
 package telemetry
 
 import (
+	"bytes"
+	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/dpopsuev/troupe/testkit"
@@ -160,6 +163,45 @@ func TestRing_TraceID_Propagation(t *testing.T) {
 	if events[0].TraceID != "" {
 		t.Errorf("events[3].TraceID = %q, want empty after clear", events[0].TraceID)
 	}
+}
+
+func TestRing_TraceSummary_OnClear(t *testing.T) {
+	var buf bytes.Buffer
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo})
+	logger := slog.New(handler)
+
+	ring := NewTraceProjection(100).WithLogger(logger)
+
+	ring.SetTraceID("intent-99")
+	ring.Append(TraceEvent{Action: "agent.cognitive.think", Detail: "analyzing"})
+	ring.Append(TraceEvent{Action: "agent.cognitive.decide", Detail: "Read"})
+	ring.Append(TraceEvent{Action: "tool.executed", Detail: "Read main.go"})
+	ring.Append(TraceEvent{Action: "agent.cognitive.think", Detail: "reasoning"})
+	ring.Append(TraceEvent{Action: "tool.executed", Detail: "Edit main.go"})
+
+	// Clear trace — should log summary.
+	ring.SetTraceID("")
+
+	output := buf.String()
+	if !strings.Contains(output, "intent completed") {
+		t.Errorf("expected 'intent completed' in log, got: %s", output)
+	}
+	if !strings.Contains(output, "intent-99") {
+		t.Errorf("expected intent ID in log, got: %s", output)
+	}
+	if !strings.Contains(output, "entries=3") {
+		t.Errorf("expected entries=3 (cognitive) in log, got: %s", output)
+	}
+	if !strings.Contains(output, "tool=2") {
+		t.Errorf("expected tool=2 in log, got: %s", output)
+	}
+}
+
+func TestRing_TraceSummary_NoLogWithoutLogger(t *testing.T) {
+	ring := NewTraceProjection(100)
+	ring.SetTraceID("intent-1")
+	ring.Append(TraceEvent{Action: "agent.cognitive.think"})
+	ring.SetTraceID("") // no panic without logger
 }
 
 // Ring is NOT an EventLog — it's a CQRS projection (bounded read model).

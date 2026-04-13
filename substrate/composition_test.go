@@ -1,6 +1,9 @@
 package substrate
 
 import (
+	"bytes"
+	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/dpopsuev/djinn/telemetry"
@@ -86,6 +89,74 @@ func TestSubstrate_CompositionRoot_AllWired(t *testing.T) {
 	if sub.EventLog() != eventLog {
 		t.Error("EventLog should be the same instance passed to New")
 	}
+}
+
+func TestSubstrate_WarnsOnMissingIntegration(t *testing.T) {
+	// Capture log output to verify ORANGE warnings.
+	var buf bytes.Buffer
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})
+	logger := slog.New(handler)
+
+	_ = New(t.TempDir(), WithSubstrateLogger(logger))
+
+	output := buf.String()
+	if !strings.Contains(output, "no Director configured") {
+		t.Error("expected Director warning in log output")
+	}
+	if !strings.Contains(output, "no ToolRecorder configured") {
+		t.Error("expected ToolRecorder warning in log output")
+	}
+	if !strings.Contains(output, "no TraceProjection configured") {
+		t.Error("expected TraceProjection warning in log output")
+	}
+}
+
+func TestSubstrate_NoWarnings_WhenFullyWired(t *testing.T) {
+	var buf bytes.Buffer
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})
+	logger := slog.New(handler)
+
+	eventLog := signal.NewMemLog()
+	ring := telemetry.NewTraceProjection(100).WithEventLog(eventLog)
+	rec := NewToolEventRecorder(eventLog, nil)
+	dir := NewLocalDirector(DefaultScheduler())
+
+	_ = New(t.TempDir(),
+		WithSubstrateLogger(logger),
+		WithEventLog(eventLog),
+		WithDirector(dir),
+		WithTraceProjection(ring),
+		WithToolRecorder(rec),
+	)
+
+	output := buf.String()
+	if strings.Contains(output, "no Director") || strings.Contains(output, "no ToolRecorder") || strings.Contains(output, "no TraceProjection") {
+		t.Errorf("expected no warnings when fully wired, got: %s", output)
+	}
+}
+
+func TestSubstrate_IntegrationServices(t *testing.T) {
+	sub := New(t.TempDir(), IntegrationServices(nil)...)
+
+	if sub.EventLog() == nil {
+		t.Error("EventLog nil")
+	}
+	if sub.Director() == nil {
+		t.Error("Director nil")
+	}
+	if sub.TraceProjection() == nil {
+		t.Error("TraceProjection nil")
+	}
+	if sub.ToolRecorder() == nil {
+		t.Error("ToolRecorder nil")
+	}
+
+	// TraceID propagation works.
+	sub.TraceProjection().SetTraceID("int-svc-test")
+	if sub.TraceProjection().TraceID() != "int-svc-test" {
+		t.Errorf("TraceID = %q, want int-svc-test", sub.TraceProjection().TraceID())
+	}
+	sub.TraceProjection().SetTraceID("")
 }
 
 func TestSubstrate_Defaults_NilDirector(t *testing.T) {

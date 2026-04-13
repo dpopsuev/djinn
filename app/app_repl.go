@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dpopsuev/battery/middleware"
 	"github.com/dpopsuev/djinn/agent"
 	"github.com/dpopsuev/djinn/agent/symbol"
 	"github.com/dpopsuev/djinn/artifact"
@@ -247,16 +246,10 @@ func RunREPL(args []string, stderr io.Writer) error { //nolint:gocyclo,funlen //
 		sess.History.Clear()
 	}
 
-	// Substrate — composition root for all node-local services (GOL-159).
-	sub := substrate.New(Getwd(), substrate.DefaultServices()...)
-
-	// Trace ring — observable by default (Flywheel Tier 4).
-	eventLog := sub.EventLog()
-	traceRing := telemetry.NewTraceProjection(1000).WithEventLog(eventLog) //nolint:mnd // 1000 events is a sensible default
-
-	// Default tool recorder — bridges Battery Recorder to Troupe EventLog (GOL-162).
-	toolRecorder := substrate.NewToolEventRecorder(eventLog, traceRing.TraceID)
-	middleware.SetDefaultRecorder(toolRecorder)
+	// Substrate — composition root for all node-local services (GOL-159, GOL-162).
+	sub := substrate.New(Getwd(), substrate.IntegrationServices(telemetry.For(logResult.Logger, "trace"))...)
+	traceRing := sub.TraceProjection()
+	toolRecorder := sub.ToolRecorder()
 
 	// Hub mediators — DevOps phase coordination (GOL-58).
 	hubRegistry := substrate.NewRegistry()

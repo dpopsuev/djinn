@@ -5,7 +5,9 @@
 package telemetry
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -26,6 +28,7 @@ type TraceProjection struct {
 	nextID   atomic.Int64
 	traceID  string          // current intent-level trace ID (GOL-162)
 	eventLog signal.EventLog // optional: unified event log bridge
+	log      *slog.Logger    // optional: YELLOW summary on trace completion
 }
 
 // NewTraceProjection creates a bounded projection with the given capacity.
@@ -34,6 +37,12 @@ func NewTraceProjection(capacity int) *TraceProjection {
 		events: make([]TraceEvent, capacity),
 		cap:    capacity,
 	}
+}
+
+// WithLogger enables YELLOW summary logging on trace completion.
+func (r *TraceProjection) WithLogger(l *slog.Logger) *TraceProjection {
+	r.log = l
+	return r
 }
 
 // WithEventLog bridges the Ring to a unified EventLog.
@@ -45,10 +54,44 @@ func (r *TraceProjection) WithEventLog(log signal.EventLog) *TraceProjection {
 
 // SetTraceID sets the intent-level trace ID for all subsequent events.
 // Call when a new operator prompt arrives. Pass "" to clear.
+// When clearing a non-empty trace, emits a YELLOW summary log if a logger is set.
 func (r *TraceProjection) SetTraceID(traceID string) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	prev := r.traceID
 	r.traceID = traceID
+	r.mu.Unlock()
+
+	// YELLOW: log trace summary when an intent completes (prev→"").
+	if prev != "" && traceID == "" && r.log != nil {
+		r.logTraceSummary(prev)
+	}
+}
+
+// logTraceSummary emits a structured summary of a completed trace.
+func (r *TraceProjection) logTraceSummary(traceID string) {
+	r.mu.RLock()
+	var total, cognitive, tool int
+	r.walk(func(e TraceEvent) {
+		if e.TraceID != traceID {
+			return
+		}
+		total++
+		switch e.Action {
+		case "agent.cognitive.think", "agent.cognitive.decide",
+			"agent.cognitive.retry", "agent.cognitive.give_up":
+			cognitive++
+		case "tool.executed":
+			tool++
+		}
+	})
+	r.mu.RUnlock()
+
+	r.log.InfoContext(context.Background(), "intent completed",
+		slog.String(KeyIntentID, traceID),
+		slog.Int(KeyCount, total),
+		slog.Int(KeyEntries, cognitive),
+		slog.Int(KeyTool, tool),
+	)
 }
 
 // TraceID returns the current intent-level trace ID.
